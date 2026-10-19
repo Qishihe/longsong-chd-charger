@@ -1,0 +1,18 @@
+# 实验 / 截图 / 浏览器配置目录：体量大且含明文凭证（scratch 里有 real_token.txt），一律不入库
+scratch/
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+
+# 运行时数据：历史快照按天增长，属于本机运行产物
+campus-pile-kit/data/history/
+
+# 日志
+*.log
+
+# 系统垃圾
+Thumbs.db
+desktop.ini
+.DS_Store

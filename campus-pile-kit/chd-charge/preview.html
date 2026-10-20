@@ -505,6 +505,32 @@
     <div class="note"><a href="./help.html">不会抓？看这篇三分钟教程 →</a></div>
   </div>
 
+  <!-- ⚡ 性能（消除 CLS）：就地决定「凭证状态 / 引导卡」谁显示。
+       两个元素默认都是 hidden，原本要等文档末尾那段脚本跑到 paintCred() 才定下来；
+       而那段脚本要等整份 175KB HTML 下载解析完（4G 下实测 DOMContentLoaded 在 5.6 秒），
+       于是首屏先按「两个都不显示」排版，之后 #guide 插入 266px 把页脚整块推下去，
+       实测 CLS 0.32（Google 阈值 0.1 以内才算「良好」）。
+       放在这里执行，解析到该位置时就已经定好，首屏布局即最终布局，位移消失。
+       ⚠️ 判断口径必须和下方 tokenState() 保持一致（只看有没有 token，有就是「已有凭证」）。 -->
+  <script>
+  (function () {
+    try {
+      var t = '';
+      try { t = (localStorage.getItem('cpk.token') || '').trim(); } catch (e) {}
+      var hasToken = !!t;
+      var cred = document.getElementById('cred');
+      var guide = document.getElementById('guide');
+      if (hasToken) {
+        if (cred) cred.hidden = false;
+        if (guide) guide.hidden = true;
+      } else {
+        if (cred) cred.hidden = true;
+        if (guide) guide.hidden = false;
+      }
+    } catch (e) {}
+  })();
+  </script>
+
   <div class="stats" id="stats" hidden data-page-node-id="5x1j2QDohgutPLD0k1nbee">
     <div class="stat" data-page-node-id="VF9BnkcoZS3CBHClACttK4"><b class="free" id="s-free" data-page-node-id="8KiCFjRHb57uVEwYg4SeN0">–</b><span data-page-node-id="Mqk5tE3OM0RDro1qnSSyXt">空闲插座</span></div>
     <div class="stat" data-page-node-id="UCQnmDQg4sfZE6g9eEA3YZ"><b id="s-busy" data-page-node-id="pN33F2HXrfx0hcB5nJwegB">–</b><span data-page-node-id="sduqE7P2SxNDCFGONIGTHA">正在充电</span></div>
@@ -578,7 +604,13 @@
       <button id="map-key-btn" type="button">填写 key</button>
     </div>
     <svg id="campus-map" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 9600 3422" preserveAspectRatio="xMidYMid meet">
-      <image id="campus-map-img" href="map-weishui-raw.webp" x="0" y="0" width="9600" height="3422"/>
+      <!-- ⚡ 性能：底图不在这里写实际路径。
+           本 SVG 在初始 HTML 里，<image href> 会被浏览器在解析时立刻下载 —— 而地图弹窗
+           默认是关着的（<dialog> 无 open），用户不点「地图」根本用不到。
+           渭水底图 963KB，占首页总下载量的 93%，白白拖慢首屏。
+           实际路径由 applyBaseMap() 在 openMap()/openMapAt()/切页签时设置（见 JS）。
+           这里放 1×1 透明 GIF 占位，width/height 保持真实尺寸，SVG 坐标系不受影响。 -->
+      <image id="campus-map-img" href="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" x="0" y="0" width="9600" height="3422"/>
       <g id="map-markers"></g>
     </svg>
     <div class="map-controls">
@@ -1469,11 +1501,11 @@ const BM_SPOTS = (() => {
 const ADDRESS_MAPS = {
   '_default': {
     id: 'chaohui', label: '渭水 · 朝晖体育场南',
-    img: 'map-clean.png', w: 1024, h: 1536, layout: 'arc', name: '朝晖体育场南',
+    img: 'map-clean.webp', w: 1024, h: 1536, layout: 'arc', name: '朝晖体育场南',
   },
   '渭水-北门': {
     id: 'beimen', label: '渭水 · 北门',
-    img: 'map-beimen.png', w: 1226, h: 924, layout: 'park', name: '北门',
+    img: 'map-beimen.webp', w: 1226, h: 924, layout: 'park', name: '北门',
     spots: BM_SPOTS,
   },
 };
@@ -3957,6 +3989,13 @@ async function consumeSyncHash() {
 }
 
 async function boot() {
+  /* ⚡ 性能：先把凭证状态画出来，再去做网络等待。
+   * paintCred() 是纯同步的（只读 localStorage + 解析 JWT），不依赖下面两个 await。
+   * 原顺序下它要等 cloudAutoSync（一次云端请求）回来才执行 —— 4G 下实测要 5 秒多，
+   * 期间 #guide 还保持 HTML 默认的 hidden，等它显示时插入 266px，
+   * 把页脚和下方内容整体推下去，实测 CLS 0.32（Google 阈值 0.1 才算「良好」）。
+   * 提前调用后首屏布局就是最终布局，位移消失；云端回来后 L3989 仍会再调一次刷新状态。 */
+  paintCred();
   const sync = await consumeSyncHash();
   const merged = await cloudAutoSync({ force: Boolean(sync && sync.syncKey) });
   // 注意：这里不再自动同步设备清单 —— 清单同步必须输密码（在同步弹窗里手动触发）

@@ -3973,17 +3973,97 @@ function applyAutoRefresh() {
  *   3. **失败不可见**：`writeHistory` 里是 `catch (e) {}`，写失败一声不响，
  *      从界面上完全看不出是「没采集」还是「采集了没写进去」。
  *
- * 新实现：
+ * 新实现（两步走，第二步是产品方追问后才补的）：
  *   · **整点对齐**：算到下一个整点的毫秒数再触发，保证样本落在不同的小时桶里
- *   · **真调接口**：走 refresh({force:true})，真去平台查一次占用率（产品方要的就是这个），
+ *   · **真调接口**：真去平台查一次占用率（产品方要的就是这个），
  *     而不是读那份 60 秒就过期的共享表
+ *   · **静默**：采集全程不碰进度条/按钮/卡片（详见 collectHistorySilently 的注释）
  *   · **首屏补采**：加载后 ~20 秒补一次，让「只开几分钟」的访问也能贡献一个样本
- *     （但同一小时只采一次，见 hourKey 去重）
+ *     （同一小时只采一次，见 historyHourKey 去重）
  *
- * 设计取舍：整点采集会让所有开着的设备**同时**发请求。设备数很少（校内自用），
- * 且 refresh 内部本来就有 CONCURRENCY 限流 + 60 秒 TTL 缓存，可接受；
- * 若将来设备变多，应改成「整点 ± 随机偏移」错峰。
+ * 已知取舍（两条都要记住）：
+ *   1. **整点同时发请求**：所有开着的设备会在同一时刻采集。当前设备少（73 台、校内自用）
+ *      可接受；设备变多后应改成「整点 ± 随机偏移」错峰。
+ *   2. **依赖页面开着**：这是客户端方案的天花板 —— 凌晨没人开页面就没有那一小时的数据。
+ *      更可靠的做法是**服务端定时**（v1.93 起站点由常驻的 serve_gzip.py 提供服务，
+ *      理论上可起后台线程每小时采集，与浏览器无关）。但那要验证平台是否允许后台线程
+ *      与对外网络出口，尚未验证，故先保留客户端方案。
+ *      详见 `沟通记录-DeepSeek-WorkBuddy.md` 待办 #12 与历史 22:xx 条目。
  */
+
+/** 每小时保底采集（**静默版**）：真去查一次占用，然后落历史快照。
+ *
+ * ⚠️ 为什么不复用 refresh()
+ * 第一版我让它调 `refresh({ force: true })`，结果发现那会**当着用户的面**跑一整套 UI 流程：
+ *   · `setProgress()` 弹出「正在查询 x/73 个位置」进度条
+ *   · `$('refresh').disabled = true` 把刷新按钮锁灰
+ *   · 每查完几台就 `render()` 重绘一次卡片
+ *   · 73 台 ÷ 并发 6 ≈ 13 轮，每轮 `sleep(800)` ≈ 10.4 秒 + 网络往返 → **共 14~16 秒**
+ * 也就是说：用户打开页面 20 秒后，会突然看到一次持续十几秒的全量刷新，
+ * 想点刷新还发现按钮是灰的。**采集是他看不见的后台行为，不该打断他。**
+ *
+ * 所以这里自己走一遍查询循环，只做「取数 → 写缓存/共享/历史」，
+ * **完全不碰进度条、按钮、卡片渲染**。接口调用次数省不掉（取数必须调），
+ * 但对用户完全无感。
+ *
+ * 与 refresh() 的差异（有意的）：
+ *   · 查**全部**设备，不受「地址筛选」影响 —— 历史要完整，不能因为用户筛了某个地址就少记
+ *   · 不写 `busyFlag`，改成「读」它 —— 用户正在刷新时直接让路，别跟他抢接口
+ *   · 失败只写 console，不改界面 banner（用户没主动操作，不该看到错误提示）
+ */
+async function collectHistorySilently(reason) {
+  if (!cloudSupport()) { console.warn('[history] 跳过采集：云端不可用'); return false; }
+  if (store.get(KEY_AUTO, true) === false) return false;
+  if (busyFlag) { console.warn('[history] 跳过采集：用户正在刷新，让路'); return false; }
+
+  const devices = getDevices();
+  if (!devices.length) { console.warn('[history] 跳过采集：设备清单为空'); return false; }
+
+  const CONC = 6;                       // 与 refresh() 的 CONCURRENCY 保持一致
+  const results = new Array(devices.length).fill(null);
+  let cursor = 0;
+  let okCount = 0;
+
+  const worker = async () => {
+    while (true) {
+      const k = cursor++;
+      if (k >= devices.length) return;
+      try {
+        const ports = await readPorts(devices[k].id);
+        results[k] = ports;
+        okCount += 1;
+      } catch (e) {
+        results[k] = null;              // 单台失败不影响整体
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(CONC, devices.length) }, () => worker()));
+
+  if (!okCount) { console.warn('[history] 采集失败：' + devices.length + ' 台全部未取到数据'); return false; }
+
+  // 写本地缓存 + 云端共享（让别的设备也能复用这次结果，顺带摊薄调用量）
+  const now = Date.now();
+  const cache = readCache();
+  const toShare = [];
+  devices.forEach((d, i) => {
+    const ports = results[i];
+    if (!ports || !ports.length) return;
+    cache[d.id] = { at: now, ports, error: null };
+    const row = buildShareRow(d.id, { ports });
+    if (row) toShare.push(row);
+  });
+  store.set(KEY_CACHE, cache);
+  if (toShare.length) cloudWriteShared(toShare);
+
+  // 落历史（真正目的）
+  const records = devices
+    .map((d, i) => (results[i] && results[i].length ? { deviceId: d.id, location: d.location || '', ports: results[i] } : null))
+    .filter(Boolean);
+  if (records.length) writeHistory(records);
+
+  console.log('[history] 静默采集完成 ' + okCount + '/' + devices.length + ' 台（' + reason + '）');
+  return true;
+}
 
 // 记录已经采过的小时（'YYYY-MM-DDTHH'），避免同一小时重复写快照把数据写脏
 let lastHistoryHour = null;
@@ -3996,37 +4076,25 @@ function historyHourKey(d = new Date()) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}`;
 }
 
-/** 每小时保底采集：真去查一次占用，然后落历史快照 */
+/** 每小时保底采集的调度入口（去重 + 允许失败重试） */
 async function hourlyHistoryTick(reason) {
-  if (!cloudSupport()) {
-    console.warn('[history] 跳过采集：云端不可用');
-    return;
-  }
-  if (store.get(KEY_AUTO, true) === false) return;
   const hk = historyHourKey();
   if (hk === lastHistoryHour) return;      // 本小时已采过
-  if (busyFlag) {                          // 正在刷新中，让它采完，下一分钟再试
-    console.warn('[history] 本小时采集推迟：正在刷新中');
-    return;
-  }
-  lastHistoryHour = hk;
-  console.log('[history] 开始采集 ' + hk + '（' + reason + '）');
-  try {
-    // refresh() 内部会：查平台 → 写共享 → writeHistory()（见 refresh 的第 ④ 步）
-    await refresh({ force: true });
+  lastHistoryHour = hk;                    // 先占位，防止并发重复进入
+  const ok = await collectHistorySilently(reason);
+  if (ok) {
     try { store.set('cpk.history.last', hk); } catch (e) {}
-  } catch (e) {
+  } else {
     lastHistoryHour = null;                // 失败就允许重试，别把这小时锁死
-    console.warn('[history] 采集失败，本小时允许重试', e);
   }
 }
 
 function applyHourlyHistory() {
-  if (historyTimer) { clearInterval(historyTimer); historyTimer = null; }
+  if (historyTimer) { clearTimeout(historyTimer); historyTimer = null; }
   if (historyBootTimer) { clearTimeout(historyBootTimer); historyBootTimer = null; }
   if (store.get(KEY_AUTO, true) === false) return;
 
-  // 恢复「本小时是否已采过」：页面重开/刷新后不该重复采同一个小时候
+  // 恢复「本小时是否已采过」：页面重开/刷新后不该重复采同一个小时
   try { lastHistoryHour = store.get('cpk.history.last', null); } catch (e) {}
 
   // ① 整点对齐：算到下一个整点的毫秒数（+2 秒余量，避开边界抖动）
@@ -4043,6 +4111,7 @@ function applyHourlyHistory() {
   scheduleNextHour();
 
   // ② 首屏补采：加载 20 秒后，若本小时还没采过就补一次（短访问也能贡献样本）
+  //    注意：这一步是**静默**的，用户看不到进度条/按钮变化（见 collectHistorySilently 注释）
   historyBootTimer = setTimeout(() => {
     if (historyHourKey() !== lastHistoryHour) hourlyHistoryTick('首次加载补采');
   }, 20000);

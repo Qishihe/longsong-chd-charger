@@ -39,26 +39,31 @@
 
 <div id="setup">
   <div class="card">
-    <h1>还没填 key</h1>
-    这个骨架已经写好，只差两个值。打开文件，找到最上面的 <code>CONFIG</code>：
+    <h1>还没配高德 Key</h1>
+    Key 不在仓库里（这是公开仓库，写进来等于送人用配额）。三步：
     <ol>
-      <li><b>key</b>：高德控制台 → 应用管理 → 添加 Key → 服务平台选「Web端(JS API)」</li>
-      <li><b>securityCode</b>：同一个页面给的「安全密钥」，两者必须配对</li>
+      <li>去 <code>console.amap.com/dev/key</code> 申请，服务平台选 <b>「Web端(JS API)」</b>，
+          拿到 <b>Key</b> 和 <b>安全密钥 securityJsCode</b>（两个必须配对，少一个报错）</li>
+      <li>把同目录的 <code>map-key.example.js</code> 复制为 <code>map-key.local.js</code>，填进你的两个值
+          （该文件已在 <code>.gitignore</code> 里，不会被提交）</li>
+      <li>用一个本地服务打开（<code>file://</code> 会被域名白名单挡）：
+          <code>python -m http.server 8080</code> → <code>http://localhost:8080/map.html</code></li>
     </ol>
-    填完用一个本地服务打开（<code>file://</code> 会被域名白名单挡）：
-    <br><code>python -m http.server 8080</code> → 访问 <code>http://localhost:8080/这个文件.html</code>
-    <br><br>
-    控制台域名白名单里记得加 <code>localhost</code>。
+    别忘了在 Key 的「设置 → 域名白名单」里加上你的站点域名和 <code>localhost</code>。
+    部署时 <code>map-key.local.js</code> 必须一起传上去，否则线上也会显示这一页。
   </div>
 </div>
 
 <div id="err"></div>
 
+<script src="./map-key.local.js"></script>
 <script>
 /* ==================== 只改这里 ==================== */
 const CONFIG = {
-  key: 'amap-key-placeholder',
-  securityCode: 'amap-key-placeholder',
+  // 高德 Key 不在仓库里。去 https://console.amap.com/dev/key 申请「Web端(JS API)」，
+  // 然后复制 map-key.example.js 为 map-key.local.js 并填入你的两个值。
+  key: (window.CHD_AMAP_KEY || ''),
+  securityCode: (window.CHD_AMAP_SCODE || ''),
   styleId: '',             // 可选：'amap://styles/xxxxxxxx'
   hidePOI: true,           // true = 隐藏底图 POI（features 里去掉 'point'）
   center: [108.902142, 34.370051],   // [经度, 纬度] GCJ-02（渭水校区几何中心）

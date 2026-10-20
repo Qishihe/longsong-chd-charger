@@ -1987,7 +1987,7 @@ const TMAP_VIEW = { beimen: '渭水-北门', chaohui: '渭水-朝晖体育场南
 let tmapActive = false;
 let tmapLoading = null;
 
-// 高德地图（map-amap.js）：渭水校区总览页签专用，Key 已内置，无需用户配置
+// 高德地图（map-amap.js）：渭水校区总览页签专用，Key 由 map-key.local.js 提供（不进仓库）
 let amapActive = false;
 let amapLoading = null;
 
@@ -2111,9 +2111,24 @@ function tmapApplyView(mapId, focusDeviceId) {
 }
 
 /* ---------------- 高德地图（「高德地图」页签） ----------------
- * map-amap.js 提供 CHD_AMAP，Key/securityJsCode 已内置，limitBounds 限制相机留在校区内。
+ * map-amap.js 提供 CHD_AMAP，limitBounds 限制相机留在校区内。
+ * Key 不写死在代码里：由 map-key.local.js 提供 window.CHD_AMAP_KEY / _SCODE，
+ * 该文件不进仓库（.gitignore），自部署时从 map-key.example.js 复制并填自己的。
  * 只有独立页签使用它；渭水校区总览 / 北门 / 朝晖 仍是原来的静态底图。
  */
+
+/** 载入本地 Key 文件（可选）。文件不存在是正常情况（克隆仓库的人），不报错。 */
+function loadLocalKeyOnce() {
+  if (window.CHD_AMAP_KEY) return Promise.resolve();
+  return new Promise((resolve) => {
+    const s = document.createElement('script');
+    s.src = 'map-key.local.js';
+    s.onload = () => resolve();
+    s.onerror = () => resolve();   // 没有这个文件 → 交给 map-amap.js 报 nokey
+    document.head.appendChild(s);
+  });
+}
+
 function ensureAMap() {
   if (amapLoading) return amapLoading;
   amapLoading = new Promise((resolve) => {
@@ -2142,6 +2157,8 @@ function ensureAMap() {
           amapActive = false;
           $('map-dialog').removeAttribute('data-engine');
           console.warn('[map] 高德地图加载失败：' + reason);
+          // nokey：仓库里不带 Key，提示去看 map-key.example.js
+          if (reason === 'nokey') $('map-keybar').hidden = false;
           done(false);
         },
         onPileClick: onAMapPileClick,
@@ -2149,8 +2166,9 @@ function ensureAMap() {
     };
     if (window.CHD_AMAP && window.CHD_MAP) { boot(); return; }
     loadScriptOnce('map-data.js?v=163')
+      .then(loadLocalKeyOnce)
 // ⚠️ map-amap.js 走 Service Worker 缓存优先，改了它必须同时改这里的 ?v=，否则用户拿的还是旧文件
-      .then(() => loadScriptOnce('map-amap.js?v=122'))
+      .then(() => loadScriptOnce('map-amap.js?v=123'))
       .then(boot)
       .catch(() => done(false));
   });

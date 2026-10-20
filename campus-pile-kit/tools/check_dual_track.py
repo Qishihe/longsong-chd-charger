@@ -145,7 +145,18 @@ def main():
 
     num = lambda s: re.search(r"v(\d+\.\d+)", s)
     a, b = num(pv_ver), num(ix_ver)
-    c.check(a and b and a.group(1) == b.group(1), "两版页脚版本号一致",
+    c.check(bool(a and b), "两版页脚都能解析出版本号",
+            f"preview={a.group(1) if a else '?'} / index={b.group(1) if b else '?'}")
+
+    # 2026-10-20 放宽（产品方同意，见沟通记录待办 7）：
+    # 原断言要求「两版版本号一致」，与交接文档 §6「改动一律先落 preview」直接冲突 ——
+    # 只要发一次「仅内测版」，这条就会误报失败，逼得人要么不敢发内测、要么绕过校验。
+    # 新口径：允许内测版号领先（内测 ≥ 正式），但**禁止反向** ——
+    # 正式版反超内测版只可能意味着线上跑的构建没在内测版里验证过，那才是真事故。
+    pv_num = tuple(int(x) for x in a.group(1).split(".")) if a else None
+    ix_num = tuple(int(x) for x in b.group(1).split(".")) if b else None
+    c.check(bool(pv_num and ix_num) and pv_num >= ix_num,
+            "内测版版本号 ≥ 正式版（允许仅内测先发，禁止正式版反超）",
             f"preview={a.group(1) if a else '?'} / index={b.group(1) if b else '?'}")
 
     # ---------- 站点目录保洁 ----------

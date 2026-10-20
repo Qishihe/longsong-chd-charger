@@ -22,3 +22,7 @@ map-key.local.js
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# 发布指令 / 交接类文档：会贴 Key、凭证原文，一律不入库
+# （HANDOFF.md 例外 —— 它只写「Key 在哪、怎么轮换」，已核对不含明文）
+发布指令*.md

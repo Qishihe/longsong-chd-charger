@@ -1718,6 +1718,31 @@ function buildScope() {
   });
 }
 
+/** 空闲时预热小底图：让「点地图」不再先看到空白背景 + 一堆孤零零的桩点。
+ *
+ * 背景：底图改成按需加载后（首屏省下 963KB），点「地图」时
+ *   applyBaseMap() 在 ~26ms 就设好 href、renderMapMarkers() 也立刻把桩点画出来，
+ *   但图片要 ~320ms 才到 —— 这 300ms 里用户看到的是**空白米色背景上飘着红绿圆点**，
+ *   实测连拍确认（120ms 时截图仅 33KB＝几乎全空，350ms 才跳到 173KB）。
+ *   这比单纯慢更难看，看起来像坏了。
+ *
+ * 做法：首屏之后（requestIdleCallback）把**真正会用到的两张小图**预热进 HTTP 缓存：
+ *   · 朝晖 map-clean.webp  69KB  ← openMap() 首次进入的默认图
+ *   · 北门 map-beimen.webp 76KB
+ *   合计 145KB，空闲时段拉取，不阻塞首屏。
+ *
+ * ⚠️ 故意**不预热** map-weishui-raw.webp（963KB 的渭水校区总览图）：
+ *   它是用户主动点「渭水校区」页签才需要的，按需即可；
+ *   首屏/空闲时段都不该为它付 963KB。
+ *   （注：这张图在**正式版 index.html 里从不显示**，在内测版里由「渭水校区」页签使用。）
+ */
+function warmBaseMaps() {
+  const urls = ['map-clean.webp', 'map-beimen.webp'];
+  const run = () => urls.forEach((u) => { const im = new Image(); im.src = u; });
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 3000 });
+  else setTimeout(run, 1200);
+}
+
 /** 切换底图图片与尺寸 */
 function applyBaseMap() {
   const img = $('campus-map-img');
@@ -4033,6 +4058,8 @@ async function boot() {
   bindToolbar();
   bindAutoToggle();
   applyAutoRefresh();
+  // 首屏不用等：把两张小底图丢到空闲时段预热，之后点「地图」就是秒开
+  warmBaseMaps();
   await refresh({ force: Boolean((sync && sync.ok) || (merged && merged.applied)) });
 }
 

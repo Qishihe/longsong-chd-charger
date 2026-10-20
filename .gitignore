@@ -12,6 +12,12 @@ campus-pile-kit/data/history/
 # 日志
 *.log
 
+# 本地密钥：高德 Key / 安全密钥（模板见 map-key.example.js）
+# 本仓库公开，Key 进来就等于送人用，配额算在你头上
+map-key.local.js
+*-key.local.js
+*.local.js
+
 # 系统垃圾
 Thumbs.db
 desktop.ini

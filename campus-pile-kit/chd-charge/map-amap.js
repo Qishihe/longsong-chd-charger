@@ -2,17 +2,27 @@
  * 依赖 map-data.js 提供的 window.CHD_MAP（GCJ-02 坐标，腾讯/高德通用）
  * 对外接口：CHD_AMAP.mount / setView / setPiles / focusPile / resize / destroy
  *
- * 与 map-tmap.js（腾讯）平行的一套高德实现，Key 已填入，无需用户再配置。
+ * 与 map-tmap.js（腾讯）平行的一套高德实现。
  * 差异点：
- *   1) 高德 JS API 2.0，Key/securityJsCode 内联；
+ *   1) 高德 JS API 2.0；Key/securityJsCode 由外部注入（见下方 AMAP_KEY 注释）；
  *   2) limitBounds 限制相机始终留在渭水校区内（拖不出边界）。
  */
 (function () {
   'use strict';
 
   var SDK = 'https://webapi.amap.com/maps?v=2.0';
-  var AMAP_KEY = 'amap-key-placeholder';
-  var AMAP_SCODE = 'amap-key-placeholder';
+
+  /* 高德 Key 不写在本文件里（本仓库公开，写进来等于送人）。
+   * 取值顺序：window.CHD_AMAP_KEY / window.CHD_AMAP_SCODE
+   *   —— 由同目录的 map-key.local.js 提供，该文件不进仓库（见 .gitignore）。
+   * 自己部署时：
+   *   1) 去 https://console.amap.com/dev/key 申请「Web端(JS API)」的 Key + 安全密钥
+   *   2) 把 map-key.example.js 复制为 map-key.local.js，填进你的两个值
+   *   3) 确认页面在加载 map-amap.js 之前先加载了 map-key.local.js
+   * 没配置时不会崩，只会回调 onFail('nokey')，页面会提示「未配置高德 Key」。
+   */
+  var AMAP_KEY = (typeof window !== 'undefined' && window.CHD_AMAP_KEY) || '';
+  var AMAP_SCODE = (typeof window !== 'undefined' && window.CHD_AMAP_SCODE) || '';
 
   var D = null;                 // CHD_MAP
   var map = null, host = null;
@@ -531,6 +541,15 @@
       }
 
       if (window.AMap) { init(); return; }
+
+      // 没配 Key 就别去请求 SDK（会 401 且刷一堆无意义的报错），直接告诉调用方
+      if (!AMAP_KEY || !AMAP_SCODE) {
+        failed = true;
+        failReason = 'nokey';
+        console.warn('[CHD_AMAP] 未配置高德 Key：请复制 map-key.example.js 为 map-key.local.js 并填入自己的 Key');
+        onFailCb && onFailCb(failReason);
+        return;
+      }
 
       window._AMapSecurityConfig = { securityJsCode: AMAP_SCODE };
       var s = document.createElement('script');

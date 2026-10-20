@@ -1500,10 +1500,17 @@ const BM_SPOTS = (() => {
       y,
     }));
   return [
-    ...row('A', 491, 663, 6, 125),
-    ...row('B', 491, 663, 6, 167.5),
-    ...row('C', 693, 1008, 11, 125, true),
-    ...row('D', 701, 1095, 14, 167.5, true),
+    // 2026-10-21 产品方：「北门的充电桩在靠近边界一点点」
+    // 量的底图（map-beimen.webp 1226×924）：停车区白色圆角框 y≈77~213，
+    //   里面两排车位 —— 粉色排（A/C）y≈100~130、绿色排（B/D）y≈157~193。
+    //   原参数两排都在 y=125 / 167.5（偏框中央），现各向自己那一侧的边界挪一点：
+    //   A/C 排 125→112（上移，靠近上边界），B/D 排 167.5→182（下移，靠近下边界）。
+    //   ⚠️ 只动 y，x 区间保持原样（桩必须落在车位上，横向已对齐车位两端）。
+    //   y 就是「靠近边界多少」的旋钮：值越小越靠上边界、越大越靠下边界。
+    ...row('A', 491, 663, 6, 112),
+    ...row('B', 491, 663, 6, 182),
+    ...row('C', 693, 1008, 11, 112, true),
+    ...row('D', 701, 1095, 14, 182, true),
   ];
 })();
 
@@ -1564,15 +1571,53 @@ let curMap = ADDRESS_MAPS['_default'];
 function mapAspect() { return curMap.h / curMap.w; }
 
 // —— 椭圆弧布局（朝晖主图，编号 1~36）——
-const ARC_CX = 511, ARC_CY = 784;
-const ARC_RX = 368, ARC_RY = 501;
+// 2026-10-21 产品方：「朝晖体育场的 36 个充电桩希望布局能够再靠近体育场中心一些」
+// 量的底图（map-clean.webp 1024×1536）：红色跑道椭圆 x≈290~735、y≈310~1210，
+//   即中心≈(512,760)、半宽≈222、半高≈450。对照原参数 RX=368 / RY=501：
+//   左右最远到 x=143 / 879，**明显跑到椭圆外面**（半宽 368 > 体育场 222）。
+// 所以把两个半径一起收 −15%：RX 368→312、RY 501→428，弧线整体向中心收拢。
+// 圆心也顺手对齐量的中心：CY 784→766（CX 511 已准，不动）。
+// ⚠️ 这两个半径就是「靠近多少」的唯一旋钮，要再靠近就继续减小（改完刷新即见）。
+const ARC_CX = 511, ARC_CY = 766;
+const ARC_RX = 312, ARC_RY = 428;
 // 两段弧：左下(TY-01~12) + 右下(TY-13~36)，中间底部留空。角度单位=度，θ 从 180°(左) 经 90°(底) 到 0°(右)
 const ARC_LEFT_START = 180, ARC_LEFT_END = 128;
 const ARC_RIGHT_START = 52, ARC_RIGHT_END = 0;
 const ARC_LEFT_COUNT = 12;
 const ARC_TOTAL = 36;
 // 标点屏幕尺寸（px，恒定，不随地图缩放变化）
-const PIN_SCREEN_R = 8.5;
+// 2026-10-21：8.5 → 10 —— 圈里改显示 3 个字符的短编号（T01）后，
+// 原尺寸下字号只有 ~6.3px，手机上偏小。放大到 10 后 3 字符字号约 7.4px。
+// ⚠️ 这就是「标点大小」的旋钮；调大会让缩小时相邻点更容易重叠（属预期行为）。
+const PIN_SCREEN_R = 10;
+
+/**
+ * 桩点里显示的**短编号**（2026-10-21 产品方要求：每个点都带上设备编号）。
+ *   TY-01 / TY01 / T01 → T01      （朝晖体育场，TY 统一简写成 T）
+ *   A01 / B3 / C11 / D14 → A01 / B03 / C11 / D14   （北门停车区，字母 + 两位数字）
+ * 数字一律补到两位，保证三个字符等宽、圈里排得下。
+ * ⚠️ 这是**纯展示**用的短编号，不参与任何匹配/查询；真实编号仍用 device.code。
+ */
+function shortCode(device) {
+  const raw = String((device && (device.code || device.name)) || (device && device.id) || '').trim();
+  if (!raw) return '';
+  // TY-01 / TY01 / TZ-1 / T01 → T + 两位数字
+  let m = raw.match(/^T[YZ]?\s*-?\s*(\d+)$/i);
+  if (m) return 'T' + m[1].padStart(2, '0');
+  // A01 / B3 / C11 / D14 → 字母大写 + 两位数字
+  m = raw.match(/^([A-Za-z])\s*-?\s*(\d+)$/);
+  if (m) return m[1].toUpperCase() + m[2].padStart(2, '0');
+  // 兜底：从长名字里抠出「字母+数字」的编号
+  //   '渭水校区 TY-01 号桩' → T01   ·   '渭水校区 北-A01 号桩' → A01
+  const t = raw.match(/([A-Za-z]{1,2})\s*-?\s*(\d+)/);
+  if (t) {
+    let letter = t[1].toUpperCase();
+    if (letter === 'TY' || letter === 'TZ') letter = 'T';   // 与主逻辑同一简写口径
+    return letter.slice(0, 1) + t[2].padStart(2, '0');
+  }
+  // 实在抠不出来（例如纯中文名）→ 原样截断，免得撑破圆圈
+  return raw.slice(0, 4);
+}
 
 function pinCoord(i, total) {
   const deg = Math.PI / 180;
@@ -1967,7 +2012,8 @@ function renderMapMarkers() {
   const cw = svg.clientWidth || 1;
   const scale = cw / camera.w;
   const pinR = PIN_SCREEN_R / scale;
-  const fontSize = pinR * 0.95;
+  // 字号改为**每个标点自算**（见下面的 fs）——短编号是 3 个字符，比原来两位数字宽，
+  // 统一字号会溢出圆圈。所以这里不再有全局 fontSize。
   const strokeW = Math.max(0.6, pinR * 0.2);
 
   let locFree = 0, shown = 0;
@@ -2012,7 +2058,10 @@ function renderMapMarkers() {
     const unknown = !ports.length && !!record.error && record.error !== '尚未查询';
     const fill = ports.length ? (free === 0 ? '#E24B4A' : '#1D9E75')
       : unknown ? '#E24B4A' : '#B4B2A9';
-    const num = String(device.code || device.id).match(/\d+/)?.[0] || '';
+    // 2026-10-21：圈里显示**短编号**（T01 / T36），不再只显示数字。
+    // 三个字符比原来的两位数字宽，字号要按长度收一点，否则会溢出圆圈。
+    const num = shortCode(device);
+    const fs = pinR * (num.length >= 3 ? 0.74 : num.length === 2 ? 0.95 : 0.9);
     const label = ports.length
       ? `${device.code || device.name} · 空闲 ${free}/${ports.length}`
       : unknown
@@ -2025,7 +2074,7 @@ function renderMapMarkers() {
     mk.setAttribute('data-device', device.id);
     mk.innerHTML = `<title>${escapeHtml(label)}</title>` +
       `<circle r="${pinR.toFixed(2)}" fill="${fill}" stroke="#fff" stroke-width="${strokeW.toFixed(2)}"/>` +
-      `<text y="${(fontSize * 0.34).toFixed(2)}" text-anchor="middle" font-size="${fontSize.toFixed(2)}" font-weight="700" fill="#fff" style="pointer-events:none">${escapeHtml(num)}</text>`;
+      `<text y="${(fs * 0.34).toFixed(2)}" text-anchor="middle" font-size="${fs.toFixed(2)}" font-weight="700" fill="#fff" style="pointer-events:none">${escapeHtml(num)}</text>`;
     frag.appendChild(mk);
   });
   g.appendChild(frag);

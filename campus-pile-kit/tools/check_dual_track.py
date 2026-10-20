@@ -117,12 +117,29 @@ def main():
     cache = re.search(r"CACHE\s*=\s*'([^']+)'", sw)
     c.check(bool(cache), "sw.js 有 CACHE 名", cache.group(1) if cache else "没找到")
 
-    pv_v = re.search(r"map-amap\.js\?v=(\d+)", pv)
+    # 只看真正会被加载的脚本，注释里提到文件名不算
+    # （2026-10-20 踩过：index.html 里只在 TMAP 注释块提了一句 map-amap.js，就把这条判断骗了）
+    def code_only(html):
+        s = re.sub(r"/\*.*?\*/", "", html, flags=re.S)       # /* ... */ 块注释
+        s = re.sub(r"^\s*//[^\n]*$", "", s, flags=re.M)      # 行首 // 单行注释
+        return s
+
+    def script_srcs(html):
+        """两种加载形式都算：<script src="..."> 与 loadScriptOnce('...')"""
+        s = code_only(html)
+        return " ".join(
+            re.findall(r'<script[^>]+src="([^"]*)"', s)
+            + re.findall(r"loadScriptOnce\(\s*['\"]([^'\"]+)['\"]", s)
+        )
+
+    pv_srcs = script_srcs(pv)
+    pv_v = re.search(r"map-amap\.js\?v=(\d+)", pv_srcs)
     c.check(bool(pv_v), "preview 引用 map-amap.js 带版本号",
             f'?v={pv_v.group(1)}' if pv_v else "没找到（高德页签没启用时属正常）")
 
-    if "map-amap.js" in ix:
-        ix_v = re.search(r"map-amap\.js\?v=(\d+)", ix)
+    ix_srcs = script_srcs(ix)
+    if "map-amap.js" in ix_srcs:
+        ix_v = re.search(r"map-amap\.js\?v=(\d+)", ix_srcs)
         c.check(bool(ix_v), "index 引用 map-amap.js 带版本号",
                 f'?v={ix_v.group(1)}' if ix_v else "引用了但没版本号")
 
@@ -136,6 +153,17 @@ def main():
             "站点目录内没有 versions/（历史快照不应公开托管）")
     stray = [f.name for f in SITE.glob("*.md")]
     c.check(not stray, "站点目录内没有 Markdown 文档", ", ".join(stray) if stray else "")
+
+    # 这两个是主动移出的留档件（见 campus-pile-kit/archive/README.md）。
+    # 只要还躺在站点目录里，每次发布都会被重新上传一遍；而且平台发布是增量覆盖，
+    # 一旦上传过就删不掉远端副本 —— 所以必须在这里卡住，别再放回去。
+    for name, why in [
+        ("map-tmap.js", "腾讯地图留档（TMAP_ENABLED=false，未启用）"),
+        ("map-weishui.jpg", "旧版总览底图（0 处引用，340KB）"),
+    ]:
+        c.check(not (SITE / name).exists(),
+                f"站点目录内没有 {name}",
+                "" if not (SITE / name).exists() else f"应留档在 campus-pile-kit/archive/ —— {why}")
 
     ok = c.report()
     if args.json:

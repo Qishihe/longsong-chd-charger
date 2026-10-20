@@ -1908,7 +1908,16 @@ function renderMapMarkers() {
 /* ---------------- 真实地图（腾讯地图 + 校园语义层） ----------------
  * 底图由腾讯地图引擎出，需要腾讯位置服务 key；没 key 会回退静态图。
  * v1.64 先不启用（只上「北门」「朝晖体育场南」两张静态图）。
- * 拿到 key 后：把 TMAP_ENABLED 改成 true，并把 key 填到 window.CHD_TMAP_KEY。
+ * 注意：当前实际在用的是高德（map-amap.js），腾讯这套只是留着备用。
+ *
+ * ⚠️ map-tmap.js 已移出站点目录（避免每次发布都被上传），留档在
+ *    campus-pile-kit/archive/map-tmap.js。
+ * 要重新启用腾讯地图，四步：
+ *   1. 把留档文件挪回本目录（chd-charge/）
+ *   2. TMAP_ENABLED 改成 true
+ *   3. 把 key 填到 window.CHD_TMAP_KEY
+ *   4. 下面 loadScriptOnce('map-tmap.js?v=171') 的版本号加一（sw.js 是缓存优先）
+ * TMAP_ENABLED 为 false 时 ensureTMap() 直接返回，不会去拉这个脚本，所以现在移走了也不会 404。
  */
 
 const TMAP_ENABLED = false;

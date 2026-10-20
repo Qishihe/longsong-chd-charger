@@ -280,9 +280,18 @@
   .cluster.full{background:#E24B4A}
   .cluster-num{font-size:14px;letter-spacing:-.3px}
   .cluster-x{font-size:17px;font-weight:800;line-height:1}
-  /* 旧的 far/mid 三态降级样式不再用（改成两态），保留类名以防引用，但内容清空 */
-  .amap-host.zoom-far .pile{width:9px; min-width:0; height:9px; padding:0; border-radius:50%; font-size:0; border-width:1.5px}
-  .amap-host.zoom-mid .pile{width:13px; min-width:0; height:13px; padding:0; border-radius:4px; font-size:0; border-width:1.5px}
+  /* 🔴 2026-10-21 恢复「缩小后逐台显示成小圆点」这一档（产品方报「缩小地图没有显示一个点」）。
+     上一版把三态压成两态时删掉了这一档，缩小后逐台点被整体隐藏、只剩 2 个分区聚合圈。
+     现在点大小**随 `--pile-gap` 自适应**（= 一格车位在当前缩放下的屏幕像素数，
+     由 map-amap.js 的 applyZoomTier 写入），所以缩得越小点越小、不会糊成一坨；
+     下限 5px 保证还看得见，上限 13px（再大就该退回徽章档了）。
+     三态：gap≥13 徽章+桩号 / 5≤gap<13 小圆点 / gap<5 分区聚合圈。 */
+  .amap-host.zoom-dot .pile{
+    width:clamp(5px, var(--pile-gap, 9px), 13px);
+    min-width:0;
+    height:clamp(5px, var(--pile-gap, 9px), 13px);
+    padding:0; border-radius:50%; font-size:0; border-width:1.5px;
+  }
   .lbl{font-size:12px;color:#2F5D45;font-weight:600;text-shadow:0 0 3px #fff,0 0 3px #fff;white-space:nowrap}
   .map-dialog[data-engine="amap"] .tmap-host,
   .map-dialog[data-engine="amap"] .amap-host,
@@ -597,7 +606,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v1.99 · 内测</div>
+    <div id="app-ver" class="foot-ver">版本 v2.00 · 内测</div>
   </footer>
 </div>
 
@@ -2296,7 +2305,7 @@ function ensureAMap() {
     loadScriptOnce('map-data.js?v=163')
       .then(loadLocalKeyOnce)
 // ⚠️ map-amap.js 走 Service Worker 缓存优先，改了它必须同时改这里的 ?v=，否则用户拿的还是旧文件
-      .then(() => loadScriptOnce('map-amap.js?v=130'))
+      .then(() => loadScriptOnce('map-amap.js?v=131'))
       .then(boot)
       .catch(() => done(false));
   });

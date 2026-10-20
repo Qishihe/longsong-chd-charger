@@ -267,9 +267,30 @@
     border:1.5px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.32);
   }
   .pile.free{background:#1D9E75} .pile.busy{background:#E24B4A} .pile.off{background:#B4B2A9}
-  /* 缩小时桩点收成小圆点：桩号挤在总览里会糊成一片 */
-  .amap-host.zoom-far .pile{width:9px; min-width:0; height:9px; padding:0; border-radius:50%; font-size:0; border-width:1.5px}
-  .amap-host.zoom-mid .pile{width:13px; min-width:0; height:13px; padding:0; border-radius:4px; font-size:0; border-width:1.5px}
+  /* 🔴 2026-10-21 补：正式版一直缺这两段样式，而 `map-amap.js` 是**两版共用**的。
+     缺了它们，正式版缩小地图时是「逐台点被隐藏 + 聚合圈无样式（裸 div，没尺寸没背景）」
+     → 看起来就是**什么都不显示**（产品方报「缩小地图没有显示一个点」）。
+     这两段必须与 preview.html 逐字一致；改 map-amap.js 的档位逻辑时两处一起改。 */
+  /* 远景：分区聚合圈（绿=可用数 / 红=×，点圈放大到分区全景） */
+  .cluster{
+    display:flex;align-items:center;justify-content:center;
+    width:30px;height:30px;border-radius:50%;box-sizing:border-box;
+    border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.34);
+    color:#fff;font-weight:700;line-height:1;
+  }
+  .cluster.ok{background:#1D9E75}
+  .cluster.full{background:#E24B4A}
+  .cluster-num{font-size:14px;letter-spacing:-.3px}
+  .cluster-x{font-size:17px;font-weight:800;line-height:1}
+  /* 中景：逐台小圆点。点大小随 --pile-gap（由 applyZoomTier 写入）自适应，
+     缩得越小点越小、不会糊成一坨；下限 5px 保证还看得见。
+     三态：gap≥13 徽章+桩号 / 5≤gap<13 小圆点 / gap<5 分区聚合圈。 */
+  .amap-host.zoom-dot .pile{
+    width:clamp(5px, var(--pile-gap, 9px), 13px);
+    min-width:0;
+    height:clamp(5px, var(--pile-gap, 9px), 13px);
+    padding:0; border-radius:50%; font-size:0; border-width:1.5px;
+  }
   .lbl{font-size:12px;color:#2F5D45;font-weight:600;text-shadow:0 0 3px #fff,0 0 3px #fff;white-space:nowrap}
   .map-dialog[data-engine="amap"] .tmap-host,
   .map-dialog[data-engine="amap"] .amap-host,
@@ -558,7 +579,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v1.97</div>
+    <div id="app-ver" class="foot-ver">版本 v1.98</div>
   </footer>
 </div>
 
@@ -2216,7 +2237,7 @@ function ensureAMap() {
     loadScriptOnce('map-data.js?v=163')
       .then(loadLocalKeyOnce)
 // ⚠️ map-amap.js 走 Service Worker 缓存优先，改了它必须同时改这里的 ?v=，否则用户拿的还是旧文件
-      .then(() => loadScriptOnce('map-amap.js?v=128'))
+      .then(() => loadScriptOnce('map-amap.js?v=131'))
       .then(boot)
       .catch(() => done(false));
   });

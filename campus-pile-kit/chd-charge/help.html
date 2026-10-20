@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>怎么抓一串凭证 · 长安大学充电桩查询</title>
+<meta name="theme-color" content="#1D9E75">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231D9E75'/%3E%3Cpath d='M36 10 20 34h10l-2 20 18-26h-11z' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#F7F6F2; --card:#FFFFFF; --line:#E5E3DC; --line-strong:#D3D1C7;
+    --text:#2C2C2A; --muted:#6B6A65; --hint:#96948C;
+    --free:#1D9E75; --warn:#EF9F27; --radius:14px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    font-size:15px; line-height:1.62; -webkit-text-size-adjust:100%;
+    padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  }
+  .wrap{max-width:560px; margin:0 auto; padding:16px 14px 48px}
+
+  header{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px}
+  h1{font-size:18px; font-weight:600; margin:0; letter-spacing:-.2px}
+  .sub{font-size:12px; color:var(--hint); margin-top:2px}
+  .icon-btn{
+    font:inherit; font-size:13px; padding:8px 14px; border-radius:10px; cursor:pointer;
+    border:1px solid var(--line-strong); background:var(--card); color:var(--text);
+    min-height:38px; display:inline-flex; align-items:center; gap:6px; text-decoration:none; flex:none;
+  }
+  .icon-btn:active{background:#F0EFE9}
+
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:15px 16px; margin-bottom:12px;
+  }
+  .card h2{font-size:15px; font-weight:600; margin:0 0 3px}
+  .card .lead{font-size:12.5px; color:var(--hint); margin:0 0 12px}
+  .card p{font-size:13.5px; color:var(--muted); margin:0 0 10px}
+  .card p:last-child{margin-bottom:0}
+
+  .tag{
+    display:inline-block; font-size:11px; padding:1px 7px; border-radius:20px;
+    background:#E1F5EE; color:#0F6E56; border:1px solid #9FE1CB;
+    vertical-align:2px; margin-left:4px; font-weight:400;
+  }
+  .tag.warn{background:#FFF4E2; color:#8A5A00; border-color:#F5D9A8}
+  .tag.off{background:#F0EFE9; color:var(--muted); border-color:var(--line-strong)}
+
+  ol,ul{margin:0; padding-left:19px; font-size:13.5px; color:var(--muted)}
+  li{margin-bottom:7px}
+  li b{color:var(--text); font-weight:600}
+  ol li b{font-weight:600}
+
+  code{
+    background:#F2F1EC; border:1px solid var(--line); border-radius:5px;
+    padding:1px 5px; font-size:12px; word-break:break-all;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    word-break:break-all;
+  }
+  .kv{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px;
+    background:#F2F1EC; border:1px solid var(--line); border-radius:8px;
+    padding:8px 10px; margin:9px 0; color:var(--text); word-break:break-all;
+  }
+
+  .note{font-size:12.5px; color:var(--hint); line-height:1.65; margin-top:10px}
+  .note.warn{color:#8A5A00; background:#FFF4E2; border:1px solid #F5D9A8; border-radius:10px; padding:9px 11px}
+  .note.bad{color:#A32D2D; background:#FDECEC; border:1px solid #F3C2C2; border-radius:10px; padding:9px 11px}
+  .note.ok{color:#0F6E56}
+
+  .toc{display:flex; flex-wrap:wrap; gap:7px; margin-bottom:14px}
+  .toc a{
+    font-size:12.5px; padding:6px 11px; border-radius:9px; text-decoration:none;
+    background:var(--card); border:1px solid var(--line-strong); color:var(--muted);
+  }
+  .toc a:active{background:#F0EFE9}
+
+  footer{
+    font-size:12px; color:var(--hint); text-align:center; line-height:1.9;
+    border-top:1px solid var(--line); padding-top:14px; margin-top:18px;
+  }
+  footer a{color:#0F6E56}
+  .back{display:flex; justify-content:center; margin-top:16px}
+
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#151714; --card:#1E211D; --line:#2E322C; --line-strong:#3C403A;
+      --text:#EDEBE4; --muted:#A9A79F; --hint:#82807A;
+    }
+    .icon-btn:active{background:#2E322C}
+    code{background:#23261F; border-color:#33372F}
+    .kv{background:#23261F; border-color:#33372F}
+    .tag{background:#1B332B; color:#8FD9C0; border-color:#2C5346}
+    .tag.warn{background:#3A2E17; color:#F2C77E; border-color:#5C481F}
+    .tag.off{background:#262923; color:#A9A79F; border-color:#3C403A}
+    .note.warn{background:#2A2418; border-color:#5C481F; color:#E8C176}
+    .note.bad{background:#241B1B; border-color:#6B3535; color:#F0A6A6}
+    .toc a:active{background:#2E322C}
+    footer a{color:#8FD9C0}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>怎么抓一串凭证</h1>
+      <div class="sub">三分钟 · 只用一次 · 抓完就能把工具关掉</div>
+    </div>
+    <a class="icon-btn" href="./">回看板</a>
+  </header>
+
+  <div class="card" style="background:#EFF7F3;border-color:#B8DFCE">
+    <p style="margin:0"><b>手边只有手机？</b>iPhone 能全程在手机上做完 —— 直接看下面的「方法二」，
+    Stream 装好证书之后，每次抓只要 30 秒。安卓手机<b>不 root 基本抓不到</b>（Android 10 起微信彻底拒绝用户证书），
+    别在那儿耗时间：借台电脑走方法一，两分钟的事。</p>
+  </div>
+
+  <div class="toc">
+    <a href="#what">这是什么</a>
+    <a href="#pc">电脑微信</a>
+    <a href="#ios">iPhone</a>
+    <a href="#android">安卓</a>
+    <a href="#after">粘回去之后</a>
+    <a href="#privacy">隐私与边界</a>
+    <a href="#faq">常见问题</a>
+  </div>
+
+  <div class="card" id="what">
+    <h2>这串东西是什么</h2>
+    <p>你在「街电」小程序里点一个柜机看有没有空位时，小程序会带着一个登录凭证去请求平台：</p>
+    <div class="kv">POST https://union.zhumanggroup.com/api/rent/scan-code<br>authorization: Bearer eyJhbGciOi...</div>
+    <p>后面那串 <code>eyJ</code> 开头的就是凭证，7 天有效。抓包工具干的事很简单：<b>在它发出去的路上拦一下，复制走</b>。</p>
+    <p>这个接口只返回「哪几个插座空着」，不下单、不扣钱、看不到余额。所以借给别人用也不会有账务风险。</p>
+  </div>
+
+  <div class="card" id="pc">
+    <h2>方法一：电脑微信 <span class="tag">成功率最高</span></h2>
+    <p class="lead">Windows 或 Mac 都行，全程 3 分钟，成功率最高</p>
+    <ol>
+      <li><b>装 Reqable</b>（reqable.com，国内直连，免费版够用）。也可以换成 Charles、mitmproxy，步骤一样。</li>
+      <li>打开 Reqable，开启左上角的 <b>系统代理</b>。</li>
+      <li>按提示 <b>安装根证书</b>：Windows 弹窗里选「将所有的证书都放入下列存储」→ 浏览 → <b>受信任的根证书颁发机构</b> → 完成 → 安全警告点「是」。Mac 则在钥匙串里把它设为「始终信任」。</li>
+      <li><b>完全退出微信</b>（托盘图标右键退出，不是关窗口），再重新打开，让它走新代理。</li>
+      <li>在微信里打开小程序「街电」，随便点一个柜机，让它发一次查询。</li>
+      <li>回到 Reqable，请求列表里筛 <code>zhumanggroup</code>，找到 <code>POST /api/rent/scan-code</code>。</li>
+      <li>点开它 → <b>请求</b> 标签 → <b>请求头</b> → 找 <code>authorization</code>，复制 <code>Bearer</code> 后面那一整串（<b>不要带 Bearer 和空格</b>）。</li>
+      <li>回看板，点「更新」→ 粘贴 → <b>校验并保存</b>。看到「已通过校验」就成了。</li>
+    </ol>
+    <div class="note warn">第 4 步别漏。微信在启动时就把代理读进去了，不重启的话列表里永远是空的。</div>
+    <div class="note">抓完把系统代理关掉、证书留着也无所谓（留着下次还能用）。</div>
+  </div>
+
+  <div class="card" id="ios">
+    <h2>方法二：iPhone <span class="tag">手机首选</span></h2>
+    <p class="lead">App Store 搜 <b>Stream</b>（免费，国内区可直接下），或点
+      <a href="https://apps.apple.com/cn/app/id6483685232">这个链接</a>。Reqable 的 iOS 版也行。</p>
+    <ol>
+      <li>装好 App，点「开始抓包」，它会引导你装证书。</li>
+      <li>装证书：<b>设置 → 已下载的描述文件 → 安装</b>；然后 <b>设置 → 通用 → 关于本机 → 证书信任设置</b>，把那个开关 <b>打开</b>。</li>
+      <li>打开微信 → 小程序「街电」→ 点一下柜机。</li>
+      <li>回 App 的请求列表，找 <code>union.zhumanggroup.com</code> → <code>/api/rent/scan-code</code>。</li>
+      <li>请求 → 请求头 → 复制 <code>authorization</code> 里 <code>Bearer</code> 后面那串；
+        懒得挑就用「复制请求头 / 复制 cURL」，整块粘进看板，它会自己认出是哪一串。</li>
+    </ol>
+    <div class="note">iOS 上一个 App 是否信任你装的证书，取决于第 2 步那个开关。开关没开，列表里只会看到一条 <code>CONNECT</code>，看不到明文 —— 那就是没装对。</div>
+    <div class="note">抓完把 VPN 图标关掉（Stream 在跑就一直有个 VPN 小标），证书留着，下次不用重装。</div>
+  </div>
+
+  <div class="card" id="android">
+    <h2>方法三：安卓 <span class="tag warn">基本要 root</span></h2>
+    <p class="lead">不 root 的成功率很低，有电脑或 iPhone 就别选这条</p>
+    <p>安卓 7 以后，App 默认只信任<b>系统证书</b>，不信任你自己装的那张。微信的 targetSdk 很高，所以手机上装个证书，列表里通常只看到 <code>CONNECT</code>，看不到明文。三条路：</p>
+    <ul>
+      <li><b>有 root</b>：把抓包工具的证书放进 <code>/system/etc/security/cacerts</code>，重启，然后正常抓。最稳。</li>
+      <li><b>没 root</b>：用 Reqable 的「免 root 抓包」模式（把微信克隆进它自己的虚拟环境里跑），或用模拟器（MuMu、雷电）装系统证书。成功率看机型和微信版本。</li>
+      <li><b>都不行</b>：借一台电脑，走方法一，两分钟的事。</li>
+    </ul>
+    <div class="note bad">别去下载各种「一键抓包」的破解包，很容易带木马。这个凭证等于你的登录态，被拿走的人能拿它查你的柜机。</div>
+  </div>
+
+  <div class="card" id="after">
+    <h2>粘回去之后会怎样</h2>
+    <ol>
+      <li><b>先试打一次。</b>看板会拿清单里第一台桩真查一遍，只有平台确实返回了插座，才认为这串有效。抓错的、过期的会当场告诉你，不会存下来。</li>
+      <li><b>再加密上传。</b>校验通过后，这串会被 AES-GCM 加密后写进云端，之后任何打开这个网址的人自动取最新的用，不需要扫码、不需要输入。</li>
+      <li><b>7 天后失效。</b>到期前页面会提醒「谁抓一串新的都算续上」—— 群里任何一个人再抓一次粘进来，所有人自动跟上。<b>不需要固定某个人负责</b>。</li>
+    </ol>
+    <div class="note ok">这就是「谁都能续」的意思：没有谁是必须每周干活的那个人。</div>
+  </div>
+
+  <div class="card" id="privacy">
+    <h2>隐私与边界</h2>
+    <ul>
+      <li>上传的只有这串凭证本身，不含你的微信昵称、头像、手机号。</li>
+      <li>凭证里可能有你的用户 ID，但接口能力仅限于「查空位」：不能下单、不能充电、不能看余额、不能改任何东西。</li>
+      <li>云端存的是密文，解密密钥内置在网页里 —— 严格说，会看源码、又会查数据库的人能解开。所以别把这个网址和凭证往公开大群里转。</li>
+      <li>用你的凭证查空位，在平台侧算「你的账号在查」。正常频率（一分钟一次以内）不会有问题，别写脚本猛刷。</li>
+      <li>抓包工具用完就关，尤其别长期开着系统代理，容易影响别的软件上网。</li>
+    </ul>
+  </div>
+
+  <div class="card" id="faq">
+    <h2>常见问题</h2>
+    <p><b>列表里只有 CONNECT，没有明文？</b><br>证书没被信任。iOS 检查「证书信任设置」开关；Windows 检查证书是不是装进了「受信任的根证书颁发机构」；安卓看方法三。</p>
+    <p><b>提示「这串已经过期了」？</b><br>回小程序里重新点一次柜机，让它发一次新请求，再抓一次。别用存下来的旧的。</p>
+    <p><b>提示「平台不认这串」？</b><br>多半是抓错了域名，认准 <code>union.zhumanggroup.com</code>；也可能是抓的是别的 App 的 token。</p>
+    <p><b>粘贴后提示「没连上平台」？</b><br>网络问题。这串会先只存在你这台设备上，不往云端推；网络好了点「刷新」会重新生效。</p>
+    <p><b>抓到了，但不小心复制了整块请求头？</b><br>直接粘就行。看板会自己从里面找出 <code>authorization</code>，
+      不用你自己挑那一行；贴整段 cURL 命令也认。</p>
+    <p><b>我会不会被封号？</b><br>这个接口是小程序自己也在正常发的查询请求，正常频率没出过问题。别高频刷、别拿它去做别的事。</p>
+  </div>
+
+  <div class="back">
+    <a class="icon-btn" href="./">抓好了，回看板粘贴</a>
+  </div>
+
+  <footer>
+    长安大学充电桩查询 · by长歌<br>
+    只读空位，不下单、不碰账户
+  </footer>
+</div>
+</body>
+</html>

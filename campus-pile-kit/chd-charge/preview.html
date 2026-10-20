@@ -3008,8 +3008,20 @@ async function writeHistory(records) {
       .filter(Boolean);
     if (!rows.length) return;
     // 同一 device_id + day 多次写入会累积多条快照；这里不 upsert，保留每次采样点
-    await cloudDb().from(HISTORY_TABLE).insert(rows);
-  } catch (e) {}
+    const { error } = await cloudDb().from(HISTORY_TABLE).insert(rows);
+    // 失败要出声：原来这里是静默 catch，导致「图表没数据」时无法区分
+    // 是「没采集」还是「采集了但没写进去」，排查全靠猜。
+    if (error) console.warn('[history] 写入失败', rows.length, '行：', error.message || error);
+    else console.log('[history] 已写入', rows.length, '行快照 @', hhmmss(now));
+  } catch (e) {
+    console.warn('[history] 写入异常', e);
+  }
+}
+
+/** 日志用：HH:MM:SS */
+function hhmmss(d = new Date()) {
+  const p = (n) => String(n).padStart(2, '0');
+  return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 
 /**
@@ -3948,38 +3960,92 @@ function applyAutoRefresh() {
   }, THROTTLE_MS);
 }
 
-/* ---------------- 历史快照：每小时保底采集 ---------------- */
-
-const HISTORY_HOUR_MS = 3600000;   // 每小时保底一条快照
-let historyTimer = null;
-
-/**
- * 每小时从「云端共享状态」转存一条历史快照，保证使用率统计有小时级颗粒度。
- * 设计意图（用户确认）：即使页面没人在手动刷新、或 60 秒自动刷新因页面隐藏而跳过，
- * 只要页面还开着，每小时也至少落一条快照，让「按时段」柱状图不至于大片空缺。
- * 只读共享表 + 写历史表，失败静默，绝不影响主流程。
+/* ---------------- 历史快照：每小时保底采集 ----------------
+ *
+ * ⚠️ 2026-10-20 重写。原实现有三个问题，导致「使用情况」图表长期只有一个点
+ *（产品方实测：只有 14 点一条 98% 的记录）：
+ *
+ *   1. **数据源错**：原来读 `cloudReadShared()`，而它按 `SHARE_FRESH_MS = 60秒` 过滤
+ *      （见 L2859）。整点时那一刻若没人在刷新，共享表里就没有 60 秒内的行 →
+ *      返回空 → 直接 return，一个快照都落不下。
+ *   2. **触发时机错**：`setInterval(fn, 3600000)` 是「页面打开后满 1 小时」才第一次跑。
+ *      用户很少连续开着一小时 → 几乎永不触发。
+ *   3. **失败不可见**：`writeHistory` 里是 `catch (e) {}`，写失败一声不响，
+ *      从界面上完全看不出是「没采集」还是「采集了没写进去」。
+ *
+ * 新实现：
+ *   · **整点对齐**：算到下一个整点的毫秒数再触发，保证样本落在不同的小时桶里
+ *   · **真调接口**：走 refresh({force:true})，真去平台查一次占用率（产品方要的就是这个），
+ *     而不是读那份 60 秒就过期的共享表
+ *   · **首屏补采**：加载后 ~20 秒补一次，让「只开几分钟」的访问也能贡献一个样本
+ *     （但同一小时只采一次，见 hourKey 去重）
+ *
+ * 设计取舍：整点采集会让所有开着的设备**同时**发请求。设备数很少（校内自用），
+ * 且 refresh 内部本来就有 CONCURRENCY 限流 + 60 秒 TTL 缓存，可接受；
+ * 若将来设备变多，应改成「整点 ± 随机偏移」错峰。
  */
-async function hourlyHistoryTick() {
-  if (!cloudSupport()) return;
-  const shared = await cloudReadShared();
-  if (!shared || !Object.keys(shared).length) return;
-  // 用设备清单把 device_id 映射回 location（共享表里只有 id + 插座状态）
-  const locBy = {};
-  for (const d of getDevices()) locBy[d.id] = d.location || '';
-  const records = Object.entries(shared)
-    .map(([deviceId, rec]) => ({
-      deviceId,
-      location: locBy[deviceId] || '',
-      ports: (rec && rec.ports) || [],
-    }))
-    .filter((r) => r.ports.length);
-  if (records.length) writeHistory(records);
+
+// 记录已经采过的小时（'YYYY-MM-DDTHH'），避免同一小时重复写快照把数据写脏
+let lastHistoryHour = null;
+let historyTimer = null;
+let historyBootTimer = null;
+
+function historyHourKey(d = new Date()) {
+  // 本地时区的小时键。用本地时区而非 UTC：图表按本地小时分桶，口径要一致
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}`;
+}
+
+/** 每小时保底采集：真去查一次占用，然后落历史快照 */
+async function hourlyHistoryTick(reason) {
+  if (!cloudSupport()) {
+    console.warn('[history] 跳过采集：云端不可用');
+    return;
+  }
+  if (store.get(KEY_AUTO, true) === false) return;
+  const hk = historyHourKey();
+  if (hk === lastHistoryHour) return;      // 本小时已采过
+  if (busyFlag) {                          // 正在刷新中，让它采完，下一分钟再试
+    console.warn('[history] 本小时采集推迟：正在刷新中');
+    return;
+  }
+  lastHistoryHour = hk;
+  console.log('[history] 开始采集 ' + hk + '（' + reason + '）');
+  try {
+    // refresh() 内部会：查平台 → 写共享 → writeHistory()（见 refresh 的第 ④ 步）
+    await refresh({ force: true });
+    try { store.set('cpk.history.last', hk); } catch (e) {}
+  } catch (e) {
+    lastHistoryHour = null;                // 失败就允许重试，别把这小时锁死
+    console.warn('[history] 采集失败，本小时允许重试', e);
+  }
 }
 
 function applyHourlyHistory() {
   if (historyTimer) { clearInterval(historyTimer); historyTimer = null; }
+  if (historyBootTimer) { clearTimeout(historyBootTimer); historyBootTimer = null; }
   if (store.get(KEY_AUTO, true) === false) return;
-  historyTimer = setInterval(hourlyHistoryTick, HISTORY_HOUR_MS);
+
+  // 恢复「本小时是否已采过」：页面重开/刷新后不该重复采同一个小时候
+  try { lastHistoryHour = store.get('cpk.history.last', null); } catch (e) {}
+
+  // ① 整点对齐：算到下一个整点的毫秒数（+2 秒余量，避开边界抖动）
+  const scheduleNextHour = () => {
+    const now = new Date();
+    const next = new Date(now);
+    next.setMinutes(0, 0, 0);
+    next.setHours(next.getHours() + 1);
+    const delay = next - now + 2000;
+    historyTimer = setTimeout(() => {
+      hourlyHistoryTick('整点').finally(scheduleNextHour);
+    }, delay);
+  };
+  scheduleNextHour();
+
+  // ② 首屏补采：加载 20 秒后，若本小时还没采过就补一次（短访问也能贡献样本）
+  historyBootTimer = setTimeout(() => {
+    if (historyHourKey() !== lastHistoryHour) hourlyHistoryTick('首次加载补采');
+  }, 20000);
 }
 
 

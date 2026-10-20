@@ -2980,9 +2980,29 @@ function buildShareRow(deviceId, record) {
 }
 
 /**
- * 历史快照：把「当前这一批桩的状态」整体落一条带时间戳的快照。
- * 每条快照 = 每台桩一行（device_id 唯一），字段：free/total/ts/day。
- * 占用率口径（用户确认）= 被观测到「有插座在充」的快照占比，不按分钟插值。
+ * 历史快照（**按「位置 × 小时」预聚合**）—— 2026-10-20 产品方确认方案 C。
+ *
+ * 产品方原话：
+ *   「我想每小时上传一次数据到云端，下次调用直接调用占用率和时间就行了。
+ *     不需要调用过去每个时段的设备数量然后再重新计算占有率。」
+ *
+ * 所以每次采集**在写入端就把占用率算好**，云端每小时每位置只留一行：
+ *   { location, day, hour, occ_rate, occ, total, snap, ts }
+ *   · occ_rate = occ / total   ← 图表**直接读它**，不再重算
+ *   · occ/total                ← 只为气泡文案「占用 X / Y 插座」和「全部位置」加权求和保留
+ *   · snap                     ← 该小时采了几次，供「已采样 N 次」提示
+ *
+ * ⚠️ 为什么必须改（旧实现的行数问题）
+ * 旧实现每次写「每台桩一行」= 73 行/次。7 天每小时一点需要 168 × 73 = **12,264 行**，
+ * 而单次 select 上限（PostgREST 默认）只有 **1000 行** → 只够读约 13 次采样（半小时），
+ * 且旧读取端用 `.order('ts', {ascending:true})` 拿到的是**最旧的**那段而不是最近 7 天。
+ * 改成「每位置一行」后：168 × 2 = **336 行**，富余 3 倍，且同一小时覆盖写、表不再膨胀。
+ * （位置去重后只有 2 个：渭水-北门 / 渭水-朝晖体育场南）
+ *
+ * ⚠️ 依赖云端唯一约束 (location, day, hour) 才能 upsert 覆盖。若约束不存在，
+ *    upsert 会退化成 insert（同小时多行），此时读取端仍按小时加权合并，图表不会画歪
+ *    （只是表会随访问量缓增，需要定时清理 —— 见沟通记录待办 #15）。
+ *
  * 失败静默 —— 采集是尽力而为，绝不能因为写历史失败而让查询报错。
  */
 async function writeHistory(records) {
@@ -2990,29 +3010,51 @@ async function writeHistory(records) {
   try {
     const now = new Date();
     const ts = now.toISOString();
-    const day = ts.slice(0, 10);   // 'YYYY-MM-DD'
-    const rows = records
-      .map((r) => {
-        const ports = r && r.ports ? r.ports : [];
-        if (!isValidPorts(ports)) return null;
-        const free = ports.filter((p) => p.state === SLOT_FREE).length;
-        return {
-          device_id: r.deviceId,
-          free,
-          total: ports.length,
-          ts,
-          day,
-          location: r.location || null,   // 冗余存一份，供「按位置筛选」直接聚合
-        };
-      })
-      .filter(Boolean);
+    const day = ts.slice(0, 10);        // 'YYYY-MM-DD'
+    const hour = now.getHours();        // 0~23，本地时区（与图表分桶口径一致）
+
+    // 第一步：按 location 把这一批设备聚合成「每位置一行」
+    const byLoc = {};
+    for (const r of records) {
+      const ports = r && r.ports ? r.ports : [];
+      if (!isValidPorts(ports)) continue;
+      const loc = r.location || null;
+      if (!loc) continue;               // 没有位置的老数据跳过（读取端也是这么过滤的）
+      const free = ports.filter((p) => p.state === SLOT_FREE).length;
+      const occ = ports.length - free;
+      const g = byLoc[loc] || (byLoc[loc] = { occ: 0, total: 0, n: 0 });
+      g.occ += occ;
+      g.total += ports.length;
+      g.n += 1;
+    }
+
+    const rows = Object.entries(byLoc)
+      .filter(([, g]) => g.total > 0)
+      .map(([loc, g]) => ({
+        location: loc,
+        day,
+        hour,
+        occ_rate: g.occ / g.total,      // ← 预计算，图表直接读
+        occ: g.occ,
+        total: g.total,
+        snap: 1,
+        ts,
+      }));
     if (!rows.length) return;
-    // 同一 device_id + day 多次写入会累积多条快照；这里不 upsert，保留每次采样点
-    const { error } = await cloudDb().from(HISTORY_TABLE).insert(rows);
-    // 失败要出声：原来这里是静默 catch，导致「图表没数据」时无法区分
-    // 是「没采集」还是「采集了但没写进去」，排查全靠猜。
-    if (error) console.warn('[history] 写入失败', rows.length, '行：', error.message || error);
-    else console.log('[history] 已写入', rows.length, '行快照 @', hhmmss(now));
+
+    // 同一小时同位置覆盖写：行数不再随访问次数增长
+    const { error } = await cloudDb()
+      .from(HISTORY_TABLE)
+      .upsert(rows, { onConflict: 'location,day,hour' });
+    if (error) {
+      console.warn('[history] upsert 失败（可能缺 (location,day,hour) 唯一约束）', error.message || error);
+      // 退路：退回 insert，让数据不丢。读取端按小时加权合并，图表仍正确，只是表会缓增
+      const retry = await cloudDb().from(HISTORY_TABLE).insert(rows);
+      if (retry.error) console.warn('[history] insert 兜底也失败', retry.error.message || retry.error);
+      else console.log('[history] 已写入', rows.length, '行（insert 兜底）@', hhmmss(now));
+      return;
+    }
+    console.log('[history] 已写入', rows.length, '行（每位置一行）@', hhmmss(now));
   } catch (e) {
     console.warn('[history] 写入异常', e);
   }
@@ -3030,16 +3072,35 @@ function hhmmss(d = new Date()) {
  *   locations = 排序后的位置列表；days = 全局排序后的日期列表（'YYYY-MM-DD'）
  *   byLocation[loc] = { byHour:[24], occRate, snapshots, byDay:{ day: {byHour:[24], occRate, snapshots} } }
  * 占用率 = 占用插座数 / 观测插座数，按小时桶（0~23）统计，不按分钟插值。
+ *
+ * ⚠️ 2026-10-20 改：适配「每位置一行」的新写入格式，并修掉两个读取端的坑。
+ *
+ * 坑 1（**这才是「图表只有一个点」的真因**）：原来用 `.order('ts', {ascending:true})`，
+ *   升序取前 N 行 —— 单次 select 上限约 1000 行，而旧格式是每台桩一行（73 行/次），
+ *   1000 行只够 13 次采样。升序意味着拿到的是**最旧的**那段，不是最近 7 天。
+ *   现在改成「降序取最新 N 行，再反转为升序」，保证拿到的是**最近**的数据。
+ *
+ * 坑 2：显式加 `.limit()`。不加时靠服务端默认上限，行数一多就静默截断。
+ *   新格式 7 天只有 168 × 位置数 行（当前 2 个位置 = 336 行），1000 完全够；
+ *   加 limit 是为了「万一旧数据很多」时行为可预期，而不是静默丢数据。
+ *
+ * 兼容性：**同时兼容新旧两种行**。
+ *   · 新行：有 occ_rate / occ / total / hour 字段 → 直接用
+ *   · 旧行：有 free / device_id 字段 → 回退用 total - free 现算（过渡期不丢历史）
+ *   这样不需要清空云端旧数据，也不用一次性迁移。
  */
+const HISTORY_ROW_LIMIT = 5000;   // 远高于 7 天需求（336 行），只为防静默截断
+
 async function readHistoryStats() {
   if (!cloudSupport()) return null;
   try {
     const cutoff = new Date(Date.now() - HISTORY_KEEP_DAYS * 86400000).toISOString();
     const { data, error } = await cloudDb()
       .from(HISTORY_TABLE)
-      .select('device_id,free,total,ts,day,location')
+      .select('location,day,hour,occ_rate,occ,total,snap,ts,free,device_id')
       .gte('ts', cutoff)
-      .order('ts', { ascending: true });
+      .order('ts', { ascending: false })   // 先取最新的
+      .limit(HISTORY_ROW_LIMIT);
     if (error || !Array.isArray(data)) return null;
     if (!data.length) return { empty: true, locations: [], days: [], byLocation: {} };
 
@@ -3048,24 +3109,41 @@ async function readHistoryStats() {
     for (const row of data) {
       const total = Number(row.total) || 0;
       if (total <= 0) continue;
-      const free = Number(row.free) || 0;
-      const occ = total - free;
       const loc = row.location;
       if (!loc) continue;   // 没有位置信息的老快照直接跳过
-      const h = new Date(row.ts).getHours();
+
+      // occ：优先用新格式预计算好的值；旧格式回退成 total - free
+      let occ;
+      if (Number.isFinite(Number(row.occ))) {
+        occ = Number(row.occ);
+      } else if (Number.isFinite(Number(row.free))) {
+        occ = total - Number(row.free);
+      } else {
+        continue;
+      }
+      if (occ < 0 || occ > total) continue;   // 脏数据挡掉，别让图表画出 >100%
+
+      // hour：优先用新格式的显式列；旧格式从 ts 推
+      let h = Number(row.hour);
+      if (!Number.isInteger(h) || h < 0 || h > 23) {
+        h = new Date(row.ts).getHours();
+      }
       if (!Number.isInteger(h) || h < 0 || h > 23) continue;
+
       const d = row.day || String(row.ts || '').slice(0, 10);
       if (!d) continue;
 
       const g = groups[loc] || (groups[loc] = { byDay: {}, devices: new Set() });
       if (row.device_id) g.devices.add(row.device_id);
+      // 新格式没有 device_id，用「该位置出现过的行数」无法还原桩数；
+      // 桩数由 renderUsageLocation 用 stats.deviceCount 兜底（见下）
       const gd = g.byDay[d] || (g.byDay[d] = {
         hour: Array.from({ length: 24 }, () => ({ occ: 0, total: 0, snap: 0 })),
         occTotal: 0, obsTotal: 0, snapshots: 0,
       });
       gd.hour[h].occ += occ;
       gd.hour[h].total += total;
-      gd.hour[h].snap += 1;
+      gd.hour[h].snap += Number(row.snap) || 1;
       gd.occTotal += occ;
       gd.obsTotal += total;
       gd.snapshots += 1;
@@ -3109,7 +3187,11 @@ async function readHistoryStats() {
         occRate: obsTotal ? occTotal / obsTotal : 0,
         snapshots,
         days: dayKeys.length,
-        deviceCount: g.devices ? g.devices.size : 0,
+        // 桩数：优先用本地设备清单按位置数出来（最可靠）。
+        // ⚠️ 不再依赖历史行里的 device_id —— 新格式是「每位置一行」，没有 device_id，
+        //    旧写法 g.devices.size 会恒为 0，导致气泡里「占用 X / Y 插座」的 Y 变成 0。
+        //    只有当本地清单里找不到该位置时，才退回历史行统计的桩数。
+        deviceCount: deviceCountByLocation()[loc] || (g.devices ? g.devices.size : 0) || 0,
         byDay,
       };
     }
@@ -3118,6 +3200,17 @@ async function readHistoryStats() {
   } catch (e) {
     return null;
   }
+}
+
+/** 本地设备清单里「每个位置有多少台桩」—— 用于气泡文案的分母，与云端历史无关 */
+function deviceCountByLocation() {
+  const out = {};
+  for (const d of getDevices()) {
+    const loc = d.location || '';
+    if (!loc) continue;
+    out[loc] = (out[loc] || 0) + 1;
+  }
+  return out;
 }
 
 /** 当前选中的位置（null 表示尚未选择） */

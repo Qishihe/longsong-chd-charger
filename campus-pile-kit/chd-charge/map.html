@@ -56,7 +56,8 @@
 
 <div id="err"></div>
 
-<script src="./map-key.local.js"></script>
+<!-- ?v= 换 Key 时要加一：sw.js 对静态资源是缓存优先，否则用户拿到旧 Key -->
+<script src="./map-key.local.js?v=1"></script>
 <script>
 /* ==================== 只改这里 ==================== */
 const CONFIG = {

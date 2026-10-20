@@ -606,7 +606,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.01 · 内测</div>
+    <div id="app-ver" class="foot-ver">版本 v2.02 · 内测</div>
   </footer>
 </div>
 
@@ -2305,7 +2305,7 @@ function ensureAMap() {
     loadScriptOnce('map-data.js?v=163')
       .then(loadLocalKeyOnce)
 // ⚠️ map-amap.js 走 Service Worker 缓存优先，改了它必须同时改这里的 ?v=，否则用户拿的还是旧文件
-      .then(() => loadScriptOnce('map-amap.js?v=132'))
+      .then(() => loadScriptOnce('map-amap.js?v=134'))
       .then(boot)
       .catch(() => done(false));
   });
@@ -2330,7 +2330,11 @@ function amapDevices() {
 
 function onAMapPileClick(ev) {
   if (ev.type === 'area') {
-    switchMap(ev.id === '渭水-北门' ? 'beimen' : 'chaohui');
+    /* 2026-10-21 改：**不再 switchMap 到静态旧图**。
+     * 产品方：「去除放大后，点击北门、朝晖体育场的标签会跳转到旧地图的情况。」
+     * 现在 map-amap.js 的分区徽章点击内部就走 `zoomToArea()`（在高德底图上放大），
+     * 根本不会再发 `{type:'area'}` 过来；这里保留分支只作兜底，
+     * 万一还有旧路径发过来，**什么都不做**也比把人甩到旧图好。 */
     return;
   }
   const i = mapDevices.findIndex((x) => String(x.id).toUpperCase() === String(ev.id).toUpperCase());

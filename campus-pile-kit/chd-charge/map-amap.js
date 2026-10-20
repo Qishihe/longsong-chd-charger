@@ -348,12 +348,43 @@
   var GAP_CLUSTER = 13;
   var clustered = false;          // 分区聚合圈态（供 syncLayers 复用）
   var dotted = false;             // 逐台小圆点态（当前阈值下不生效，见上）
-  function applyZoomTier(z) {
+  /* 最近一次「程序化取景」的时刻（fitBBox / setZoom 会盖戳）。
+   * 为什么要它：高德的 `map.getZoom()` 在 `setZoomAndCenter` 之后**长期滞后**——
+   * 2026-10-21 实测点圈后 2.7 秒仍报 17.23，而真实档位是 18.05（gap 14.0）。
+   * 于是 `onZoomTier` 里 `applyZoomTier()` 不传 z 时会读到动画中间值 → 假聚合态
+   * → 把刚进的分区视图强退回总览。见 applyZoomTier 里那段视频式时序记录。 */
+  var progZoomAt = 0;
+  function applyZoomTier(z, allowViewReset) {
     if (!host) return;
     if (typeof z !== 'number') z = map ? map.getZoom() : 0;
     var res = 156543.03392 * LAT_COS / Math.pow(2, z);   // 米/像素
     var gap = CELL_M / Math.max(res, 1e-6);
-    clustered = gap < GAP_CLUSTER;                       // 缩得太狠 → 聚合成圈
+    var wantCluster = gap < GAP_CLUSTER;
+    /* 🔴 2026-10-21 修 bug：产品方报「点绿圈放大后再缩放，所有充电桩标志都消失，只能退出重进」。
+     *
+     * 根因（状态机漏洞）：点圈后 `curView` = '渭水-北门'（分区视图），此时再缩小 →
+     *   `clustered = true` → `syncLayers` 里 `if (clustered) showPin = false` 把**逐台点全隐藏**；
+     *   而聚合圈的显隐条件是 `isCampus && clustered`，此刻 `curView` 已不是 'campus'
+     *   → **聚合圈也不显示** → 整张图两样都没有 = 空白，只能退出重进。
+     *
+     * 两道防线（互相独立，任一条都能挡住空白）：
+     *   ① 这里：一旦要进聚合态，先把视图退回总览。语义上也对
+     *      —— 缩到「标点重叠」那么远，本来就该看总览。
+     *   ② `syncLayers` 里改用 `clusterOn = clustered && isCampus` 统一裁决，
+     *      让「clustered 为真但不在总览」这个组合**永远不可能**同时藏掉两样东西。
+     *
+     * 🔴 2026-10-21 追加（WorkBuddy 实测发现 #43 的副作用）：
+     *   ①原本是无条件执行的，于是「点圈放大」被自己打回来了。实测时序（手机 390×844）：
+     *     t=120ms  view=朝晖  gap=14.0  piles=36   ← 点圈成功，已进分区
+     *     t=252ms  view=campus gap=7.7  piles=0    ← onZoomTier 读到滞后 zoom 17.23，
+     *                                               gap 7.7<13 → 判定聚合 → 强退总览
+     *     t=546ms  gap=14.0（fitBBox 第二枪补正档位）但 view 已是 campus、piles=73
+     *   → 用户看到的是「点圈只闪一下，然后回到全校、73 个点全铺开」。
+     *   所以这条强退**只在用户主动缩放时**才允许（allowViewReset），程序化取景期间禁止；
+     *   连档位重算本身也要跳过（见 onZoomTier 的 1200ms 窗口），否则中间态仍会抖。
+     */
+    if (wantCluster && curView !== 'campus' && allowViewReset) curView = 'campus';
+    clustered = wantCluster;
     dotted = !clustered && gap < GAP_BADGE;              // 中间档 → 逐台小点
     host.classList.toggle('zoom-cluster', clustered);
     host.classList.toggle('zoom-dot', dotted);
@@ -382,13 +413,19 @@
     tierTimer = setTimeout(function () {
       tierTimer = 0;
       if (!map) return;
+      /* 程序化取景期间（fitBBox / setZoom）整段跳过：
+       * 高德 getZoom 在 setZoomAndCenter 之后长期滞后（实测 2.7s 仍报旧值），
+       * 这里算出来的会是假档位，把刚点开的分区视图打回总览。档位交给
+       * fitBBox 自己的 setTimeout(60)/setTimeout(400) 两枪，它们都带显式 z。 */
+      if (Date.now() - progZoomAt < 1200) return;
       // 建筑层随缩放显隐（bldLayer 目前恒为 null：AMap.GeoJSON 在 2.0 不存在，见待办 #44）
       if (bldLayer) {
         var show = map.getZoom() >= 16.3;
         try { bldLayer.show(); } catch (e) {}
         if (bldLayer.setOptions) bldLayer.setOptions({ visible: show });
       }
-      applyZoomTier();
+      // true = 用户主动缩放，允许「缩到标点重叠就退回总览」
+      applyZoomTier(undefined, true);
     }, 120);
   }
 
@@ -403,6 +440,55 @@
         };
       }),
     };
+  }
+
+  /* ---------- 分区全景取景（聚合圈点击 / 分区徽章点击 共用） ----------
+   * 2026-10-21 产品方两条反馈一起落在这里：
+   *   ① 「点击绿圈后区域还是有点小，可以设置充电桩边界靠近屏幕边界」
+   *      → 四周留白从原来的 北门 0.09 / 朝晖 0.22 收到统一的 AREA_PAD。
+   *   ② 「去除放大后点击北门、朝晖体育场的标签会跳转到旧地图的情况」
+   *      → 徽章点击改走这里（在**高德底图上放大**），不再回调页面去 switchMap 静态旧图。
+   */
+  var AREA_PAD = 0.08;
+  /* 取景框 = 分区几何包围盒 ∪ 该分区**所有桩点实际位置**。
+   *
+   * 🔴 2026-10-21 实测：只按 `areaBBox()` 取景会裁到最外侧的桩。
+   *   areaBBox 来自分区排布线的两端点，而桩点是沿线自适应排出来的，
+   *   端点之外还能落点 —— 朝晖实测桩点横向跨度 392px，比 bbox 折算的 371px 还宽，
+   *   于是最外侧的 T01/T36 被容器切掉 1~3px（产品方说「区域还是有点小」，
+   *   真修好之后又冒出来的边界问题）。并上桩点后 pad 才真正等于留白。 */
+  function areaBBoxWithPiles(id) {
+    var b = areaBBox(id);
+    if (!b) return null;
+    piles.forEach(function (p) {
+      if (p.location !== id) return;
+      var q = PIN_POS[p.id];
+      if (!q) return;
+      b = {
+        w: Math.min(b.w, q[0]), e: Math.max(b.e, q[0]),
+        s: Math.min(b.s, q[1]), n: Math.max(b.n, q[1]),
+      };
+    });
+    return b;
+  }
+  function zoomToArea(id) {
+    if (!id) return;
+    var bb = areaBBoxWithPiles(id);
+    if (!bb) return;
+    curView = id;
+    /* 留白换算：单边像素 = cw×p/(2(1+p))。窄屏 cw≈390、p=0.08 → 约 14px，
+     * 标点徽章半宽 10px → 留出 4px 余量，「贴边但不裁切」。
+     * （DeepSeek 原方案 p=0.05 → 9px，只够盖住半宽，遇上子像素取整就会切掉 1px。）
+     * 原值是 北门 0.09 / 朝晖 0.22（朝晖留白尤其大），产品方反映「区域还是有点小」。
+     *
+     * 🔴 minZ 必须给到**徽章档**（gap≥13），否则会出现「点完还是圈」的死循环 ——
+     *   WorkBuddy 2026-10-21 实测：朝晖按 bbox 只能算出 z≈16.17（gap 12.1），
+     *   在 GAP_CLUSTER=13 下仍判成聚合圈 → 点了等于没点。 */
+    fitBBox(bb, AREA_PAD, 18.0);
+    /* ⚠️ 这里**不要**再单独调 syncLayers()：此刻 `clustered` 还是 true，
+     * 而聚合圈的显隐条件是 `isCampus && clustered` —— curView 刚改成分区名（已不是 campus），
+     * 会瞬间出现「逐台点被藏 + 聚合圈也不显示」的空档。
+     * fitBBox 内部会走 applyZoomTier → syncLayers，用新的缩放态一次性算对。 */
   }
 
   /* ---------- 总览气泡（分区徽章） ---------- */
@@ -456,7 +542,13 @@
       m.setMap(map);
       m.on('click', function () {
         var id = m.getExtData().area;
-        if (id && onPileCb) onPileCb({ type: 'area', id: id });
+        if (!id) return;
+        /* 2026-10-21 改：在**当前高德底图上**放大到该分区。
+         * 原来这里是 `onPileCb({ type: 'area', id })`，页面收到 area 会
+         * `switchMap('beimen'|'chaohui')` → 切到静态手绘旧图 ——
+         * 产品方：「去除放大后，点击北门、朝晖体育场的标签会跳转到旧地图的情况」。
+         * 现在与聚合圈点击走同一条路（zoomToArea），不再回调页面。 */
+        zoomToArea(id);
       });
     });
   }
@@ -505,18 +597,10 @@
     markers.forEach(function (m) {
       m.setMap(map);
       m.on('click', function () {
-        var id = m.getExtData().area;
-        if (!id) return;
-        // 点聚合圈 → 放大到该分区全景；放大后 applyZoomTier 会把聚合圈换成逐台点。
-        // 🔴 2026-10-21：minZ 必须给到徽章档（18.0），否则「点完还是圈」——
-        //   实测朝晖按 bbox 只能算出 z≈16.17（gap 12.1），在 GAP_CLUSTER=13 下仍判成聚合圈，
-        //   点了等于没点（死循环）。18.0 与 fitCampus() 的兜底一致：一次点到位、编号可读。
-        var bb = areaBBox(id);
-        if (bb) {
-          curView = id;
-          syncLayers();
-          fitBBox(bb, id === '渭水-北门' ? 0.09 : 0.12, id === '渭水-北门' ? 18.05 : 18.0);
-        }
+        // 点聚合圈 → 放大到该分区全景（与分区徽章点击共用 zoomToArea，留白/托底一致）；
+        // 放大后 applyZoomTier 会把聚合圈换成逐台点。
+        // ⚠️ minZ 必须给到徽章档 —— 见 zoomToArea 里那条「点完还是圈」的说明。
+        zoomToArea(m.getExtData().area);
       });
     });
   }
@@ -564,10 +648,14 @@
 
   function syncLayers() {
     var isCampus = curView === 'campus';
+    /* 🔴 clusterOn 而不是裸 clustered —— 这是「白屏」bug 的结构性兜底（见 applyZoomTier 注释②）。
+     * 逐台点的隐藏与聚合圈的显示**必须用同一个开关**，否则会出现
+     * 「clustered=true 但 curView 不是 campus」→ 点被隐藏、圈又不显示 → 整张图空掉。 */
+    var clusterOn = clustered && isCampus;
     // 总览徽章：总览 + 放大态才显示（聚合成圈时信息与聚合圈重复，藏掉）
-    if (badgeLayer) badgeLayer.forEach(function (m) { m.setMap(isCampus && !clustered ? map : null); });
+    if (badgeLayer) badgeLayer.forEach(function (m) { m.setMap(isCampus && !clusterOn ? map : null); });
     // 聚合圈：只在「总览 + 聚合成圈」时显示；进到某分区（已放大）就隐藏
-    if (clusterLayer) clusterLayer.forEach(function (m) { m.setMap(isCampus && clustered ? map : null); });
+    if (clusterLayer) clusterLayer.forEach(function (m) { m.setMap(clusterOn ? map : null); });
     // 桩点：总览显示（或分区内也显示），这里简化为总览 + 分区都显示桩点
     // 聚合成圈时逐台点整体隐藏（applyZoomTier 也会兜一层，这里先按分区+缩放态裁决）
     if (pinLayer) {
@@ -583,8 +671,9 @@
         } else {
           showPin = true;
         }
-        // 聚合成圈时逐台点一律隐藏（无论总览还是分区）
-        if (clustered) showPin = false;
+        // 聚合成圈时逐台点一律隐藏 —— 用 clusterOn（= clustered && isCampus），
+        // 不能只看 clustered：否则分区视图里缩小时点被藏、圈又不显示 → 白屏
+        if (clusterOn) showPin = false;
         m.setMap(showPin ? map : null);
       });
     }
@@ -599,6 +688,7 @@
      托底是为了让「桩号方框」稳定出现 —— 容器窄的时候按 bbox 算出来只有 18.0 级，
      桩距折算成像素不够 13px，桩号就被降级成圆点，同一份代码在不同手机上长得不一样。 */
   function fitBBox(b, pad, minZ) {
+    progZoomAt = Date.now();      // 标记「这是程序化取景」，onZoomTier 在 1200ms 内不重算档位
     var el = host || document.getElementById('amap-host');
     var cw = (el && el.clientWidth) || 360;
     var ch = (el && el.clientHeight) || 640;
@@ -611,7 +701,14 @@
     var zx = Math.log2(res0 * cw / spanLon);
     var zy = Math.log2(res0 * ch / spanLat);
     var z = Math.max(minZ || 14, Math.min(19.4, Math.min(zx, zy)));
-    map.setZoomAndCenter(z, [(b.w + b.e) / 2, lat]);
+    /* 第三参 immediately=true：无动画直接跳。
+     * 🔴 2026-10-21 实测（WorkBuddy）：同一次调用里既改 center 又改 zoom 时，
+     *   高德会把 zoom **压在动画中间值**上 —— 点圈后地图停在 z=17.23（目标 18.05），
+     *   于是朝晖 36 台只占屏幕中间 224px（左右各留白 83px），产品方说的
+     *   「点绿圈后区域还是有点小」其实是这条没到位，不是 AREA_PAD 的问题。
+     *   对照实验：同一起点手动 setZoom(18.05) → 立刻到 18.05、36 台占 382px。
+     *   加 immediately 之后 zoom 精确落到 z，取景才真的贴着标点边界。 */
+    map.setZoomAndCenter(z, [(b.w + b.e) / 2, lat], true);
     // 先按目标档位刷一次，再靠 zoomend / 定时器兜住高德回填 zoom 的延迟
     applyZoomTier(z);
     setTimeout(function () { applyZoomTier(z); }, 60);
@@ -780,6 +877,7 @@
     // z 会经 applyZoomTier 决定显示聚合圈还是逐台点。
     setZoom: function (z) {
       if (!ready || !map) return false;
+      progZoomAt = Date.now();    // 同 fitBBox：程序化缩放，别让 onZoomTier 用滞后 zoom 覆盖
       map.setZoom(z);
       applyZoomTier(z);
       setTimeout(function () { applyZoomTier(z); }, 400);

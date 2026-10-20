@@ -319,15 +319,37 @@
    * 所以程序化设视野时把「目标 zoom」直接传进来，别去读 map.getZoom()。 */
   var CELL_M = 6.5;               // 北门一格车位的实际边长（米）
   var LAT_COS = Math.cos(34.375 * Math.PI / 180);
-  var clustered = false;          // 当前是否处于「缩到重叠 → 聚合成圈」态（供 syncLayers 复用）
+  /* 缩放三态阈值（gap = 一格车位在当前缩放下折算成多少屏幕像素）
+   *
+   * 🔴 2026-10-21 修：产品方报「缩小地图没有显示一个点」。
+   *   根因：上一版把「三态」压成「两态」时，**把「缩小后逐台显示成小圆点」这一档整个删掉了**
+   *   （`applyZoomTier` 只切 `zoom-cluster`，CSS 里 `.zoom-far`/`.zoom-mid` 再也没被加过 → 死代码），
+   *   于是 gap<13 时逐台点被 `syncLayers` 整体隐藏，缩小后只剩 2 个分区聚合圈，
+   *   **完全看不到单个桩在哪**。现在恢复中间那一档。
+   *
+   *   gap ≥ 13          → 逐台 16×15 徽章 + 桩号（近景，A1 / C11 / T01）
+   *   5 ≤ gap < 13      → **逐台小圆点**（中景 ← 本次恢复的一档，点大小随 gap 自适应）
+   *   gap < 5           → 分区聚合圈（远景，绿=可用数 / 红=×，点圈放大到分区全景）
+   *
+   * 阈值就是「什么时候换档」的旋钮：
+   *   GAP_BADGE 调大 → 更早退回小点（徽章更少见）；GAP_CLUSTER 调大 → 更早聚合成圈。 */
+  var GAP_BADGE = 13;
+  var GAP_CLUSTER = 5;
+  var clustered = false;          // 远景：分区聚合圈态（供 syncLayers 复用）
+  var dotted = false;             // 中景：逐台小圆点态（样式由 CSS 的 .zoom-dot 负责）
   function applyZoomTier(z) {
     if (!host) return;
     if (typeof z !== 'number') z = map ? map.getZoom() : 0;
     var res = 156543.03392 * LAT_COS / Math.pow(2, z);   // 米/像素
     var gap = CELL_M / Math.max(res, 1e-6);
-    clustered = gap < 13;                                // 缩得太狠 → 聚合成圈
+    clustered = gap < GAP_CLUSTER;                       // 缩得太狠 → 聚合成圈
+    dotted = !clustered && gap < GAP_BADGE;              // 中间档 → 逐台小点
     host.classList.toggle('zoom-cluster', clustered);
+    host.classList.toggle('zoom-dot', dotted);
     host.dataset.gap = gap.toFixed(1);
+    // 小点大小**随 gap 自适应**：gap 越小点越小，缩到很小时不会糊成一坨。
+    // 上限 13px（再大就退回徽章档了），下限 5px（保证还看得见）。
+    host.style.setProperty('--pile-gap', gap.toFixed(2) + 'px');
     // 显隐统一交给 syncLayers 裁决（它同时感知分区过滤 + 缩放态），这里只负责定态
     syncLayers();
   }
@@ -563,7 +585,7 @@
    * 原实现是 unionBBox(所有 area) + 徽章位置 → 把北门和朝晖一起塞进视野。
    * 后果：视野被拉到全校级别（实测 z≈17.1，约 1.74 px/m），这时
    *   · 朝晖左弧点距 7.79m → 屏幕 13.5px、右弧 3.71m → **仅 6.5px**（点框固定 16px）
-   *   · 且 `zoom-far` 档位下 CSS 把 `.pile` 的 font-size 归零 → **一个编号都看不见**
+   *   · 且缩到 `gap<13` 时 `.pile` 的 font-size 归零（小点档）→ **一个编号都看不见**
    * 这正是产品方「看不出编号」的根因。
    *
    * 改成只框朝晖后（pad 0.12，实测 z≈18.1，约 2.05 px/m）：
@@ -576,8 +598,9 @@
    * 代价：**北门那一侧的桩点与徽章落到视野外**。可接受 ——
    *   北门有自己独立的「渭水-北门」页签（静态图引擎，不走这里）。
    *
-   * minZ=18.0 是关键兜底：低于它 `applyZoomTier` 会判成 zoom-mid（gap<13）→ 又把编号藏起来。
+   * minZ=18.0 是关键兜底：低于它 `applyZoomTier` 就落到 `gap<13` → 进小点档，编号看不见了。
    *   z=18.0 时 gap = 6.5 / (129290/2^18) ≈ 13.2 ≥ 13，编号必定显示。
+   *   （2026-10-21：档位阈值已提到 `GAP_BADGE`/`GAP_CLUSTER` 两个常量，见 applyZoomTier。）
    */
   function fitCampus() {
     var b = areaBBox('渭水-朝晖体育场南');
@@ -748,7 +771,12 @@
       clearLayer(badgeLayer); clearLayer(pinLayer); clearLayer(clusterLayer);
       try { if (map) map.destroy(); } catch (e) {}
       badgeLayer = null; pinLayer = null; clusterLayer = null;
-      PIN_POS = {}; CLUSTER_POS = {}; clustered = false;
+      PIN_POS = {}; CLUSTER_POS = {}; clustered = false; dotted = false;
+      // 缩放态类名/变量挂在 host 上，销毁时一并清掉，免得下次 mount 残留旧档位
+      if (host) {
+        host.classList.remove('zoom-cluster', 'zoom-dot');
+        host.style.removeProperty('--pile-gap');
+      }
       map = null; ready = false;
       if (host) host.innerHTML = '';
     },

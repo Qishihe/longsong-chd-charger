@@ -173,6 +173,34 @@ def main():
             "内测版版本号 ≥ 正式版（允许仅内测先发，禁止正式版反超）",
             f"preview={a.group(1) if a else '?'} / index={b.group(1) if b else '?'}")
 
+    # ---------- map-amap.js 依赖的 CSS 必须两版都在 ----------
+    # 2026-10-21 加（DeepSeek 建议；当天踩了真实生产事故）：
+    # `map-amap.js` 是**两版共用**的，但它生成的那些 class 的样式是**两版 HTML 各存一份**。
+    # v1.99 发布时只把 `.cluster` / `.zoom-dot` 加进了 preview.html、漏了 index.html →
+    # 正式版缩小后「逐台点被隐藏 + 聚合圈是无样式的裸 div」= 看起来什么都不显示。
+    # 这类「JS 共用、CSS 漏一边」的错，语法检查和单元测试**都查不出来**，只能靠这条断言兜。
+    #
+    # 类名自动从 map-amap.js 里提取（class="x" 与 classList.toggle('x')），
+    # 这样以后它新增了带样式的类，这里会自动跟上，不用再改脚本。
+    am_classes = sorted(set(
+        re.findall(r'class="([a-z][a-z0-9_-]*)', am)
+        + re.findall(r"classList\.(?:add|toggle|remove)\('([a-z][a-z0-9_-]*)'", am)
+    ))
+    # 例外：纯状态标记类，显隐由 syncLayers 的 setMap 控制、本来就没有也不需要 CSS 规则。
+    # 断言只看「有视觉意义」的类。
+    am_classes = [k for k in am_classes if k not in ("zoom-cluster",)]
+    if am_classes:
+        def _has_rule(html, cls):
+            # 作为选择器出现即算（`.cls{` / `.cls,` / `.cls ` / `.cls.` / `.cls:` 等），
+            # 但不能是 `.cluster` 命中 `.cluster-num` 这种前缀误配
+            return re.search(r"\." + re.escape(cls) + r"(?![a-z0-9_-])", html) is not None
+
+        for cls in am_classes:
+            missing = [n for n, t in (("preview.html", pv), ("index.html", ix)) if not _has_rule(t, cls)]
+            c.check(not missing,
+                    f"两版 HTML 都有 .{cls} 样式（map-amap.js 生成的类）",
+                    ("缺：" + " / ".join(missing)) if missing else "")
+
     # ---------- 站点目录保洁 ----------
     c.check(not (SITE / "versions").exists(),
             "站点目录内没有 versions/（历史快照不应公开托管）")

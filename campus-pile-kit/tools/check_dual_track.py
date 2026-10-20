@@ -165,6 +165,22 @@ def main():
                 f"站点目录内没有 {name}",
                 "" if not (SITE / name).exists() else f"应留档在 campus-pile-kit/archive/ —— {why}")
 
+    # ---------- gzip：发布方式必须是 python + serve_gzip.py ----------
+    # 平台对 language:static 默认跑 python -m http.server，不压缩，发布接口也没有压缩开关。
+    # 2026-10-20 起改用自建服务器发 gzip（首屏 287KB -> 88KB）。
+    # 这个文件是运行必需品，丢了会导致整站 404，所以单独立断言。
+    srv = SITE / "serve_gzip.py"
+    c.check(srv.exists(), "站点目录内有 serve_gzip.py（gzip 服务器）")
+    if srv.exists():
+        s = srv.read_text(encoding="utf-8", errors="replace")
+        c.check("Content-Encoding" in s and "gzip" in s,
+                "serve_gzip.py 会发 Content-Encoding: gzip")
+        c.check("Vary" in s, "serve_gzip.py 带 Vary: Accept-Encoding",
+                "缺了会被中间缓存把 gz 版本发给不支持的客户端")
+        c.check('os.environ.get("PORT"' in s or "os.environ.get('PORT'" in s,
+                "serve_gzip.py 从 PORT 环境变量取端口", "平台只暴露这一个端口")
+        c.check("SELF_BLOCK" in s, "serve_gzip.py 屏蔽自身（不对外提供源码）")
+
     ok = c.report()
     if args.json:
         print(json.dumps({"ok": ok, "results": c.results}, ensure_ascii=False, indent=2))

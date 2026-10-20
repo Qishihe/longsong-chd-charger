@@ -87,10 +87,25 @@
     rot: 16.7 * Math.PI / 180,         // 地块长轴（西南 → 东北）
   };
   // 朝晖：手绘图（1024×1536）里体育场外接框 → 真实体育场外接框；弧参数与静态图 pinCoord 一致
+  //
+  // ⚠️ 2026-10-21 修：`cx/cy/rx/ry` 原来是 v1.70 的手绘值（511/784/368/501），
+  //   但那套半径**比体育场外接框还大**（rx 368 > 半宽 219.5），在 1024×1536 的抽象手绘图上
+  //   看着没问题，一旦按真实经纬度换算，左右各甩出去约 60m/57m ——
+  //   点会落到体育场外的马路和居民楼上（产品方一眼看出「不成弧」就是这个原因）。
+  //
+  //   本图 x/y 两向的比例还不一样：kx≈0.3923 m/px、ky≈0.2079 m/px，**相差 1.887 倍**
+  //   （因为手绘体育场是 439×936 的长条，真实体育场却近圆形 172×195m）。
+  //   所以不能直接照搬像素半径，只能**按外接框对齐**：
+  //     cx = (295+734)/2 = 514.5   cy = (307+1243)/2 = 775
+  //     rx = 半宽 (734-295)/2 = 219.5   ry = 半高 (1243-307)/2 = 468
+  //   改完东西跨度 = 2×219.5×0.3923 ≈ 172.2m = 真实体育场宽度（不是巧合：
+  //   1.887 倍的各向异性恰好补偿了 bbox 的 1:2.13 长宽比）。
+  //
+  //   **角度区间、leftCount、total 一个都不能动** —— 那才是产品方要的「v1.70 分布」本身。
   var CH_GEO = {
     px: { x0: 295, y0: 307, x1: 734, y1: 1243 },
     geo: { w: 108.910110, n: 34.375411, e: 108.911984, s: 34.373651 },
-    cx: 511, cy: 784, rx: 368, ry: 501,
+    cx: 514.5, cy: 775, rx: 219.5, ry: 468,
     leftCount: 12, leftStart: 180, leftEnd: 128, rightStart: 52, rightEnd: 0, total: 36,
   };
   function r6(v) { return Math.round(v * 1e6) / 1e6; }
@@ -134,10 +149,17 @@
     var m = s.match(/([A-D])-?(\d{1,2})(?!\d)/);
     return m ? m[1] + String(Number(m[2])).padStart(2, '0') : '';
   }
-  /** 桩号 → 点位里那两个字符：'北-A01 号桩' → 'A1'，'C11' → 'C11' */
+  /** 桩号 → 点位里那两个字符：'北-A01 号桩' → 'A1'，'C11' → 'C11'，'TY-07' → 'T07' */
   function shortCode(code) {
     var k = bmKey(code);
     if (k) return k.charAt(0) + String(Number(k.slice(1)));
+    // 2026-10-21 修：朝晖要显示 `T01~T36`（产品方明确要求）。
+    // 原来落到下面那条兜底正则 `/[A-Z]?\d{1,2}/` 上，'TY-07' 会被吃成 **'07'**（丢了 T）——
+    // 因为 `[A-Z]?` 在 'T' 后面接不上数字（'Y' 不是数字），正则回溯后从 '07' 开始匹配。
+    // 现在用 arcSeq（取末尾数字 → 1~36 的弧序号）先兜一层，拼成 'T' + 两位。
+    // 注意 arcSeq 定义在本函数之后，靠函数声明提升，调用没问题。
+    var seq = arcSeq(code);
+    if (seq) return 'T' + String(seq).padStart(2, '0');
     var m = String(code || '').toUpperCase().match(/[A-Z]?\d{1,2}/);
     return m ? m[0] : String(code || '?').slice(0, 3);
   }
@@ -462,18 +484,47 @@
     setTimeout(function () { applyZoomTier(z); }, 400);
   }
 
+  /**
+   * 「渭水校区」页签的默认取景。
+   *
+   * ⚠️ 2026-10-21 改（产品方选 A）：**从「全域并集」改成「只框朝晖」**。
+   *
+   * 原实现是 unionBBox(所有 area) + 徽章位置 → 把北门和朝晖一起塞进视野。
+   * 后果：视野被拉到全校级别（实测 z≈17.1，约 1.74 px/m），这时
+   *   · 朝晖左弧点距 7.79m → 屏幕 13.5px、右弧 3.71m → **仅 6.5px**（点框固定 16px）
+   *   · 且 `zoom-far` 档位下 CSS 把 `.pile` 的 font-size 归零 → **一个编号都看不见**
+   * 这正是产品方「看不出编号」的根因。
+   *
+   * 改成只框朝晖后（pad 0.12，实测 z≈18.1，约 2.05 px/m）：
+   *   · 东西跨度 ≈172m = 体育场宽度，v1.70 的**双弧形状一眼可见**
+   *   · 左弧点距 → 屏幕 ≈16px，**编号可读**
+   *   · ⚠️ 右弧 24 点（点距 3.71m）→ 屏幕仅 ≈7.6px，**编号仍会重叠**，需再放大一档才是清的。
+   *     这是「36 个编号 + 完整双弧形状」物理上不可兼得的必然结果，
+   *     产品方已知情并选择「先保证看见形状」（详见沟通记录 01:5x / 待办 29）。
+   *
+   * 代价：**北门那一侧的桩点与徽章落到视野外**。可接受 ——
+   *   北门有自己独立的「渭水-北门」页签（静态图引擎，不走这里）。
+   *
+   * minZ=18.0 是关键兜底：低于它 `applyZoomTier` 会判成 zoom-mid（gap<13）→ 又把编号藏起来。
+   *   z=18.0 时 gap = 6.5 / (129290/2^18) ≈ 13.2 ≥ 13，编号必定显示。
+   */
   function fitCampus() {
-    var b = unionBBox(Object.keys(D.areas).map(areaBBox));
-    // 徽章挂在桩阵外侧，取景时把它一起算进去，否则会贴边被裁
-    Object.keys(BADGE_POS).forEach(function (k) {
-      var p = BADGE_POS[k];
-      if (!p) return;
-      b = {
-        w: Math.min(b.w, p[0]), e: Math.max(b.e, p[0]),
-        s: Math.min(b.s, p[1]), n: Math.max(b.n, p[1]),
-      };
-    });
-    fitBBox(b, 0.10);
+    var b = areaBBox('渭水-朝晖体育场南');
+    if (!b) {
+      // 拿不到朝晖落点（例如桩表还没灌进来）→ 退回原来的全域并集，免得黑屏
+      b = unionBBox(Object.keys(D.areas).map(areaBBox));
+      Object.keys(BADGE_POS).forEach(function (k) {
+        var p = BADGE_POS[k];
+        if (!p) return;
+        b = {
+          w: Math.min(b.w, p[0]), e: Math.max(b.e, p[0]),
+          s: Math.min(b.s, p[1]), n: Math.max(b.n, p[1]),
+        };
+      });
+      fitBBox(b, 0.10, 17.0);
+      return;
+    }
+    fitBBox(b, 0.12, 18.0);
   }
 
   function applyCamera() {

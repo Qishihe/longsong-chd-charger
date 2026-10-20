@@ -243,6 +243,7 @@
   .map-stage svg:active{cursor:grabbing}
   /* 真实地图（腾讯地图）容器 */
   .tmap-host{position:absolute; inset:0; z-index:1; display:none; background:#F1F2EC}
+  .amap-host{position:absolute; inset:0; z-index:1; display:none; background:#EDEBE3}
   .map-dialog[data-engine="tmap"] .tmap-host,
   .map-dialog[data-engine="prep"] .tmap-host{display:block}
   .map-dialog[data-engine="tmap"] #campus-map{display:none}
@@ -255,6 +256,29 @@
     padding:3px 7px; border-radius:6px; pointer-events:none; display:none;
   }
   .map-dialog[data-engine="tmap"] .map-attrib{display:block}
+  /* 高德地图运行时（map-amap.js）的桩点徽章
+     2026-10-20：点内改成写桩号（A1 / C11 / D14），不再写空闲数。
+     徽章做成 16×15 的小胶囊、字号 8.5，恰好是一格车位（约 6.5m，
+     北门取景下 18 级缩放时 ≈18px）的宽度，37 个点不会叠在一起。 */
+  .pile{
+    min-width:16px;height:15px;padding:0 2px;box-sizing:border-box;border-radius:4px;
+    display:flex;align-items:center;justify-content:center;
+    color:#fff;font-size:8.5px;font-weight:700;line-height:1;letter-spacing:-.2px;
+    border:1.5px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.32);
+  }
+  .pile.free{background:#1D9E75} .pile.busy{background:#E24B4A} .pile.off{background:#B4B2A9}
+  /* 缩小时桩点收成小圆点：桩号挤在总览里会糊成一片 */
+  .amap-host.zoom-far .pile{width:9px; min-width:0; height:9px; padding:0; border-radius:50%; font-size:0; border-width:1.5px}
+  .amap-host.zoom-mid .pile{width:13px; min-width:0; height:13px; padding:0; border-radius:4px; font-size:0; border-width:1.5px}
+  .lbl{font-size:12px;color:#2F5D45;font-weight:600;text-shadow:0 0 3px #fff,0 0 3px #fff;white-space:nowrap}
+  .map-dialog[data-engine="amap"] .tmap-host,
+  .map-dialog[data-engine="amap"] .amap-host,
+  .map-dialog[data-engine="prep"] .amap-host{display:block}
+  .map-dialog[data-engine="amap"] #campus-map{display:none}
+  .map-dialog[data-engine="amap"] .map-controls{display:none}
+  .map-dialog[data-engine="amap"] .map-zones{display:none}
+  .map-dialog[data-engine="amap"] .map-legend{bottom:12px}
+  .map-dialog[data-engine="amap"] .map-attrib{display:block}
   .map-keybar{
     position:absolute; left:10px; right:10px; top:10px; z-index:6;
     display:flex; align-items:center; gap:10px;
@@ -306,7 +330,8 @@
     padding:7px 13px; background:var(--card); border-bottom:1px solid var(--line);
     font-size:11.5px; color:var(--muted);
   }
-  .map-dialog[data-map="overview"] .map-badge-legend{display:flex}
+  .map-dialog[data-map="overview"] .map-badge-legend,
+  .map-dialog[data-map="amap"] .map-badge-legend{display:flex}
   .map-badge-legend b{
     display:inline-flex; align-items:center; justify-content:center;
     width:19px; height:19px; border-radius:50%; margin-right:5px;
@@ -324,6 +349,16 @@
   .guide ol{margin:0 0 14px; padding-left:19px; font-size:13px; color:var(--muted)}
   .guide li{margin-bottom:5px}
   .guide code{background:#F2F1EC; border:1px solid var(--line); border-radius:5px; padding:1px 5px; font-size:12px}
+
+  /* ⚡ 性能（消除 CLS 大位移）：给设备列表预留一屏高度。
+     背景：首屏时页面只有 ~800px（header + 引导卡 + 页脚），页脚落在视口内；
+     1.1 秒后 token 从云端恢复、73 张设备卡一次性插入 ~11,500px，把页脚推到 y≈12,000。
+     实测线上真实数据 CLS 0.31~0.39（Google 阈值 0.1 才算「良好」），主因就是这个位移
+     （占总 CLS 的 0.76）。留一屏高度后，页脚在首屏就位于视口之外，
+     而**视口外元素的位移不计入 CLS**。
+     线上 A/B 实测（CDP 注入，未发版）：CLS 0.3066/0.3912 → 0.0407，两次结果一致。
+     代价：设备很少时列表下方会有一段空白，可接受（本项目稳定 73 台）。 */
+  #cards{min-height:100vh}
 
   footer{margin-top:22px; font-size:11.5px; color:var(--hint); text-align:center; line-height:1.7}
   .foot-contact{padding-top:14px; border-top:1px solid var(--line)}
@@ -523,7 +558,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v1.93</div>
+    <div id="app-ver" class="foot-ver">版本 v1.97</div>
   </footer>
 </div>
 
@@ -534,6 +569,7 @@
     <button class="icon-btn" id="map-close" style="flex:none">关闭</button>
   </div>
   <div class="map-tabs" id="map-tabs" role="tablist" aria-label="切换地图">
+    <button class="map-tab" data-map="amap" role="tab">渭水校区</button>
     <button class="map-tab" data-map="beimen" role="tab">渭水-北门</button>
     <button class="map-tab on" data-map="chaohui" role="tab">渭水-朝晖体育场南</button>
   </div>
@@ -541,10 +577,11 @@
     <span><b class="ok">3</b>空闲数</span>
     <span><b class="full">✕</b>已满</span>
     <span><b class="off">✕</b>离线</span>
-    <em>点击地图上的点查看该区域详情</em>
+    <em>点击地图上的点查看详情</em>
   </div>
   <div class="map-stage" id="map-stage">
     <div class="tmap-host" id="tmap-host"></div>
+    <div class="amap-host" id="amap-host"></div>
     <div class="map-keybar" id="map-keybar" hidden>
       <span>真实地图需配置腾讯地图 key（免费申请约 3 分钟）</span>
       <button id="map-key-btn" type="button">填写 key</button>
@@ -712,6 +749,7 @@
     <a class="icon-btn" id="go-preview" href="./preview.html"
        style="display:flex;justify-content:center;width:100%;margin-top:14px;text-decoration:none"
        data-page-node-id="go-preview-btn">查看最新测试版 ›</a>
+    <div class="note" style="text-align:center;margin-top:6px">当前就是测试版，改动先在这里验</div>
   </div>
 </dialog>
 
@@ -1455,7 +1493,7 @@ const ADDRESS_MAPS = {
   },
 };
 // 校区总览图（第三张图）：一张覆盖全校的底图，桩按所属分区聚合成气泡
-// ⚠️ 暂时下线：v1.64 起只上「北门」「朝晖体育场南」两张图。
+// ⚠️ v1.97 起总览图从页签下线（「渭水校区」页签改用高德底图），本对象作为死代码保留：
 //    要恢复总览，把 CAMPUS_MAP 加回 MAP_ORDER、并在顶部 tab 里补一个 data-map="overview" 按钮即可。
 // v1.75：底图超采样到 9600×3422（2 倍于源图，Lanczos + 轻锐化，963KB）。
 //        源图本身只有 4800，手机屏 DPR 2~3，放大时位图被插值拉糊 —— 超采样一倍后，
@@ -1467,8 +1505,16 @@ const CAMPUS_MAP = {
   id: 'overview', label: '渭水校区',
   img: 'map-weishui-raw.webp', w: 9600, h: 3422, layout: 'zone', name: '渭水校区',
 };
-// 筛选顺序：校区总览 → 北门 → 朝晖
-const MAP_ORDER = [ADDRESS_MAPS['渭水-北门'], ADDRESS_MAPS['_default']];
+// 高德底图（「渭水校区」页签）：真正的在线地图，带 limitBounds 限制在渭水校区内。
+// 只做身份占位，几何/底图由 map-amap.js 负责，静态引擎的 layout/w/h 字段一律用不到。
+// v1.97：原「渭水校区」静态总览图下线，这个页签改用它当校区总览（标签也叫「渭水校区」）。
+const AMAP_MAP = {
+  id: 'amap', label: '渭水校区', name: '渭水校区', layout: 'amap',
+};
+// 筛选顺序：渭水校区（高德底图）→ 北门 → 朝晖
+// v1.97：CAMPUS_MAP（9600×3422 静态总览）已从页签和这里移除，底图不再下载；
+//        代码对象保留，恢复只需把 CAMPUS_MAP 加回本行 + 顶部补 data-map="overview" 按钮。
+const MAP_ORDER = [AMAP_MAP, ADDRESS_MAPS['渭水-北门'], ADDRESS_MAPS['_default']];
 // 总览图上的分区锚点（底图像素坐标，底图 9600×3422）
 //   labelSide:'left' 把地址名排到点的左边 —— 北门这个点在图上紧挨着底图自己的红色「北门」二字，
 //   标签往右会压住它，往左才读得清。锚点 x=7920 是量的：红字在 4800 图上 bbox x 4032~4196、
@@ -1646,6 +1692,31 @@ function buildScope() {
       mapScope.push(i);
     }
   });
+}
+
+/** 空闲时预热小底图：让「点地图」不再先看到空白背景 + 一堆孤零零的桩点。
+ *
+ * 背景：底图改成按需加载后（首屏省下 963KB），点「地图」时
+ *   applyBaseMap() 在 ~26ms 就设好 href、renderMapMarkers() 也立刻把桩点画出来，
+ *   但图片要 ~320ms 才到 —— 这 300ms 里用户看到的是**空白米色背景上飘着红绿圆点**，
+ *   实测连拍确认（120ms 时截图仅 33KB＝几乎全空，350ms 才跳到 173KB）。
+ *   这比单纯慢更难看，看起来像坏了。
+ *
+ * 做法：首屏之后（requestIdleCallback）把**真正会用到的两张小图**预热进 HTTP 缓存：
+ *   · 朝晖 map-clean.webp  69KB  ← openMap() 首次进入的默认图
+ *   · 北门 map-beimen.webp 76KB
+ *   合计 145KB，空闲时段拉取，不阻塞首屏。
+ *
+ * ⚠️ 故意**不预热** map-weishui-raw.webp（963KB 的渭水校区总览图）：
+ *   它是用户主动点「渭水校区」页签才需要的，按需即可；
+ *   首屏/空闲时段都不该为它付 963KB。
+ *   （注：这张图在**正式版 index.html 里从不显示**，在内测版里由「渭水校区」页签使用。）
+ */
+function warmBaseMaps() {
+  const urls = ['map-clean.webp', 'map-beimen.webp'];
+  const run = () => urls.forEach((u) => { const im = new Image(); im.src = u; });
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 3000 });
+  else setTimeout(run, 1200);
 }
 
 /** 切换底图图片与尺寸 */
@@ -1959,6 +2030,10 @@ const TMAP_VIEW = { beimen: '渭水-北门', chaohui: '渭水-朝晖体育场南
 let tmapActive = false;
 let tmapLoading = null;
 
+// 高德地图（map-amap.js）：渭水校区总览页签专用，Key 由 map-key.local.js 提供（不进仓库）
+let amapActive = false;
+let amapLoading = null;
+
 const loadedScripts = {};
 function loadScriptOnce(src) {
   if (loadedScripts[src]) return loadedScripts[src];
@@ -2078,6 +2153,137 @@ function tmapApplyView(mapId, focusDeviceId) {
   $('map-sub').textContent = `${inView.length} 个点位 · ${freeN} 个有空位`;
 }
 
+/* ---------------- 高德地图（「高德地图」页签） ----------------
+ * map-amap.js 提供 CHD_AMAP，limitBounds 限制相机留在校区内。
+ * Key 不写死在代码里：由 map-key.local.js 提供 window.CHD_AMAP_KEY / _SCODE，
+ * 该文件不进仓库（.gitignore），自部署时从 map-key.example.js 复制并填自己的。
+ * 只有独立页签使用它；渭水校区总览 / 北门 / 朝晖 仍是原来的静态底图。
+ */
+
+/** 载入本地 Key 文件（可选）。文件不存在是正常情况（克隆仓库的人），不报错。
+ *  ⚠️ KEY_VER：sw.js 对静态资源是「缓存优先 + 后台更新」（见 sw.js 的 fetch 分支），
+ *     Key 文件换了但版本号不变的话，老用户第一次打开拿到的还是缓存里的旧 Key。
+ *     换 Key 时必须把这里加一（同时 map.html 的 ?v= 和 sw.js 的 CACHE 名也要加一）。
+ */
+const KEY_VER = 1;
+function loadLocalKeyOnce() {
+  if (window.CHD_AMAP_KEY) return Promise.resolve();
+  return new Promise((resolve) => {
+    const s = document.createElement('script');
+    s.src = 'map-key.local.js?v=' + KEY_VER;
+    s.onload = () => resolve();
+    s.onerror = () => resolve();   // 没有这个文件 → 交给 map-amap.js 报 nokey
+    document.head.appendChild(s);
+  });
+}
+
+function ensureAMap() {
+  if (amapLoading) return amapLoading;
+  amapLoading = new Promise((resolve) => {
+    let settled = false;
+    const done = (ok) => {
+      if (settled) return;
+      settled = true;
+      if (!ok) amapLoading = null;
+      resolve(ok);
+    };
+    const boot = () => {
+      if (!window.CHD_AMAP || !window.CHD_MAP) { done(false); return; }
+      $('map-dialog').setAttribute('data-engine', 'prep');
+      window.CHD_AMAP.mount($('amap-host'), {
+        onReady: () => {
+          amapActive = true;
+          $('map-keybar').hidden = true;
+          $('map-dialog').setAttribute('data-engine', 'amap');
+          const attrib = document.querySelector('.map-attrib');
+          if (attrib) attrib.textContent = '底图 © 高德地图 · 桩位按分区排布示意';
+          window.CHD_AMAP.setPiles(amapDevices());
+          window.CHD_AMAP.setView('campus');
+          done(true);
+        },
+        onFail: (reason) => {
+          amapActive = false;
+          $('map-dialog').removeAttribute('data-engine');
+          console.warn('[map] 高德地图加载失败：' + reason);
+          // nokey：仓库里不带 Key，提示去看 map-key.example.js
+          if (reason === 'nokey') $('map-keybar').hidden = false;
+          done(false);
+        },
+        onPileClick: onAMapPileClick,
+      });
+    };
+    if (window.CHD_AMAP && window.CHD_MAP) { boot(); return; }
+    loadScriptOnce('map-data.js?v=163')
+      .then(loadLocalKeyOnce)
+// ⚠️ map-amap.js 走 Service Worker 缓存优先，改了它必须同时改这里的 ?v=，否则用户拿的还是旧文件
+      .then(() => loadScriptOnce('map-amap.js?v=128'))
+      .then(boot)
+      .catch(() => done(false));
+  });
+  return amapLoading;
+}
+
+/** 高德地图上的桩点数据（与 tmapDevices 同口径） */
+function amapDevices() {
+  return mapDevices.map((d, i) => {
+    const ports = (mapResults[i] || {}).ports || [];
+    const free = ports.filter((p) => p.state === SLOT_FREE).length;
+    const target = mapForAddress([d.location, d.name].filter(Boolean).join(' '));
+    return {
+      id: d.id,
+      code: d.code || d.name,
+      location: target && target.id === 'beimen' ? '渭水-北门' : '渭水-朝晖体育场南',
+      free: ports.length ? free : 0,
+      total: ports.length,
+    };
+  });
+}
+
+function onAMapPileClick(ev) {
+  if (ev.type === 'area') {
+    switchMap(ev.id === '渭水-北门' ? 'beimen' : 'chaohui');
+    return;
+  }
+  const i = mapDevices.findIndex((x) => String(x.id).toUpperCase() === String(ev.id).toUpperCase());
+  if (i < 0) return;
+  const d = mapDevices[i];
+  const ports = (mapResults[i] || {}).ports || [];
+  const free = ports.filter((p) => p.state === SLOT_FREE).length;
+  $('map-sub').textContent = ports.length
+    ? `${d.code || d.name} · 空闲 ${free}/${ports.length}`
+    : `${d.code || d.name} · 无数据`;
+}
+
+/** 高德地图套用总览视角 */
+function amapApplyView() {
+  if (!amapActive || !window.CHD_AMAP) return;
+  /* 🐛 修 bug：切回「高德地图」页签时地图显示不出来。
+   *
+   * 成因：`.amap-host` 默认 `display:none`，只有 `.map-dialog[data-engine="amap"]` 才显示
+   *（见 CSS 里 .amap-host 与 .map-dialog[data-engine="amap"] .amap-host 两条规则）。
+   * 而 switchMap() 离开高德页签时执行的是 removeAttribute('data-engine')，**并没有把
+   * amapActive 置回 false**；再切回来时 ensureAMap() 返回的是已 resolve 的缓存 promise
+   *（不会重新 mount），直接走到这里 —— 而这里原先只做 resize/setPiles/setView，
+   * 从头到尾没有再设 data-engine。结果容器永远是 display:none，高德地图彻底不显示。
+   *
+   * 实测（线上 preview，页签序列 amap→beimen→chaohui→amap→beimen→amap）：
+   *   修复前：第 1 次 amap 1475ms 正常，第 2、3 次 **TIMEOUT（12 秒无响应）**
+   *   修复后：33ms / 27ms 秒开
+   * 验证方式：用 CDP 运行时给本函数打补丁补这一行，同一序列即复现→消失，
+   *          确认根因就是缺这一行（不是推测）。
+   *
+   * 放在 resize() 之前：高德容器从 display:none 变回 block 后才能正确量到尺寸，
+   * 顺序反了 resize 会按 0×0 计算，地图白屏。
+   */
+  $('map-dialog').setAttribute('data-engine', 'amap');
+  window.CHD_AMAP.resize();
+  window.CHD_AMAP.setPiles(amapDevices());
+  window.CHD_AMAP.setView('campus');
+  const inView = amapDevices();
+  const freeN = inView.filter((x) => x.free > 0).length;
+  $('map-sub').textContent = `${inView.length} 个点位 · ${freeN} 个有空位`;
+}
+
 /** 同步顶部筛选按钮的选中态 */
 function syncMapTabs() {
   const dlg = $('map-dialog');
@@ -2095,7 +2301,19 @@ function switchMap(mapId, focusDeviceId) {
   if (!next) return;
   curMap = next;
   syncMapTabs();
+  // 「高德地图」页签 → 在线底图引擎
+  if (next.id === 'amap') {
+    ensureAMap().then((ok) => {
+      if (ok) { amapApplyView(); return; }
+      // 高德加载失败：退回北门静态图，别留一片空底（总览图 v1.97 已下线）
+      $('map-dialog').removeAttribute('data-engine');
+      switchMap('beimen');
+    });
+    return;
+  }
   if (tmapActive) { tmapApplyView(next.id, focusDeviceId); return; }
+  // 离开高德页签时，把在线底图收起，交还给静态引擎
+  if (amapActive) { $('map-dialog').removeAttribute('data-engine'); }
   buildScope();
   applyBaseMap();
   // 立即按新底图尺寸适配视野：放进 rAF 会晚一帧生效，
@@ -2130,6 +2348,15 @@ function openMap() {
   syncMapTabs();
   const dlg = $('map-dialog');
   if (!dlg.open) dlg.showModal();
+  // 「高德地图」页签 → 在线底图；其余页签 → 腾讯地图（未启用则回落静态图）
+  if (curMap.id === 'amap') {
+    ensureAMap().then((ok) => {
+      if (ok) { amapApplyView(); return; }
+      $('map-dialog').removeAttribute('data-engine');
+      switchMap('beimen');
+    });
+    return;
+  }
   ensureTMap().then((ok) => {
     if (ok) { tmapApplyView(curMap.id); return; }
     buildScope();
@@ -2361,6 +2588,9 @@ async function refresh({ force = false, retried = false } = {}) {
 
   // 查询结束后最终渲染一次（此时 busyFlag 已置 false，banner 状态才正确）
   if (devices.length) render(devices, results);
+
+  // 高德页签正开着的话，把新一轮空位数同步过去（否则要等用户切页签才更新）
+  if (amapActive && window.CHD_AMAP) window.CHD_AMAP.setPiles(amapDevices(), { keepCamera: true });
 
   // 凭证失效时先从云端换一次再重试 —— 这就是「手机不用管」的关键一环
   if (needRecover && !retried && getSyncKey() && cloudSupport()) {
@@ -2726,36 +2956,128 @@ function buildShareRow(deviceId, record) {
 }
 
 /**
- * 历史快照：把「当前这一批桩的状态」整体落一条带时间戳的快照。
- * 每条快照 = 每台桩一行（device_id 唯一），字段：free/total/ts/day。
- * 占用率口径（用户确认）= 被观测到「有插座在充」的快照占比，不按分钟插值。
- * 失败静默 —— 采集是尽力而为，绝不能因为写历史失败而让查询报错。
+ * 历史快照（**按「位置 × 小时」预聚合**）—— 2026-10-20 产品方确认方案 C。
+ *
+ * 产品方原话：
+ *   「我想每小时上传一次数据到云端，下次调用直接调用占用率和时间就行了。
+ *     不需要调用过去每个时段的设备数量然后再重新计算占有率。」
+ *   「不进入后台（改表），直接在代码层次实现。」
+ *
+ * ⚠️ **重要约束：云端表不能改结构。** 我实测过云端 pile_history 的现有列只有：
+ *       id, device_id, free, total, ts, day, location
+ *   我最初的设计想加 hour / occ_rate / occ / snap 四个新列 —— **那会直接报错**
+ *   （实测：`column pile_history.hour does not exist`）。产品方明确不进后台，
+ *   所以**只能在现有列里实现**。
+ *
+ * 怎么在现有列里表达「每小时一行、占用率已算好」：
+ *   · **hour 不需要新列** —— 它可以从 ts 推（读取端本来就 `new Date(row.ts).getHours()`）。
+ *     只要把 ts 固定写成该小时的整点，hour 就唯一确定。
+ *   · **占用率**用现有的 free/total 两个列装**聚合后的值**：
+ *       free  = 该位置该小时「空闲插座总数」（不是单台）
+ *       total = 该位置该小时「插座总数」（不是单台）
+ *     占用率 = (total - free) / total —— 聚合已经做完，读取端只做一次除法，
+ *     不需要再遍历几十台桩累加（这正是产品方要的「不需要重新计算」）。
+ *   · **用 device_id 做行类型标记**：聚合行写 `device_id = AGG_DEVICE_ID`（保留串），
+ *     与真实的桩号（如 XLA29282）天然区分开。读取端据此优先用聚合行。
+ *
+ * 去重（不依赖数据库唯一约束，纯代码层）：
+ *   先按 (location, day, ts=该小时整点) 查有没有聚合行 →
+ *     有 → PATCH 覆盖那一行（表不涨）
+ *     无 → INSERT 新增一行
+ *   这就是「查-改-写」。代价是每位置每小时多 1 次查询，但**表恒定 336 行左右**。
+ *
+ * 旧数据保留：真实桩号的行原样留着（产品方要求不清），读取端在「该小时已有聚合行」时
+ * 会跳过同小时的明细行，避免重复计数；没有聚合行的小时仍回退用明细行 —— 过渡期不丢历史。
  */
+
+// 聚合行的标记：写在 device_id 列里。带双下划线前缀，不可能与真实桩号冲突
+const AGG_DEVICE_ID = '__hourly_agg__';
+
+/** 把时间对到「该小时整点」的 ISO 串（本地时区偏移，与旧数据的 ts 格式一致） */
+function hourStampISO(d = new Date()) {
+  const h = new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), 0, 0, 0);
+  const p = (n) => String(n).padStart(2, '0');
+  const off = -h.getTimezoneOffset();
+  const sign = off >= 0 ? '+' : '-';
+  const oh = p(Math.floor(Math.abs(off) / 60));
+  const om = p(Math.abs(off) % 60);
+  return `${h.getFullYear()}-${p(h.getMonth() + 1)}-${p(h.getDate())}T${p(h.getHours())}:00:00.00${sign}${oh}:${om}`;
+}
+
 async function writeHistory(records) {
   if (!cloudSupport() || !Array.isArray(records) || !records.length) return;
   try {
     const now = new Date();
-    const ts = now.toISOString();
-    const day = ts.slice(0, 10);   // 'YYYY-MM-DD'
-    const rows = records
-      .map((r) => {
-        const ports = r && r.ports ? r.ports : [];
-        if (!isValidPorts(ports)) return null;
-        const free = ports.filter((p) => p.state === SLOT_FREE).length;
-        return {
-          device_id: r.deviceId,
-          free,
-          total: ports.length,
-          ts,
-          day,
-          location: r.location || null,   // 冗余存一份，供「按位置筛选」直接聚合
-        };
-      })
-      .filter(Boolean);
+    const ts = hourStampISO(now);       // ← 固定为该小时整点，hour 由此唯一确定
+    const day = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    // 第一步：按 location 聚合成「每位置一行」
+    const byLoc = {};
+    for (const r of records) {
+      const ports = r && r.ports ? r.ports : [];
+      if (!isValidPorts(ports)) continue;
+      const loc = r.location || null;
+      if (!loc) continue;               // 没有位置的老数据跳过（读取端也是这么过滤的）
+      const free = ports.filter((p) => p.state === SLOT_FREE).length;
+      const g = byLoc[loc] || (byLoc[loc] = { freeSum: 0, totalSum: 0, n: 0 });
+      g.freeSum += free;
+      g.totalSum += ports.length;
+      g.n += 1;
+    }
+
+    const rows = Object.entries(byLoc)
+      .filter(([, g]) => g.totalSum > 0)
+      .map(([loc, g]) => ({
+        device_id: AGG_DEVICE_ID,       // ← 标记为聚合行
+        location: loc,
+        day,
+        ts,                             // ← 该小时整点，hour 从它推
+        free: g.freeSum,                // ← 聚合后的空闲插座数
+        total: g.totalSum,              // ← 聚合后的插座总数
+      }));
     if (!rows.length) return;
-    // 同一 device_id + day 多次写入会累积多条快照；这里不 upsert，保留每次采样点
-    await cloudDb().from(HISTORY_TABLE).insert(rows);
-  } catch (e) {}
+
+    // 第二步：查-改-写（不依赖唯一约束）
+    let inserted = 0, updated = 0;
+    for (const row of rows) {
+      try {
+        const { data: exist, error: qErr } = await cloudDb()
+          .from(HISTORY_TABLE)
+          .select('id')
+          .eq('device_id', AGG_DEVICE_ID)
+          .eq('location', row.location)
+          .eq('ts', row.ts)
+          .limit(1);
+        if (qErr) { console.warn('[history] 查重失败', qErr.message || qErr); continue; }
+
+        const hit = Array.isArray(exist) && exist.length ? exist[0] : null;
+        if (hit && hit.id != null) {
+          // 已存在 → 覆盖那一行，表不增长
+          const { error: uErr } = await cloudDb()
+            .from(HISTORY_TABLE)
+            .update({ free: row.free, total: row.total })
+            .eq('id', hit.id);
+          if (uErr) console.warn('[history] 覆盖失败', uErr.message || uErr);
+          else updated += 1;
+        } else {
+          const { error: iErr } = await cloudDb().from(HISTORY_TABLE).insert(row);
+          if (iErr) console.warn('[history] 插入失败', iErr.message || iErr);
+          else inserted += 1;
+        }
+      } catch (e) {
+        console.warn('[history] 单行写入异常', e);
+      }
+    }
+    console.log(`[history] ${hhmmss(now)} 聚合写入：新增 ${inserted} / 覆盖 ${updated}（${rows.length} 个位置）`);
+  } catch (e) {
+    console.warn('[history] 写入异常', e);
+  }
+}
+
+/** 日志用：HH:MM:SS */
+function hhmmss(d = new Date()) {
+  const p = (n) => String(n).padStart(2, '0');
+  return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 
 /**
@@ -2764,35 +3086,110 @@ async function writeHistory(records) {
  *   locations = 排序后的位置列表；days = 全局排序后的日期列表（'YYYY-MM-DD'）
  *   byLocation[loc] = { byHour:[24], occRate, snapshots, byDay:{ day: {byHour:[24], occRate, snapshots} } }
  * 占用率 = 占用插座数 / 观测插座数，按小时桶（0~23）统计，不按分钟插值。
+ *
+ * ⚠️ 2026-10-20 改：适配「每位置一行」的新写入格式，并修掉两个读取端的坑。
+ *
+ * 坑 1（**这才是「图表只有一个点」的真因**）：原来用 `.order('ts', {ascending:true})`，
+ *   升序取前 N 行 —— 单次 select 上限约 1000 行，而旧格式是每台桩一行（73 行/次），
+ *   1000 行只够 13 次采样。升序意味着拿到的是**最旧的**那段，不是最近 7 天。
+ *   现在改成「降序取最新 N 行，再反转为升序」，保证拿到的是**最近**的数据。
+ *
+ * 坑 2：显式加 `.limit()`。不加时靠服务端默认上限，行数一多就静默截断。
+ *   新格式 7 天只有 168 × 位置数 行（当前 2 个位置 = 336 行），1000 完全够；
+ *   加 limit 是为了「万一旧数据很多」时行为可预期，而不是静默丢数据。
+ *
+ * 兼容性：**同时兼容新旧两种行**。
+ *   · **聚合行**（新，`device_id === AGG_DEVICE_ID`）：free/total 已是该位置该小时的聚合值
+ *   · **明细行**（旧，device_id 是真实桩号）：free/total 是单台的，读取端要累加
+ *   两者混存，按「**同一小时优先用聚合行、跳过同小时明细行**」去重 —— 产品方要求旧数据不清，
+ *   所以必须能共存而不重复计数。没有聚合行的小时仍回退用明细行（过渡期不丢历史）。
  */
+const HISTORY_ROW_LIMIT = 5000;   // 明细行回退查询的上限（防静默截断）
+const HISTORY_AGG_LIMIT = 1000;   // 聚合行上限：7 天 × 24 小时 × 位置数，远小于 1000
+
 async function readHistoryStats() {
   if (!cloudSupport()) return null;
   try {
     const cutoff = new Date(Date.now() - HISTORY_KEEP_DAYS * 86400000).toISOString();
-    const { data, error } = await cloudDb()
-      .from(HISTORY_TABLE)
-      .select('device_id,free,total,ts,day,location')
-      .gte('ts', cutoff)
-      .order('ts', { ascending: true });
-    if (error || !Array.isArray(data)) return null;
+
+    /* ⚠️ 为什么分成**两次查询**（2026-10-20 深夜补的，这是个真会让图表空白的坑）
+     *
+     * 云端旧明细行有 **13 万行**且仍在被写入（每次刷新 73 行）。
+     * 如果按原来那样「一次查询、order ts.desc、limit 5000」：
+     *   取到的最新 5000 行 **全部是几分钟内的明细行**，
+     *   而聚合行的 ts 是「整点」（如 23:00:00），比这些明细行**更早**，
+     *   于是被挤出窗口 —— **聚合行一条都取不到，图表照样空白**。
+     *
+     * 所以：聚合行与明细行**各查各的**，互不挤占额度。
+     *   · 聚合行少（7 天最多几百行）→ 单独查，limit 1000 足够
+     *   · 明细行只作回退（某小时没有聚合行时才用）→ 单独查，limit 5000
+     * 这样无论云端堆了多少明细行，聚合行都稳定可读。
+     */
+    const [aggRes, detRes] = await Promise.all([
+      cloudDb().from(HISTORY_TABLE)
+        .select('device_id,location,free,total,ts,day')
+        .eq('device_id', AGG_DEVICE_ID)
+        .gte('ts', cutoff)
+        .order('ts', { ascending: false })
+        .limit(HISTORY_AGG_LIMIT),
+      cloudDb().from(HISTORY_TABLE)
+        .select('device_id,location,free,total,ts,day')
+        .neq('device_id', AGG_DEVICE_ID)
+        .gte('ts', cutoff)
+        .order('ts', { ascending: false })
+        .limit(HISTORY_ROW_LIMIT),
+    ]);
+
+    const aggs = Array.isArray(aggRes && aggRes.data) ? aggRes.data : [];
+    const dets = Array.isArray(detRes && detRes.data) ? detRes.data : [];
+    if (aggRes && aggRes.error) console.warn('[history] 聚合行查询失败：', aggRes.error.message || aggRes.error);
+    if (detRes && detRes.error) console.warn('[history] 明细行查询失败：', detRes.error.message || detRes.error);
+    // 聚合行查询失败时不要静默当作「没有聚合行」，否则会把明细行算成权威数据
+    if ((aggRes && aggRes.error) && !(detRes && detRes.error)) {
+      return null;
+    }
+    const data = aggs.concat(dets);
     if (!data.length) return { empty: true, locations: [], days: [], byLocation: {} };
 
-    // 按 location 归组；每组内再按 day 归组，保留 hour[0..23] 累积
+    // 第一遍：找出「哪些 (位置, 日期, 小时) 已经有聚合行」
+    //   key = `${loc}\u0000${day}\u0000${hour}`
+    // 有聚合行的小时，明细行一律跳过（否则会把同一批桩算两遍）
+    const hasAgg = new Set();
+    for (const row of data) {
+      if (row.device_id !== AGG_DEVICE_ID) continue;
+      if (!row.location) continue;
+      const hh = new Date(row.ts).getHours();
+      if (!Number.isInteger(hh) || hh < 0 || hh > 23) continue;
+      const dd = row.day || String(row.ts || '').slice(0, 10);
+      if (!dd) continue;
+      hasAgg.add(row.location + '\u0000' + dd + '\u0000' + hh);
+    }
+
+    // 第二遍：归组累加
     const groups = {};
     for (const row of data) {
       const total = Number(row.total) || 0;
       if (total <= 0) continue;
-      const free = Number(row.free) || 0;
-      const occ = total - free;
       const loc = row.location;
       if (!loc) continue;   // 没有位置信息的老快照直接跳过
+
+      const isAgg = row.device_id === AGG_DEVICE_ID;
       const h = new Date(row.ts).getHours();
       if (!Number.isInteger(h) || h < 0 || h > 23) continue;
       const d = row.day || String(row.ts || '').slice(0, 10);
       if (!d) continue;
 
+      // 去重：该小时已有聚合行 → 跳过明细行
+      if (!isAgg && hasAgg.has(loc + '\u0000' + d + '\u0000' + h)) continue;
+
+      // 两种行的 free/total 语义一致（都是「这行覆盖的那批桩」的合计）：
+      //   聚合行 = 整个位置的合计；明细行 = 单台的合计（多个明细行相加 = 位置合计）
+      const free = Number(row.free) || 0;
+      const occ = total - free;
+      if (occ < 0 || occ > total) continue;   // 脏数据挡掉，别让图表画出 >100%
+
       const g = groups[loc] || (groups[loc] = { byDay: {}, devices: new Set() });
-      if (row.device_id) g.devices.add(row.device_id);
+      if (!isAgg && row.device_id) g.devices.add(row.device_id);
       const gd = g.byDay[d] || (g.byDay[d] = {
         hour: Array.from({ length: 24 }, () => ({ occ: 0, total: 0, snap: 0 })),
         occTotal: 0, obsTotal: 0, snapshots: 0,
@@ -2843,7 +3240,11 @@ async function readHistoryStats() {
         occRate: obsTotal ? occTotal / obsTotal : 0,
         snapshots,
         days: dayKeys.length,
-        deviceCount: g.devices ? g.devices.size : 0,
+        // 桩数：优先用本地设备清单按位置数出来（最可靠）。
+        // ⚠️ 不再依赖历史行里的 device_id —— 新格式是「每位置一行」，没有 device_id，
+        //    旧写法 g.devices.size 会恒为 0，导致气泡里「占用 X / Y 插座」的 Y 变成 0。
+        //    只有当本地清单里找不到该位置时，才退回历史行统计的桩数。
+        deviceCount: deviceCountByLocation()[loc] || (g.devices ? g.devices.size : 0) || 0,
         byDay,
       };
     }
@@ -2852,6 +3253,17 @@ async function readHistoryStats() {
   } catch (e) {
     return null;
   }
+}
+
+/** 本地设备清单里「每个位置有多少台桩」—— 用于气泡文案的分母，与云端历史无关 */
+function deviceCountByLocation() {
+  const out = {};
+  for (const d of getDevices()) {
+    const loc = d.location || '';
+    if (!loc) continue;
+    out[loc] = (out[loc] || 0) + 1;
+  }
+  return out;
 }
 
 /** 当前选中的位置（null 表示尚未选择） */
@@ -3694,38 +4106,161 @@ function applyAutoRefresh() {
   }, THROTTLE_MS);
 }
 
-/* ---------------- 历史快照：每小时保底采集 ---------------- */
-
-const HISTORY_HOUR_MS = 3600000;   // 每小时保底一条快照
-let historyTimer = null;
-
-/**
- * 每小时从「云端共享状态」转存一条历史快照，保证使用率统计有小时级颗粒度。
- * 设计意图（用户确认）：即使页面没人在手动刷新、或 60 秒自动刷新因页面隐藏而跳过，
- * 只要页面还开着，每小时也至少落一条快照，让「按时段」柱状图不至于大片空缺。
- * 只读共享表 + 写历史表，失败静默，绝不影响主流程。
+/* ---------------- 历史快照：每小时保底采集 ----------------
+ *
+ * ⚠️ 2026-10-20 重写。原实现有三个问题，导致「使用情况」图表长期只有一个点
+ *（产品方实测：只有 14 点一条 98% 的记录）：
+ *
+ *   1. **数据源错**：原来读 `cloudReadShared()`，而它按 `SHARE_FRESH_MS = 60秒` 过滤
+ *      （见 L2859）。整点时那一刻若没人在刷新，共享表里就没有 60 秒内的行 →
+ *      返回空 → 直接 return，一个快照都落不下。
+ *   2. **触发时机错**：`setInterval(fn, 3600000)` 是「页面打开后满 1 小时」才第一次跑。
+ *      用户很少连续开着一小时 → 几乎永不触发。
+ *   3. **失败不可见**：`writeHistory` 里是 `catch (e) {}`，写失败一声不响，
+ *      从界面上完全看不出是「没采集」还是「采集了没写进去」。
+ *
+ * 新实现（两步走，第二步是产品方追问后才补的）：
+ *   · **整点对齐**：算到下一个整点的毫秒数再触发，保证样本落在不同的小时桶里
+ *   · **真调接口**：真去平台查一次占用率（产品方要的就是这个），
+ *     而不是读那份 60 秒就过期的共享表
+ *   · **静默**：采集全程不碰进度条/按钮/卡片（详见 collectHistorySilently 的注释）
+ *   · **首屏补采**：加载后 ~20 秒补一次，让「只开几分钟」的访问也能贡献一个样本
+ *     （同一小时只采一次，见 historyHourKey 去重）
+ *
+ * 已知取舍（两条都要记住）：
+ *   1. **整点同时发请求**：所有开着的设备会在同一时刻采集。当前设备少（73 台、校内自用）
+ *      可接受；设备变多后应改成「整点 ± 随机偏移」错峰。
+ *   2. **依赖页面开着**：这是客户端方案的天花板 —— 凌晨没人开页面就没有那一小时的数据。
+ *      更可靠的做法是**服务端定时**（v1.93 起站点由常驻的 serve_gzip.py 提供服务，
+ *      理论上可起后台线程每小时采集，与浏览器无关）。但那要验证平台是否允许后台线程
+ *      与对外网络出口，尚未验证，故先保留客户端方案。
+ *      详见 `沟通记录-DeepSeek-WorkBuddy.md` 待办 #12 与历史 22:xx 条目。
  */
-async function hourlyHistoryTick() {
-  if (!cloudSupport()) return;
-  const shared = await cloudReadShared();
-  if (!shared || !Object.keys(shared).length) return;
-  // 用设备清单把 device_id 映射回 location（共享表里只有 id + 插座状态）
-  const locBy = {};
-  for (const d of getDevices()) locBy[d.id] = d.location || '';
-  const records = Object.entries(shared)
-    .map(([deviceId, rec]) => ({
-      deviceId,
-      location: locBy[deviceId] || '',
-      ports: (rec && rec.ports) || [],
-    }))
-    .filter((r) => r.ports.length);
+
+/** 每小时保底采集（**静默版**）：真去查一次占用，然后落历史快照。
+ *
+ * ⚠️ 为什么不复用 refresh()
+ * 第一版我让它调 `refresh({ force: true })`，结果发现那会**当着用户的面**跑一整套 UI 流程：
+ *   · `setProgress()` 弹出「正在查询 x/73 个位置」进度条
+ *   · `$('refresh').disabled = true` 把刷新按钮锁灰
+ *   · 每查完几台就 `render()` 重绘一次卡片
+ *   · 73 台 ÷ 并发 6 ≈ 13 轮，每轮 `sleep(800)` ≈ 10.4 秒 + 网络往返 → **共 14~16 秒**
+ * 也就是说：用户打开页面 20 秒后，会突然看到一次持续十几秒的全量刷新，
+ * 想点刷新还发现按钮是灰的。**采集是他看不见的后台行为，不该打断他。**
+ *
+ * 所以这里自己走一遍查询循环，只做「取数 → 写缓存/共享/历史」，
+ * **完全不碰进度条、按钮、卡片渲染**。接口调用次数省不掉（取数必须调），
+ * 但对用户完全无感。
+ *
+ * 与 refresh() 的差异（有意的）：
+ *   · 查**全部**设备，不受「地址筛选」影响 —— 历史要完整，不能因为用户筛了某个地址就少记
+ *   · 不写 `busyFlag`，改成「读」它 —— 用户正在刷新时直接让路，别跟他抢接口
+ *   · 失败只写 console，不改界面 banner（用户没主动操作，不该看到错误提示）
+ */
+async function collectHistorySilently(reason) {
+  if (!cloudSupport()) { console.warn('[history] 跳过采集：云端不可用'); return false; }
+  if (store.get(KEY_AUTO, true) === false) return false;
+  if (busyFlag) { console.warn('[history] 跳过采集：用户正在刷新，让路'); return false; }
+
+  const devices = getDevices();
+  if (!devices.length) { console.warn('[history] 跳过采集：设备清单为空'); return false; }
+
+  const CONC = 6;                       // 与 refresh() 的 CONCURRENCY 保持一致
+  const results = new Array(devices.length).fill(null);
+  let cursor = 0;
+  let okCount = 0;
+
+  const worker = async () => {
+    while (true) {
+      const k = cursor++;
+      if (k >= devices.length) return;
+      try {
+        const ports = await readPorts(devices[k].id);
+        results[k] = ports;
+        okCount += 1;
+      } catch (e) {
+        results[k] = null;              // 单台失败不影响整体
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(CONC, devices.length) }, () => worker()));
+
+  if (!okCount) { console.warn('[history] 采集失败：' + devices.length + ' 台全部未取到数据'); return false; }
+
+  // 写本地缓存 + 云端共享（让别的设备也能复用这次结果，顺带摊薄调用量）
+  const now = Date.now();
+  const cache = readCache();
+  const toShare = [];
+  devices.forEach((d, i) => {
+    const ports = results[i];
+    if (!ports || !ports.length) return;
+    cache[d.id] = { at: now, ports, error: null };
+    const row = buildShareRow(d.id, { ports });
+    if (row) toShare.push(row);
+  });
+  store.set(KEY_CACHE, cache);
+  if (toShare.length) cloudWriteShared(toShare);
+
+  // 落历史（真正目的）
+  const records = devices
+    .map((d, i) => (results[i] && results[i].length ? { deviceId: d.id, location: d.location || '', ports: results[i] } : null))
+    .filter(Boolean);
   if (records.length) writeHistory(records);
+
+  console.log('[history] 静默采集完成 ' + okCount + '/' + devices.length + ' 台（' + reason + '）');
+  return true;
+}
+
+// 记录已经采过的小时（'YYYY-MM-DDTHH'），避免同一小时重复写快照把数据写脏
+let lastHistoryHour = null;
+let historyTimer = null;
+let historyBootTimer = null;
+
+function historyHourKey(d = new Date()) {
+  // 本地时区的小时键。用本地时区而非 UTC：图表按本地小时分桶，口径要一致
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}`;
+}
+
+/** 每小时保底采集的调度入口（去重 + 允许失败重试） */
+async function hourlyHistoryTick(reason) {
+  const hk = historyHourKey();
+  if (hk === lastHistoryHour) return;      // 本小时已采过
+  lastHistoryHour = hk;                    // 先占位，防止并发重复进入
+  const ok = await collectHistorySilently(reason);
+  if (ok) {
+    try { store.set('cpk.history.last', hk); } catch (e) {}
+  } else {
+    lastHistoryHour = null;                // 失败就允许重试，别把这小时锁死
+  }
 }
 
 function applyHourlyHistory() {
-  if (historyTimer) { clearInterval(historyTimer); historyTimer = null; }
+  if (historyTimer) { clearTimeout(historyTimer); historyTimer = null; }
+  if (historyBootTimer) { clearTimeout(historyBootTimer); historyBootTimer = null; }
   if (store.get(KEY_AUTO, true) === false) return;
-  historyTimer = setInterval(hourlyHistoryTick, HISTORY_HOUR_MS);
+
+  // 恢复「本小时是否已采过」：页面重开/刷新后不该重复采同一个小时
+  try { lastHistoryHour = store.get('cpk.history.last', null); } catch (e) {}
+
+  // ① 整点对齐：算到下一个整点的毫秒数（+2 秒余量，避开边界抖动）
+  const scheduleNextHour = () => {
+    const now = new Date();
+    const next = new Date(now);
+    next.setMinutes(0, 0, 0);
+    next.setHours(next.getHours() + 1);
+    const delay = next - now + 2000;
+    historyTimer = setTimeout(() => {
+      hourlyHistoryTick('整点').finally(scheduleNextHour);
+    }, delay);
+  };
+  scheduleNextHour();
+
+  // ② 首屏补采：加载 20 秒后，若本小时还没采过就补一次（短访问也能贡献样本）
+  //    注意：这一步是**静默**的，用户看不到进度条/按钮变化（见 collectHistorySilently 注释）
+  historyBootTimer = setTimeout(() => {
+    if (historyHourKey() !== lastHistoryHour) hourlyHistoryTick('首次加载补采');
+  }, 20000);
 }
 
 
@@ -3794,7 +4329,7 @@ async function boot() {
    * 原顺序下它要等 cloudAutoSync（一次云端请求）回来才执行 —— 4G 下实测要 5 秒多，
    * 期间 #guide 还保持 HTML 默认的 hidden，等它显示时插入 266px，
    * 把页脚和下方内容整体推下去，实测 CLS 0.32（Google 阈值 0.1 才算「良好」）。
-   * 提前调用后首屏布局就是最终布局，位移消失；云端回来后 L3789 仍会再调一次刷新状态。 */
+   * 提前调用后首屏布局就是最终布局，位移消失；云端回来后 L3989 仍会再调一次刷新状态。 */
   paintCred();
   const sync = await consumeSyncHash();
   const merged = await cloudAutoSync({ force: Boolean(sync && sync.syncKey) });
@@ -3823,6 +4358,8 @@ async function boot() {
   bindToolbar();
   bindAutoToggle();
   applyAutoRefresh();
+  // 首屏不用等：把两张小底图丢到空闲时段预热，之后点「地图」就是秒开
+  warmBaseMaps();
   await refresh({ force: Boolean((sync && sync.ok) || (merged && merged.applied)) });
 }
 

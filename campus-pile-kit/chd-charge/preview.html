@@ -584,7 +584,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v1.96 · 内测</div>
+    <div id="app-ver" class="foot-ver">版本 v1.97 · 内测</div>
   </footer>
 </div>
 
@@ -595,8 +595,7 @@
     <button class="icon-btn" id="map-close" style="flex:none">关闭</button>
   </div>
   <div class="map-tabs" id="map-tabs" role="tablist" aria-label="切换地图">
-    <button class="map-tab" data-map="overview" role="tab">渭水校区</button>
-    <button class="map-tab" data-map="amap" role="tab">高德地图</button>
+    <button class="map-tab" data-map="amap" role="tab">渭水校区</button>
     <button class="map-tab" data-map="beimen" role="tab">渭水-北门</button>
     <button class="map-tab on" data-map="chaohui" role="tab">渭水-朝晖体育场南</button>
   </div>
@@ -1520,7 +1519,7 @@ const ADDRESS_MAPS = {
   },
 };
 // 校区总览图（第三张图）：一张覆盖全校的底图，桩按所属分区聚合成气泡
-// ⚠️ 暂时下线：v1.64 起只上「北门」「朝晖体育场南」两张图。
+// ⚠️ v1.97 起总览图从页签下线（「渭水校区」页签改用高德底图），本对象作为死代码保留：
 //    要恢复总览，把 CAMPUS_MAP 加回 MAP_ORDER、并在顶部 tab 里补一个 data-map="overview" 按钮即可。
 // v1.75：底图超采样到 9600×3422（2 倍于源图，Lanczos + 轻锐化，963KB）。
 //        源图本身只有 4800，手机屏 DPR 2~3，放大时位图被插值拉糊 —— 超采样一倍后，
@@ -1532,13 +1531,16 @@ const CAMPUS_MAP = {
   id: 'overview', label: '渭水校区',
   img: 'map-weishui-raw.webp', w: 9600, h: 3422, layout: 'zone', name: '渭水校区',
 };
-// 高德底图（独立页签）：真正的在线地图，带 limitBounds 限制在渭水校区内。
+// 高德底图（「渭水校区」页签）：真正的在线地图，带 limitBounds 限制在渭水校区内。
 // 只做身份占位，几何/底图由 map-amap.js 负责，静态引擎的 layout/w/h 字段一律用不到。
+// v1.97：原「渭水校区」静态总览图下线，这个页签改用它当校区总览（标签也叫「渭水校区」）。
 const AMAP_MAP = {
-  id: 'amap', label: '高德地图', name: '渭水校区 · 高德底图', layout: 'amap',
+  id: 'amap', label: '渭水校区', name: '渭水校区', layout: 'amap',
 };
-// 筛选顺序：校区总览 → 高德底图 → 北门 → 朝晖
-const MAP_ORDER = [CAMPUS_MAP, AMAP_MAP, ADDRESS_MAPS['渭水-北门'], ADDRESS_MAPS['_default']];
+// 筛选顺序：渭水校区（高德底图）→ 北门 → 朝晖
+// v1.97：CAMPUS_MAP（9600×3422 静态总览）已从页签和这里移除，底图不再下载；
+//        代码对象保留，恢复只需把 CAMPUS_MAP 加回本行 + 顶部补 data-map="overview" 按钮。
+const MAP_ORDER = [AMAP_MAP, ADDRESS_MAPS['渭水-北门'], ADDRESS_MAPS['_default']];
 // 总览图上的分区锚点（底图像素坐标，底图 9600×3422）
 //   labelSide:'left' 把地址名排到点的左边 —— 北门这个点在图上紧挨着底图自己的红色「北门」二字，
 //   标签往右会压住它，往左才读得清。锚点 x=7920 是量的：红字在 4800 图上 bbox x 4032~4196、
@@ -2240,7 +2242,7 @@ function ensureAMap() {
     loadScriptOnce('map-data.js?v=163')
       .then(loadLocalKeyOnce)
 // ⚠️ map-amap.js 走 Service Worker 缓存优先，改了它必须同时改这里的 ?v=，否则用户拿的还是旧文件
-      .then(() => loadScriptOnce('map-amap.js?v=127'))
+      .then(() => loadScriptOnce('map-amap.js?v=128'))
       .then(boot)
       .catch(() => done(false));
   });
@@ -2329,9 +2331,9 @@ function switchMap(mapId, focusDeviceId) {
   if (next.id === 'amap') {
     ensureAMap().then((ok) => {
       if (ok) { amapApplyView(); return; }
-      // 高德加载失败：退回渭水校区静态总览，别留一片空底
+      // 高德加载失败：退回北门静态图，别留一片空底（总览图 v1.97 已下线）
       $('map-dialog').removeAttribute('data-engine');
-      switchMap('overview');
+      switchMap('beimen');
     });
     return;
   }
@@ -2377,7 +2379,7 @@ function openMap() {
     ensureAMap().then((ok) => {
       if (ok) { amapApplyView(); return; }
       $('map-dialog').removeAttribute('data-engine');
-      switchMap('overview');
+      switchMap('beimen');
     });
     return;
   }

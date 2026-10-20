@@ -2281,6 +2281,25 @@ function onAMapPileClick(ev) {
 /** 高德地图套用总览视角 */
 function amapApplyView() {
   if (!amapActive || !window.CHD_AMAP) return;
+  /* 🐛 修 bug：切回「高德地图」页签时地图显示不出来。
+   *
+   * 成因：`.amap-host` 默认 `display:none`，只有 `.map-dialog[data-engine="amap"]` 才显示
+   *（见 CSS 里 .amap-host 与 .map-dialog[data-engine="amap"] .amap-host 两条规则）。
+   * 而 switchMap() 离开高德页签时执行的是 removeAttribute('data-engine')，**并没有把
+   * amapActive 置回 false**；再切回来时 ensureAMap() 返回的是已 resolve 的缓存 promise
+   *（不会重新 mount），直接走到这里 —— 而这里原先只做 resize/setPiles/setView，
+   * 从头到尾没有再设 data-engine。结果容器永远是 display:none，高德地图彻底不显示。
+   *
+   * 实测（线上 preview，页签序列 amap→beimen→chaohui→amap→beimen→amap）：
+   *   修复前：第 1 次 amap 1475ms 正常，第 2、3 次 **TIMEOUT（12 秒无响应）**
+   *   修复后：33ms / 27ms 秒开
+   * 验证方式：用 CDP 运行时给本函数打补丁补这一行，同一序列即复现→消失，
+   *          确认根因就是缺这一行（不是推测）。
+   *
+   * 放在 resize() 之前：高德容器从 display:none 变回 block 后才能正确量到尺寸，
+   * 顺序反了 resize 会按 0×0 计算，地图白屏。
+   */
+  $('map-dialog').setAttribute('data-engine', 'amap');
   window.CHD_AMAP.resize();
   window.CHD_AMAP.setPiles(amapDevices());
   window.CHD_AMAP.setView('campus');

@@ -3,7 +3,7 @@
 <head data-page-node-id="sTPcYhFTyifJ7PHTTxvtYe">
 <meta charset="utf-8" data-page-node-id="60SKT6PEANR0y1hpcjzoUH">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" data-page-node-id="ivpO3Yk9vLSFcRNzmY9ZRp">
-<title>长安大学充电桩查询（测试预览版），by长歌</title>
+<title>长安大学充电桩查询，by长歌</title>
 <meta name="theme-color" content="#1D9E75" data-page-node-id="7JyeX4wRAx0ZC5opzrpbC7">
 <meta name="description" content="手机直连充电平台查看空位，不需要电脑" data-page-node-id="y6vtL30mP7I9A59D6jMDT2">
 <meta name="apple-mobile-web-app-capable" content="yes" data-page-node-id="jsMtEfsTiad7LYf5ZZ6yM4">
@@ -21,6 +21,9 @@
     --radius:14px;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  /* hidden 属性必须真的能藏住：.row/.stats 这类是 display:flex|grid，
+     作者样式会盖掉浏览器默认的 [hidden]{display:none}，导致该藏的按钮照常显示。 */
+  [hidden]{display:none !important}
   html,body{margin:0}
   body{
     background:var(--bg); color:var(--text);
@@ -30,8 +33,10 @@
   }
   .wrap{max-width:560px; margin:0 auto; padding:16px 14px 40px}
 
-  header{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px}
+  header{display:flex; flex-direction:column; align-items:stretch; gap:10px; margin-bottom:14px}
+  .head-top{display:flex; align-items:flex-start; justify-content:space-between; gap:10px}
   .head-actions{display:flex; gap:8px; flex:none}
+  .head-actions .icon-btn{flex:1; justify-content:center; padding:8px 6px}
   h1{font-size:18px; font-weight:600; margin:0; letter-spacing:-.2px}
   .sub{font-size:12px; color:var(--hint); margin-top:2px}
   .icon-btn{
@@ -42,6 +47,8 @@
   .icon-btn:active{background:#F0EFE9}
   .icon-btn.primary{background:#E1F5EE; border-color:#9FE1CB; color:#0F6E56}
   .icon-btn.ghost{border-color:transparent; background:transparent; color:var(--muted)}
+  .icon-btn[disabled]{opacity:.5; cursor:default}
+  a.icon-btn{text-decoration:none}
 
   .banner{
     background:#FFF4E2; border:1px solid #F5D9A8; color:#8A5A00;
@@ -87,6 +94,7 @@
   }
   .pill.free{background:#E1F5EE; color:#0F6E56; border-color:#9FE1CB}
   .pill.busy{background:#FDECEC; color:#A32D2D; border-color:#F3C2C2}
+  .pill.unknown{background:#FDECEC; color:#A32D2D; border-color:#F3C2C2; font-weight:600}
   .pill.warn{background:#FFF4E2; color:#8A5A00; border-color:#F5D9A8}
   .pill.off{background:#F0EFE9; color:var(--muted); border-color:var(--line-strong)}
 
@@ -291,6 +299,23 @@
   .map-legend i.free{background:var(--free)}
   .map-legend i.busy{background:var(--busy)}
   .map-legend i.off{background:#B4B2A9}
+  /* 总览图的图例：对齐参考站的做法 —— 描边圆徽章而不是实心点，
+     「空闲数」那个徽章里带个示意数字，跟图上徽章长得一样才认得出 */
+  .map-badge-legend{
+    display:none; align-items:center; gap:13px; flex-wrap:wrap; flex:none;
+    padding:7px 13px; background:var(--card); border-bottom:1px solid var(--line);
+    font-size:11.5px; color:var(--muted);
+  }
+  .map-dialog[data-map="overview"] .map-badge-legend{display:flex}
+  .map-badge-legend b{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:19px; height:19px; border-radius:50%; margin-right:5px;
+    font-size:11px; font-weight:700; font-style:normal; vertical-align:-4px;
+  }
+  .map-badge-legend b.ok{background:#fff; color:#1D9E75; border:2px solid #1D9E75}
+  .map-badge-legend b.full{background:#FDF1F0; color:#E24B4A; border:2px solid #E24B4A}
+  .map-badge-legend b.off{background:#F5F4F0; color:#93938C; border:2px solid #93938C}
+  .map-badge-legend em{margin-left:auto; font-style:normal; color:var(--hint); white-space:nowrap}
 
 
   .guide{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin-bottom:14px}
@@ -342,17 +367,34 @@
     font-size:12px; color:var(--text); letter-spacing:.4px}
   .note.bad{color:#A32D2D}
   .note.ok{color:#0F6E56}
+  .note a{color:#0F6E56; text-decoration:underline}
+  .note code{background:#F2F1EC; border:1px solid var(--line); border-radius:5px; padding:1px 4px; font-size:11.5px}
+
+  /* ---- 使用情况统计 ---- */
+  .usage-filter{display:flex; flex-wrap:nowrap; gap:8px; margin-bottom:10px;
+    overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:4px; scrollbar-width:none}
+  .usage-filter::-webkit-scrollbar{display:none}
+  .usage-chip{font:inherit; font-size:12.5px; padding:6px 12px; border-radius:16px; cursor:pointer;
+    border:1px solid var(--line-strong); background:var(--card); color:var(--muted); flex:none; white-space:nowrap}
+  .usage-chip.on{background:#E1F5EE; border-color:#9FE1CB; color:#0F6E56; font-weight:600}
+  .usage-sec{font-size:13px; font-weight:600; color:var(--muted); margin:16px 0 8px}
+  /* 24 小时占用率折线图 */
+  .usage-chart{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px 8px 4px}
+  .usage-chart svg{display:block; width:100%; height:auto}
 
   @media (prefers-color-scheme: dark){
     :root{
       --bg:#171917; --card:#20231F; --line:#31352F; --line-strong:#41463D;
       --text:#EAEAE4; --muted:#A8A79F; --hint:#7E7D76; --off:#5C5B54;
     }
+    .usage-chip.on{background:#14332A; border-color:#2F6B56; color:#8FD9C0}
+    .usage-chart{background:#20231F; border-color:#31352F}
     .icon-btn.primary{background:#14332A; border-color:#2F6B56; color:#8FD9C0}
     .banner{background:#3A2E17; border-color:#6B5426; color:#F0C97A}
     .banner.bad{background:#3B1F1F; border-color:#6B3535; color:#F0A6A6}
     .pill.free{background:#14332A; color:#8FD9C0; border-color:#2F6B56}
     .pill.busy{background:#3B1F1F; color:#F0A6A6; border-color:#6B3535}
+    .pill.unknown{background:#3B1F1F; color:#F0A6A6; border-color:#6B3535; font-weight:600}
     .pill.warn{background:#3A2E17; color:#F0C97A; border-color:#6B5426}
     .pill.off{background:#2A2D28; color:var(--muted); border-color:var(--line-strong)}
     .guide code{background:#2A2D28}
@@ -366,15 +408,20 @@
 </style>
 </head>
 <body data-page-node-id="8y3w5zEAPguesY5kiGgU2q">
+
 <div class="wrap" data-page-node-id="8vpBUQ7bJTdt7N3KiEekot">
   <header data-page-node-id="xpI8NsKzi0nHYAH5D3RjXs">
-    <div data-page-node-id="bNFvfAEYIuVvAVG5A0D3Rg">
-      <h1 data-page-node-id="8cCep9m9QumF173Welrzdi">长安大学充电桩查询<strong>（测试中）</strong></h1>
-      <div class="sub" id="sub" data-page-node-id="mWi9c9mTrdTE6oqwHFpZSH">by长歌 · 手机直连，不需要电脑</div>
+    <div class="head-top" data-page-node-id="bNFvfAEYIuVvAVG5A0D3Rg">
+      <div>
+        <h1 data-page-node-id="8cCep9m9QumF173Welrzdi">长安大学充电桩查询</h1>
+        <div class="sub" id="sub" data-page-node-id="mWi9c9mTrdTE6oqwHFpZSH">by长歌 · 手机直连，不需要电脑</div>
+      </div>
+      <button class="icon-btn" id="refresh" data-page-node-id="Z7Wjk82ESACJPefc6MXIFG">刷新</button>
     </div>
     <div class="head-actions" data-page-node-id="Q3boauP5Su80GKToe6W0jU">
       <button class="icon-btn" id="map-open" data-page-node-id="map-open-btn">地图</button>
-      <button class="icon-btn" id="refresh" data-page-node-id="Z7Wjk82ESACJPefc6MXIFG">刷新</button>
+      <button class="icon-btn" id="usage-open" data-page-node-id="usage-open-btn">使用情况</button>
+      <button class="icon-btn" id="open-settings" data-page-node-id="nHLZrShKG5WyOR67FcOFsb">设置</button>
     </div>
   </header>
 
@@ -392,18 +439,19 @@
   </div>
 
   <div class="guide" id="guide" hidden data-page-node-id="C4XifYoyPG77isnSV6yObd">
-    <h2 data-page-node-id="QzkXmhKoxfMym5k8NLBg9q">先接入一次</h2>
-    <p data-page-node-id="8eREsy2BD4OlFeKUAJyWln">空位要靠小程序里的登录态才能查。这一步只做一次，之后凭证会从电脑那边自动同步过来。</p>
+    <h2 data-page-node-id="QzkXmhKoxfMym5k8NLBg9q">先接上一次</h2>
+    <p data-page-node-id="8eREsy2BD4OlFeKUAJyWln">空位要凭小程序里的登录态才能查。随便谁抓一串粘进来就行 —— 粘完所有人都能用，7 天后谁再抓一次都算续上，不用固定等某一个人。</p>
     <ol data-page-node-id="nNdb9JOCko6gTFFDCluYs9">
-      <li data-page-node-id="qsveIkNG9J9Vb50zpzWTJ5">电脑上打开看板，点「同步到手机」</li>
-      <li data-page-node-id="XgzcecLi7tBpbk4x66H4iQ">用这台手机扫一下屏幕上的二维码</li>
-      <li data-page-node-id="FxWI99tChUegtIzivrEVT9">完事。以后电脑一拿到新凭证，这里就会自动跟上</li>
+      <li data-page-node-id="qsveIkNG9J9Vb50zpzWTJ5">电脑微信打开小程序「街电」，随便点一个柜机</li>
+      <li data-page-node-id="XgzcecLi7tBpbk4x66H4iQ">用 Reqable 抓 <code>union.zhumanggroup.com</code> 的 <code>authorization</code></li>
+      <li data-page-node-id="FxWI99tChUegtIzivrEVT9">粘到下面，校验通过就自动共享给所有人</li>
     </ol>
     <div class="row" data-page-node-id="USlMF2wkrCDIFIykgML69m">
       <button class="icon-btn primary" id="guide-paste" data-page-node-id="xjZnnZv7Pfb0OUGRvgFWbT">从剪贴板导入</button>
       <button class="icon-btn" id="guide-manual" data-page-node-id="D2SEz7zcCbF4NeA6smBrpt">手动粘贴</button>
     </div>
     <div class="note" id="guide-note" data-page-node-id="hvttrBH6mLcDHVQJjN9MHf"></div>
+    <div class="note"><a href="./help.html">不会抓？看这篇三分钟教程 →</a></div>
   </div>
 
   <div class="stats" id="stats" hidden data-page-node-id="5x1j2QDohgutPLD0k1nbee">
@@ -449,10 +497,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div class="foot-bar" data-page-node-id="jDPaCPnCZ3VkjGn2GvzHkJ">
-      <button class="link-btn" id="open-settings" style="text-decoration:none" data-page-node-id="nHLZrShKG5WyOR67FcOFsb">设备与设置</button>
-    </div>
-    <div id="app-ver" class="foot-ver">版本 v1.66</div>
+    <div id="app-ver" class="foot-ver">版本 v1.91</div>
   </footer>
 </div>
 
@@ -466,14 +511,20 @@
     <button class="map-tab" data-map="beimen" role="tab">渭水-北门</button>
     <button class="map-tab on" data-map="chaohui" role="tab">渭水-朝晖体育场南</button>
   </div>
+  <div class="map-badge-legend">
+    <span><b class="ok">3</b>空闲数</span>
+    <span><b class="full">✕</b>已满</span>
+    <span><b class="off">✕</b>离线</span>
+    <em>点击地图上的点查看该区域详情</em>
+  </div>
   <div class="map-stage" id="map-stage">
     <div class="tmap-host" id="tmap-host"></div>
     <div class="map-keybar" id="map-keybar" hidden>
       <span>真实地图需配置腾讯地图 key（免费申请约 3 分钟）</span>
       <button id="map-key-btn" type="button">填写 key</button>
     </div>
-    <svg id="campus-map" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 853" preserveAspectRatio="xMidYMid meet">
-      <image id="campus-map-img" href="map-weishui.png" x="0" y="0" width="1400" height="853"/>
+    <svg id="campus-map" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 9600 3422" preserveAspectRatio="xMidYMid meet">
+      <image id="campus-map-img" href="map-weishui-raw.webp" x="0" y="0" width="9600" height="3422"/>
       <g id="map-markers"></g>
     </svg>
     <div class="map-controls">
@@ -488,6 +539,26 @@
     </div>
     <div class="map-zones" id="map-zones"></div>
     <div class="map-attrib">底图 © 腾讯地图 · 校园图层 © OSM 贡献者</div>
+  </div>
+</dialog>
+
+<dialog id="usage-dialog" aria-label="使用情况统计">
+  <div class="dlg-body">
+    <div class="dlg-head">
+      <h2>过去一周使用情况</h2>
+      <button class="link-btn" data-close>关闭</button>
+    </div>
+    <div id="usage-loading" class="note">正在读取历史数据…</div>
+    <div id="usage-body" hidden>
+      <div class="usage-filter" id="usage-filter"></div>
+      <div class="usage-filter" id="usage-day"></div>
+      <h3 class="usage-sec">24 小时占用率</h3>
+      <div class="usage-chart" id="usage-hour"></div>
+      <p class="note" id="usage-note"></p>
+    </div>
+    <div id="usage-empty" class="note" hidden>
+      还没有历史数据。数据从「每次刷新查询」开始累积，攒够一段时间后这里就会出现统计。
+    </div>
   </div>
 </dialog>
 
@@ -547,25 +618,27 @@
 <dialog id="token-dialog" data-page-node-id="jayPCSBtsA7KNV7JuFT85w">
   <div class="dlg-body" data-page-node-id="HADE5zscwgsKAwKDBVKmDp">
     <div class="dlg-head" data-page-node-id="G7oG6mt1ow0ZHOWA8niUJQ">
-      <h2 data-page-node-id="lkqygmoRxhXWrSrJ0k9mad">更新凭证</h2>
+      <h2 data-page-node-id="lkqygmoRxhXWrSrJ0k9mad">换一串凭证</h2>
       <button class="link-btn" data-close data-page-node-id="NTEj2V0cPHy3OJCVPEVOto">关闭</button>
     </div>
     <p class="note" style="margin-top:0" data-page-node-id="sOXgUS4gE9vYF8kWXQgtoA">
-      正常情况下你不该走到这里：接入了跨网络同步之后，凭证会自己从云端换新。
-      只有第一次接入、或者电脑那边一直没上线时，才需要手动粘一次
-      （一长串 <code data-page-node-id="vcrAXfzLudOeguCNQD5Ffi">eyJ…</code>）。
-    </p>
-    <p class="note" data-page-node-id="LEYkzuIonreJVka0CvsiHQ">
-      凭证由微信小程序签发，有效期 7 天。手机自己取不到它（微信不信任手机上的第三方证书），
-      所以每 7 天要在电脑微信里打开一次小程序 —— 但手机这边不用再做任何事。
+      凭证是一串 <code>eyJ</code> 开头的长串，小程序签发，7 天有效。
+      谁抓到的都能用：粘进来会先拿一台桩真打一次，通过才算数，
+      然后加密传到云端 —— <b>之后所有打开这个网址的人自动用上</b>，你也不用再做任何事。
     </p>
     <label for="token-input" data-page-node-id="skZzb3rszK7hZ7o0RFz70n">凭证内容</label>
-    <textarea id="token-input" placeholder="粘贴以 eyJ 开头的长串，或者带 #t= 的同步链接"></textarea>
+    <textarea id="token-input" placeholder="整段请求头、cURL、eyJ 开头的长串，粘哪个都行"></textarea>
+    <div class="note" style="margin:-6px 0 10px">
+      不用自己挑那一行 —— 抓包工具里「复制请求头 / 复制 cURL」直接整块粘进来，这边会自己认出 <code>authorization</code>。
+    </div>
     <div class="row" data-page-node-id="ojC1CKL1qX6f8MB7feYwl2">
       <button class="icon-btn" id="token-paste" data-page-node-id="JTagd0BRSPfyU03JWoFKV0">粘贴</button>
-      <button class="icon-btn primary" id="token-save" data-page-node-id="5HKTbWF2KJL7rAIea8PCZP">保存并刷新</button>
+      <button class="icon-btn primary" id="token-save" data-page-node-id="5HKTbWF2KJL7rAIea8PCZP">校验并保存</button>
     </div>
     <div class="note" id="token-note" data-page-node-id="q16Fi4WMiRs70q0HDzl5ua"></div>
+    <div class="note" style="border-top:1px solid var(--line);padding-top:11px;margin-top:13px">
+      第一次弄？<a href="./help.html">看三分钟教程</a> —— 手边没电脑就走 iPhone 那条，安卓建议别折腾。
+    </div>
   </div>
 </dialog>
 
@@ -595,16 +668,18 @@
       </div>
       <div class="note" id="cloud-note" data-page-node-id="zfBAnUgpQsFeaseHvCs7JN"></div>
       <div class="note" style="margin-top:4px" data-page-node-id="ryWhblJkEmqAVIBZUd606M">
-        电脑那边一拿到新凭证就会自动传上来，打开这个网址的设备每次都会自己取最新的，
+        谁抓到新凭证，校验通过后都会自动传上来；打开这个网址的设备每次都取最新的，
         <b data-page-node-id="b4ASWmA4jjSuHhyHt66eML">不用扫码、不用输任何东西</b>。
       </div>
     </div>
 
     <div class="note" id="settings-note" data-page-node-id="bl5sTq3o3leAih0qTE6ACV"></div>
     <div class="note" style="border-top:1px solid var(--line);padding-top:12px;margin-top:14px" data-page-node-id="slxfGMqO7hduSOvDijuOQn">
-      没接入同步时，凭证只存在这台手机的浏览器里。
-      查询直接连平台，不经过中间服务器。
+      凭证只存在你自己的浏览器里。查询直接连平台，不经过中间服务器。
     </div>
+    <a class="icon-btn" id="go-preview" href="./preview.html"
+       style="display:flex;justify-content:center;width:100%;margin-top:14px;text-decoration:none"
+       data-page-node-id="go-preview-btn">查看最新测试版 ›</a>
   </div>
 </dialog>
 
@@ -625,6 +700,7 @@ const PLATFORM_HEADERS = {
   'zm-origin': '1',
 };
 const SLOT_FREE = 0;
+const PORTS_PER_DEVICE = 4;   // 每台充电桩固定 4 个插座口
 const THROTTLE_MS = 60000;
 
 const KEY_TOKEN = 'cpk.token';
@@ -778,11 +854,23 @@ function getToken() {
 }
 
 /** 从粘贴内容里把凭证抠出来：支持裸 token、Bearer 前缀、带 #t= 的同步链接。 */
+// 从任意粘贴内容里抠出 JWT。
+// 手机上抓包最容易翻车的是「挑哪一行、从哪复制到哪」——所以这里不挑：
+// 整段请求头、cURL 命令、JSON 响应，只要能找到 eyJ 开头的三段式就自己认。
+const JWT_RE_SRC = 'eyJ[A-Za-z0-9_-]{5,}\\.[A-Za-z0-9_-]{5,}\\.[A-Za-z0-9_-]{5,}';
 function extractToken(raw) {
   let text = String(raw || '').trim();
   if (!text) return '';
   const hashMatch = text.match(/[#?]t=([^&\s]+)/);
   if (hashMatch) text = decodeURIComponent(hashMatch[1]);
+  // 1) 优先认 authorization / token 字段（整段请求头、cURL 都能命中，避免误取 cookie 里的别的串）
+  const named = text.match(new RegExp(
+    '(?:authorization|token)["\']?\\s*[:=]\\s*["\']?\\s*(?:Bearer\\s+)?(' + JWT_RE_SRC + ')', 'i'));
+  if (named) return named[1];
+  // 2) 退一步：正文里任何位置出现的第一串 JWT
+  const any = text.match(new RegExp(JWT_RE_SRC));
+  if (any) return any[0];
+  // 3) 老路径：本来就是裸串
   text = text.replace(/^Bearer\s+/i, '').trim();
   return text.replace(/\s+/g, '');
 }
@@ -989,12 +1077,26 @@ function parseDevices(text) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const FETCH_TIMEOUT_MS = 8000;
+
 async function fetchPortsOnce(deviceId, token) {
-  const response = await fetch(API_BASE + SCAN_PATH, {
-    method: 'POST',
-    headers: { ...PLATFORM_HEADERS, Authorization: 'Bearer ' + token },
-    body: JSON.stringify({ out_number: deviceId }),
-  });
+  // 并发之后，单台卡住不能把整批拖死：8 秒没响应就主动断掉
+  const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS) : null;
+  let response;
+  try {
+    response = await fetch(API_BASE + SCAN_PATH, {
+      method: 'POST',
+      headers: { ...PLATFORM_HEADERS, Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ out_number: deviceId }),
+      signal: ctrl ? ctrl.signal : undefined,
+    });
+  } catch (err) {
+    if (ctrl && ctrl.signal.aborted) throw new Error('平台 8 秒没响应');
+    throw err;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 
   let data = null;
   try {
@@ -1063,8 +1165,10 @@ async function loadDevice(device, { force = false } = {}) {
   } catch (err) {
     const record = {
       at: now,
-      // 出错时保留上次的数据，但明确标成旧记录，不假装是新的
-      ports: Array.isArray(previous && previous.ports) ? previous.ports : [],
+      // 状态未知 = 查过但失败了。按用户要求（2026-10-20）：不要保留上次的好数据
+      // 假装它还是绿的 —— 那会让人误以为桩空闲，实则是「未知/占用」。
+      // 置空 ports 让卡片和地图都走「状态未知」分支，标红色，直到下次查出数据。
+      ports: [],
       error: err.message || '查询失败',
       auth: err instanceof AuthError,
     };
@@ -1079,7 +1183,7 @@ async function loadDevice(device, { force = false } = {}) {
 let lastError = null;
 
 // 凭证失效提示：唯一还会在顶部横幅出现的错误类型
-const AUTH_ERROR = '凭证已失效，需要重新导入';
+const AUTH_ERROR = '凭证失效了。点「更新」粘一串新的进来，粘完所有人都能用。';
 
 /** 地址筛选下拉：从当前设备清单里的地址自动去重生成，@ 写了新地址就自动出现 */
 function renderLocationFilter(devices) {
@@ -1129,6 +1233,9 @@ function paintCred() {
   if (Number.isFinite(state.days)) {
     parts.push(state.days > 0 ? '还剩 ' + state.days.toFixed(1) + ' 天' : '已过期');
   }
+  // 到期前提醒「谁都行」：这正是把单点供血分散掉的关键一句
+  if (state.status === 'soon') parts.push('谁抓一串新的都算续上');
+  if (state.status === 'expired') parts.push('粘一串新的就恢复');
   $('cred-sub').textContent = parts.join(' · ') || '无法判断有效期';
 }
 
@@ -1202,14 +1309,20 @@ function render(devices, results) {
       return `<div class="slot ${cls}" title="${p.num} 号">${p.num}</div>`;
     }).join('');
 
+    // 状态未知（查过但失败）→ 按用户要求标成红色占用，与「尚未查询」的灰色区分开
+    const unknown = !ports.length && !!record.error && record.error !== '尚未查询';
     const pill = ports.length
       ? `<span class="pill ${lv}">空闲 ${freeCount}/${ports.length}</span>`
-      : '<span class="pill off">无数据</span>';
+      : unknown
+        ? '<span class="pill unknown">状态未知</span>'
+        : '<span class="pill off">无数据</span>';
 
     const stale = ports.length && Date.now() - record.at > 180000 ? ' · 旧记录' : '';
     const foot = ports.length
       ? `更新于 ${relTime(record.at)}${stale}`
-      : '还没拿到数据';
+      : unknown
+        ? '状态未知，暂按占用处理'
+        : '还没拿到数据';
 
     cards.push(`<div class="card${record.error && !ports.length ? ' err' : ''}">
       <div class="card-head">
@@ -1222,7 +1335,7 @@ function render(devices, results) {
           <button class="fav-btn${fav ? ' on' : ''}" data-fav="${escapeHtml(device.id)}" aria-label="收藏">${fav ? '★' : '☆'}</button>
         </div>
       </div>
-      <div class="dots">${slots || '<span style="font-size:12.5px;color:var(--hint)">没有插座数据</span>'}</div>
+      <div class="dots">${slots || `<span style="font-size:12.5px;color:var(--hint)">${unknown ? '状态未知，暂按占用处理' : '没有插座数据'}</span>`}</div>
       <div class="card-foot">
         <span>${foot}</span>
         <span style="display:flex;align-items:center;gap:8px">
@@ -1278,20 +1391,23 @@ function escapeHtml(text) {
 //   layout='zone' 校区总览（当前未启用）
 /** 北门停车区 37 个充电桩点位（坐标与 map-beimen.svg 的车位格子一一对应）
  *  编号统一补零到两位（A1 → A01）：平台里北门的桩就叫「北-A01 号桩」，
- *  补齐后才能和真实桩号对上，否则点位永远是灰的、查不到数据。 */
+ *  补齐后才能和真实桩号对上，否则点位永远是灰的、查不到数据。
+ *  2026-10-20 用户校正：A/B 区现实里就是大号在左（A6..A1），C/D 区是小号在左（C1..C11、
+ *  D1..D14）。之前统一按大号在左生成，C/D 两排的编号方向标反了 —— 格子坐标不动，
+ *  只翻转这两排的 code，编号对上后数据自然也跟着对上。 */
 const BM_SPOTS = (() => {
   const pad2 = (n) => String(n).padStart(2, '0');
-  const row = (prefix, x0, x1, n, y) =>
+  const row = (prefix, x0, x1, n, y, asc) =>
     Array.from({ length: n }, (_, i) => ({
-      code: prefix + pad2(n - i),             // 从左到右为 n..01
+      code: prefix + pad2(asc ? i + 1 : n - i),  // asc: 从左到右 01..n；否则 n..01
       x: +(x0 + (i + 0.5) * (x1 - x0) / n).toFixed(1),
       y,
     }));
   return [
     ...row('A', 491, 663, 6, 125),
     ...row('B', 491, 663, 6, 167.5),
-    ...row('C', 693, 1008, 11, 125),
-    ...row('D', 701, 1095, 14, 167.5),
+    ...row('C', 693, 1008, 11, 125, true),
+    ...row('D', 701, 1095, 14, 167.5, true),
   ];
 })();
 
@@ -1309,16 +1425,26 @@ const ADDRESS_MAPS = {
 // 校区总览图（第三张图）：一张覆盖全校的底图，桩按所属分区聚合成气泡
 // ⚠️ 暂时下线：v1.64 起只上「北门」「朝晖体育场南」两张图。
 //    要恢复总览，把 CAMPUS_MAP 加回 MAP_ORDER、并在顶部 tab 里补一个 data-map="overview" 按钮即可。
+// v1.75：底图超采样到 9600×3422（2 倍于源图，Lanczos + 轻锐化，963KB）。
+//        源图本身只有 4800，手机屏 DPR 2~3，放大时位图被插值拉糊 —— 超采样一倍后，
+//        DPR2 下最大放大档（视野 960）是 1.08 倍映射，基本原生像素，字不再糊。
+//        webp 对这种矢量插画风格压缩效率极高：尺寸翻倍体积只从 737KB 涨到 963KB。
+//        zoomAt 里 zone 布局的捏合锚点也算错了（用了 mapAspect 而不是舞台比例），
+//        一起修掉，捏合时不再乱跳。
 const CAMPUS_MAP = {
   id: 'overview', label: '渭水校区',
-  img: 'map-weishui.png', w: 1400, h: 853, layout: 'zone', name: '渭水校区',
+  img: 'map-weishui-raw.webp', w: 9600, h: 3422, layout: 'zone', name: '渭水校区',
 };
-// 筛选顺序：北门 → 朝晖
+// 筛选顺序：校区总览 → 北门 → 朝晖
 const MAP_ORDER = [ADDRESS_MAPS['渭水-北门'], ADDRESS_MAPS['_default']];
-// 总览图上的分区锚点（图片坐标）与分区名
+// 总览图上的分区锚点（底图像素坐标，底图 9600×3422）
+//   labelSide:'left' 把地址名排到点的左边 —— 北门这个点在图上紧挨着底图自己的红色「北门」二字，
+//   标签往右会压住它，往左才读得清。锚点 x=7920 是量的：红字在 4800 图上 bbox x 4032~4196、
+//   y 58~122，2 倍后为 x 8064~8392、y 116~244；锚点右缘 7920+91=8011，离红字还留 53 单位。
+//   朝晖锚点由旧 1900×683 的 (1738,232) 按 x×5.0526、y×5.0102 换算。
 const CAMPUS_ZONES = [
-  { mapKey: '渭水-北门', x: 1003, y: 64, dy: 26, label: '北门' },
-  { mapKey: '_default',  x: 1150, y: 208, dy: 26, label: '朝晖体育场南' },
+  { mapKey: '渭水-北门', x: 7920, y: 180, label: '渭水-北门', labelSide: 'left' },
+  { mapKey: '_default',  x: 8782, y: 1162, label: '朝晖体育场南', labelSide: 'bottom' },
 ];
 function mapForAddress(addr) {
   const a = String(addr || '').trim();
@@ -1397,11 +1523,21 @@ let mapDevices = [], mapResults = [];
 let mapScope = [];
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 let camera = { x: 0, y: 0, w: curMap.w, h: curMap.h };
+// 当前触摸序列是否发生过拖拽/缩放（用于 click 时判断要不要跳图）
+let mapGestureMoved = false;
 
 // 缩放范围随底图尺寸变化：最小视野约为整图 1/3（放大），最大视野 = 整图（全景）
 function camBounds() {
-  // 停车区点位密集，允许放大到 1/6 视野，才看得清单个车位
-  const CAM_MIN = Math.round(curMap.w / (curMap.layout === 'park' ? 6 : 3));
+  // 停车区点位密集，允许放大到 1/6 视野，才看得清单个车位；
+  // 总览图 v1.75 起放宽到 1/10：底图已超采样到 9600，DPR2 下放到底也不糊
+  const CAM_MIN = Math.round(curMap.w / (curMap.layout === 'park' ? 6 : curMap.layout === 'zone' ? 10 : 3));
+  if (curMap.layout === 'zone') {
+    // 校区总览是 2.81:1 横幅：视野高度必须让整张图正好铺满，否则上下留白
+    const stage = $('map-stage');
+    const sw = (stage && stage.clientWidth) || 1, sh = (stage && stage.clientHeight) || 1;
+    const CAM_MAX = Math.max(CAM_MIN + 1, Math.round(curMap.h * (sw / sh)));
+    return { CAM_MIN, CAM_MAX, PADX: 0, PADY: 0 };
+  }
   const CAM_MAX = curMap.w;
   const PADX = Math.round(curMap.w / 2);
   const PADY = Math.round(curMap.h / 2);
@@ -1412,7 +1548,14 @@ function setCamera(next) {
   const { CAM_MIN, CAM_MAX, PADX, PADY } = camBounds();
   Object.assign(camera, next);
   camera.w = clamp(camera.w, CAM_MIN, CAM_MAX);
-  camera.h = camera.w * mapAspect();
+  // 总览按舞台比例算视野高度，viewBox 与可视区一一对应，不会被 letterbox 撑出白边
+  if (curMap.layout === 'zone') {
+    const stage = $('map-stage');
+    const sw = (stage && stage.clientWidth) || 1, sh = (stage && stage.clientHeight) || 1;
+    camera.h = camera.w * (sh / sw);
+  } else {
+    camera.h = camera.w * mapAspect();
+  }
   // 限制在图内，但四周留约半张图的可滑动余量
   camera.x = clamp(camera.x, -PADX, curMap.w - camera.w + PADX);
   camera.y = clamp(camera.y, -PADY, curMap.h - camera.h + PADY);
@@ -1427,10 +1570,30 @@ function zoomAt(factor, cx, cy) {
   const ry = (cy ?? b.height / 2) / b.height;
   const { CAM_MIN, CAM_MAX } = camBounds();
   const w = clamp(camera.w / factor, CAM_MIN, CAM_MAX);
-  setCamera({ x: camera.x + rx * (camera.w - w), y: camera.y + ry * (camera.h - w * mapAspect()), w });
+  // 目标视野高度必须跟 setCamera 用同一套算法：总览按舞台比例，其他按底图比例。
+  // 之前这里直接写 mapAspect()，总览图捏合时 y 的锚点算错，图会朝手指反方向跳。
+  const targetH = curMap.layout === 'zone'
+    ? w * (((stage && stage.clientHeight) || 1) / ((stage && stage.clientWidth) || 1))
+    : w * mapAspect();
+  setCamera({ x: camera.x + rx * (camera.w - w), y: camera.y + ry * (camera.h - targetH), w });
 }
 
-function fitOverview() { setCamera({ x: 0, y: 0, w: curMap.w, h: curMap.h }); }
+function fitOverview() {
+  // 校区总览是 2.78:1 的横幅：整图铺进去只剩中间一条，
+  // 所以按「铺满可视高度」开局，聚焦到分区锚点，横向自己拖
+  if (curMap.layout === 'zone') {
+    const { CAM_MAX } = camBounds();
+    const n = CAMPUS_ZONES.length || 1;
+    const zx = CAMPUS_ZONES.reduce((t, z) => t + z.x, 0) / n;
+    const zy = CAMPUS_ZONES.reduce((t, z) => t + z.y, 0) / n;
+    const stage = $('map-stage');
+    const sw = (stage && stage.clientWidth) || 1, sh = (stage && stage.clientHeight) || 1;
+    const h = CAM_MAX * (sh / sw);
+    setCamera({ x: zx - CAM_MAX / 2, y: zy - h / 2, w: CAM_MAX });
+    return;
+  }
+  setCamera({ x: 0, y: 0, w: curMap.w, h: curMap.h });
+}
 
 /** 某台桩归属哪张分区图 */
 function mapOfDevice(d) {
@@ -1468,6 +1631,12 @@ function applyBaseMap() {
 }
 
 /** 校区总览：把各分区的桩聚合成分区气泡（点气泡进入该分区详细图） */
+/**
+ * 校区总览：把各分区的桩聚合成一枚圆形徽章。
+ * 样式照着 https://www.salny666.top/ 来：白底 + 彩色粗描边的圆，中间是该区空闲数；
+ * 一个空位都没有（已满）或压根没查到数（离线）时，圆里换成叉号 —— 数字「0」在远看时
+ * 和「没数据」分不清，叉号没有这个歧义。尺寸全部按屏幕像素恒定，缩放后依旧看得清。
+ */
 function renderCampusClusters() {
   const g = $('map-markers');
   const svg = $('campus-map');
@@ -1478,41 +1647,76 @@ function renderCampusClusters() {
   const frag = document.createDocumentFragment();
   const rows = [];
 
+  const R = 17 / scale;            // 徽章半径（屏幕恒定 17px）
+  const RING = 2.6 / scale;        // 描边宽度
+  const FS = 14 / scale;           // 中心数字
+  const FS_LABEL = 11.5 / scale;   // 地址名
+  const GAP_LABEL = 8 / scale;     // 徽章与地址名的间距
+
   CAMPUS_ZONES.forEach((z) => {
     const target = ADDRESS_MAPS[z.mapKey];
     const idxs = mapScope.filter((i) => mapOfDevice(mapDevices[i]) === target);
     if (!idxs.length) return;
 
-    let freeDev = 0, knownDev = 0;
+    let freeDev = 0, knownDev = 0, unknownDev = 0;
     idxs.forEach((i) => {
-      const ports = (mapResults[i] || {}).ports || [];
+      const rec = mapResults[i] || {};
+      const ports = rec.ports || [];
+      // 未知 = 查询失败且拿不到数据（区别于「尚未查询」）
+      if (!ports.length && rec.error && rec.error !== '尚未查询') { unknownDev++; return; }
       if (!ports.length) return;
       knownDev++;
       if (ports.some((p) => p.state === SLOT_FREE)) freeDev++;
     });
 
-    const fill = knownDev === 0 ? '#B4B2A9' : (freeDev === 0 ? '#E24B4A' : '#1D9E75');
-    const r = 16 / scale;                    // 气泡半径（屏幕恒定 16px）
-    const fsCount = 13 / scale;
-    const fsLabel = 11 / scale;
+    // 状态：全未知 → 红色占用；有数据但没空位 → 已满；否则显示空闲数
+    let ring, bg, core;
+    if (unknownDev > 0 && knownDev === 0) {
+      ring = '#E24B4A'; bg = '#FDF1F0';
+    } else if (knownDev === 0) {
+      ring = '#93938C'; bg = '#F5F4F0';
+    } else if (freeDev === 0) {
+      ring = '#E24B4A'; bg = '#FDF1F0';
+    } else {
+      ring = '#1D9E75'; bg = '#FFFFFF';
+    }
+    if (knownDev === 0 || freeDev === 0) {
+      const s = (R * 0.42).toFixed(2);
+      core = `<path d="M ${-s} ${-s} L ${s} ${s} M ${-s} ${s} L ${s} ${-s}" fill="none" stroke="${ring}" ` +
+        `stroke-width="${(2.4 / scale).toFixed(2)}" stroke-linecap="round" style="pointer-events:none"/>`;
+    } else {
+      core = `<text text-anchor="middle" y="${(FS * 0.36).toFixed(2)}" font-size="${FS.toFixed(2)}" ` +
+        `font-weight="700" fill="${ring}" style="pointer-events:none">${freeDev}</text>`;
+    }
+
+    // 地址名：labelSide:left 排到点的左边，否则排在下方
+    const left = z.labelSide === 'left';
+    const lx = left ? (-R - RING - GAP_LABEL).toFixed(2) : '0';
+    const ly = left ? (FS_LABEL * 0.36).toFixed(2) : (R + RING + 14 / scale).toFixed(2);
+
+    const tip = unknownDev > 0 && knownDev === 0
+      ? `${z.label} · 状态未知（暂标占用）`
+      : knownDev === 0
+        ? `${z.label} · 离线，未查到数据`
+        : `${z.label} · ${idxs.length} 台 · ${freeDev} 台有空位`;
 
     const grp = document.createElementNS(NS, 'g');
     grp.setAttribute('class', 'map-cluster');
     grp.setAttribute('data-zone', z.mapKey);
     grp.setAttribute('transform', `translate(${z.x} ${z.y})`);
     grp.innerHTML =
-      `<circle r="${(r * 1.18).toFixed(2)}" fill="#FFFFFF" opacity="0.9"/>` +
-      `<circle r="${r.toFixed(2)}" fill="${fill}" stroke="#FFFFFF" stroke-width="${(2 / scale).toFixed(2)}"/>` +
-      `<text text-anchor="middle" y="${(fsCount * 0.36).toFixed(2)}" font-size="${fsCount.toFixed(2)}" font-weight="700" fill="#FFFFFF" style="pointer-events:none">${idxs.length}</text>` +
-      `<text text-anchor="middle" y="${(r + 14 / scale).toFixed(2)}" font-size="${fsLabel.toFixed(2)}" font-weight="600" fill="#3E4542" ` +
-      `stroke="#E3E7D6" stroke-width="${(3 / scale).toFixed(2)}" paint-order="stroke" stroke-linejoin="round" style="pointer-events:none">${escapeHtml(z.label)}</text>`;
+      `<title>${escapeHtml(tip)}</title>` +
+      `<circle r="${R.toFixed(2)}" fill="${bg}" stroke="${ring}" stroke-width="${RING.toFixed(2)}"/>` +
+      core +
+      `<text text-anchor="${left ? 'end' : 'middle'}" x="${lx}" y="${ly}" font-size="${FS_LABEL.toFixed(2)}" ` +
+      `font-weight="600" fill="#3E4542" stroke="#FFFFFF" stroke-width="${(3 / scale).toFixed(2)}" ` +
+      `paint-order="stroke" stroke-linejoin="round" style="pointer-events:none">${escapeHtml(z.label)}</text>`;
     frag.appendChild(grp);
 
-    // 底部分区条（与气泡同一份数据，点哪都行）
-    const dotColor = fill;
+    // 底部分区条（与徽章同一份数据，点哪都行）
     rows.push(
       `<button class="zone-row" data-map="${target.id}">` +
-        `<i class="zone-dot" style="background:${dotColor}"></i>` +
+        `<i class="zone-dot" style="background:${ring}"></i>` +
         `<span class="zone-name">${escapeHtml(z.label)}</span>` +
         `<span class="zone-meta">${idxs.length} 台 · ${freeDev} 台有空位</span>` +
         `<span class="zone-go">查看 ›</span>` +
@@ -1579,14 +1783,21 @@ function renderParkSpots() {
   spots.forEach((s) => {
     const hit = idxBySpot.has(s.code) ? idxBySpot.get(s.code) : -1;
     const di = hit;
-    const ports = di >= 0 ? ((mapResults[di] || {}).ports || []) : [];
+    const rec = di >= 0 ? (mapResults[di] || {}) : {};
+    const ports = rec.ports || [];
     const free = ports.filter((p) => p.state === SLOT_FREE).length;
     if (ports.length) { withData++; if (free > 0) freeCount++; }
 
-    const fill = ports.length ? (free === 0 ? '#E24B4A' : '#1D9E75') : '#6B7A64';
+    // 状态未知（查询失败且拿不到数据）→ 按用户要求标成红色占用，直到下次查出数据；
+    // 「尚未查询」这类还没开查的不算，仍用中性色。
+    const unknown = !ports.length && !!rec.error && rec.error !== '尚未查询';
+    const fill = ports.length ? (free === 0 ? '#E24B4A' : '#1D9E75')
+      : unknown ? '#E24B4A' : '#6B7A64';
     const tip = ports.length
       ? `${s.code} · 空闲 ${free}/${ports.length}`
-      : `${s.code} · 充电桩（未查到数据）`;
+      : unknown
+        ? `${s.code} · 状态未知（暂标占用）`
+        : `${s.code} · 充电桩（未查到数据）`;
 
     const mk = document.createElementNS(NS, 'g');
     mk.setAttribute('class', 'map-marker');
@@ -1668,11 +1879,16 @@ function renderMapMarkers() {
     shown += 1;
     const free = ports.filter((p) => p.state === SLOT_FREE).length;
     if (ports.length && free > 0) locFree++;
-    const fill = ports.length ? (free === 0 ? '#E24B4A' : '#1D9E75') : '#B4B2A9';
+    // 状态未知（查询失败且无数据）→ 标红色占用，直到下次查出数据；「尚未查询」保持灰
+    const unknown = !ports.length && !!record.error && record.error !== '尚未查询';
+    const fill = ports.length ? (free === 0 ? '#E24B4A' : '#1D9E75')
+      : unknown ? '#E24B4A' : '#B4B2A9';
     const num = String(device.code || device.id).match(/\d+/)?.[0] || '';
     const label = ports.length
       ? `${device.code || device.name} · 空闲 ${free}/${ports.length}`
-      : `${device.code || device.name} · 无数据`;
+      : unknown
+        ? `${device.code || device.name} · 状态未知（暂标占用）`
+        : `${device.code || device.name} · 无数据`;
 
     const mk = document.createElementNS(NS, 'g');
     mk.setAttribute('transform', `translate(${pos.x.toFixed(1)} ${pos.y.toFixed(1)})`);
@@ -1927,6 +2143,8 @@ function bindMapGestures() {
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pointers.size > 1) moved = true;
     svg.setPointerCapture(e.pointerId);
+    // 记录本次触摸序列是否发生过拖拽，供 click 处理器判断是否要跳图
+    mapGestureMoved = false;
   });
 
   const geom = () => {
@@ -1943,6 +2161,7 @@ function bindMapGestures() {
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     const cur = geom();
     if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 3) moved = true;
+    if (moved) mapGestureMoved = true;
     if (pointers.size >= 2 && last.d > 0) {
       const r = svg.getBoundingClientRect();
       zoomAt(cur.d / last.d, cur.x - r.left, cur.y - r.top);
@@ -1955,6 +2174,22 @@ function bindMapGestures() {
   svg.addEventListener('pointerup', release);
   svg.addEventListener('pointercancel', release);
   svg.addEventListener('lostpointercapture', (e) => pointers.delete(e.pointerId));
+
+  // 滚轮缩放（桌面端）：以鼠标位置为锚点，preventDefault 防止页面跟着滚动
+  svg.addEventListener('wheel', (e) => {
+    if (curMap.layout === 'zone' || curMap.layout === 'park') {
+      e.preventDefault();
+      const r = svg.getBoundingClientRect();
+      const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+      zoomAt(factor, e.clientX - r.left, e.clientY - r.top);
+    }
+  }, { passive: false });
+
+  // 双击放大：桌面端双击一次放大一档
+  svg.addEventListener('dblclick', (e) => {
+    const r = svg.getBoundingClientRect();
+    zoomAt(1.6, e.clientX - r.left, e.clientY - r.top);
+  });
 }
 
 /* ---------------- 刷新 ---------------- */
@@ -2018,29 +2253,64 @@ async function refresh({ force = false, retried = false } = {}) {
 
     setProgress(0, targets.length);
 
-    // 串行请求 + 小间隔，边查边展示，避免短时间连发触发平台限流
+    // 不等第一个请求回来，先把上次的缓存铺到界面上：点刷新立刻有东西看
+    render(devices, results);
+
+    /* 并发查询。
+       浏览器的连接池对同一域名只放 6 条 HTTP/1.1 连接，再往上加也只是在浏览器里排队，
+       所以 6 就是这条链路的实际上限；配合下面的渲染节流，73 台从「半分多钟」压到几秒。
+       平台若开始限流，把 CONCURRENCY 降到 3~4 即可。 */
+    const CONCURRENCY = 6;
+    const RENDER_EVERY_MS = 120;
+    let cursor = 0;
+    let done = 0;
+    let aborted = false;
+    let lastPaint = 0;
     const toShare = [];
-    for (let k = 0; k < targets.length; k++) {
-      if (k > 0) await sleep(250);
-      const i = targets[k];
-      const device = devices[i];
-      const record = await loadDevice(device, { force });
-      if (record.error) {
-        if (record.auth) lastError = AUTH_ERROR;
-        else if (!lastError) lastError = record.error;
+
+    const paintThrottled = () => {
+      const t = performance.now();
+      if (t - lastPaint < RENDER_EVERY_MS) return;
+      lastPaint = t;
+      render(devices, results);
+    };
+
+    const worker = async () => {
+      while (!aborted) {
+        const k = cursor++;
+        if (k >= targets.length) return;
+        const i = targets[k];
+        const device = devices[i];
+        const record = await loadDevice(device, { force });
+        if (record.error) {
+          if (record.auth) { lastError = AUTH_ERROR; aborted = true; }
+          else if (!lastError) lastError = record.error;
+        }
+        results[i] = record;
+        // 真正从平台查到的新结果才回写云端（缓存命中/失败/格式异常的不写）
+        if (!record.cached && !record.error) {
+          const row = buildShareRow(device.id, record);
+          if (row) toShare.push(row);
+        }
+        done += 1;
+        setProgress(done, targets.length);
+        paintThrottled();
       }
-      results[i] = record;
-      if (record.error && record.auth) break;
-      // 真正从平台查到的新结果才回写云端（缓存命中/失败/格式异常的不写）
-      if (!record.cached && !record.error) {
-        const row = buildShareRow(device.id, record);
-        if (row) toShare.push(row);
-      }
-      setProgress(k + 1, targets.length);
-      render(devices, results);   // 每查完一台立即展示
-    }
+    };
+
+    await Promise.all(
+      Array.from({ length: Math.min(CONCURRENCY, targets.length) }, () => worker())
+    );
+    render(devices, results);   // 收尾时补一次，把最后几台也画上
     // ③ 批量回写云端，供其他设备复用（不阻塞界面）
     if (toShare.length) cloudWriteShared(toShare);
+    // ④ 落历史快照（尽力而为，不阻塞）：把此刻「所有桩」的全景存一条，供使用率统计
+    const histRecords = devices.map((d, i) => {
+      const rec = results[i];
+      if (!rec || !rec.ports || !rec.ports.length) return null;
+      return { deviceId: d.id, location: d.location || '', ports: rec.ports };
+    }).filter(Boolean);
+    if (histRecords.length) writeHistory(histRecords);
     needRecover = lastError === AUTH_ERROR;
   } finally {
     busyFlag = false;
@@ -2072,16 +2342,43 @@ function openTokenDialog(message) {
   setTimeout(() => $('token-input').focus(), 60);
 }
 
-function applyToken(raw) {
+/** 纯格式校验：不写盘、不联网。 */
+function normalizeToken(raw) {
   const token = extractToken(raw);
   if (!token) return { ok: false, message: '没读到内容，把整串凭证粘进来' };
   if (token.split('.').length !== 3) return { ok: false, message: '这不像一个完整凭证（应该是三段点分隔的长串）' };
   const payload = jwtPayload(token);
   if (payload && Number(payload.exp) * 1000 <= Date.now()) {
-    return { ok: false, message: '这个凭证已经过期了，需要重新从小程序里取一个' };
+    return { ok: false, message: '这串已经过期了，回小程序里重新点一次柜机再抓' };
   }
-  store.set(KEY_TOKEN, token);
   return { ok: true, token };
+}
+
+/**
+ * 真打一次：拿清单里第一台桩试一下。
+ * 只有平台确实返回了插座，才算「这串能用来查」—— 否则过期/抓错的凭证
+ * 会被推上云端，把所有人一起弄挂。
+ */
+async function probeToken(token) {
+  const devices = getDevices();
+  const device = devices[0];
+  if (!device) return { ok: true, skipped: true };
+  try {
+    const ports = await fetchPortsOnce(device.id, token);
+    return { ok: true, count: ports.length, device: device.code || device.id };
+  } catch (err) {
+    if (err instanceof AuthError) {
+      return { ok: false, kind: 'auth', message: '平台不认这串：可能刚过期，或者不是「街电」这个小程序的。' };
+    }
+    return { ok: false, kind: 'net', message: '没连上平台（' + (err.message || '网络问题') + '）' };
+  }
+}
+
+function applyToken(raw) {
+  const checked = normalizeToken(raw);
+  if (!checked.ok) return checked;
+  store.set(KEY_TOKEN, checked.token);
+  return { ok: true, token: checked.token };
 }
 
 /* ---------------- 跨网络同步：云端只存密文，手机自动取 ---------------- */
@@ -2122,6 +2419,17 @@ function cloudSupport() {
     && typeof WorkBuddyCloud.createWorkBuddyCloud === 'function'
     && typeof crypto !== 'undefined'
     && Boolean(crypto.subtle);
+}
+
+/** 是否跑在本地预览（file:// 或 127.0.0.1 / localhost）—— 用来把「不支持」说清楚，而不是让人以为接口被删了。 */
+function isLocalPreview() {
+  try {
+    const { protocol, hostname } = location;
+    if (protocol === 'file:') return true;
+    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+  } catch (e) {
+    return false;
+  }
 }
 
 let cloudClient = null;
@@ -2256,6 +2564,12 @@ const SHARE_TABLE = 'pile_state';
 const SHARE_FRESH_MS = 60000;   // 共享结果有效期：60 秒
 const DEVICES_TABLE = 'pile_devices';
 const DEVICES_SLOT = 'default';
+// 历史快照表：攒「过去一周使用率/占用率」的数据源。每次刷新查完、或每小时定时，
+// 把各桩此刻的空闲/占用状态落一条快照（带 day 便于按天聚合）。这是持续累积的历史，
+// 与 60 秒就过期的 pile_state（实时共享）是两回事。
+const HISTORY_TABLE = 'pile_history';
+const HISTORY_KEEP_DAYS = 7;      // 只统计最近 7 天
+const HISTORY_DAY_KEY = 'day';    // 'YYYY-MM-DD'，冗余存一份，省得查询端做时区换算
 
 /**
  * 插座数据合法性校验：挡掉别人直接往云端表里写假数据。
@@ -2370,6 +2684,383 @@ function buildShareRow(deviceId, record) {
   };
 }
 
+/**
+ * 历史快照：把「当前这一批桩的状态」整体落一条带时间戳的快照。
+ * 每条快照 = 每台桩一行（device_id 唯一），字段：free/total/ts/day。
+ * 占用率口径（用户确认）= 被观测到「有插座在充」的快照占比，不按分钟插值。
+ * 失败静默 —— 采集是尽力而为，绝不能因为写历史失败而让查询报错。
+ */
+async function writeHistory(records) {
+  if (!cloudSupport() || !Array.isArray(records) || !records.length) return;
+  try {
+    const now = new Date();
+    const ts = now.toISOString();
+    const day = ts.slice(0, 10);   // 'YYYY-MM-DD'
+    const rows = records
+      .map((r) => {
+        const ports = r && r.ports ? r.ports : [];
+        if (!isValidPorts(ports)) return null;
+        const free = ports.filter((p) => p.state === SLOT_FREE).length;
+        return {
+          device_id: r.deviceId,
+          free,
+          total: ports.length,
+          ts,
+          day,
+          location: r.location || null,   // 冗余存一份，供「按位置筛选」直接聚合
+        };
+      })
+      .filter(Boolean);
+    if (!rows.length) return;
+    // 同一 device_id + day 多次写入会累积多条快照；这里不 upsert，保留每次采样点
+    await cloudDb().from(HISTORY_TABLE).insert(rows);
+  } catch (e) {}
+}
+
+/**
+ * 读最近 7 天历史快照，按「位置(location) × 日期(day)」聚合。
+ * 返回 { locations, days, byLocation }：
+ *   locations = 排序后的位置列表；days = 全局排序后的日期列表（'YYYY-MM-DD'）
+ *   byLocation[loc] = { byHour:[24], occRate, snapshots, byDay:{ day: {byHour:[24], occRate, snapshots} } }
+ * 占用率 = 占用插座数 / 观测插座数，按小时桶（0~23）统计，不按分钟插值。
+ */
+async function readHistoryStats() {
+  if (!cloudSupport()) return null;
+  try {
+    const cutoff = new Date(Date.now() - HISTORY_KEEP_DAYS * 86400000).toISOString();
+    const { data, error } = await cloudDb()
+      .from(HISTORY_TABLE)
+      .select('device_id,free,total,ts,day,location')
+      .gte('ts', cutoff)
+      .order('ts', { ascending: true });
+    if (error || !Array.isArray(data)) return null;
+    if (!data.length) return { empty: true, locations: [], days: [], byLocation: {} };
+
+    // 按 location 归组；每组内再按 day 归组，保留 hour[0..23] 累积
+    const groups = {};
+    for (const row of data) {
+      const total = Number(row.total) || 0;
+      if (total <= 0) continue;
+      const free = Number(row.free) || 0;
+      const occ = total - free;
+      const loc = row.location;
+      if (!loc) continue;   // 没有位置信息的老快照直接跳过
+      const h = new Date(row.ts).getHours();
+      if (!Number.isInteger(h) || h < 0 || h > 23) continue;
+      const d = row.day || String(row.ts || '').slice(0, 10);
+      if (!d) continue;
+
+      const g = groups[loc] || (groups[loc] = { byDay: {}, devices: new Set() });
+      if (row.device_id) g.devices.add(row.device_id);
+      const gd = g.byDay[d] || (g.byDay[d] = {
+        hour: Array.from({ length: 24 }, () => ({ occ: 0, total: 0, snap: 0 })),
+        occTotal: 0, obsTotal: 0, snapshots: 0,
+      });
+      gd.hour[h].occ += occ;
+      gd.hour[h].total += total;
+      gd.hour[h].snap += 1;
+      gd.occTotal += occ;
+      gd.obsTotal += total;
+      gd.snapshots += 1;
+    }
+
+    // 位置按字典序排序
+    const locations = Object.keys(groups).sort();
+    const daySet = new Set();
+    const byLocation = {};
+    for (const loc of locations) {
+      const g = groups[loc];
+      const dayKeys = Object.keys(g.byDay).sort();
+      dayKeys.forEach((d) => daySet.add(d));
+      const byDay = {};
+      let occTotal = 0, obsTotal = 0, snapshots = 0;
+      for (const d of dayKeys) {
+        const gd = g.byDay[d];
+        occTotal += gd.occTotal;
+        obsTotal += gd.obsTotal;
+        snapshots += gd.snapshots;
+        byDay[d] = {
+          byHour: gd.hour.map((b) => ({ occ: b.occ, total: b.total, snap: b.snap, rate: b.total ? b.occ / b.total : null })),
+          occRate: gd.obsTotal ? gd.occTotal / gd.obsTotal : 0,
+          snapshots: gd.snapshots,
+        };
+      }
+      // 全量（全部日期合并）的 byHour
+      const byHourAll = Array.from({ length: 24 }, () => ({ occ: 0, total: 0, snap: 0, rate: null }));
+      for (const d of dayKeys) {
+        const gd = g.byDay[d];
+        for (let h = 0; h < 24; h++) {
+          byHourAll[h].occ += gd.hour[h].occ;
+          byHourAll[h].total += gd.hour[h].total;
+          byHourAll[h].snap += gd.hour[h].snap;
+        }
+      }
+      for (let h = 0; h < 24; h++) byHourAll[h].rate = byHourAll[h].total ? byHourAll[h].occ / byHourAll[h].total : null;
+
+      byLocation[loc] = {
+        byHour: byHourAll,
+        occRate: obsTotal ? occTotal / obsTotal : 0,
+        snapshots,
+        days: dayKeys.length,
+        deviceCount: g.devices ? g.devices.size : 0,
+        byDay,
+      };
+    }
+
+    return { empty: false, locations, days: Array.from(daySet).sort(), byLocation };
+  } catch (e) {
+    return null;
+  }
+}
+
+/** 当前选中的位置（null 表示尚未选择） */
+let usageLoc = null;
+/** 当前选中的日期（'全部' 或 'YYYY-MM-DD'） */
+let usageDay = '全部';
+/** 最近一次读到的统计结果缓存（切换位置/日期时直接复用，不重新请求） */
+let usageCache = null;
+/** 折线图上当前被点击选中的数据点下标（0~23），null 表示未选中 */
+let usageSel = null;
+
+/** 把统计结果画进「使用情况」弹窗。柱状图横轴 0–23 点、竖柱，按位置+日期筛选。 */
+function renderUsageStats(stats) {
+  const loading = $('usage-loading'), body = $('usage-body'), empty = $('usage-empty');
+  loading.hidden = true;
+
+  if (!stats) {
+    empty.textContent = '暂时读不到历史数据（云端未连接或读取失败）。稍后重试，或先点一次「刷新」攒数据。';
+    empty.hidden = false;
+    body.hidden = true;
+    return;
+  }
+  if (stats.empty) {
+    empty.textContent = '还没有历史数据。数据从「每次刷新查询」开始累积，攒够一段时间后这里就会出现统计。';
+    empty.hidden = false;
+    body.hidden = true;
+    return;
+  }
+
+  empty.hidden = true;
+  body.hidden = false;
+
+  // 位置筛选按钮（含「全部」）
+  const locs = stats.locations || [];
+  const locChips = ['全部', ...locs];
+  const curLoc = (usageLoc && locs.includes(usageLoc)) ? usageLoc : (locs[0] || '全部');
+  usageLoc = curLoc;
+  $('usage-filter').innerHTML = locChips.map((l) =>
+    `<button class="usage-chip${l === curLoc ? ' on' : ''}" data-loc="${l}">${l}</button>`
+  ).join('');
+
+  // 日期筛选按钮（含「全部7天」）
+  const days = stats.days || [];
+  const dayChips = ['全部7天', ...days];
+  if (!dayChips.includes(usageDay)) usageDay = '全部7天';
+  $('usage-day').innerHTML = dayChips.map((d) =>
+    `<button class="usage-chip${d === usageDay ? ' on' : ''}" data-day="${d}">${d === '全部7天' ? d : d.slice(5)}</button>`
+  ).join('');
+
+  renderUsageLocation(stats, curLoc, usageDay);
+}
+
+/** 渲染某个位置 + 日期组合的 24 小时占用率折线图 */
+function renderUsageLocation(stats, loc, day) {
+  usageLoc = loc;
+  usageDay = day || '全部7天';
+  // 高亮筛选按钮
+  document.querySelectorAll('#usage-filter .usage-chip').forEach((b) => {
+    b.classList.toggle('on', b.dataset.loc === loc);
+  });
+  document.querySelectorAll('#usage-day .usage-chip').forEach((b) => {
+    b.classList.toggle('on', b.dataset.day === usageDay);
+  });
+
+  const isAll = loc === '全部';
+  const t = isAll
+    ? aggregateAll(stats, usageDay)
+    : pickLocationDay(stats.byLocation[loc], usageDay);
+  if (!t) {
+    $('usage-hour').innerHTML = '<div class="note">该位置在该日期暂无数据。</div>';
+    $('usage-note').textContent = '';
+    return;
+  }
+
+  // 该位置总插座数 = 桩数 × 每桩口数；「全部」累加各位置
+  let totalSockets = 0;
+  if (isAll) {
+    for (const l of stats.locations) {
+      const g = stats.byLocation[l];
+      if (g) totalSockets += (g.deviceCount || 0) * PORTS_PER_DEVICE;
+    }
+  } else {
+    const g = stats.byLocation[loc];
+    if (g) totalSockets = (g.deviceCount || 0) * PORTS_PER_DEVICE;
+  }
+
+  $('usage-hour').innerHTML = buildLineChart(t.byHour, usageSel, totalSockets);
+
+  $('usage-note').textContent =
+    (isAll ? '全部位置 · ' : `${loc} · `)
+    + (usageDay === '全部7天' ? '最近7天 · ' : `${usageDay} · `)
+    + '占用率 = 被观测到「有插座在充电」的插座占比（不按分钟插值）。点击图上的点可看具体数值。';
+}
+
+/** 把 24 小时占用率数组画成 SVG 折线图（纵轴 0–100%，横轴 0–24h）。
+ *  selIdx：当前选中的点下标（0~23），非 null 时在对应点上方画气泡显示具体数值。
+ *  totalSockets：该位置（或全部）实际总插座数，用于气泡第二行显示「占用 X / Y 插座」。 */
+function buildLineChart(byHour, selIdx, totalSockets) {
+  const W = 320, H = 200;
+  const padL = 30, padR = 10, padT = 22, padB = 24;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const n = byHour.length;                 // 24
+  const x = (i) => padL + (i / (n - 1)) * plotW;
+  const y = (rate) => padT + (1 - rate) * plotH;   // rate 0..1
+
+  const pct = (r) => Math.round(r * 100);
+  const pts = byHour.map((h, i) => (h.rate == null ? null : { i, rate: h.rate, occ: h.occ, total: h.total, snap: h.snap || 0 }));
+
+  const parts = [];
+  parts.push('<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="24小时占用率折线图">');
+
+  // 网格线 + y 轴刻度（0/25/50/75/100%）
+  for (let v = 0; v <= 100; v += 25) {
+    const yy = y(v / 100);
+    parts.push('<line x1="' + padL + '" y1="' + yy + '" x2="' + (W - padR) + '" y2="' + yy
+      + '" stroke="var(--line)" stroke-width="1"/>');
+    parts.push('<text x="' + (padL - 5) + '" y="' + (yy + 3) + '" font-size="8" fill="var(--hint)" text-anchor="end">' + v + '%</text>');
+  }
+
+  // x 轴刻度（0/3/6/…/21/24 时）
+  for (let i = 0; i < n; i += 3) {
+    const xx = x(i);
+    parts.push('<text x="' + xx + '" y="' + (H - 8) + '" font-size="8" fill="var(--hint)" text-anchor="middle">' + i + 'h</text>');
+  }
+
+  // 折线（遇到 null 断开，画分段）
+  const segs = [];
+  let cur = [];
+  for (const p of pts) {
+    if (p) cur.push(p);
+    else { if (cur.length) { segs.push(cur); cur = []; } }
+  }
+  if (cur.length) segs.push(cur);
+  for (const seg of segs) {
+    if (seg.length < 1) continue;
+    const d = seg.map((p, k) => (k === 0 ? 'M' : 'L') + x(p.i).toFixed(1) + ' ' + y(p.rate).toFixed(1)).join(' ');
+    parts.push('<path d="' + d + '" fill="none" stroke="var(--busy)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>');
+    for (const p of seg) {
+      const isSel = selIdx === p.i;
+      parts.push('<circle cx="' + x(p.i).toFixed(1) + '" cy="' + y(p.rate).toFixed(1) + '" r="' + (isSel ? 3.4 : 2.4) + '" fill="var(--busy)"'
+        + (isSel ? ' stroke="#fff" stroke-width="1.2"' : '') + '/>');
+    }
+  }
+
+  // 在「变化多的点」（拐点/极值点 + 首尾）上方常驻标注占用率
+  const labelIdx = new Set();
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i];
+    if (!p) continue;
+    const prev = i > 0 ? pts[i - 1] : null;
+    const next = i < pts.length - 1 ? pts[i + 1] : null;
+    const isFirst = i === 0, isLast = i === pts.length - 1;
+    let isTurn = false;
+    if (prev && next) {
+      isTurn = (p.rate > prev.rate && p.rate > next.rate) || (p.rate < prev.rate && p.rate < next.rate);
+    }
+    if (isFirst || isLast || isTurn) labelIdx.add(i);
+  }
+  for (const i of labelIdx) {
+    const p = pts[i];
+    if (!p) continue;
+    const xx = x(p.i), yy = y(p.rate);
+    parts.push('<text x="' + xx.toFixed(1) + '" y="' + (yy - 6).toFixed(1)
+      + '" font-size="8.5" fill="var(--busy)" text-anchor="middle" font-weight="600">' + pct(p.rate) + '%</text>');
+  }
+
+  // 透明点击热区（放最后，盖在折线之上，保证可点）
+  for (const p of pts) {
+    if (!p) continue;
+    parts.push('<circle class="pt-hit" data-i="' + p.i + '" cx="' + x(p.i).toFixed(1) + '" cy="' + y(p.rate).toFixed(1)
+      + '" r="9" fill="transparent" style="cursor:pointer"/>');
+  }
+
+  // 选中的点：气泡 tooltip
+  if (selIdx != null && pts[selIdx]) {
+    const p = pts[selIdx];
+    const px = x(p.i), py = y(p.rate);
+    const line1 = p.i + ' 点 · 占用率 ' + pct(p.rate) + '%';
+    // occ/snap = 平均每台桩占用口数；乘桩数(totalSockets/4)得位置平均占用插座总数
+    const avgOcc = p.snap > 0 ? Math.round(p.occ / p.snap * (totalSockets / PORTS_PER_DEVICE)) : 0;
+    const line2 = '占用 ' + avgOcc + ' / ' + (totalSockets || 0) + ' 插座';
+    const fs = 8.5;
+    const wBox = Math.max(line1.length, line2.length) * fs * 0.62 + 16;   // 近似文本宽度
+    const hBox = 30;
+    let bx = px - wBox / 2;
+    // 左右越界自动回拉
+    if (bx < padL) bx = padL;
+    if (bx + wBox > W - padR) bx = W - padR - wBox;
+    let by = py - hBox - 10;
+    if (by < 2) by = py + 12;   // 顶部放不下就放到点下方
+    parts.push('<g class="pt-tip">'
+      + '<rect x="' + bx.toFixed(1) + '" y="' + by.toFixed(1) + '" width="' + wBox.toFixed(1) + '" height="' + hBox + '" rx="5" fill="var(--text)" stroke="var(--line-strong)"/>'
+      + '<text x="' + (bx + wBox / 2).toFixed(1) + '" y="' + (by + 12).toFixed(1) + '" font-size="' + fs + '" fill="var(--bg)" text-anchor="middle" font-weight="600">' + line1 + '</text>'
+      + '<text x="' + (bx + wBox / 2).toFixed(1) + '" y="' + (by + 23).toFixed(1) + '" font-size="' + fs + '" fill="var(--bg)" text-anchor="middle">' + line2 + '</text>'
+      + '</g>');
+  }
+
+  parts.push('</svg>');
+  return parts.join('');
+}
+
+/** 取某位置的某天（或全部天）数据；无数据返回 null */
+function pickLocationDay(gloc, day) {
+  if (!gloc) return null;
+  if (day === '全部7天') {
+    return { byHour: gloc.byHour, occRate: gloc.occRate, snapshots: gloc.snapshots };
+  }
+  return gloc.byDay[day] || null;
+}
+
+/** 「全部」位置的聚合：把各位置同小时（可选某天）的 occ/total 相加，占用率重算 */
+function aggregateAll(stats, day) {
+  const byHour = Array.from({ length: 24 }, () => ({ occ: 0, total: 0, snap: 0, rate: null }));
+  let occTotal = 0, obsTotal = 0, snapshots = 0;
+  for (const loc of stats.locations) {
+    const g = stats.byLocation[loc];
+    if (!g) continue;
+    const src = day === '全部7天'
+      ? { byHour: g.byHour, snapshots: g.snapshots }
+      : (g.byDay[day] ? { byHour: g.byDay[day].byHour, snapshots: g.byDay[day].snapshots } : null);
+    if (!src) continue;
+    snapshots += src.snapshots;
+    for (let h = 0; h < 24; h++) {
+      byHour[h].occ += src.byHour[h].occ;
+      byHour[h].total += src.byHour[h].total;
+      byHour[h].snap += src.byHour[h].snap || 0;
+    }
+  }
+  for (let h = 0; h < 24; h++) {
+    byHour[h].rate = byHour[h].total ? byHour[h].occ / byHour[h].total : null;
+    occTotal += byHour[h].occ;
+    obsTotal += byHour[h].total;
+  }
+  return { byHour, occRate: obsTotal ? occTotal / obsTotal : 0, snapshots };
+}
+
+/** 打开「使用情况」弹窗并加载统计。 */
+async function openUsageDialog() {
+  $('usage-loading').hidden = false;
+  $('usage-body').hidden = true;
+  $('usage-empty').hidden = true;
+  $('usage-dialog').showModal();
+  const stats = await readHistoryStats();
+  usageCache = stats;
+  usageLoc = null;
+  usageDay = '全部7天';
+  usageSel = null;
+  renderUsageStats(stats);
+}
+
 function paintCloudState() {
   const state = $('cloud-state');
   const note = $('cloud-note');
@@ -2380,7 +3071,9 @@ function paintCloudState() {
   const supported = cloudSupport();
 
   if (!supported) {
-    state.textContent = '当前环境不支持（要用 https 打开，且浏览器支持加密接口）。';
+    state.textContent = isLocalPreview()
+      ? '本地预览没有云端：同步、凭证共享这些接口只认线上域名，不是被删了。'
+      : '当前域名不在云端白名单里，同步与凭证共享不生效。';
     actions.hidden = true;
     return;
   }
@@ -2429,13 +3122,12 @@ $('guide-manual').addEventListener('click', () => openTokenDialog(''));
 $('guide-paste').addEventListener('click', async () => {
   try {
     const text = await navigator.clipboard.readText();
-    const result = applyToken(text);
-    if (!result.ok) { openTokenDialog(result.message); return; }
-    $('guide-note').className = 'note ok';
-    $('guide-note').textContent = '已从剪贴板导入凭证。';
-    await refresh({ force: true });
+    openTokenDialog('');
+    $('token-input').value = text;
+    $('token-note').className = 'note ok';
+    $('token-note').textContent = '已读到剪贴板，点「校验并保存」。';
   } catch (e) {
-    openTokenDialog('浏览器不让直接读剪贴板，手动粘贴一下吧');
+    openTokenDialog('浏览器不让直接读剪贴板，长按输入框手动粘贴一下吧');
   }
 });
 
@@ -2443,7 +3135,7 @@ $('token-paste').addEventListener('click', async () => {
   try {
     $('token-input').value = await navigator.clipboard.readText();
     $('token-note').className = 'note ok';
-    $('token-note').textContent = '已粘贴，点「保存并刷新」。';
+    $('token-note').textContent = '已粘贴，点「校验并保存」。';
   } catch (e) {
     $('token-note').className = 'note bad';
     $('token-note').textContent = '读不到剪贴板，长按输入框手动粘贴。';
@@ -2451,14 +3143,54 @@ $('token-paste').addEventListener('click', async () => {
 });
 
 $('token-save').addEventListener('click', async () => {
-  const result = applyToken($('token-input').value);
-  if (!result.ok) {
-    $('token-note').className = 'note bad';
-    $('token-note').textContent = result.message;
+  const note = $('token-note');
+  const btn = $('token-save');
+
+  const checked = normalizeToken($('token-input').value);
+  if (!checked.ok) {
+    note.className = 'note bad';
+    note.textContent = checked.message;
     return;
   }
+
+  btn.disabled = true;
+  btn.textContent = '校验中…';
+  note.className = 'note';
+  note.textContent = '正在拿一台桩试一下…';
+  const probe = await probeToken(checked.token);
+  btn.disabled = false;
+  btn.textContent = '校验并保存';
+
+  // 平台明确不认：不写盘、不上云，就地报错
+  if (!probe.ok && probe.kind === 'auth') {
+    note.className = 'note bad';
+    note.textContent = probe.message;
+    return;
+  }
+
+  store.set(KEY_TOKEN, checked.token);
+
+  // 网络不通：先只留本机，绝不把没验证过的凭证推到云端
+  if (!probe.ok) {
+    note.className = 'note bad';
+    note.textContent = probe.message + '，先只存在这台设备上；网络好了点「刷新」再试。';
+    $('token-dialog').close();
+    await refresh({ force: true });
+    return;
+  }
+
+  const pushed = await cloudMaybePush(checked.token);
   $('token-dialog').close();
   await refresh({ force: true });
+
+  const base = '已通过校验：' + (probe.device || '第一台桩') + ' 能查到 ' + probe.count + ' 个插座';
+  if (pushed && pushed.ok) {
+    paintBanner(base + '，并已共享给所有人。', false);
+  } else if (pushed && pushed.message) {
+    paintBanner(base + '；但没能共享到云端（' + pushed.message + '），只在你这台设备生效。', true);
+  } else {
+    paintBanner(base + '，只存在这台设备上。', false);
+  }
 });
 
 /* ---------------- 同步开关 ---------------- */
@@ -2630,7 +3362,9 @@ async function paintDevicesCloudState() {
   const isAdmin = sessionStorage.getItem('cpk.unlocked') === '1';
   const ts = Number(store.get(KEY_DEVICES_TS, 0)) || 0;
   if (!cloudSupport()) {
-    el.textContent = isAdmin ? '当前环境不支持云端同步。' : '';
+    el.textContent = isAdmin
+      ? (isLocalPreview() ? '本地预览：清单不会同步到云端（只认线上域名）。' : '当前域名不在云端白名单里。')
+      : '';
     return;
   }
   if (!isAdmin) {
@@ -2738,6 +3472,42 @@ $('password-ok').addEventListener('click', async () => {
 $('password-cancel').addEventListener('click', () => $('password-dialog').close());
 $('password-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('password-ok').click(); });
 
+/* ---------------- 使用情况统计 ---------------- */
+
+$('usage-open').addEventListener('click', openUsageDialog);
+
+// 折线图数据点点击：查看该点具体数值（点同一个点收起，点别的点切换）
+$('usage-hour').addEventListener('click', (event) => {
+  const hit = event.target.closest('.pt-hit');
+  if (!hit) return;
+  const i = Number(hit.getAttribute('data-i'));
+  if (!Number.isInteger(i)) return;
+  // 点同一个点 → 收起；点别的点 → 切换
+  usageSel = (usageSel === i) ? null : i;
+  if (!usageCache || usageCache.empty) return;
+  renderUsageLocation(usageCache, usageLoc, usageDay);
+});
+
+// 位置筛选按钮：点击切换查看的位置，纯内存切换不重新请求
+$('usage-filter').addEventListener('click', (event) => {
+  const btn = event.target.closest('.usage-chip');
+  if (!btn) return;
+  const loc = btn.dataset.loc;
+  if (!usageCache || usageCache.empty) return;
+  usageSel = null;
+  renderUsageLocation(usageCache, loc, usageDay);
+});
+
+// 日期筛选按钮：点击切换查看的日期（最近7天，纯内存切换）
+$('usage-day').addEventListener('click', (event) => {
+  const btn = event.target.closest('.usage-chip');
+  if (!btn) return;
+  const day = btn.dataset.day;
+  if (!usageCache || usageCache.empty) return;
+  usageSel = null;
+  renderUsageLocation(usageCache, usageLoc, day);
+});
+
 /* ---------------- 地图交互 ---------------- */
 
 $('map-open').addEventListener('click', openMap);
@@ -2766,8 +3536,9 @@ $('map-tabs').addEventListener('click', (event) => {
   const btn = event.target.closest('.map-tab');
   if (btn) switchMap(btn.getAttribute('data-map'));
 });
-// 总览图上的分区气泡 → 进入该分区详细图
+// 总览图上的分区气泡 → 进入该分区详细图（拖拽/缩放中不触发，避免误跳）
 $('map-markers').addEventListener('click', (event) => {
+  if (mapGestureMoved) return;
   const cluster = event.target.closest('.map-cluster');
   if (!cluster) return;
   const target = ADDRESS_MAPS[cluster.getAttribute('data-zone')];
@@ -2874,12 +3645,48 @@ let autoTimer = null;
 
 function applyAutoRefresh() {
   if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+  applyHourlyHistory();
   if (store.get(KEY_AUTO, true) === false) return;
   autoTimer = setInterval(() => {
     if (document.hidden) return;
     refresh();
   }, THROTTLE_MS);
 }
+
+/* ---------------- 历史快照：每小时保底采集 ---------------- */
+
+const HISTORY_HOUR_MS = 3600000;   // 每小时保底一条快照
+let historyTimer = null;
+
+/**
+ * 每小时从「云端共享状态」转存一条历史快照，保证使用率统计有小时级颗粒度。
+ * 设计意图（用户确认）：即使页面没人在手动刷新、或 60 秒自动刷新因页面隐藏而跳过，
+ * 只要页面还开着，每小时也至少落一条快照，让「按时段」柱状图不至于大片空缺。
+ * 只读共享表 + 写历史表，失败静默，绝不影响主流程。
+ */
+async function hourlyHistoryTick() {
+  if (!cloudSupport()) return;
+  const shared = await cloudReadShared();
+  if (!shared || !Object.keys(shared).length) return;
+  // 用设备清单把 device_id 映射回 location（共享表里只有 id + 插座状态）
+  const locBy = {};
+  for (const d of getDevices()) locBy[d.id] = d.location || '';
+  const records = Object.entries(shared)
+    .map(([deviceId, rec]) => ({
+      deviceId,
+      location: locBy[deviceId] || '',
+      ports: (rec && rec.ports) || [],
+    }))
+    .filter((r) => r.ports.length);
+  if (records.length) writeHistory(records);
+}
+
+function applyHourlyHistory() {
+  if (historyTimer) { clearInterval(historyTimer); historyTimer = null; }
+  if (store.get(KEY_AUTO, true) === false) return;
+  historyTimer = setInterval(hourlyHistoryTick, HISTORY_HOUR_MS);
+}
+
 
 document.addEventListener('visibilitychange', async () => {
   if (document.hidden) return;

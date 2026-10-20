@@ -5,10 +5,11 @@
    云端的同步请求同样不能碰：那是同一域名下的接口，一旦被缓存优先命中，
    手机就会永远读到第一份密文，电脑换了凭证它也换不掉。 */
 
-const CACHE = 'campus-pile-v36';
+const CACHE = 'campus-pile-v65';
 const SHELL = [
   './',
   './index.html',
+  './help.html',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -64,14 +65,21 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 静态资源：缓存优先，后台不打扰
+  // 静态资源：先用缓存出图，同时后台悄悄拉一份新的存起来
+  // （原来纯缓存优先，URL 不变就永远发旧文件，改完自己在手机上看不到效果，
+  //   以为是没发布 —— 这套 stale-while-revalidate 就是为这个坑加的）
   event.respondWith(
-    caches.match(request).then((hit) => hit || fetch(request).then((response) => {
-      if (response.ok && response.type === 'basic') {
-        const copy = response.clone();
-        caches.open(CACHE).then((cache) => cache.put(request, copy)).catch(() => {});
-      }
-      return response;
-    }))
+    caches.match(request).then((hit) => {
+      const network = fetch(request).then((response) => {
+        if (response.ok && response.type === 'basic') {
+          const copy = response.clone();
+          caches.open(CACHE).then((cache) => cache.put(request, copy)).catch(() => {});
+        }
+        return response;
+      });
+      if (!hit) return network;
+      network.catch(() => {});   // 断网时后台请求会失败，别让它变成未处理的 rejection
+      return hit;
+    })
   );
 });

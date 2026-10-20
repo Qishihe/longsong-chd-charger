@@ -1576,118 +1576,43 @@ let curMap = ADDRESS_MAPS['_default'];
 function mapAspect() { return curMap.h / curMap.w; }
 
 // —— 椭圆弧布局（朝晖主图，编号 1~36）——
-// 2026-10-21 产品方：「朝晖体育场的 36 个充电桩希望布局能够再靠近体育场中心一些」
-// 量的底图（map-clean.webp 1024×1536）：红色跑道椭圆 x≈290~735、y≈310~1210，
-//   即中心≈(512,760)、半宽≈222、半高≈450。对照原参数 RX=368 / RY=501：
-//   左右最远到 x=143 / 879，**明显跑到椭圆外面**（半宽 368 > 体育场 222）。
-// 所以把两个半径一起收 −15%：RX 368→312、RY 501→428，弧线整体向中心收拢。
-// 圆心也顺手对齐量的中心：CY 784→766（CX 511 已准，不动）。
-// ⚠️ 这两个半径就是「靠近多少」的唯一旋钮，要再靠近就继续减小（改完刷新即见）。
-// 2026-10-21 修：这两个 const 原来在本行重复声明了一次（下面 U 形块里还有一份），
-//   `const` 同作用域重复声明 → 整个主脚本 SyntaxError → 页面白屏。
-//   声明统一留在下面的 U 形块，这里只留注释，别再补回来。
-// —— U 形布局（朝晖主图，编号 1~36）——
-// 2026-10-21 产品方选定「U 形」方案，替换原来的「两段弧」。
+// 参数与 v1.97（=v1.70 起的原样）完全一致。
 //
-// 为什么必须换形状（原来的问题）：原实现左弧 12 个点占 52°、右弧 24 个点也占 52°，
-//   两段弧长几乎相同（各 ≈358 地图单位）但点数差一倍 → 右弧点间距只有 15.9 单位。
-//   手机默认视野 scale≈0.48，换算到屏幕只有 **7.6px**，而标点圈径是 **20px**
-//   （PIN_SCREEN_R=10）→ 右弧那 24 个圈必然叠在一起，编号根本认不出。
-//   算过账：要放下 24 个 20px 的圈需要 480px 弧长，而右弧屏幕弧长只有 172px —— **差 2.8 倍**，
-//   所以靠调半径/字号**无解**（缩到 8px 圈才不叠，那编号就没法看了），只能让点走更长的路。
-//
-// U 形怎么铺：θ 从 215°(左上) 经 180°(左) → 90°(底) → 0°(右) 到 -35°(右上)，
-//   **顶部留 110° 空档**（原来留空的是底部，现在改留顶部 —— 这是本方案的观感变化）。
-//   总跨度 250°，椭圆周长按 Ramanujan 算 ≈2339 单位 → 覆盖弧长 ≈1624 单位，
-//   36 个点均分 → **点间距 ≈45 单位 → 手机屏幕 21.6px > 圈径 20px**，不再重叠。
-//   （留了余量：若把 RX/RY 再收小，周长会变短、间距跟着变小，就要重新算这笔账。）
-//
-// ⚠️ 编号分组变了：原来 T01~T12 在左、T13~T36 在右（12/24）。
-//   现在**沿 U 形单调排布**（T01 左上 → T36 右上，约 18/18）。
-//   这是「等距不重叠」的必然结果 —— 若坚持 12/24 分组，右侧 24 个点又会挤回 15px 间距。
-//   若实际安装确实是「西侧 12 台、东侧 24 台」，请告知，那要另外设计（例如右侧折成两排）。
-const ARC_CX = 511, ARC_CY = 766;
-const ARC_RX = 312, ARC_RY = 428;
-const ARC_US_START = 215;    // 左上起点（度）
-const ARC_US_END = -35;      // 右上终点（度）；θ 递减，途经 180→90→0
+// 🔴 2026-10-21 01:30 产品方：「不要刚改的这个u形的，我不满意」→ **U 形整体撤除**。
+//   撤掉的不只是形状，还有为它配套加的四样东西（它们跟 U 形是同一次改动）：
+//     1. ARC_TABLE / arcThetaAtFraction()  —— 按「弧长」等分取点（U 形用）
+//     2. shortCode()                       —— 圈里显示 T01 三字符短编号
+//     3. PIN_SCREEN_R 10                   —— 为三字符编号放大的圈径
+//     4. 半径收窄 RX368→312 / RY501→428、CY784→766 —— 「靠近体育场中心」那次
+//   第 4 条**从未发布过，产品方也没见过**，按「回到 U 形之前」一起撤回。
+//   若之后产品方仍要「点再靠近体育场中心一些」，只需改下面 CX/CY/RX/RY 四个数，
+//   ⚠️ 别再动 ARC_LEFT_* / ARC_RIGHT_* 和 ARC_LEFT_COUNT —— 那才是「12/24 分组」
+//   这个形状本身，是产品方现在明确要的（他对高德页签的原话：「1.7版本的…点分布」）。
+//   U 形那版代码在 commit 8e113bb / d73b311 里，要找回请翻 git，别凭记忆重写
+//   （那次就是靠记忆重写，`const` 重复声明把整站搞白屏了）。
+const ARC_CX = 511, ARC_CY = 784;
+const ARC_RX = 368, ARC_RY = 501;
+// 两段弧：左下(TY-01~12) + 右下(TY-13~36)，中间底部留空。角度单位=度，θ 从 180°(左) 经 90°(底) 到 0°(右)
+const ARC_LEFT_START = 180, ARC_LEFT_END = 128;
+const ARC_RIGHT_START = 52, ARC_RIGHT_END = 0;
+const ARC_LEFT_COUNT = 12;
 const ARC_TOTAL = 36;
-// θ=90° 是正下方、270° 是正上方（图里 y 向下，所以 sinθ 为正=偏下）
-const ARC_SAMPLES = 1440;    // 弧长表采样密度（0.17°/格），越大越准，只在启动时算一次
 // 标点屏幕尺寸（px，恒定，不随地图缩放变化）
-// 2026-10-21：8.5 → 10 —— 圈里改显示 3 个字符的短编号（T01）后，
-// 原尺寸下字号只有 ~6.3px，手机上偏小。放大到 10 后 3 字符字号约 7.4px。
-// ⚠️ 这就是「标点大小」的旋钮；调大会让缩小时相邻点更容易重叠（属预期行为）。
-const PIN_SCREEN_R = 10;
-
-/**
- * 桩点里显示的**短编号**（2026-10-21 产品方要求：每个点都带上设备编号）。
- *   TY-01 / TY01 / T01 → T01      （朝晖体育场，TY 统一简写成 T）
- *   A01 / B3 / C11 / D14 → A01 / B03 / C11 / D14   （北门停车区，字母 + 两位数字）
- * 数字一律补到两位，保证三个字符等宽、圈里排得下。
- * ⚠️ 这是**纯展示**用的短编号，不参与任何匹配/查询；真实编号仍用 device.code。
- */
-function shortCode(device) {
-  const raw = String((device && (device.code || device.name)) || (device && device.id) || '').trim();
-  if (!raw) return '';
-  // TY-01 / TY01 / TZ-1 / T01 → T + 两位数字
-  let m = raw.match(/^T[YZ]?\s*-?\s*(\d+)$/i);
-  if (m) return 'T' + m[1].padStart(2, '0');
-  // A01 / B3 / C11 / D14 → 字母大写 + 两位数字
-  m = raw.match(/^([A-Za-z])\s*-?\s*(\d+)$/);
-  if (m) return m[1].toUpperCase() + m[2].padStart(2, '0');
-  // 兜底：从长名字里抠出「字母+数字」的编号
-  //   '渭水校区 TY-01 号桩' → T01   ·   '渭水校区 北-A01 号桩' → A01
-  const t = raw.match(/([A-Za-z]{1,2})\s*-?\s*(\d+)/);
-  if (t) {
-    let letter = t[1].toUpperCase();
-    if (letter === 'TY' || letter === 'TZ') letter = 'T';   // 与主逻辑同一简写口径
-    return letter.slice(0, 1) + t[2].padStart(2, '0');
-  }
-  // 实在抠不出来（例如纯中文名）→ 原样截断，免得撑破圆圈
-  return raw.slice(0, 4);
-}
-
-/**
- * 椭圆 U 形弧长表：把 θ 细分后累计弧长，供「**按弧长**等分取点」。
- *
- * ⚠️ 为什么不能直接按 θ 等分：椭圆上「每度对应的弧长」是不均匀的。
- *   本图 RY(428) > RX(312)，长轴是**竖直**的 → θ=90°(正下方) 附近每度最长，
- *   θ=0°/180°(左右两侧) 附近每度最短。若按 θ 等分，点会在底部被拉开、
- *   在两侧挤在一起（两侧本来就已经是最密的地方），白白浪费弧长。
- *   改成按弧长等分后，36 个点的**视觉间距才真正一致**。
- * 只在启动时算一次（常量不变），运行时二分查表，开销可忽略。
- */
-const ARC_TABLE = (() => {
-  const deg = Math.PI / 180;
-  const th = [], cum = [0];
-  for (let k = 0; k <= ARC_SAMPLES; k++) {
-    th.push((ARC_US_START + (ARC_US_END - ARC_US_START) * k / ARC_SAMPLES) * deg);
-  }
-  for (let k = 1; k < th.length; k++) {
-    const dx = ARC_RX * (Math.cos(th[k]) - Math.cos(th[k - 1]));
-    const dy = ARC_RY * (Math.sin(th[k]) - Math.sin(th[k - 1]));
-    cum.push(cum[k - 1] + Math.hypot(dx, dy));
-  }
-  return { th, cum, total: cum[cum.length - 1] };
-})();
-
-/** 取「已走过弧长比例 f（0~1）」处的 θ（弧度），二分 + 线性插值 */
-function arcThetaAtFraction(f) {
-  const { th, cum, total } = ARC_TABLE;
-  const target = Math.max(0, Math.min(1, f)) * total;
-  let lo = 0, hi = cum.length - 1;
-  while (lo < hi - 1) {
-    const mid = (lo + hi) >> 1;
-    if (cum[mid] <= target) lo = mid; else hi = mid;
-  }
-  const span = cum[hi] - cum[lo];
-  const r = span > 1e-9 ? (target - cum[lo]) / span : 0;
-  return th[lo] + (th[hi] - th[lo]) * r;
-}
+const PIN_SCREEN_R = 8.5;
 
 function pinCoord(i, total) {
-  const n = Math.max(1, (total || ARC_TOTAL) - 1);
-  const theta = arcThetaAtFraction(i / n);
+  const deg = Math.PI / 180;
+  let theta;
+  if (i < ARC_LEFT_COUNT) {
+    // 左弧：θ 180°→128°，从左到右
+    const n = Math.max(1, ARC_LEFT_COUNT - 1);
+    theta = (ARC_LEFT_START - (ARC_LEFT_START - ARC_LEFT_END) * (i / n)) * deg;
+  } else {
+    // 右弧：θ 52°→0°，从左到右
+    const j = i - ARC_LEFT_COUNT;
+    const n = Math.max(1, total - ARC_LEFT_COUNT - 1);
+    theta = (ARC_RIGHT_START - (ARC_RIGHT_START - ARC_RIGHT_END) * (j / n)) * deg;
+  }
   return {
     x: ARC_CX + ARC_RX * Math.cos(theta),
     y: ARC_CY + ARC_RY * Math.sin(theta),
@@ -2083,30 +2008,35 @@ function renderMapMarkers() {
   const cw = svg.clientWidth || 1;
   const scale = cw / camera.w;
   const pinR = PIN_SCREEN_R / scale;
-  // 字号改为**每个标点自算**（见下面的 fs）——短编号是 3 个字符，比原来两位数字宽，
-  // 统一字号会溢出圆圈。所以这里不再有全局 fontSize。
+  const fontSize = pinR * 0.95;
   const strokeW = Math.max(0.6, pinR * 0.2);
 
   let locFree = 0, shown = 0;
   const frag = document.createDocumentFragment();
   const NS = 'http://www.w3.org/2000/svg';
 
-  // 参考弧线仅在 U 形布局的主图上绘制（2026-10-21：两段弧合并为一条 U 形虚线）
+  // 参考弧线仅在椭圆弧布局的主图上绘制（两段弧 → 两条虚线）
   if (curMap.layout === 'arc') {
-    const pts = [];
-    for (let k = 0; k <= 120; k++) {
-      const th = arcThetaAtFraction(k / 120);
-      pts.push(`${(ARC_CX + ARC_RX * Math.cos(th)).toFixed(1)},${(ARC_CY + ARC_RY * Math.sin(th)).toFixed(1)}`);
+    const arcPts = (a0, a1) => {
+      const deg = Math.PI / 180;
+      const pts = [];
+      for (let k = 0; k <= 40; k++) {
+        const th = (a0 + (a1 - a0) * k / 40) * deg;
+        pts.push(`${(ARC_CX + ARC_RX * Math.cos(th)).toFixed(1)},${(ARC_CY + ARC_RY * Math.sin(th)).toFixed(1)}`);
+      }
+      return pts.join(' ');
+    };
+    for (const [a0, a1] of [[ARC_LEFT_START, ARC_LEFT_END], [ARC_RIGHT_START, ARC_RIGHT_END]]) {
+      const pl = document.createElementNS(NS, 'polyline');
+      pl.setAttribute('points', arcPts(a0, a1));
+      pl.setAttribute('fill', 'none');
+      pl.setAttribute('stroke', '#9AA78F');
+      pl.setAttribute('stroke-width', '3');
+      pl.setAttribute('stroke-dasharray', '10 8');
+      pl.setAttribute('opacity', '0.9');
+      pl.setAttribute('style', 'pointer-events:none');
+      frag.appendChild(pl);
     }
-    const pl = document.createElementNS(NS, 'polyline');
-    pl.setAttribute('points', pts.join(' '));
-    pl.setAttribute('fill', 'none');
-    pl.setAttribute('stroke', '#9AA78F');
-    pl.setAttribute('stroke-width', '3');
-    pl.setAttribute('stroke-dasharray', '10 8');
-    pl.setAttribute('opacity', '0.9');
-    pl.setAttribute('style', 'pointer-events:none');
-    frag.appendChild(pl);
   }
 
   mapScope.forEach((di, si) => {
@@ -2123,10 +2053,7 @@ function renderMapMarkers() {
     const unknown = !ports.length && !!record.error && record.error !== '尚未查询';
     const fill = ports.length ? (free === 0 ? '#E24B4A' : '#1D9E75')
       : unknown ? '#E24B4A' : '#B4B2A9';
-    // 2026-10-21：圈里显示**短编号**（T01 / T36），不再只显示数字。
-    // 三个字符比原来的两位数字宽，字号要按长度收一点，否则会溢出圆圈。
-    const num = shortCode(device);
-    const fs = pinR * (num.length >= 3 ? 0.74 : num.length === 2 ? 0.95 : 0.9);
+    const num = String(device.code || device.id).match(/\d+/)?.[0] || '';
     const label = ports.length
       ? `${device.code || device.name} · 空闲 ${free}/${ports.length}`
       : unknown
@@ -2139,7 +2066,7 @@ function renderMapMarkers() {
     mk.setAttribute('data-device', device.id);
     mk.innerHTML = `<title>${escapeHtml(label)}</title>` +
       `<circle r="${pinR.toFixed(2)}" fill="${fill}" stroke="#fff" stroke-width="${strokeW.toFixed(2)}"/>` +
-      `<text y="${(fs * 0.34).toFixed(2)}" text-anchor="middle" font-size="${fs.toFixed(2)}" font-weight="700" fill="#fff" style="pointer-events:none">${escapeHtml(num)}</text>`;
+      `<text y="${(fontSize * 0.34).toFixed(2)}" text-anchor="middle" font-size="${fontSize.toFixed(2)}" font-weight="700" fill="#fff" style="pointer-events:none">${escapeHtml(num)}</text>`;
     frag.appendChild(mk);
   });
   g.appendChild(frag);
@@ -2356,7 +2283,7 @@ function ensureAMap() {
     loadScriptOnce('map-data.js?v=163')
       .then(loadLocalKeyOnce)
 // ⚠️ map-amap.js 走 Service Worker 缓存优先，改了它必须同时改这里的 ?v=，否则用户拿的还是旧文件
-      .then(() => loadScriptOnce('map-amap.js?v=128'))
+      .then(() => loadScriptOnce('map-amap.js?v=129'))
       .then(boot)
       .catch(() => done(false));
   });

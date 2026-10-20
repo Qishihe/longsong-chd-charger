@@ -1,6 +1,6 @@
 /* 高德地图运行时（校园语义层覆盖）
  * 依赖 map-data.js 提供的 window.CHD_MAP（GCJ-02 坐标，腾讯/高德通用）
- * 对外接口：CHD_AMAP.mount / setView / setPiles / focusPile / resize / destroy
+ * 对外接口：CHD_AMAP.mount / setView / setZoom / setPiles / focusPile / resize / destroy
  *
  * 与 map-tmap.js（腾讯）平行的一套高德实现。
  * 差异点：
@@ -29,6 +29,7 @@
   var bldLayer = null, venueLayer = null, waterLayer = null, campusLayer = null;
   var badgeLayer = null;        // 总览的分区气泡
   var pinLayer = null;          // 桩层（点内直接写桩号，不再单独挂文字标签）
+  var clusterLayer = null;      // 缩小时的「分区聚合圈」层（绿圈=可用数，红圈=×）
   var piles = [];               // [{id, code, location, free, total}]
   var curView = 'campus';
   var ready = false, failed = false;
@@ -36,6 +37,7 @@
   var onFailCb = null, onPileCb = null;
   var PIN_POS = {};             // id -> [lng, lat]（供 focusPile 用）
   var BADGE_POS = {};           // 分区 -> [lng, lat]（取景要把徽章也算进去，否则会被裁掉）
+  var CLUSTER_POS = {};         // 分区 -> [lng, lat]（缩小时的聚合圈位置）
   var syncTimer = null, syncPending = false;
 
   function LL(p) { return [p[0], p[1]]; }   // 高德用 [lng, lat]
@@ -305,23 +307,29 @@
    * 之前写死 18.3 级出桩号，结果容器宽一点窄一点就算出 18.1 或 18.5，
    * 同一份代码在别人手机上桩号直接消失 —— 阈值必须跟着实际像素走。
    *
+   * 2026-10-21 产品方改成**两态**（原来是 far/mid/near 三态）：
    *   gap = 一格车位（约 6.5m）折算成当前缩放下的像素
-   *   gap <  9  → 九像素圆点（校园总览那种距离，37 个点挤一块只能看点色）
-   *   gap < 13  → 十三像素方点（还没到能看清两个字符的宽度）
-   *   gap ≥ 13  → 16×15 方框徽章，框内写桩号（A1 / C11 / D14）
+   *   gap <  13  → 缩得太狠、逐台点会叠 → **只显示分区聚合圈**（绿圈写可用数 / 红圈 ×），
+   *                逐台点全部隐藏
+   *   gap ≥ 13  → 逐台点可读 → 显示逐台点（16×15 桩号胶囊），聚合圈隐藏
+   *
+   * 聚合圈 / 逐台点互斥，切换靠 CSS 类 + JS 显隐两层保证。
    *
    * 注意：高德 setZoomAndCenter 之后 zoomend 回调里 getZoom() 可能还是旧值（试过两次都这样），
    * 所以程序化设视野时把「目标 zoom」直接传进来，别去读 map.getZoom()。 */
   var CELL_M = 6.5;               // 北门一格车位的实际边长（米）
   var LAT_COS = Math.cos(34.375 * Math.PI / 180);
+  var clustered = false;          // 当前是否处于「缩到重叠 → 聚合成圈」态（供 syncLayers 复用）
   function applyZoomTier(z) {
     if (!host) return;
     if (typeof z !== 'number') z = map ? map.getZoom() : 0;
     var res = 156543.03392 * LAT_COS / Math.pow(2, z);   // 米/像素
     var gap = CELL_M / Math.max(res, 1e-6);
-    host.classList.toggle('zoom-far', gap < 9);
-    host.classList.toggle('zoom-mid', gap >= 9 && gap < 13);
+    clustered = gap < 13;                                // 缩得太狠 → 聚合成圈
+    host.classList.toggle('zoom-cluster', clustered);
     host.dataset.gap = gap.toFixed(1);
+    // 显隐统一交给 syncLayers 裁决（它同时感知分区过滤 + 缩放态），这里只负责定态
+    syncLayers();
   }
 
   function toGeoJSON(items) {
@@ -393,6 +401,63 @@
     });
   }
 
+  /* ---------- 缩小时的「分区聚合圈」 ----------
+   * 2026-10-21 产品方要求：地图缩小到「标点重叠过多」后，不再逐台画点，
+   * 而是每个分区合成一个圈 —— 绿圈里写「该分区还有多少可用」，没有可用就红圈打 ×。
+   * 点这个圈 → 放大到该分区全景（逐台点自然回到可读状态）。
+   *
+   * 与 rebuildBadges 的区别：badge 是「总览气泡」一直挂在分区外缘（带分区名），
+   * 这个是缩小时**替代逐台点**的主体标记，只写数字不写名字，视觉更大更干净。 */
+  function rebuildClusters() {
+    clearLayer(clusterLayer); clusterLayer = null;
+    CLUSTER_POS = {};
+
+    var groups = {};
+    piles.forEach(function (p) {
+      var a = D.areas[p.location];
+      if (!a) return;
+      if (!groups[p.location]) groups[p.location] = { free: 0, n: 0 };
+      groups[p.location].n++;
+      if (p.free > 0) groups[p.location].free += p.free;
+    });
+
+    var markers = [];
+    Object.keys(groups).forEach(function (loc) {
+      var g = groups[loc];
+      var b = areaBBox(loc);
+      if (!b) return;
+      var mid = [(b.w + b.e) / 2, (b.s + b.n) / 2];
+      CLUSTER_POS[loc] = mid;
+      var ok = g.free > 0;
+      var inner = ok
+        ? '<span class="cluster-num">' + g.free + '</span>'
+        : '<span class="cluster-x">×</span>';
+      markers.push(new AMap.Marker({
+        position: mid, anchor: 'center',
+        content: '<div class="cluster ' + (ok ? 'ok' : 'full') + '">' + inner + '</div>',
+        extData: { area: loc },
+        zIndex: 90,
+      }));
+    });
+
+    if (!markers.length) return;
+    clusterLayer = markers;
+    markers.forEach(function (m) {
+      m.setMap(map);
+      m.on('click', function () {
+        var id = m.getExtData().area;
+        if (!id) return;
+        // 点聚合圈 → 放大到该分区全景；放大后 applyZoomTier 会把聚合圈换成逐台点
+        var bb = areaBBox(id);
+        if (bb) {
+          curView = id;
+          syncLayers();
+          fitBBox(bb, id === '渭水-北门' ? 0.09 : 0.22, id === '渭水-北门' ? 18.05 : 0);
+        }
+      });
+    });
+  }
+
   /* ---------- 桩层：逐台一个点，不再把整个分区压成一个气泡 ---------- */
   function rebuildPins() {
     clearLayer(pinLayer); pinLayer = null;
@@ -436,12 +501,16 @@
 
   function syncLayers() {
     var isCampus = curView === 'campus';
-    if (badgeLayer) badgeLayer.forEach(function (m) { m.setMap(isCampus ? map : null); });
+    // 总览徽章：总览 + 放大态才显示（聚合成圈时信息与聚合圈重复，藏掉）
+    if (badgeLayer) badgeLayer.forEach(function (m) { m.setMap(isCampus && !clustered ? map : null); });
+    // 聚合圈：只在「总览 + 聚合成圈」时显示；进到某分区（已放大）就隐藏
+    if (clusterLayer) clusterLayer.forEach(function (m) { m.setMap(isCampus && clustered ? map : null); });
     // 桩点：总览显示（或分区内也显示），这里简化为总览 + 分区都显示桩点
+    // 聚合成圈时逐台点整体隐藏（applyZoomTier 也会兜一层，这里先按分区+缩放态裁决）
     if (pinLayer) {
-      var showPin = true;
       pinLayer.forEach(function (m) {
         var d = m.getExtData();
+        var showPin = true;
         if (!isCampus && d.id) {
           var p = null;
           piles.forEach(function (q) { if (q.id === d.id) p = q; });
@@ -451,6 +520,8 @@
         } else {
           showPin = true;
         }
+        // 聚合成圈时逐台点一律隐藏（无论总览还是分区）
+        if (clustered) showPin = false;
         m.setMap(showPin ? map : null);
       });
     }
@@ -623,6 +694,7 @@
       if (!ready) return;
       rebuildBadges();
       rebuildPins();
+      rebuildClusters();
       syncLayers();
       // opts2.keepCamera：刷新数据时别把用户正在看的视角拉回全景
       if (!(opts2 && opts2.keepCamera)) applyCamera();
@@ -633,6 +705,16 @@
       curView = view;
       syncLayers();
       applyCamera();
+    },
+
+    // 程序化设定缩放（保持当前中心）；供测试与未来「缩到全校」入口复用。
+    // z 会经 applyZoomTier 决定显示聚合圈还是逐台点。
+    setZoom: function (z) {
+      if (!ready || !map) return false;
+      map.setZoom(z);
+      applyZoomTier(z);
+      setTimeout(function () { applyZoomTier(z); }, 400);
+      return true;
     },
 
     focusPile: function (id) {
@@ -654,6 +736,8 @@
         failReason: failReason, mountCount: mountCount,
         badges: badgeLayer ? badgeLayer.length : 0,
         pins: pinLayer ? pinLayer.length : 0,
+        clusters: clusterLayer ? clusterLayer.length : 0,
+        clustered: clustered,
         zoom: map ? map.getZoom() : null,
         sample: ks.slice(0, 3).map(function (k) { return k + ':' + PIN_POS[k].join(','); }),
         sampleLast: ks.length ? PIN_POS[ks[ks.length - 1]].join(',') : '',
@@ -661,9 +745,10 @@
     },
 
     destroy: function () {
-      clearLayer(badgeLayer); clearLayer(pinLayer);
+      clearLayer(badgeLayer); clearLayer(pinLayer); clearLayer(clusterLayer);
       try { if (map) map.destroy(); } catch (e) {}
-      badgeLayer = null; pinLayer = null; PIN_POS = {};
+      badgeLayer = null; pinLayer = null; clusterLayer = null;
+      PIN_POS = {}; CLUSTER_POS = {}; clustered = false;
       map = null; ready = false;
       if (host) host.innerHTML = '';
     },

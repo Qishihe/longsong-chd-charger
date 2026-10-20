@@ -267,7 +267,20 @@
     border:1.5px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.32);
   }
   .pile.free{background:#1D9E75} .pile.busy{background:#E24B4A} .pile.off{background:#B4B2A9}
-  /* 缩小时桩点收成小圆点：桩号挤在总览里会糊成一片 */
+  /* 缩小时的「分区聚合圈」（2026-10-21 产品方要求）：
+     绿色圈 = 该分区还有可用，圈里写空闲总数；红色圈 = 没有可用，圈里打 ×。
+     点它放大到分区全景。与逐台点（.pile）互斥，由 zoom-cluster 态切换。 */
+  .cluster{
+    display:flex;align-items:center;justify-content:center;
+    width:30px;height:30px;border-radius:50%;box-sizing:border-box;
+    border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.34);
+    color:#fff;font-weight:700;line-height:1;
+  }
+  .cluster.ok{background:#1D9E75}
+  .cluster.full{background:#E24B4A}
+  .cluster-num{font-size:14px;letter-spacing:-.3px}
+  .cluster-x{font-size:17px;font-weight:800;line-height:1}
+  /* 旧的 far/mid 三态降级样式不再用（改成两态），保留类名以防引用，但内容清空 */
   .amap-host.zoom-far .pile{width:9px; min-width:0; height:9px; padding:0; border-radius:50%; font-size:0; border-width:1.5px}
   .amap-host.zoom-mid .pile{width:13px; min-width:0; height:13px; padding:0; border-radius:4px; font-size:0; border-width:1.5px}
   .lbl{font-size:12px;color:#2F5D45;font-weight:600;text-shadow:0 0 3px #fff,0 0 3px #fff;white-space:nowrap}
@@ -2283,7 +2296,7 @@ function ensureAMap() {
     loadScriptOnce('map-data.js?v=163')
       .then(loadLocalKeyOnce)
 // ⚠️ map-amap.js 走 Service Worker 缓存优先，改了它必须同时改这里的 ?v=，否则用户拿的还是旧文件
-      .then(() => loadScriptOnce('map-amap.js?v=129'))
+      .then(() => loadScriptOnce('map-amap.js?v=130'))
       .then(boot)
       .catch(() => done(false));
   });
@@ -3218,18 +3231,47 @@ async function readHistoryStats() {
     const data = aggs.concat(dets);
     if (!data.length) return { empty: true, locations: [], days: [], byLocation: {} };
 
-    // 第一遍：找出「哪些 (位置, 日期, 小时) 已经有聚合行」
+    /* 🔴 2026-10-21 修 bug ——「10-20 的图上出现 21 号凌晨的数据」（产品方报）
+     *
+     * 根因：老明细行的 `day` 列是**按 UTC 算的**。v1.96 及以前的写入代码是
+     *     const ts = now.toISOString();     // UTC ISO
+     *     const day = ts.slice(0, 10);      // ← UTC 日期，不是本地日期
+     * 于是本地 2026-10-21 00:30(+08:00) 写下的行：
+     *     ts  = '2026-10-20T16:30:00.000Z'
+     *     day = '2026-10-20'            ← 错！本地已经是 21 号
+     * 而读取端用 `new Date(ts).getHours()` 得到的是**本地小时 0** →
+     * 这条行被归进「day=2026-10-20 的第 0 小时」，图上就成了 10-20 出现凌晨数据。
+     *
+     * 为什么只有凌晨 0~7 点出错：UTC 比本地(+08:00)晚 8 小时，
+     * 只有本地 00:00~07:59 时 UTC 还停在前一天；白天两边日期相同，所以一直没暴露。
+     *
+     * 改法：**day 一律从 ts 现算**（Date 会按本地时区还原），`row.day` 只当 ts 解析失败时的兜底。
+     * 这样新旧两种行都归到同一桶：
+     *     · 新聚合行 ts='2026-10-21T00:00:00.00+08:00' → 本地 10-21 0 时 ✓
+     *     · 旧明细行 ts='2026-10-20T16:30:00.000Z'     → 本地 10-21 0 时 ✓（同一时刻同一结果）
+     */
+    const pad2d = (n) => String(n).padStart(2, '0');
+    const dayHourOf = (row) => {
+      const t = new Date(row && row.ts);
+      if (!isNaN(t.getTime())) {
+        return { d: `${t.getFullYear()}-${pad2d(t.getMonth() + 1)}-${pad2d(t.getDate())}`, h: t.getHours() };
+      }
+      const d = (row && row.day) || String((row && row.ts) || '').slice(0, 10);
+      return d ? { d, h: NaN } : null;   // ts 不可用才退回 day 列，且放弃小时判断
+    };
+
+    // 第一遍：找出「哪些 (位置, 本地日期, 本地小时) 已经有聚合行」
     //   key = `${loc}\u0000${day}\u0000${hour}`
     // 有聚合行的小时，明细行一律跳过（否则会把同一批桩算两遍）
     const hasAgg = new Set();
     for (const row of data) {
       if (row.device_id !== AGG_DEVICE_ID) continue;
       if (!row.location) continue;
-      const hh = new Date(row.ts).getHours();
+      const dh = dayHourOf(row);
+      if (!dh || !dh.d) continue;
+      const hh = dh.h;
       if (!Number.isInteger(hh) || hh < 0 || hh > 23) continue;
-      const dd = row.day || String(row.ts || '').slice(0, 10);
-      if (!dd) continue;
-      hasAgg.add(row.location + '\u0000' + dd + '\u0000' + hh);
+      hasAgg.add(row.location + '\u0000' + dh.d + '\u0000' + hh);
     }
 
     // 第二遍：归组累加
@@ -3241,10 +3283,12 @@ async function readHistoryStats() {
       if (!loc) continue;   // 没有位置信息的老快照直接跳过
 
       const isAgg = row.device_id === AGG_DEVICE_ID;
-      const h = new Date(row.ts).getHours();
+      // 日期与小时都从 ts 现算（见上面 dayHourOf 的注释：旧行的 day 列是 UTC 日期，不可信）
+      const dh = dayHourOf(row);
+      if (!dh || !dh.d) continue;
+      const h = dh.h;
       if (!Number.isInteger(h) || h < 0 || h > 23) continue;
-      const d = row.day || String(row.ts || '').slice(0, 10);
-      if (!d) continue;
+      const d = dh.d;
 
       // 去重：该小时已有聚合行 → 跳过明细行
       if (!isAgg && hasAgg.has(loc + '\u0000' + d + '\u0000' + h)) continue;

@@ -108,10 +108,24 @@ def main():
     c.check("内测" not in ix_ver, "index 页脚不标注「内测」", ix_ver.strip())
 
     # 注意别用 class="map-tab 前缀匹配 —— 容器是 class="map-tabs"，会多算一个
-    pv_tabs = re.findall(r'class="map-tab(?:\s+on)?"\s+data-map', pv)
-    ix_tabs = re.findall(r'class="map-tab(?:\s+on)?"\s+data-map', ix)
-    c.check(len(pv_tabs) == 4, f"preview 有 4 个地图页签（实际 {len(pv_tabs)}）")
-    c.check(len(ix_tabs) == 2, f"index 有 2 个地图页签（实际 {len(ix_tabs)}）")
+    pv_tabs = re.findall(r'class="map-tab(?:\s+on)?"\s+data-map="([a-z]+)"\s+role="tab">([^<]*)</button>', pv)
+    ix_tabs = re.findall(r'class="map-tab(?:\s+on)?"\s+data-map="([a-z]+)"\s+role="tab">([^<]*)</button>', ix)
+    # 2026-10-20 深夜改（产品方要求）：「高德地图」页签改名「渭水校区」，原静态总览图下线。
+    # 两版页签集合从此相同（渭水校区 / 渭水-北门 / 渭水-朝晖体育场南），
+    # 所以断言从「preview 4 个 / index 2 个」改成「都是 3 个，且页签完全一致」——
+    # 页签属于产品结构，两版不一样才是要拦的问题（历史上内测多一张总览图）。
+    c.check(len(pv_tabs) == 3, f"preview 有 3 个地图页签（实际 {len(pv_tabs)}）")
+    c.check(len(ix_tabs) == 3, f"index 有 3 个地图页签（实际 {len(ix_tabs)}）")
+    c.check(pv_tabs and pv_tabs == ix_tabs,
+            "两版地图页签一致（id + 文案）",
+            " / ".join(f"{i}:{t}" for i, t in pv_tabs) if pv_tabs else "没解析到页签")
+    # 静态总览图必须彻底下线：页签按钮和 MAP_ORDER 里都不能再有 overview
+    # （只查按钮 —— CSS 里还留着 `.map-dialog[data-map="overview"]` 的死规则，
+    #   那是给「以后恢复总览」用的，不算违规；我第一次写宽了，被它误判过）
+    c.check(not re.search(r'class="map-tab[^"]*"\s+data-map="overview"', pv),
+            "preview 页签里没有已下线的总览图", "" if not re.search(r'data-map="overview"\s+role="tab"', pv) else "仍有 overview 页签")
+    c.check(not re.search(r"MAP_ORDER\s*=\s*\[[^\]]*CAMPUS_MAP", pv),
+            "preview MAP_ORDER 里没有 CAMPUS_MAP（总览图已下线）")
 
     # ---------- 第 6.4 节：版本号 ----------
     cache = re.search(r"CACHE\s*=\s*'([^']+)'", sw)

@@ -350,6 +350,16 @@
   .guide li{margin-bottom:5px}
   .guide code{background:#F2F1EC; border:1px solid var(--line); border-radius:5px; padding:1px 5px; font-size:12px}
 
+  /* ⚡ 性能（消除 CLS 大位移）：给设备列表预留一屏高度。
+     背景：首屏时页面只有 ~800px（header + 引导卡 + 页脚），页脚落在视口内；
+     1.1 秒后 token 从云端恢复、73 张设备卡一次性插入 ~11,500px，把页脚推到 y≈12,000。
+     实测线上真实数据 CLS 0.31~0.39（Google 阈值 0.1 才算「良好」），主因就是这个位移
+     （占总 CLS 的 0.76）。留一屏高度后，页脚在首屏就位于视口之外，
+     而**视口外元素的位移不计入 CLS**。
+     线上 A/B 实测（CDP 注入，未发版）：CLS 0.3066/0.3912 → 0.0407，两次结果一致。
+     代价：设备很少时列表下方会有一段空白，可接受（本项目稳定 73 台）。 */
+  #cards{min-height:100vh}
+
   footer{margin-top:22px; font-size:11.5px; color:var(--hint); text-align:center; line-height:1.7}
   .foot-contact{padding-top:14px; border-top:1px solid var(--line)}
   .foot-line{font-size:12px; color:var(--muted); margin-bottom:5px}

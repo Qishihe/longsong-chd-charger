@@ -2117,12 +2117,17 @@ function tmapApplyView(mapId, focusDeviceId) {
  * 只有独立页签使用它；渭水校区总览 / 北门 / 朝晖 仍是原来的静态底图。
  */
 
-/** 载入本地 Key 文件（可选）。文件不存在是正常情况（克隆仓库的人），不报错。 */
+/** 载入本地 Key 文件（可选）。文件不存在是正常情况（克隆仓库的人），不报错。
+ *  ⚠️ KEY_VER：sw.js 对静态资源是「缓存优先 + 后台更新」（见 sw.js 的 fetch 分支），
+ *     Key 文件换了但版本号不变的话，老用户第一次打开拿到的还是缓存里的旧 Key。
+ *     换 Key 时必须把这里加一（同时 map.html 的 ?v= 和 sw.js 的 CACHE 名也要加一）。
+ */
+const KEY_VER = 1;
 function loadLocalKeyOnce() {
   if (window.CHD_AMAP_KEY) return Promise.resolve();
   return new Promise((resolve) => {
     const s = document.createElement('script');
-    s.src = 'map-key.local.js';
+    s.src = 'map-key.local.js?v=' + KEY_VER;
     s.onload = () => resolve();
     s.onerror = () => resolve();   // 没有这个文件 → 交给 map-amap.js 报 nokey
     document.head.appendChild(s);
@@ -2168,7 +2173,7 @@ function ensureAMap() {
     loadScriptOnce('map-data.js?v=163')
       .then(loadLocalKeyOnce)
 // ⚠️ map-amap.js 走 Service Worker 缓存优先，改了它必须同时改这里的 ?v=，否则用户拿的还是旧文件
-      .then(() => loadScriptOnce('map-amap.js?v=123'))
+      .then(() => loadScriptOnce('map-amap.js?v=124'))
       .then(boot)
       .catch(() => done(false));
   });

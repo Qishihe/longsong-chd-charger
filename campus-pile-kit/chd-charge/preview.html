@@ -3128,19 +3128,51 @@ function hhmmss(d = new Date()) {
  *   两者混存，按「**同一小时优先用聚合行、跳过同小时明细行**」去重 —— 产品方要求旧数据不清，
  *   所以必须能共存而不重复计数。没有聚合行的小时仍回退用明细行（过渡期不丢历史）。
  */
-const HISTORY_ROW_LIMIT = 5000;   // 远高于 7 天需求（336 行），只为防静默截断
+const HISTORY_ROW_LIMIT = 5000;   // 明细行回退查询的上限（防静默截断）
+const HISTORY_AGG_LIMIT = 1000;   // 聚合行上限：7 天 × 24 小时 × 位置数，远小于 1000
 
 async function readHistoryStats() {
   if (!cloudSupport()) return null;
   try {
     const cutoff = new Date(Date.now() - HISTORY_KEEP_DAYS * 86400000).toISOString();
-    const { data, error } = await cloudDb()
-      .from(HISTORY_TABLE)
-      .select('device_id,location,free,total,ts,day')
-      .gte('ts', cutoff)
-      .order('ts', { ascending: false })   // 先取最新的（旧的升序会拿到最旧那段，见下方注释）
-      .limit(HISTORY_ROW_LIMIT);
-    if (error || !Array.isArray(data)) return null;
+
+    /* ⚠️ 为什么分成**两次查询**（2026-10-20 深夜补的，这是个真会让图表空白的坑）
+     *
+     * 云端旧明细行有 **13 万行**且仍在被写入（每次刷新 73 行）。
+     * 如果按原来那样「一次查询、order ts.desc、limit 5000」：
+     *   取到的最新 5000 行 **全部是几分钟内的明细行**，
+     *   而聚合行的 ts 是「整点」（如 23:00:00），比这些明细行**更早**，
+     *   于是被挤出窗口 —— **聚合行一条都取不到，图表照样空白**。
+     *
+     * 所以：聚合行与明细行**各查各的**，互不挤占额度。
+     *   · 聚合行少（7 天最多几百行）→ 单独查，limit 1000 足够
+     *   · 明细行只作回退（某小时没有聚合行时才用）→ 单独查，limit 5000
+     * 这样无论云端堆了多少明细行，聚合行都稳定可读。
+     */
+    const [aggRes, detRes] = await Promise.all([
+      cloudDb().from(HISTORY_TABLE)
+        .select('device_id,location,free,total,ts,day')
+        .eq('device_id', AGG_DEVICE_ID)
+        .gte('ts', cutoff)
+        .order('ts', { ascending: false })
+        .limit(HISTORY_AGG_LIMIT),
+      cloudDb().from(HISTORY_TABLE)
+        .select('device_id,location,free,total,ts,day')
+        .neq('device_id', AGG_DEVICE_ID)
+        .gte('ts', cutoff)
+        .order('ts', { ascending: false })
+        .limit(HISTORY_ROW_LIMIT),
+    ]);
+
+    const aggs = Array.isArray(aggRes && aggRes.data) ? aggRes.data : [];
+    const dets = Array.isArray(detRes && detRes.data) ? detRes.data : [];
+    if (aggRes && aggRes.error) console.warn('[history] 聚合行查询失败：', aggRes.error.message || aggRes.error);
+    if (detRes && detRes.error) console.warn('[history] 明细行查询失败：', detRes.error.message || detRes.error);
+    // 聚合行查询失败时不要静默当作「没有聚合行」，否则会把明细行算成权威数据
+    if ((aggRes && aggRes.error) && !(detRes && detRes.error)) {
+      return null;
+    }
+    const data = aggs.concat(dets);
     if (!data.length) return { empty: true, locations: [], days: [], byLocation: {} };
 
     // 第一遍：找出「哪些 (位置, 日期, 小时) 已经有聚合行」

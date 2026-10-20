@@ -280,12 +280,12 @@
   .cluster.full{background:#E24B4A}
   .cluster-num{font-size:14px;letter-spacing:-.3px}
   .cluster-x{font-size:17px;font-weight:800;line-height:1}
-  /* 🔴 2026-10-21 恢复「缩小后逐台显示成小圆点」这一档（产品方报「缩小地图没有显示一个点」）。
-     上一版把三态压成两态时删掉了这一档，缩小后逐台点被整体隐藏、只剩 2 个分区聚合圈。
-     现在点大小**随 `--pile-gap` 自适应**（= 一格车位在当前缩放下的屏幕像素数，
-     由 map-amap.js 的 applyZoomTier 写入），所以缩得越小点越小、不会糊成一坨；
-     下限 5px 保证还看得见，上限 13px（再大就该退回徽章档了）。
-     三态：gap≥13 徽章+桩号 / 5≤gap<13 小圆点 / gap<5 分区聚合圈。 */
+  /* 逐台小圆点档（当前阈值下**不生效**，保留备用）
+     ⚠️ 2026-10-21 二次修正：产品方的原始要求是「**缩小到标点重叠后分区聚合成圈**」——
+     一旦标点开始重叠就该换成「一个分区 = 一个圈」，而不是先退回一堆小点。
+     所以 map-amap.js 里 `GAP_BADGE` 与 `GAP_CLUSTER` **都设成 13**，这一档被跳过。
+     若哪天想要「徽章 → 小点 → 圈」三档，把 `GAP_BADGE` 调到大于 `GAP_CLUSTER` 即可
+     （例如 13/5），这段 CSS 与 `--pile-gap` 自适应逻辑会自动生效。 */
   .amap-host.zoom-dot .pile{
     width:clamp(5px, var(--pile-gap, 9px), 13px);
     min-width:0;
@@ -606,7 +606,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.00 · 内测</div>
+    <div id="app-ver" class="foot-ver">版本 v2.01 · 内测</div>
   </footer>
 </div>
 
@@ -2305,7 +2305,7 @@ function ensureAMap() {
     loadScriptOnce('map-data.js?v=163')
       .then(loadLocalKeyOnce)
 // ⚠️ map-amap.js 走 Service Worker 缓存优先，改了它必须同时改这里的 ?v=，否则用户拿的还是旧文件
-      .then(() => loadScriptOnce('map-amap.js?v=131'))
+      .then(() => loadScriptOnce('map-amap.js?v=132'))
       .then(boot)
       .catch(() => done(false));
   });

@@ -294,13 +294,17 @@
     });
     map.add(testLayer);
 
-    // 建筑层按缩放分级：放大后才叠轮廓；桩点外观也跟着缩放分级
-    map.on('zoomend', function () {
-      var show = map.getZoom() >= 16.3;
-      if (bldLayer) { try { bldLayer.show(); } catch (e) {} }
-      if (bldLayer) bldLayer.setOptions && bldLayer.setOptions({ visible: show });
-      applyZoomTier();
-    });
+    /* 🔴 2026-10-21：缩放分级**不再在这里绑**。
+     *
+     * 原来 `map.on('zoomend', …)` 是本函数的最后一句，而高德 2.0 没有 `AMap.GeoJSON`
+     * （第 264 行 `new AMap.GeoJSON(...)` 抛 `TypeError: AMap.GeoJSON is not a constructor`）→
+     * 函数在第一个建筑层就中断，**缩放监听从未绑定**。
+     * 外层 `build()` 的 try/catch 又把异常吞了、`ready` 照常置 true，
+     * 于是 v1.67~v2.00 这段期间：地图看着正常，但**手指捏合/拖拽缩放永远不切档**
+     * （`gap` 恒为初始值，缩小后一直是方框徽章，聚合圈永远出不来）。
+     *
+     * 现在绑定挪到 `build()` 里 `buildLayers()` 的 try 之后（见 onZoomTier），
+     * 与图层构建解耦：GeoJSON 修好之前，缩放档位也照常工作。 */
   }
 
   /* 桩点外观按「相邻两桩在屏幕上隔多少像素」来定，不再按固定 zoom 阈值。
@@ -319,24 +323,31 @@
    * 所以程序化设视野时把「目标 zoom」直接传进来，别去读 map.getZoom()。 */
   var CELL_M = 6.5;               // 北门一格车位的实际边长（米）
   var LAT_COS = Math.cos(34.375 * Math.PI / 180);
-  /* 缩放三态阈值（gap = 一格车位在当前缩放下折算成多少屏幕像素）
+  /* 缩放档位阈值（gap = 一格车位在当前缩放下折算成多少屏幕像素）
    *
-   * 🔴 2026-10-21 修：产品方报「缩小地图没有显示一个点」。
-   *   根因：上一版把「三态」压成「两态」时，**把「缩小后逐台显示成小圆点」这一档整个删掉了**
-   *   （`applyZoomTier` 只切 `zoom-cluster`，CSS 里 `.zoom-far`/`.zoom-mid` 再也没被加过 → 死代码），
-   *   于是 gap<13 时逐台点被 `syncLayers` 整体隐藏，缩小后只剩 2 个分区聚合圈，
-   *   **完全看不到单个桩在哪**。现在恢复中间那一档。
+   * 🔴 2026-10-21 二次修正 —— 上一版这里改错了，产品方回复「更新结果不理想」。
    *
-   *   gap ≥ 13          → 逐台 16×15 徽章 + 桩号（近景，A1 / C11 / T01）
-   *   5 ≤ gap < 13      → **逐台小圆点**（中景 ← 本次恢复的一档，点大小随 gap 自适应）
-   *   gap < 5           → 分区聚合圈（远景，绿=可用数 / 红=×，点圈放大到分区全景）
+   * 产品方的**原始要求**（见沟通记录 02:09 转述，原话）：
+   *   「**缩小到标点重叠后分区聚合成圈**、点圈放大到分区全景」
+   * 也就是说：**一旦标点开始重叠，就该换成「一个分区 = 一个圈」**，
+   * 圈里写可用数（绿）或 × （红），点圈放大到该分区全景。
    *
-   * 阈值就是「什么时候换档」的旋钮：
-   *   GAP_BADGE 调大 → 更早退回小点（徽章更少见）；GAP_CLUSTER 调大 → 更早聚合成圈。 */
+   * 上一版我误把「缩小地图显示一个点」理解成「每桩一个小圆点」，
+   * 于是插了一档小点、还把聚合圈阈值从 13 挪到 5 ——
+   * **等于把产品方要的「圈」推迟了约 1.4 个缩放级**，缩小后先看到一堆小点、看不到圈。
+   * 这就是「还是没实现我想要的功能」的原因。现在改回：**标点一开始重叠就聚合成圈**。
+   *
+   *   gap ≥ GAP_BADGE    → 逐台 16×15 徽章 + 桩号（近景，A1 / C11 / T01）
+   *   gap < GAP_CLUSTER  → **分区聚合圈**（= 产品方要的那一档）
+   *
+   * 两个常量现在**都是 13**（= 徽章宽 16px 与车位距 13px 的临界，标点开始互相压到的位置），
+   * 所以中间那档「逐台小圆点」不生效（`dotted` 恒为 false），代码与 CSS 保留备用：
+   * **把 `GAP_BADGE` 调到大于 `GAP_CLUSTER`，中间就会多出一档小圆点**（例如 13/5 就是三态）。
+   * 想更早看到圈就把 `GAP_CLUSTER` 调大（16 = 徽章刚开始贴边）。 */
   var GAP_BADGE = 13;
-  var GAP_CLUSTER = 5;
-  var clustered = false;          // 远景：分区聚合圈态（供 syncLayers 复用）
-  var dotted = false;             // 中景：逐台小圆点态（样式由 CSS 的 .zoom-dot 负责）
+  var GAP_CLUSTER = 13;
+  var clustered = false;          // 分区聚合圈态（供 syncLayers 复用）
+  var dotted = false;             // 逐台小圆点态（当前阈值下不生效，见上）
   function applyZoomTier(z) {
     if (!host) return;
     if (typeof z !== 'number') z = map ? map.getZoom() : 0;
@@ -352,6 +363,33 @@
     host.style.setProperty('--pile-gap', gap.toFixed(2) + 'px');
     // 显隐统一交给 syncLayers 裁决（它同时感知分区过滤 + 缩放态），这里只负责定态
     syncLayers();
+  }
+
+  /* 缩放分级的**唯一入口**（2026-10-21 新增）。
+   *
+   * 为什么不在 buildLayers() 里直接绑：见那边注释 —— 图层构建抛错会把它一起带走，
+   * 结果「手势缩放永不切档」。现在 `build()` 里单独绑，与图层构建彻底解耦。
+   *
+   * 两个事件都挂：
+   *   zoomend     —— 手势/程序化缩放结束，正常路径
+   *   zoomchange  —— 动画过程中连续触发；兜住「部分容器 zoomend 滞后或丢失」的情况
+   * 用 120ms 节流，避免动画期间每帧重建 73 个 marker 的显隐。
+   * 注意这里**不传 z**，让 applyZoomTier 自己读 `map.getZoom()`：
+   * 节流 120ms 后高德已回填真实 zoom，比在 zoomend 回调里立刻读更准（那边会读到旧值）。 */
+  var tierTimer = 0;
+  function onZoomTier() {
+    if (tierTimer) return;
+    tierTimer = setTimeout(function () {
+      tierTimer = 0;
+      if (!map) return;
+      // 建筑层随缩放显隐（bldLayer 目前恒为 null：AMap.GeoJSON 在 2.0 不存在，见待办 #44）
+      if (bldLayer) {
+        var show = map.getZoom() >= 16.3;
+        try { bldLayer.show(); } catch (e) {}
+        if (bldLayer.setOptions) bldLayer.setOptions({ visible: show });
+      }
+      applyZoomTier();
+    }, 120);
   }
 
   function toGeoJSON(items) {
@@ -469,12 +507,15 @@
       m.on('click', function () {
         var id = m.getExtData().area;
         if (!id) return;
-        // 点聚合圈 → 放大到该分区全景；放大后 applyZoomTier 会把聚合圈换成逐台点
+        // 点聚合圈 → 放大到该分区全景；放大后 applyZoomTier 会把聚合圈换成逐台点。
+        // 🔴 2026-10-21：minZ 必须给到徽章档（18.0），否则「点完还是圈」——
+        //   实测朝晖按 bbox 只能算出 z≈16.17（gap 12.1），在 GAP_CLUSTER=13 下仍判成聚合圈，
+        //   点了等于没点（死循环）。18.0 与 fitCampus() 的兜底一致：一次点到位、编号可读。
         var bb = areaBBox(id);
         if (bb) {
           curView = id;
           syncLayers();
-          fitBBox(bb, id === '渭水-北门' ? 0.09 : 0.22, id === '渭水-北门' ? 18.05 : 0);
+          fitBBox(bb, id === '渭水-北门' ? 0.09 : 0.12, id === '渭水-北门' ? 18.05 : 18.0);
         }
       });
     });
@@ -676,9 +717,14 @@
           if (built || failed) return;
           built = true;
           try { buildLayers(); } catch (e) { console.warn('[CHD_AMAP] 图层构建失败', e); }
+          // 🔴 缩放监听在这里绑，**绝不能放回 buildLayers() 内部** ——
+          //    那里第一个 AMap.GeoJSON 就会抛错，绑在函数末尾等于永不绑定（v1.67~v2.00 的 P0）。
+          map.on('zoomend', onZoomTier);
+          map.on('zoomchange', onZoomTier);
           ready = true;
           try { map.resize(); } catch (e) {}
           try { applyCamera(); } catch (e) { console.warn('[CHD_AMAP] 相机失败', e); }
+          applyZoomTier();          // 相机定了立刻定档，别等用户缩放
           opts.onReady && opts.onReady();
         }
         map.on('complete', build);

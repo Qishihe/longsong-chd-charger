@@ -23,6 +23,11 @@ Thumbs.db
 desktop.ini
 .DS_Store
 
+# 独立部署包：是由 chd-charge/ 复制出来的构建产物（tools/make_dist.py 生成），
+# 内容与 chd-charge/ 重复，且会随时间过时 —— 不入库，需要时重新生成
+campus-pile-kit/dist-chd-charge/
+campus-pile-kit/dist-chd-charge.zip
+
 # 发布指令 / 交接类文档：会贴 Key、凭证原文，一律不入库
 # （HANDOFF.md 例外 —— 它只写「Key 在哪、怎么轮换」，已核对不含明文）
 发布指令*.md

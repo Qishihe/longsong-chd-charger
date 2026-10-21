@@ -78,6 +78,14 @@
   .stat b{font-size:22px; font-weight:600; letter-spacing:-.5px; display:block; line-height:1.2}
   .stat b.free{color:var(--free)}
   .stat span{font-size:11.5px; color:var(--muted)}
+  /* ⑤ 2026-10-21 产品方：进度条换成「空闲插座」卡的滚动统计 ——
+     查询中这张卡是**灰色**，查询结束变**淡绿色**；
+     卡里多一行小字副标「共统计 有效/（有效+无效）插座」。
+     副标**从一开始就在**（占位 `–/（–）`），这样它出现时不会把卡片撑高 → 不产生 CLS。 */
+  .stat--loading{background:#EDEDEA; border-color:#DCDCD6}
+  .stat--loading b{color:#8A8F86}
+  .stat--done{background:#E4F0E2; border-color:#C9DFC4}
+  .stat-sub{display:block; font-size:10.5px; color:var(--hint); margin-top:2px; line-height:1.25}
 
   .card{
     background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
@@ -280,6 +288,18 @@
   .cluster.full{background:#E24B4A}
   .cluster-num{font-size:14px;letter-spacing:-.3px}
   .cluster-x{font-size:17px;font-weight:800;line-height:1}
+  /* 校园注记（楼名 / 地标名 / 水域名）—— 2026-10-21 按产品方给的参考图（汕大那套）的调子：
+     灰绿字 + 白色柔光描边，压在浅色底图上不抢眼。
+     `pointer-events:none` 保证不挡底下的桩点点击（Marker 那侧也设了 clickable:false）。
+     描边用多层 text-shadow 而不是 -webkit-text-stroke：后者会把笔画挤细、小字发虚。 */
+  .campus-label{
+    font-size:11px;line-height:1;font-weight:600;color:#5C6B57;
+    white-space:nowrap;pointer-events:none;letter-spacing:.2px;
+    text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff,0 1px 2px rgba(255,255,255,.9);
+  }
+  .campus-label--bld{font-size:11px;color:#5C6B57}
+  .campus-label--venue{font-size:12px;color:#4E6B45}
+  .campus-label--water{font-size:11px;color:#4A6E7C;font-weight:500;letter-spacing:.5px}
   /* 逐台小圆点档（当前阈值下**不生效**，保留备用）
      ⚠️ 2026-10-21 二次修正：产品方的原始要求是「**缩小到标点重叠后分区聚合成圈**」——
      一旦标点开始重叠就该换成「一个分区 = 一个圈」，而不是先退回一堆小点。
@@ -564,26 +584,17 @@
   </script>
 
   <div class="stats" id="stats" hidden data-page-node-id="5x1j2QDohgutPLD0k1nbee">
-    <div class="stat" data-page-node-id="VF9BnkcoZS3CBHClACttK4"><b class="free" id="s-free" data-page-node-id="8KiCFjRHb57uVEwYg4SeN0">–</b><span data-page-node-id="Mqk5tE3OM0RDro1qnSSyXt">空闲插座</span></div>
+    <div class="stat" id="stat-free" data-page-node-id="VF9BnkcoZS3CBHClACttK4"><b class="free" id="s-free" data-page-node-id="8KiCFjRHb57uVEwYg4SeN0">–</b><span data-page-node-id="Mqk5tE3OM0RDro1qnSSyXt">空闲插座</span><small class="stat-sub" id="s-free-sub">共统计 –/（–）插座</small></div>
     <div class="stat" data-page-node-id="UCQnmDQg4sfZE6g9eEA3YZ"><b id="s-busy" data-page-node-id="pN33F2HXrfx0hcB5nJwegB">–</b><span data-page-node-id="sduqE7P2SxNDCFGONIGTHA">正在充电</span></div>
     <div class="stat" data-page-node-id="EvSCvZrMYRFGd0cC9sewCg"><b id="s-time" style="font-size:14px;padding-top:6px" data-page-node-id="3wstmKTUeo1VMQ7z6XI5wN">–</b><span data-page-node-id="WWX2YKA9UKp2MCAXiyTkVE">更新时间</span></div>
   </div>
 
-  <div class="progress" id="progress" hidden>
-    <div class="progress-bar"><span id="progress-fill"></span></div>
-    <div class="progress-text" id="progress-text">正在查询…</div>
-  </div>
-
-  <div class="auto-toggle-card" id="auto-toggle-card" hidden>
-    <div class="auto-toggle-text">
-      <b>前台自动更新</b>
-      <small>打开应用时，每分钟更新设备状态</small>
-    </div>
-    <label class="switch" aria-label="前台自动更新开关">
-      <input type="checkbox" id="auto-refresh-main">
-      <span class="slider"></span>
-    </label>
-  </div>
+  <!-- 🔴 2026-10-21 产品方：**进度条已下线**，改由上面「空闲插座」卡承担进度显示
+       （空闲数递增 + 「共统计 有效/（有效+无效）插座」副标 + 查询中灰、查完淡绿）。
+       原 `<div class="progress" id="progress">…` 整块删除；
+       `.progress*` / `#progress-*` 的 CSS 保留未删，但**已没有任何元素引用**。
+       ⚠️ 改这块时注意：`setProgress` / `hideProgress` 两个函数名保留（调用方不变），
+          只是内部改成驱动 `#stat-free` / `#s-free` / `#s-free-sub`，不再碰 `#progress`。 -->
 
   <div class="toolbar" id="toolbar" hidden>
     <select id="filter-location" aria-label="地址筛选">
@@ -606,7 +617,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.05 · 内测</div>
+    <div id="app-ver" class="foot-ver">版本 v2.06 · 内测</div>
   </footer>
 </div>
 
@@ -765,6 +776,20 @@
       <h2 data-page-node-id="FYar4wNT6i9MjN8yuaVBey">设备与设置</h2>
       <button class="link-btn" data-close data-page-node-id="zanNl501XbLAkE3C67gAro">关闭</button>
     </div>
+
+    <!-- 🔴 2026-10-21 产品方要求：凭证更新框从主页收纳到这里（整块搬来，id 不变，JS 无需改）。
+         显隐仍由 `paintCred()` 控制：没凭证时 `hidden=true` → 弹窗里也不显示这一块。 -->
+    <div class="cred" id="cred" hidden data-page-node-id="pgVuBLP1nD869Cjsk7QBtn">
+      <div class="cred-main" data-page-node-id="3OhBRQma69VsXCiOaDk05z">
+        <span class="dot-status" data-page-node-id="J1UK2fsAgnSh6y7XcXhywM"></span>
+        <div class="cred-text" data-page-node-id="K8DDoxDAR86jn3t6m7ujls">
+          <b id="cred-title" data-page-node-id="kiNOw92TFEaRs7PHtXP1I9">凭证状态</b>
+          <small id="cred-sub" data-page-node-id="x8HMnJwJFV2d3lcGaVDhxn"></small>
+        </div>
+      </div>
+      <button class="link-btn" id="cred-edit" data-page-node-id="d6OaUjET2O6dIHeG01NSRf">更新</button>
+    </div>
+
     <label for="devices-input" data-page-node-id="DGjs0M3GYAb4rdnX7K6jZt">要看的设备，每行一个：<code data-page-node-id="KsL6Gk1UTPQAxSxX9zgksQ">桩号 名称 @地址</code>（地址可省略，新地址会自动加进筛选列表）</label>
     <textarea id="devices-input" placeholder="XLA29464 渭水校区 TY-36 号桩 @渭水-朝晖体育场南&#10;XLA29999 渭土校区 TZ-37 号桩 @思源广场"></textarea>
     <div class="row" data-page-node-id="KXaFTpYMXwCDHfjWFWlXjn">
@@ -774,7 +799,7 @@
     <div class="note" id="devices-cloud-state" style="margin-top:4px"></div>
     <label style="display:flex;align-items:center;gap:9px;margin-top:16px;font-size:13.5px;color:var(--text)" data-page-node-id="hhO9Pq8QS0mqltv6kBPuOQ">
       <input type="checkbox" id="auto-refresh" style="width:auto;min-width:18px;height:18px;padding:0" data-page-node-id="Vi63dqGunNGDQnk4DGAXAP">
-      打开时每分钟自动刷新
+      <span>前台自动更新<small style="display:block;font-size:12px;color:var(--hint)">打开应用时，每分钟更新一次设备状态</small></span>
     </label>
 
     <div class="cloud-block" data-page-node-id="XqxpEXXGe7AZGm5ruJHw4x">
@@ -2320,8 +2345,13 @@ function ensureAMap() {
     if (window.CHD_AMAP && window.CHD_MAP) { boot(); return; }
     loadScriptOnce('map-data.js?v=163')
       .then(loadLocalKeyOnce)
-// ⚠️ map-amap.js 走 Service Worker 缓存优先，改了它必须同时改这里的 ?v=，否则用户拿的还是旧文件
-      .then(() => loadScriptOnce('map-amap.js?v=135'))
+// ⚠️ 2026-10-21 起内测版加载 **map-amap-preview.js**（不是 map-amap.js）：
+//    正式版仍引 map-amap.js。两版 js 本来是同一个文件，但 #44（GeoJSON 修复 + 楼名标签
+//    + 底图 fresh + 边界遮罩）属可见视觉改版，未验收前若混进共用文件，
+//    SW 的 stale-while-revalidate 会让正式版用户第二次打开就拿到它 → 等于偷偷上线。
+//    验收通过后：cp map-amap-preview.js map-amap.js，两版 ?v 同升，再删掉这个预览文件。
+//    改了 js 一定要同时改 ?v（SW 缓存优先）。
+      .then(() => loadScriptOnce('map-amap-preview.js?v=1'))
       .then(boot)
       .catch(() => done(false));
   });
@@ -2617,18 +2647,35 @@ function bindMapGestures() {
 
 let busyFlag = false;
 
+/** 「空闲插座」卡的状态：查询中灰、查完淡绿（产品方 2026-10-21 要求） */
+function setFreeCardState(state) {
+  const box = $('stat-free');
+  if (!box) return;
+  box.classList.toggle('stat--loading', state === 'loading');
+  box.classList.toggle('stat--done', state === 'done');
+}
+
+/** 写入滚动中的统计数字：空闲数 + 副标「共统计 有效/（有效+无效）插座」 */
+function setFreeRolling(free, valid, invalid) {
+  const n = $('s-free');
+  if (n) n.textContent = String(free);
+  const sub = $('s-free-sub');
+  if (sub) sub.textContent = `共统计 ${valid}/（${valid + invalid}）插座`;
+}
+
+/* 🔴 2026-10-21 产品方：**进度条下线**，换成「空闲插座」卡上的滚动统计。
+ *
+ * 保留 `setProgress` / `hideProgress` 两个函数名与签名 —— 调用方（refresh 内两处 + finally）
+ * 一个字都不用改，只把内部实现从「驱动 #progress」换成「切 #stat-free 的状态类」。
+ * 数字的写入在 `refresh()` 里的局部函数 `paintRolling()`（因为 `results` 是那边的局部变量）。 */
 function setProgress(done, total) {
-  const el = $('progress');
-  if (!el) return;
-  if (total <= 0) { el.hidden = true; return; }
-  el.hidden = false;
-  $('progress-fill').style.width = (done / total * 100).toFixed(1) + '%';
-  $('progress-text').textContent = `正在查询 ${done}/${total} 个位置`;
+  // 全部查完 → 淡绿；否则（含一上来 done=0）→ 灰
+  setFreeCardState(total > 0 && done >= total ? 'done' : 'loading');
 }
 
 function hideProgress() {
-  const el = $('progress');
-  if (el) el.hidden = true;
+  // 收尾：数字已经是最终值（render() 也会再写一次 s-free），这里只把底色定成淡绿
+  setFreeCardState('done');
 }
 
 async function refresh({ force = false, retried = false } = {}) {
@@ -2696,6 +2743,33 @@ async function refresh({ force = false, retried = false } = {}) {
       render(devices, results);
     };
 
+    /* ⑤ 2026-10-21 产品方：进度条下线，改成「空闲插座」卡上的滚动统计。
+     *
+     * 数字**直接由 results 现算**，而不是自己另起一套累加 ——
+     *   这样和 `render()` 里那个 free 合计**天然同源**，不会出现
+     *   「卡片滚到 137、最终统计却是 133」这种对不上的情况。
+     *
+     * 「无效插座」口径（产品方 2026-10-21 确认）：
+     *   **查询失败 / 没返回合法插座数据的那台桩，按其应有口数（PORTS_PER_DEVICE = 4）计入无效。**
+     *   例：73 台里 70 台各查到 4 口 → 有效 280；3 台查不到 → 无效 12 → 副标 `280/（292）`。
+     *
+     * ⚠️ 判据里带 `rec.at`：**还没查、也没缓存的桩先不计入**（`{at:0, ports:[], error:null}`），
+     *   否则页面刚打开、一台都没查时就会报出一大堆「无效」，看着像坏了。
+     *   有缓存（`at>0`）但没数据的，说明这台确实拿不到 → 计入无效，这是对的。 */
+    const paintRolling = () => {
+      let free = 0, valid = 0, invalid = 0;
+      for (const rec of results) {
+        const ports = rec && rec.ports;
+        if (ports && ports.length) {
+          valid += ports.length;
+          free += ports.filter((p) => p.state === SLOT_FREE).length;
+        } else if (rec && (rec.error || rec.at)) {
+          invalid += PORTS_PER_DEVICE;
+        }
+      }
+      setFreeRolling(free, valid, invalid);
+    };
+
     const worker = async () => {
       while (!aborted) {
         const k = cursor++;
@@ -2715,6 +2789,7 @@ async function refresh({ force = false, retried = false } = {}) {
         }
         done += 1;
         setProgress(done, targets.length);
+        paintRolling();          // 卡片上的空闲数/副标每次也刷新（73 台 × 73 次遍历，可忽略）
         paintThrottled();
       }
     };

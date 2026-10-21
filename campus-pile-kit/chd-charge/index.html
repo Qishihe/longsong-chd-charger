@@ -282,6 +282,18 @@
   .cluster.full{background:#E24B4A}
   .cluster-num{font-size:14px;letter-spacing:-.3px}
   .cluster-x{font-size:17px;font-weight:800;line-height:1}
+  /* 校园注记（楼名 / 地标名 / 水域名）—— 与 preview.html 逐字一致。
+     2026-10-21 按产品方给的参考图（汕大那套）的调子：灰绿字 + 白色柔光描边。
+     `pointer-events:none` 保证不挡底下的桩点点击（Marker 那侧也设了 clickable:false）。
+     描边用多层 text-shadow 而不是 -webkit-text-stroke：后者会把笔画挤细、小字发虚。 */
+  .campus-label{
+    font-size:11px;line-height:1;font-weight:600;color:#5C6B57;
+    white-space:nowrap;pointer-events:none;letter-spacing:.2px;
+    text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff,0 1px 2px rgba(255,255,255,.9);
+  }
+  .campus-label--bld{font-size:11px;color:#5C6B57}
+  .campus-label--venue{font-size:12px;color:#4E6B45}
+  .campus-label--water{font-size:11px;color:#4A6E7C;font-weight:500;letter-spacing:.5px}
   /* 逐台小圆点档（当前阈值下**不生效**，保留备用）。
      ⚠️ 2026-10-21 二次修正：产品方原始要求「**缩小到标点重叠后分区聚合成圈**」，
      所以 `GAP_BADGE` 与 `GAP_CLUSTER` 都设成 13，标点一重叠就直接出圈，跳过小点档。

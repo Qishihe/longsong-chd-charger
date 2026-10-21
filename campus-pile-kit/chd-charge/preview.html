@@ -617,7 +617,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.06 · 内测</div>
+    <div id="app-ver" class="foot-ver">版本 v2.07 · 内测</div>
   </footer>
 </div>
 
@@ -2351,7 +2351,7 @@ function ensureAMap() {
 //    SW 的 stale-while-revalidate 会让正式版用户第二次打开就拿到它 → 等于偷偷上线。
 //    验收通过后：cp map-amap-preview.js map-amap.js，两版 ?v 同升，再删掉这个预览文件。
 //    改了 js 一定要同时改 ?v（SW 缓存优先）。
-      .then(() => loadScriptOnce('map-amap-preview.js?v=1'))
+      .then(() => loadScriptOnce('map-amap-preview.js?v=2'))
       .then(boot)
       .catch(() => done(false));
   });
@@ -3265,9 +3265,45 @@ async function writeHistory(records) {
       }));
     if (!rows.length) return;
 
-    // 第二步：查-改-写（不依赖唯一约束）
-    let inserted = 0, updated = 0;
-    for (const row of rows) {
+    /* 🔴 2026-10-21 优化（配合 #52）：**本小时已落库的位置不再重复写**。
+     *
+     * 为什么：`refresh()` 每刷新一次就调一次 `writeHistory()`（开着前台自动更新时**每分钟一次**），
+     * 而一个小时内除第一次外**全是白跑** —— 每次都要发一遍查询、再发一遍注定失败的覆盖。
+     * 用 localStorage 记「本小时哪些位置已落库」，跳过的只有已覆盖的位置：
+     *   · 移动端每小时省掉 ~2 × 位置数 次请求
+     *   · 控制台不再每小时刷一条 `[history] 覆盖失败`
+     *
+     * ⚠️⚠️ **必须按位置记，不能只记「本小时写过」**（原本写成整段跳过，被我改掉了）：
+     *   本小时第一次写入时若某个位置一台桩都没回报（平台限流、设备超时，「设备状态未知」那种），
+     *   这个位置**压根不在 `rows` 里**。整段跳过会让它**整小时都没有聚合行** —— 旧代码不会，
+     *   后续那次刷新会把它补插进去。所以只能按位置粒度判重，凑齐了才算这一小时写完。
+     *
+     * ⚠️ 用**独立的键** `cpk.history.wrote`，别复用 `cpk.history.last`
+     *   （那个是 `hourlyHistoryTick` 的「本小时是否已**采集**」，语义不同，混用会互相干扰）。
+     *   值的格式：`{ h: 'YYYY-MM-DDTHH', locs: ['渭水-北门', ...] }`。 */
+    const hk = historyHourKey();
+    let wroteState = null;
+    try { wroteState = store.get('cpk.history.wrote', null); } catch (e) {}
+    const doneLocs = new Set(
+      wroteState && wroteState.h === hk && Array.isArray(wroteState.locs) ? wroteState.locs : []
+    );
+    const todo = rows.filter((r) => !doneLocs.has(r.location));
+    if (!todo.length) {
+      console.log(`[history] 本小时 ${rows.length} 个位置均已落库，跳过重复写入`);
+      return;
+    }
+
+    /* 第二步：**查-无则插**（不依赖唯一约束）
+     *
+     * ⚠️ 2026-10-21 更正：这里原来是「查-改-写」，但 `pile_history` **没有 UPDATE 策略**
+     *   （`pg_policies` 实测只有 `pile_history_read` / `pile_history_insert`），
+     *   所以「有则 UPDATE 覆盖」**永远走不通**，每小时白留一条 `permission denied` 日志。
+     *   好在原实现失败后**不插入**，所以行为一直是「本小时第一个写入者说了算」、表也没涨。
+     *   现在把那次注定失败的 UPDATE **去掉**：有行就跳过，不再发那次请求。
+     *   → **行为与改前完全一致**，只是少一次无效请求、少一条噪音日志。
+     *   口径仍是「每小时一个采样点」（第一个写入者的值），**不是「该小时最后一次采样」**。 */
+    let inserted = 0, skipped = 0;
+    for (const row of todo) {
       try {
         const { data: exist, error: qErr } = await cloudDb()
           .from(HISTORY_TABLE)
@@ -3280,23 +3316,24 @@ async function writeHistory(records) {
 
         const hit = Array.isArray(exist) && exist.length ? exist[0] : null;
         if (hit && hit.id != null) {
-          // 已存在 → 覆盖那一行，表不增长
-          const { error: uErr } = await cloudDb()
-            .from(HISTORY_TABLE)
-            .update({ free: row.free, total: row.total })
-            .eq('id', hit.id);
-          if (uErr) console.warn('[history] 覆盖失败', uErr.message || uErr);
-          else updated += 1;
+          skipped += 1;                 // 本小时已被写过 → 保持原值，不覆盖、不再试 UPDATE
         } else {
           const { error: iErr } = await cloudDb().from(HISTORY_TABLE).insert(row);
-          if (iErr) console.warn('[history] 插入失败', iErr.message || iErr);
-          else inserted += 1;
+          if (iErr) { console.warn('[history] 插入失败', iErr.message || iErr); continue; }
+          inserted += 1;
         }
+        doneLocs.add(row.location);     // 这个位置有下落了（新插入 / 本来就在）
       } catch (e) {
         console.warn('[history] 单行写入异常', e);
       }
     }
-    console.log(`[history] ${hhmmss(now)} 聚合写入：新增 ${inserted} / 覆盖 ${updated}（${rows.length} 个位置）`);
+    console.log(`[history] ${hhmmss(now)} 聚合写入：新增 ${inserted} / 已存在跳过 ${skipped}`
+      + `（本次处理 ${todo.length} / 共 ${rows.length} 个位置）`);
+    // 把「已落库的位置」记下来（可能是部分成功：没落库的下次刷新只补那几个）。
+    // doneLocs 为空就不写这个键；换小时后 `h` 不匹配，自然失效。
+    try {
+      if (doneLocs.size) store.set('cpk.history.wrote', { h: hk, locs: Array.from(doneLocs) });
+    } catch (e) {}
   } catch (e) {
     console.warn('[history] 写入异常', e);
   }

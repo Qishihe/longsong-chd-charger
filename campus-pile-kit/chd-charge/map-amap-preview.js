@@ -25,6 +25,11 @@
   var AMAP_SCODE = (typeof window !== 'undefined' && window.CHD_AMAP_SCODE) || '';
 
   var D = null;                 // CHD_MAP
+  /* 高德底图样式 —— **这是 ②「校外留白」与 ③「参考图风格」的唯一开关**。
+   * 现在挂的是内置 `fresh`（浅绿清爽）。产品方在高德控制台做完「自定义地图样式」
+   * 并把校外调成留白后，把下面这行换成 `'amap://styles/<你的styleId>'` 即可 —— 代码不用再动。
+   * 详见 `buildLayers()` 里那段说明。 */
+  var MAP_STYLE = 'amap://styles/fresh';
   var map = null, host = null;
   var bldLayer = null, venueLayer = null, waterLayer = null, campusLayer = null;
   var labelLayer = null;        // 楼名 / 地标名 / 水域名（HTML Marker 数组，缩放够近才显）
@@ -300,13 +305,11 @@
   }
 
   function buildLayers() {
-    /* 底图风格 —— 2026-10-21 产品方要「换成参考图那种风格」（汕大那套：极浅、去饱和、柔和绿）。
-     * ⚠️ 这里用的是**高德内置样式** `fresh`（浅绿清爽）。要**完全**对上参考图，
-     *   得在高德控制台做「自定义地图样式」拿到 style id，
-     *   再换成 `amap://styles/<你的id>` —— 那一步需要产品方账号，代码侧改不了。
-     * 兜底：`setMapStyle` 万一不被支持，风格退回默认，不影响功能。 */
+    /* 底图风格（产品方要求 ③）—— 统一走文件顶部的 `MAP_STYLE` 常量，这里**只设一次**。
+     * 曾经的坑：这一块和下面「②③ 说明」那块各写过一次 `setMapStyle`（值相同），
+     * 会触发两次样式切换；改样式只改常量、别在别处再调一次。 */
     try {
-      if (map.setMapStyle) map.setMapStyle('amap://styles/fresh');
+      if (map.setMapStyle) map.setMapStyle(MAP_STYLE);
     } catch (e) { console.warn('[CHD_AMAP] setMapStyle 失败，用默认样式', e); }
 
     // 校园边界
@@ -316,26 +319,27 @@
       map: map,
     });
 
-    /* 把边界以外的地图遮掉（产品方要求 ②）—— ⚠️ 2026-10-21 **实测后关闭**，三种传参都不行。
+    /* 「边界以外的地图隐去」+「换成参考图那种风格」这两条（产品方要求 ②③）——
+     * 🔴 2026-10-21 **产品方拍板：只走「高德控制台自定义地图样式」这条路，代码侧不做遮罩。**
+     *   样式本身已在上面 `buildLayers()` 开头按 `MAP_STYLE` 设过一次，这里**不再重复调用**。
      *
-     * 证据（`scratch/verify_44.mjs` + `scratch/probe_44_exc.mjs`，390×844 dpr3，真实点「查找」进图）：
+     * 为什么代码侧不做：`map.setMask()` 在高德 2.0 上是**坏的** —— 三种传参实测：
      *   ① `setMask(D.boundary.map(LL))`    → `getMask()` = 30，但**整张底图变白**
      *      （只剩桩点和标签），并抛 `TypeError: Cannot read properties of undefined (reading '0')`，
-     *      栈全在高德内部 `renderFrame` → 这是**它自己崩了**，不是我们数据错。
+     *      栈全在高德内部 `renderFrame` → **它自己崩了**，不是我们数据错。
      *   ② `setMask([D.boundary.map(LL)])`  → `getMask()` = 0，不生效。
      *   ③ `setMask(D.boundary)`（裸数组）   → `getMask()` = 0，不生效。
      * 对照组：正式版 `map-amap.js`（不调 setMask）同一流程 **0 异常**、底图正常。
+     * 已排除时序（`build()` 挂在 `map.on('complete')` 里）与数据（30 点闭合环）。
      *
-     * 排除时序问题：`build()` 本来就挂在 `map.on('complete')` 里，已经不是「早了」。
-     * 也排除数据问题：`boundary` 是 30 点闭合环（首尾 108.896374,34.371923 / 108.896759,34.37203 几乎重合）。
+     * 【给产品方的两步操作 —— ② 和 ③ 在这里一次解决】
+     *   1. 登录高德开放平台控制台 → 该 Key 对应的应用 → **自定义地图样式** → 新建；
+     *      在样式编辑器里把**校园边界外**的地区调成与底图同色/纯白（即"校外留白"），
+     *      再按参考图调：底色极浅、去饱和、道路/绿地/水域柔和绿 —— 这一步就是 ③ 要的效果。
+     *   2. 发布该样式 → 拿到形如 `amap://styles/<styleId>` 的字符串 → 填到下面的 `MAP_STYLE`。
      *
-     * 想要「校外留白」只能换路子（给 DeepSeek）：
-     *   · 叠一层白色 Polygon 把**校区外**盖住（需要一张「外框 + 校区挖孔」的环数据）；
-     *   · 或走高德控制台自定义地图样式。
-     * 恢复这行前**先看上面的白屏结论**，别以为只是没生效。 */
-    try {
-      // if (map.setMask) map.setMask(D.boundary.map(LL));   // ← 会白屏，别开
-    } catch (e) { console.warn('[CHD_AMAP] setMask 失败，边界外不遮罩', e); }
+     * 在那之前用高德内置样式 `fresh`（浅绿清爽）顶着，方向与参考图一致但**做不到"一样"**。
+     * 备选内置样式（改 `MAP_STYLE` 一个词即可）：`whitesmoke`（最浅）/ `grassgreen`（更绿）/ `grey`（灰调）。 */
 
     // 建筑（配色按参考图调淡：浅灰绿块 + 更浅的描边）
     bldLayer = polygonsOf(D.buildings, {

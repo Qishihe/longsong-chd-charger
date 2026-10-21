@@ -606,7 +606,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.02 · 内测</div>
+    <div id="app-ver" class="foot-ver">版本 v2.03 · 内测</div>
   </footer>
 </div>
 
@@ -2471,19 +2471,24 @@ function highlightPin(deviceId) {
   });
 }
 
-/** 从卡片「查找」进入：按该桩地址切到底图并定位放大到该桩 */
+/** 从卡片「查找」进入：**在「渭水校区」高德底图上定位到该桩**
+ *
+ * 🔴 2026-10-21 产品方改：「把点击主页查找按钮跳转的地图更新到渭水校区地图，
+ *    而不是之前的手绘，地图依旧保留，只是不再跳转。」
+ *    → 落点从 `mapForAddress()` 选出的静态手绘图（北门 / 朝晖）改成 `AMAP_MAP`。
+ *    → 静态手绘图页签**原样保留、仍可手动切**，只是不再被「查找」当落点。
+ *    → 高德加载失败时才回落到原来的静态图路径（保持可用性，不留空白底）。
+ */
 function openMapAt(deviceId) {
-  const id = String(deviceId).toUpperCase();
-  const di = mapDevices.findIndex((d) => String(d.id).toUpperCase() === id);
+  const di = mapDevices.findIndex((d) => String(d.id).toUpperCase() === String(deviceId).toUpperCase());
   const dev = di >= 0 ? mapDevices[di] : null;
   // 地址线索优先用 location，缺失时退回到名称里的关键字（兼容没写 @地址 的设备）
   const hint = dev ? [dev.location, dev.name].filter(Boolean).join(' ') : '';
-  curMap = mapForAddress(hint);
-  syncMapTabs();
-  const dlg = $('map-dialog');
-  if (!dlg.open) dlg.showModal();
-  ensureTMap().then((ok) => {
-    if (ok) { tmapApplyView(curMap.id, deviceId); return; }
+
+  /** 高德不可用时的回落：与改动前的行为完全一致（静态手绘图 + 定位到该桩） */
+  const fallbackStatic = () => {
+    curMap = mapForAddress(hint);
+    syncMapTabs();
     buildScope();
     applyBaseMap();
     requestAnimationFrame(() => {
@@ -2491,6 +2496,29 @@ function openMapAt(deviceId) {
       if (dev) focusDevice(deviceId);
       else fitOverview();
     });
+  };
+
+  curMap = AMAP_MAP;
+  syncMapTabs();
+  const dlg = $('map-dialog');
+  if (!dlg.open) dlg.showModal();
+
+  ensureAMap().then((ok) => {
+    if (!ok) { $('map-dialog').removeAttribute('data-engine'); fallbackStatic(); return; }
+    amapApplyView();                       // 内部已 setPiles(amapDevices()) + setView('campus')
+    if (dev) {
+      // 副标题与「点桩」时同一口径，让用户确认识别到的是哪台
+      const ports = (mapResults[di] || {}).ports || [];
+      const free = ports.filter((p) => p.state === SLOT_FREE).length;
+      $('map-sub').textContent = ports.length
+        ? `${dev.code || dev.name} · 空闲 ${free}/${ports.length}`
+        : `${dev.code || dev.name} · 无数据`;
+    }
+    /* 镜头对到这台桩。`focusPile` 在引擎未 ready 或该桩没落到点位时返回 false
+     * （mount 是异步的，偶尔会赶上这一瞬），所以失败就 300ms 后补一次。 */
+    if (dev && !window.CHD_AMAP.focusPile(deviceId)) {
+      setTimeout(() => { try { window.CHD_AMAP.focusPile(deviceId); } catch (e) {} }, 300);
+    }
   });
 }
 
@@ -4284,7 +4312,15 @@ function applyAutoRefresh() {
 async function collectHistorySilently(reason) {
   if (!cloudSupport()) { console.warn('[history] 跳过采集：云端不可用'); return false; }
   if (store.get(KEY_AUTO, true) === false) return false;
-  if (busyFlag) { console.warn('[history] 跳过采集：用户正在刷新，让路'); return false; }
+  /* 用户正在刷新 → 让路，但**不能直接放弃**。
+   * 2026-10-21 改：首屏补采从 20 秒缩到 8 秒后，落地时首屏 refresh 往往还在跑
+   * （73 台 × 6 并发约 12 秒），原来的「立刻 return false」会让这次补采白丢，
+   * 而 bootTimer 只触发一次、没有第二次机会 → 那一小时就彻底没数据。
+   * 现在最多等 25 秒（等 refresh 收尾），还在忙才放弃。 */
+  if (busyFlag) {
+    for (let w = 0; w < 25 && busyFlag; w++) await sleep(1000);
+    if (busyFlag) { console.warn('[history] 跳过采集：用户仍在刷新'); return false; }
+  }
 
   const devices = getDevices();
   if (!devices.length) { console.warn('[history] 跳过采集：设备清单为空'); return false; }
@@ -4380,16 +4416,27 @@ function applyHourlyHistory() {
   };
   scheduleNextHour();
 
-  // ② 首屏补采：加载 20 秒后，若本小时还没采过就补一次（短访问也能贡献样本）
+  // ② 首屏补采：加载 8 秒后，若本小时还没采过就补一次（短访问也能贡献样本）
+  //    ⚠️ 2026-10-21 产品方定：20 秒偏长，「只瞄几眼的访问完全不贡献样本」→ 缩到 8 秒。
+  //    8 秒落地时首屏 refresh 通常还在跑，靠 collectHistorySilently 里的「等 refresh 收尾」兜住，
+  //    不会因为 busyFlag 白丢这一次（那是改 8 秒最容易踩的坑）。
   //    注意：这一步是**静默**的，用户看不到进度条/按钮变化（见 collectHistorySilently 注释）
   historyBootTimer = setTimeout(() => {
     if (historyHourKey() !== lastHistoryHour) hourlyHistoryTick('首次加载补采');
-  }, 20000);
+  }, 8000);
 }
 
 
 document.addEventListener('visibilitychange', async () => {
   if (document.hidden) return;
+  /* 「人回来了」的最早信号 —— 也是补上一整点缺口的唯一机会。
+   * 2026-10-21 实测：10-21 06:00 整小时既无聚合行也无逐台明细行（05/07 都有），
+   * 因为设备被锁屏冻结、整点 setTimeout 没触发；等用户重新打开页面时 key 已经变成新小时，
+   * 06 点就永久空缺。这里在**切回前台**时立刻补一次，一小时最多一次（hourlyHistoryTick 有去重）。
+   * 延后 1.5 秒是为了先把下面的 refresh 让出去；真撞上了 collectHistorySilently 内部还会等它收尾。 */
+  if (historyHourKey() !== lastHistoryHour) {
+    setTimeout(() => { hourlyHistoryTick('切回前台'); }, 1500);
+  }
   const cache = readCache();
   const stamps = Object.values(cache).map((r) => r.at || 0);
   const newest = stamps.length ? Math.max(...stamps) : 0;

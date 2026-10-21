@@ -890,7 +890,23 @@
       piles.forEach(function (q) { if (q.id === id) target = q; });
       if (!target || !PIN_POS[id]) return false;
       if (curView !== target.location) { curView = target.location; syncLayers(); }
+      /* 🔴 2026-10-21 补（WorkBuddy 08:5x 提出、留给我的那一项）：**必须盖 progZoomAt 戳**。
+       *
+       * 为什么：高德 `getZoom()` 在 `setZoomAndCenter` 之后**长期滞后**（实测 2.7 秒仍报旧值）。
+       *   `zoomend → onZoomTier` 只在 `progZoomAt` 的 1200ms 窗口内被挡住。
+       *   原来这里没盖戳 → onZoomTier 会拿**滞后的旧 zoom** 去算 gap → 可能判成聚合档；
+       *   而此刻 `curView` 已是分区名（不是 campus），会触发 applyZoomTier 里的
+       *   「进聚合态就退回总览」→ **用户刚点「查找」就被从桩特写里弹回总览**。
+       *   交付时全靠 `gap 13.19` 与阈值 `13` 之间 **0.19 的余量**兜着 —— 太险。
+       *
+       * 两件事一起做，彻底不依赖那个余量：
+       *   ① 盖戳（与 fitBBox / setZoom 同一处理）
+       *   ② 直接用**目标 zoom** 定档，不等滞后的 getZoom()
+       */
+      progZoomAt = Date.now();
       map.setZoomAndCenter(19.2, PIN_POS[id]);
+      applyZoomTier(19.2);                                   // 用目标值定档（19.2 → gap≈30.8，必进徽章档）
+      setTimeout(function () { applyZoomTier(19.2); }, 400);  // 动画收尾后再钉一次
       return true;
     },
 

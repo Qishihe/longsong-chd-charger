@@ -2087,14 +2087,25 @@ let amapLoading = null;
 const loadedScripts = {};
 function loadScriptOnce(src) {
   if (loadedScripts[src]) return loadedScripts[src];
-  loadedScripts[src] = new Promise((resolve, reject) => {
+  const p = new Promise((resolve, reject) => {
     const s = document.createElement('script');
     s.src = src;
     s.onload = () => resolve();
-    s.onerror = () => reject(new Error('加载失败：' + src));
+    /* 🔴 2026-10-21 修 bug（WorkBuddy 查获 #49，与 preview.html 同步）：
+     * 原来 `onerror` 只 `reject`，**既不删缓存也不移除 script 节点** ——
+     * rejected promise 会**永久**留在 `loadedScripts[src]` 里，之后每次调用都立刻拿到失败结果 →
+     * `ensureAMap()` 永远 false → 「查找」整场会话都回落静态手绘图，**只有刷新页面才能恢复**。
+     * 触发场景真实：Service Worker 换版瞬间 `cache.addAll` 要拉 7 个资源，地图脚本抢连接会瞬时 500。
+     * 现在失败就把缓存与节点一起清掉，下次调用会真的重新拉。 */
+    s.onerror = () => {
+      delete loadedScripts[src];
+      try { s.remove(); } catch (e) {}
+      reject(new Error('加载失败：' + src));
+    };
     document.head.appendChild(s);
   });
-  return loadedScripts[src];
+  loadedScripts[src] = p;
+  return p;
 }
 
 /** 设备清单 → 真实地图用的桩数据（含状态与所属分区） */
@@ -2266,7 +2277,7 @@ function ensureAMap() {
     loadScriptOnce('map-data.js?v=163')
       .then(loadLocalKeyOnce)
 // ⚠️ map-amap.js 走 Service Worker 缓存优先，改了它必须同时改这里的 ?v=，否则用户拿的还是旧文件
-      .then(() => loadScriptOnce('map-amap.js?v=134'))
+      .then(() => loadScriptOnce('map-amap.js?v=135'))
       .then(boot)
       .catch(() => done(false));
   });
@@ -2463,8 +2474,8 @@ function openMapAt(deviceId) {
   const dlg = $('map-dialog');
   if (!dlg.open) dlg.showModal();
 
-  ensureAMap().then((ok) => {
-    if (!ok) { $('map-dialog').removeAttribute('data-engine'); fallbackStatic(); return; }
+  /** 高德可用时真正落地：套视角 + 副标题 + 镜头对到该桩 */
+  const useAmap = () => {
     amapApplyView();                       // 内部已 setPiles(amapDevices()) + setView('campus')
     if (dev) {
       // 副标题与「点桩」时同一口径，让用户确认识别到的是哪台
@@ -2479,6 +2490,21 @@ function openMapAt(deviceId) {
     if (dev && !window.CHD_AMAP.focusPile(deviceId)) {
       setTimeout(() => { try { window.CHD_AMAP.focusPile(deviceId); } catch (e) {} }, 300);
     }
+  };
+
+  ensureAMap().then((ok) => {
+    if (ok) { useAmap(); return; }
+    /* 🔴 2026-10-21（配合 #49，与 preview.html 同步）：**先重试一次再回落**。
+     * 高德脚本加载失败往往是一次瞬时抖动（SW 换版抢连接、弱网），
+     * 而回落到静态手绘图对用户是「换了一张图」的明显降级，不该因一次抖动就降级。
+     * `loadScriptOnce` 已改成失败不留缓存，所以这次重试是真的重新拉。 */
+    setTimeout(() => {
+      ensureAMap().then((ok2) => {
+        if (ok2) { useAmap(); return; }
+        $('map-dialog').removeAttribute('data-engine');
+        fallbackStatic();
+      });
+    }, 600);
   });
 }
 
@@ -3278,6 +3304,8 @@ async function readHistoryStats() {
 
     // 第二遍：归组累加
     const groups = {};
+    /* 各位置的桩数，供下面判断「观测到的插座总数」是否合理（函数声明提升，定义在下方也能调） */
+    const devCounts = deviceCountByLocation();
     for (const row of data) {
       const total = Number(row.total) || 0;
       if (total <= 0) continue;
@@ -3301,8 +3329,20 @@ async function readHistoryStats() {
       const occ = total - free;
       if (occ < 0 || occ > total) continue;   // 脏数据挡掉，别让图表画出 >100%
 
-      const g = groups[loc] || (groups[loc] = { byDay: {}, devices: new Set() });
+      const g = groups[loc] || (groups[loc] = { byDay: {}, devices: new Set(), socketTotal: 0 });
       if (!isAgg && row.device_id) g.devices.add(row.device_id);
+      /* 「该位置**实际**插座总数」= 观测到的**单行** total 的最大值（限合理上限内）。
+       *
+       * 🔴 2026-10-21 新增 —— 产品方要「实际数」，而原来气泡分母用的是「桩数 × 4」这个**假设**：
+       *    每台桩固定 4 个插座口，但实测北门 37 台的真实总数是 **140**（37×4=148，多算 8）。
+       *
+       * 取**单行** total 而不是各行之**和**：同一小时可能有多行（重复写入 / 逐台明细），
+       *   求和会把重复算进去；而单行的 total 本身就是「这一行覆盖的那批桩的插座数」——
+       *   聚合行覆盖整个位置，所以它就等于位置总数。
+       * 上限 = 桩数 × 8：单桩最多 8 个插座口（`isValidPorts` 的既有规则，见上方），
+       *   用来挡掉 10-20 那批旧版「累加式 upsert」写歪的行（北门 total=67208）。 */
+      const cap = (devCounts[loc] || 0) * 8;
+      if (total > g.socketTotal && (cap <= 0 || total <= cap)) g.socketTotal = total;
       const gd = g.byDay[d] || (g.byDay[d] = {
         hour: Array.from({ length: 24 }, () => ({ occ: 0, total: 0, snap: 0 })),
         occTotal: 0, obsTotal: 0, snapshots: 0,
@@ -3358,6 +3398,9 @@ async function readHistoryStats() {
         //    旧写法 g.devices.size 会恒为 0，导致气泡里「占用 X / Y 插座」的 Y 变成 0。
         //    只有当本地清单里找不到该位置时，才退回历史行统计的桩数。
         deviceCount: deviceCountByLocation()[loc] || (g.devices ? g.devices.size : 0) || 0,
+        /* 观测到的**实际**插座总数（气泡分母 Y 优先用它，见 readHistoryStats 里的说明）；
+         * 拿不到才退回「桩数 × 4」这个假设值。 */
+        socketTotal: g.socketTotal || 0,
         byDay,
       };
     }
@@ -3451,16 +3494,17 @@ function renderUsageLocation(stats, loc, day) {
     return;
   }
 
-  // 该位置总插座数 = 桩数 × 每桩口数；「全部」累加各位置
+  // 分母用**观测到的实际插座总数**（`socketTotal`），拿不到才退回「桩数 × 4」的假设值。
+  // 2026-10-21：产品方要「实际数」—— 北门 37 台按假设算是 148，实测只有 140。
   let totalSockets = 0;
   if (isAll) {
     for (const l of stats.locations) {
       const g = stats.byLocation[l];
-      if (g) totalSockets += (g.deviceCount || 0) * PORTS_PER_DEVICE;
+      if (g) totalSockets += g.socketTotal || (g.deviceCount || 0) * PORTS_PER_DEVICE;
     }
   } else {
     const g = stats.byLocation[loc];
-    if (g) totalSockets = (g.deviceCount || 0) * PORTS_PER_DEVICE;
+    if (g) totalSockets = g.socketTotal || (g.deviceCount || 0) * PORTS_PER_DEVICE;
   }
 
   $('usage-hour').innerHTML = buildLineChart(t.byHour, usageSel, totalSockets);
@@ -3555,8 +3599,23 @@ function buildLineChart(byHour, selIdx, totalSockets) {
     const p = pts[selIdx];
     const px = x(p.i), py = y(p.rate);
     const line1 = p.i + ' 点 · 占用率 ' + pct(p.rate) + '%';
-    // occ/snap = 平均每台桩占用口数；乘桩数(totalSockets/4)得位置平均占用插座总数
-    const avgOcc = p.snap > 0 ? Math.round(p.occ / p.snap * (totalSockets / PORTS_PER_DEVICE)) : 0;
+    /* 🔴 2026-10-21 修 bug（与 preview.html 同步）——
+     * 产品方报「使用情况的插座数显示累计数而不是实际数」。
+     *
+     * 原式：`p.occ / p.snap * (totalSockets / PORTS_PER_DEVICE)`
+     *   它的前提是「**一行 = 一台桩**」—— 旧明细行里 `occ` 是**单台**的占用口数，
+     *   除以 `snap` 得「平均每台占用口数」，再乘桩数才是位置合计。
+     *   但新格式的聚合行是「**一行 = 整个位置**」，`occ` 已经是位置合计（北门 ~140），
+     *   再乘一次桩数 → **被放大成 ~37 倍**（显示成「占用 5180 / 148 插座」）。
+     *
+     *   ⚠️ 所以**旧数据、新数据都会显示错**，与产品方说的「累计数」完全吻合 ——
+     *   这也解释了为什么覆盖问题修完后，这个数**依旧**不对。
+     *
+     * 改法：直接用**这一小时已经算好的占用率**乘插座总数。
+     *   `rate = occ / total` 是**比值**，聚合行与明细行口径一致（两者都满足 rate ≤ 1），
+     *   乘上该位置实际插座总数就是「占用插座数」，而且**天然 ≤ 总数**，
+     *   再也不会出现分子大于分母那种一眼假的结果。 */
+    const avgOcc = p.rate == null ? 0 : Math.round(p.rate * totalSockets);
     const line2 = '占用 ' + avgOcc + ' / ' + (totalSockets || 0) + ' 插座';
     const fs = 8.5;
     const wBox = Math.max(line1.length, line2.length) * fs * 0.62 + 16;   // 近似文本宽度

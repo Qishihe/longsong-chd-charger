@@ -574,7 +574,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.02</div>
+    <div id="app-ver" class="foot-ver">版本 v2.03</div>
   </footer>
 </div>
 
@@ -806,7 +806,22 @@ const KEY_TOKEN = 'cpk.token';
 const KEY_DEVICES = 'cpk.devices';
 const KEY_DEVICES_SCHEMA = 'cpk.devices.schema';
 const KEY_DEVICES_TS = 'cpk.devices.ts';
-const DEVICE_SCHEMA = 2;   // 清单格式版本：2 = 支持「桩号 名称 @地址」+ 任意编号前缀
+const DEVICE_SCHEMA = 3;   // 清单格式版本：2 = 支持「桩号 名称 @地址」+ 任意编号前缀
+/* schema 3（2026-10-21）= 「**新增分区要能自动补进老浏览器**」。
+ *
+ * 🔴 起因：产品方反馈"更新后还是没显示 20 号楼的充电桩"。查下来是三重原因：
+ *   ① 改动还没发布（那是发布问题，见记录）；
+ *   ② `getDevices()` 只要本机存过清单就**原样返回它**，而 schema 升级分支
+ *      只 `list.map()` 补**已有条目**的元信息，**从不追加新设备** →
+ *      之前打开过的浏览器永远停在 73 台；
+ *   ③ 云端还会覆盖回来：`cloudPullDevices()` 发现云端更新就用云端那份覆盖本机（也是 73 台）。
+ * 所以「往 DEFAULT_DEVICES 里加设备」这件事，**对老用户是不生效的** —— 必须靠 schema 迁移补。
+ *
+ * 做法：本版本**只补这些分区的默认桩**（而不是"与默认清单全量对齐"）。
+ * 这一点是刻意的 —— 全量对齐会把用户**故意删掉**的北门/朝晖老桩又塞回来。 */
+const SCHEMA_ADDED_LOCATIONS = {
+  3: ['渭水-20号楼'],   // E-01~E-24（公路学院 20 号楼，红线段）
+};
 
 // 腾讯位置服务 key（WebServiceAPI）。填入后地图弹窗自动使用真实地图；
 // 留空时页面会提示填写，也可用 ?tmapkey=xxx 临时注入（会存入本机）。
@@ -922,6 +937,36 @@ const DEFAULT_DEVICES = [
   { id: 'XLB03505', code: 'D12', name: '渭水校区 北-D12 号桩', location: '渭水-北门' },
   { id: 'XLB03062', code: 'D13', name: '渭水校区 北-D13 号桩', location: '渭水-北门' },
   { id: 'XLB03357', code: 'D14', name: '渭水校区 北-D14 号桩', location: '渭水-北门' },
+
+  /* 🔌 2026-10-21 新增「渭水-20号楼」（公路学院，产品方在图上圈出的那段红线）——
+     E-01~E-24 沿红线从左到右等分，落点写在 `map-amap-preview.js` 的 `E_GEO`（24 个固定经纬度）。
+     清单来自产品方给的 24 行（`<id> 渭水校区 E-xx 号桩 @渭水-20号楼`），**逐行照抄，未改动任何 id**。
+     ⚠️ 位置名是 `渭水-20号楼`（不是 `20号楼(公路学院)`）—— 以这批设备行的 `@` 地址为准，
+        它同时是 `map-data.js` 里 `areas` 的键、也是地图分组/筛选/云端 `location` 的值。 */
+  { id: 'XLA36125', code: 'E-01', name: '渭水校区 E-01 号桩', location: '渭水-20号楼' },
+  { id: 'XLA35420', code: 'E-02', name: '渭水校区 E-02 号桩', location: '渭水-20号楼' },
+  { id: 'XLA31449', code: 'E-03', name: '渭水校区 E-03 号桩', location: '渭水-20号楼' },
+  { id: 'XLA31931', code: 'E-04', name: '渭水校区 E-04 号桩', location: '渭水-20号楼' },
+  { id: 'XLA31844', code: 'E-05', name: '渭水校区 E-05 号桩', location: '渭水-20号楼' },
+  { id: 'XLA31743', code: 'E-06', name: '渭水校区 E-06 号桩', location: '渭水-20号楼' },
+  { id: 'XLA31746', code: 'E-07', name: '渭水校区 E-07 号桩', location: '渭水-20号楼' },
+  { id: 'XLA35361', code: 'E-08', name: '渭水校区 E-08 号桩', location: '渭水-20号楼' },
+  { id: 'XLA31757', code: 'E-09', name: '渭水校区 E-09 号桩', location: '渭水-20号楼' },
+  { id: 'XLA33369', code: 'E-10', name: '渭水校区 E-10 号桩', location: '渭水-20号楼' },
+  { id: 'XLA35428', code: 'E-11', name: '渭水校区 E-11 号桩', location: '渭水-20号楼' },
+  { id: 'XLA36092', code: 'E-12', name: '渭水校区 E-12 号桩', location: '渭水-20号楼' },
+  { id: 'XLA32017', code: 'E-13', name: '渭水校区 E-13 号桩', location: '渭水-20号楼' },
+  { id: 'XLA35369', code: 'E-14', name: '渭水校区 E-14 号桩', location: '渭水-20号楼' },
+  { id: 'XLA36186', code: 'E-15', name: '渭水校区 E-15 号桩', location: '渭水-20号楼' },
+  { id: 'XLA31748', code: 'E-16', name: '渭水校区 E-16 号桩', location: '渭水-20号楼' },
+  { id: 'XLA35413', code: 'E-17', name: '渭水校区 E-17 号桩', location: '渭水-20号楼' },
+  { id: 'XLA32266', code: 'E-18', name: '渭水校区 E-18 号桩', location: '渭水-20号楼' },
+  { id: 'XLA31759', code: 'E-19', name: '渭水校区 E-19 号桩', location: '渭水-20号楼' },
+  { id: 'XLA35364', code: 'E-20', name: '渭水校区 E-20 号桩', location: '渭水-20号楼' },
+  { id: 'XLA35511', code: 'E-21', name: '渭水校区 E-21 号桩', location: '渭水-20号楼' },
+  { id: 'XLA35363', code: 'E-22', name: '渭水校区 E-22 号桩', location: '渭水-20号楼' },
+  { id: 'XLA31980', code: 'E-23', name: '渭水校区 E-23 号桩', location: '渭水-20号楼' },
+  { id: 'XLA35421', code: 'E-24', name: '渭水校区 E-24 号桩', location: '渭水-20号楼' },
 ];
 
 const $ = (id) => document.getElementById(id);
@@ -1011,33 +1056,76 @@ function fmtTime(date) {
 
 /* ---------------- 设备清单 ---------------- */
 
+/** 把「本版本新增分区」的默认桩补进一份清单（幂等）。
+ *
+ * 🔴 2026-10-21 新增。产品方反馈"更新后还是没显示 20 号楼的充电桩" —— 根因是
+ * **往 `DEFAULT_DEVICES` 里加设备这件事，对老用户根本不生效**：
+ *   · `getDevices()` 只要本机存过清单就原样返回它（原来的 schema 分支只 `map()` 补
+ *     **已有条目**的元信息，从不追加）；
+ *   · `cloudPullDevices()` 还会用**云端那份**覆盖本机（也是旧的 73 台）。
+ * 所以"加设备"必须有一条**追加**路径，而且两个入口都要走它。
+ *
+ * @param list       待处理的清单
+ * @param fromSchema 这份清单被认为的格式版本（决定要补哪几版新增的分区）
+ * @returns {{ list: Array, added: Array, locations: string[] }} */
+function appendNewLocationDevices(list, fromSchema) {
+  const locations = [];
+  for (let v = Number(fromSchema || 0) + 1; v <= DEVICE_SCHEMA; v++) {
+    const locs = SCHEMA_ADDED_LOCATIONS[v];
+    if (locs) locations.push(...locs);
+  }
+  if (!locations.length) return { list, added: [], locations: [] };
+
+  const have = new Set((list || []).map((d) => String((d && d.id) || '').toUpperCase()));
+  const added = DEFAULT_DEVICES.filter(
+    (d) => locations.includes(d.location) && !have.has(String(d.id).toUpperCase())
+  );
+  return { list: added.length ? list.concat(added) : list, added, locations };
+}
+
 function getDevices() {
   const list = store.get(KEY_DEVICES, null);
   if (!Array.isArray(list) || !list.length) return DEFAULT_DEVICES.slice();
 
   const schema = Number(store.get(KEY_DEVICES_SCHEMA, 0)) || 0;
 
-  // 只有"还没按新格式保存过"的老数据才升级一次（补 TY 名称/地址），
-  // 升级完就记住，之后完全尊重你在设置里填的内容（包括 TZ-36 这类自定义编号）
-  if (schema < DEVICE_SCHEMA) {
-    const metaBy = {};
-    for (const d of DEFAULT_DEVICES) metaBy[d.id.toUpperCase()] = d;
-    const upgraded = list.map((d) => {
-      const meta = metaBy[String(d.id || '').toUpperCase()];
-      if (!meta) return d;
-      return {
-        ...d,
-        name: meta.name,
-        code: d.code || meta.code,
-        location: meta.location || d.location,
-      };
-    });
-    store.set(KEY_DEVICES, upgraded);
-    store.set(KEY_DEVICES_SCHEMA, DEVICE_SCHEMA);
-    return upgraded;
+  /* 已经是最新格式 → 原样返回本机清单。
+   * 这一步是"完全尊重你在设置里填的内容（包括 TZ-36 这类自定义编号）"的保证：
+   * 只要 schema 追平了，之后**再也不动**用户的清单。 */
+  if (schema >= DEVICE_SCHEMA) return list;
+
+  /* ————— 一次迁移，两件事 —————
+   * 🔴 2026-10-21：产品方反馈"更新后还是没显示 20 号楼的充电桩"，根因就在这个函数。
+   *   原来的实现**只有下面第 ① 件事**，而且做完就 return ——
+   *   于是"往 DEFAULT_DEVICES 里加新设备"对**本机存过清单的浏览器完全不生效**
+   *   （之前打开过的浏览器永远停在 73 台，只有清缓存/换浏览器才会看到新的）。
+   *   所以必须补上第 ② 件事：**把新分区里的默认桩追加进来**。 */
+
+  // ① 给**已有条目**补 name/code/location 元信息（老数据升级用；无条件覆盖 name，尊重用户的 code/location）
+  const metaBy = {};
+  for (const d of DEFAULT_DEVICES) metaBy[d.id.toUpperCase()] = d;
+  let next = list.map((d) => {
+    const meta = metaBy[String(d.id || '').toUpperCase()];
+    if (!meta) return d;
+    return {
+      ...d,
+      name: meta.name,
+      code: d.code || meta.code,
+      location: meta.location || d.location,
+    };
+  });
+
+  /* ② 追加**本版本新增分区**的默认桩 —— 见 `appendNewLocationDevices` 的说明。
+   * ⚠️ 刻意不做"与 DEFAULT_DEVICES 全量对齐"：那会把用户**故意删掉**的北门/朝晖老桩又塞回来。 */
+  const grown = appendNewLocationDevices(next, schema);
+  next = grown.list;
+  if (grown.added.length) {
+    console.log(`[devices] schema ${schema}→${DEVICE_SCHEMA}：补入 ${grown.added.length} 台（${grown.locations.join('、')}）`);
   }
 
-  return list;
+  store.set(KEY_DEVICES, next);
+  store.set(KEY_DEVICES_SCHEMA, DEVICE_SCHEMA);
+  return next;
 }
 
 /* ---------------- 收藏 / 筛选 / 排序 ---------------- */
@@ -2112,16 +2200,34 @@ function loadScriptOnce(src) {
   return p;
 }
 
+/** 设备 → 在线底图（高德 / 腾讯）上的分区名。
+ *
+ * 🔴 2026-10-21 修：原来是「不是北门就一律朝晖」的**二分类**，
+ *    新增的「渭水-20号楼」E-01~E-24 会被一律贴成「渭水-朝晖体育场南」→
+ *    `layoutPiles` 走朝晖弧分支，而朝晖 36 个弧位已被 TY-01~36 占满，
+ *    这 24 台**一个落点都分不到**，最后被 `out.filter(o => !!o.pos)` 整批丢掉 ——
+ *    表现就是产品方说的「**列表里有，地图上完全没有**」。
+ *
+ *    现在改成：**真实位置只要是已登记分区就原样保留**，认不出才退回老的二分类。
+ *    ⚠️ 判据是 `CHD_MAP.areas` 的键（= `map-data.js` 里登记过的分区），不是写死的名单 ——
+ *    以后再加新分区，只要登记进 `areas`，这里自动生效，不用再来改一次。 */
+function mapAreaOf(d) {
+  const real = String((d && d.location) || '').trim();
+  const areas = (window.CHD_MAP && window.CHD_MAP.areas) || {};
+  if (real && areas[real]) return real;
+  const target = mapForAddress([d.location, d.name].filter(Boolean).join(' '));
+  return target && target.id === 'beimen' ? '渭水-北门' : '渭水-朝晖体育场南';
+}
+
 /** 设备清单 → 真实地图用的桩数据（含状态与所属分区） */
 function tmapDevices() {
   return mapDevices.map((d, i) => {
     const ports = (mapResults[i] || {}).ports || [];
     const free = ports.filter((p) => p.state === SLOT_FREE).length;
-    const target = mapForAddress([d.location, d.name].filter(Boolean).join(' '));
     return {
       id: d.id,
       code: d.code || d.name,
-      location: target && target.id === 'beimen' ? '渭水-北门' : '渭水-朝晖体育场南',
+      location: mapAreaOf(d),
       free: ports.length ? free : 0,
       total: ports.length,
     };
@@ -2281,7 +2387,7 @@ function ensureAMap() {
     loadScriptOnce('map-data.js?v=163')
       .then(loadLocalKeyOnce)
 // ⚠️ map-amap.js 走 Service Worker 缓存优先，改了它必须同时改这里的 ?v=，否则用户拿的还是旧文件
-      .then(() => loadScriptOnce('map-amap.js?v=135'))
+      .then(() => loadScriptOnce('map-amap.js?v=137'))
       .then(boot)
       .catch(() => done(false));
   });
@@ -2293,11 +2399,10 @@ function amapDevices() {
   return mapDevices.map((d, i) => {
     const ports = (mapResults[i] || {}).ports || [];
     const free = ports.filter((p) => p.state === SLOT_FREE).length;
-    const target = mapForAddress([d.location, d.name].filter(Boolean).join(' '));
     return {
       id: d.id,
       code: d.code || d.name,
-      location: target && target.id === 'beimen' ? '渭水-北门' : '渭水-朝晖体育场南',
+      location: mapAreaOf(d),
       free: ports.length ? free : 0,
       total: ports.length,
     };
@@ -3051,9 +3156,23 @@ async function cloudPullDevices({ force = false } = {}) {
     const localStamp = Number(store.get(KEY_DEVICES_TS, 0)) || 0;
     if (!force && remoteStamp <= localStamp) return false;   // 本机已是最新
 
-    store.set(KEY_DEVICES, data.devices);
+    /* ⚠️ 2026-10-21：**采纳云端清单时必须无条件补新分区**，否则云端那份旧的 73 台会把
+     * `getDevices()` 刚补进来的「渭水-20号楼」24 台**又冲掉**（产品方"更新后还是没显示"的第三条原因）。
+     *
+     * ⚠️ 这里 `fromSchema` 传 **0**（而不是本机记录的 schema），是刻意的：
+     *   两个入口的**执行顺序不固定** —— 若 `cloudPullDevices` 在 `getDevices` 之后跑，
+     *   那时本机 schema 已经追平成 3，按 schema 判就"无需补"，于是云端那份旧清单又把新桩冲掉。
+     *   传 0 = 「云端这份清单来自别人，可能早于我们的代码，所以把历来新增的分区都补齐」。
+     *   代价：管理员若**故意**删掉某个新增分区的桩，下次拉云端会被补回来（可接受；
+     *   真要长期删掉，得同时把它从 `SCHEMA_ADDED_LOCATIONS` 里摘掉）。
+     * 云端那份本身会在**管理员点一次「保存」时**被推成 97 台，之后各机拉到的就是全量。 */
+    const adopted = appendNewLocationDevices(data.devices, 0);
+    store.set(KEY_DEVICES, adopted.list);
     store.set(KEY_DEVICES_SCHEMA, DEVICE_SCHEMA);  // 云端清单都是新格式
     store.set(KEY_DEVICES_TS, remoteStamp);
+    if (adopted.added.length) {
+      console.log(`[devices] 云端清单补入 ${adopted.added.length} 台（${adopted.locations.join('、')}）`);
+    }
     return true;
   } catch (e) {
     return false;

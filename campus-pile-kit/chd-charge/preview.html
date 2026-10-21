@@ -130,8 +130,7 @@
   /* 🔴 2026-10-21 清理：`.auto-toggle-card` / `.auto-toggle-text` / `.switch` / `.slider`
      这四组样式随「前台自动更新卡」一起下线（④ 把那个开关收进了设置弹窗，
      弹窗里用的是原生 checkbox + 行内样式，不再用这套开关外观）。
-     已核实：本页**没有任何元素**再用这几个类（`class="switch"` / `class="slider"` 全项目
-     **只剩 `index.html` 那一处** —— 正式版还没同步 ④，所以那份**必须留着**，同步时再一起清）。 */
+     **两版都已无任何元素引用**（2026-10-21 同步正式版时清完），别再把这套开关外观加回来。 */
 
   /* 弹窗右下角的「管理员身份」绿色入口 */
   .dlg-footer-right{
@@ -599,7 +598,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.08 · 内测</div>
+    <div id="app-ver" class="foot-ver">版本 v2.10 · 内测</div>
   </footer>
 </div>
 
@@ -948,6 +947,36 @@ const DEFAULT_DEVICES = [
   { id: 'XLB03505', code: 'D12', name: '渭水校区 北-D12 号桩', location: '渭水-北门' },
   { id: 'XLB03062', code: 'D13', name: '渭水校区 北-D13 号桩', location: '渭水-北门' },
   { id: 'XLB03357', code: 'D14', name: '渭水校区 北-D14 号桩', location: '渭水-北门' },
+
+  /* 🔌 2026-10-21 新增「渭水-20号楼」（公路学院，产品方在图上圈出的那段红线）——
+     E-01~E-24 沿红线从左到右等分，落点写在 `map-amap-preview.js` 的 `E_GEO`（24 个固定经纬度）。
+     清单来自产品方给的 24 行（`<id> 渭水校区 E-xx 号桩 @渭水-20号楼`），**逐行照抄，未改动任何 id**。
+     ⚠️ 位置名是 `渭水-20号楼`（不是 `20号楼(公路学院)`）—— 以这批设备行的 `@` 地址为准，
+        它同时是 `map-data.js` 里 `areas` 的键、也是地图分组/筛选/云端 `location` 的值。 */
+  { id: 'XLA36125', code: 'E-01', name: '渭水校区 E-01 号桩', location: '渭水-20号楼' },
+  { id: 'XLA35420', code: 'E-02', name: '渭水校区 E-02 号桩', location: '渭水-20号楼' },
+  { id: 'XLA31449', code: 'E-03', name: '渭水校区 E-03 号桩', location: '渭水-20号楼' },
+  { id: 'XLA31931', code: 'E-04', name: '渭水校区 E-04 号桩', location: '渭水-20号楼' },
+  { id: 'XLA31844', code: 'E-05', name: '渭水校区 E-05 号桩', location: '渭水-20号楼' },
+  { id: 'XLA31743', code: 'E-06', name: '渭水校区 E-06 号桩', location: '渭水-20号楼' },
+  { id: 'XLA31746', code: 'E-07', name: '渭水校区 E-07 号桩', location: '渭水-20号楼' },
+  { id: 'XLA35361', code: 'E-08', name: '渭水校区 E-08 号桩', location: '渭水-20号楼' },
+  { id: 'XLA31757', code: 'E-09', name: '渭水校区 E-09 号桩', location: '渭水-20号楼' },
+  { id: 'XLA33369', code: 'E-10', name: '渭水校区 E-10 号桩', location: '渭水-20号楼' },
+  { id: 'XLA35428', code: 'E-11', name: '渭水校区 E-11 号桩', location: '渭水-20号楼' },
+  { id: 'XLA36092', code: 'E-12', name: '渭水校区 E-12 号桩', location: '渭水-20号楼' },
+  { id: 'XLA32017', code: 'E-13', name: '渭水校区 E-13 号桩', location: '渭水-20号楼' },
+  { id: 'XLA35369', code: 'E-14', name: '渭水校区 E-14 号桩', location: '渭水-20号楼' },
+  { id: 'XLA36186', code: 'E-15', name: '渭水校区 E-15 号桩', location: '渭水-20号楼' },
+  { id: 'XLA31748', code: 'E-16', name: '渭水校区 E-16 号桩', location: '渭水-20号楼' },
+  { id: 'XLA35413', code: 'E-17', name: '渭水校区 E-17 号桩', location: '渭水-20号楼' },
+  { id: 'XLA32266', code: 'E-18', name: '渭水校区 E-18 号桩', location: '渭水-20号楼' },
+  { id: 'XLA31759', code: 'E-19', name: '渭水校区 E-19 号桩', location: '渭水-20号楼' },
+  { id: 'XLA35364', code: 'E-20', name: '渭水校区 E-20 号桩', location: '渭水-20号楼' },
+  { id: 'XLA35511', code: 'E-21', name: '渭水校区 E-21 号桩', location: '渭水-20号楼' },
+  { id: 'XLA35363', code: 'E-22', name: '渭水校区 E-22 号桩', location: '渭水-20号楼' },
+  { id: 'XLA31980', code: 'E-23', name: '渭水校区 E-23 号桩', location: '渭水-20号楼' },
+  { id: 'XLA35421', code: 'E-24', name: '渭水校区 E-24 号桩', location: '渭水-20号楼' },
 ];
 
 const $ = (id) => document.getElementById(id);
@@ -1485,8 +1514,6 @@ function render(devices, results) {
 
   // 工具栏：有数据才显示
   $('toolbar').hidden = devices.length === 0;
-  const autoCard = $('auto-toggle-card');
-  if (autoCard) autoCard.hidden = devices.length === 0;
 
   // 顶部横幅只保留「凭证失效」这种必须人工处理的提示；
   // 网络波动引起的单设备错误，在卡片内用「设备状态未知，请重新查询」表达，不再弹横幅
@@ -2333,7 +2360,7 @@ function ensureAMap() {
 //    SW 的 stale-while-revalidate 会让正式版用户第二次打开就拿到它 → 等于偷偷上线。
 //    验收通过后：cp map-amap-preview.js map-amap.js，两版 ?v 同升，再删掉这个预览文件。
 //    改了 js 一定要同时改 ?v（SW 缓存优先）。
-      .then(() => loadScriptOnce('map-amap-preview.js?v=2'))
+      .then(() => loadScriptOnce('map-amap-preview.js?v=3'))
       .then(boot)
       .catch(() => done(false));
   });
@@ -4110,8 +4137,16 @@ function bindAutoToggle() {
 
 // 管理员密码的 SHA-256 哈希（不存明文）
 const SETTINGS_PASSWORD_HASH = 'a5a7815a7e253e165ce1ebfbc1c7fe93845121fceb8092cbcc076dad8841cb6c';
-// 云端同步密码的 SHA-256 哈希（不存明文）
-const SYNC_PASSWORD_HASH = 'a1a5b81d7d18cf508dd533f9209f3dc851a0eb52e7d3c9b51d5886543eb928e8';
+/* 云端同步密码的 SHA-256 哈希（不存明文）
+ * 🔑 2026-10-21 产品方指示：更换同步口令，旧口令已作废（旧值不留在代码里）。
+ *   · **管理员密码（上一行 `SETTINGS_PASSWORD_HASH`）没动** —— 两把本来就是不同的口令。
+ *   · 历史快照目录 `versions-chd` 里的同一常量保持原样，那是历史记录，不改。
+ *   · 换口令后：知道旧口令的设备/人**要重新输入新口令**才拉得到管理员清单。
+ *   ⚠️ **明文口令绝不可写进本文件**：本页与 `index.html` 都是公开托管的，任何人 curl 都能读到
+ *     （本轮就是踩了这个坑，已清理）。
+ *   ⚠️ 换口令的实际效果有限：哈希在公开页面里、口令又是 8 位数字形态，
+ *     无盐 SHA-256 面对 10^8 候选只是毫秒级成本。它挡的是「随手点进来的人」。 */
+const SYNC_PASSWORD_HASH = '6a05e5175268a81846a753699528470abe2556016e1127f6ad9f9f03a88f6090';
 
 async function sha256hex(str) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));

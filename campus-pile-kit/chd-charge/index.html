@@ -78,6 +78,14 @@
   .stat b{font-size:22px; font-weight:600; letter-spacing:-.5px; display:block; line-height:1.2}
   .stat b.free{color:var(--free)}
   .stat span{font-size:11.5px; color:var(--muted)}
+  /* ⑤ 2026-10-21 产品方：进度条换成「空闲插座」卡的滚动统计 ——
+     查询中这张卡是**灰色**，查询结束变**淡绿色**；
+     卡里多一行小字副标「共统计 有效/（有效+无效）插座」。
+     副标**从一开始就在**（占位 `–/（–）`），这样它出现时不会把卡片撑高 → 不产生 CLS。 */
+  .stat--loading{background:#EDEDEA; border-color:#DCDCD6}
+  .stat--loading b{color:#8A8F86}
+  .stat--done{background:#E4F0E2; border-color:#C9DFC4}
+  .stat-sub{display:block; font-size:10.5px; color:var(--hint); margin-top:2px; line-height:1.25}
 
   .card{
     background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
@@ -119,26 +127,10 @@
     border-radius:var(--radius); line-height:1.7;
   }
 
-  /* 前台自动更新开关 */
-  .auto-toggle-card{
-    display:flex; align-items:center; justify-content:space-between; gap:10px;
-    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
-    padding:13px 15px; margin-bottom:12px;
-  }
-  .auto-toggle-text b{font-size:14px; font-weight:600; display:block}
-  .auto-toggle-text small{font-size:12px; color:var(--muted); display:block; margin-top:2px}
-  .switch{position:relative; display:inline-block; width:46px; height:26px; flex:none}
-  .switch input{opacity:0; width:0; height:0}
-  .switch .slider{
-    position:absolute; cursor:pointer; inset:0; border-radius:26px;
-    background:var(--line-strong); transition:.2s;
-  }
-  .switch .slider::before{
-    content:""; position:absolute; height:20px; width:20px; left:3px; top:3px;
-    border-radius:50%; background:#fff; transition:.2s; box-shadow:0 1px 3px rgba(0,0,0,.2);
-  }
-  .switch input:checked + .slider{background:var(--free)}
-  .switch input:checked + .slider::before{transform:translateX(20px)}
+  /* 🔴 2026-10-21 清理：`.auto-toggle-card` / `.auto-toggle-text` / `.switch` / `.slider`
+     这四组样式随「前台自动更新卡」一起下线（④ 把那个开关收进了设置弹窗，
+     弹窗里用的是原生 checkbox + 行内样式，不再用这套开关外观）。
+     **两版都已无任何元素引用**（2026-10-21 同步正式版时清完），别再把这套开关外观加回来。 */
 
   /* 弹窗右下角的「管理员身份」绿色入口 */
   .dlg-footer-right{
@@ -497,16 +489,13 @@
 
   <div class="banner" id="banner" hidden data-page-node-id="x7L6Gbhv1ZDYOfOXiGxOOL"></div>
 
-  <div class="cred" id="cred" hidden data-page-node-id="pgVuBLP1nD869Cjsk7QBtn">
-    <div class="cred-main" data-page-node-id="3OhBRQma69VsXCiOaDk05z">
-      <span class="dot-status" data-page-node-id="J1UK2fsAgnSh6y7XcXhywM"></span>
-      <div class="cred-text" data-page-node-id="K8DDoxDAR86jn3t6m7ujls">
-        <b id="cred-title" data-page-node-id="kiNOw92TFEaRs7PHtXP1I9">凭证状态</b>
-        <small id="cred-sub" data-page-node-id="x8HMnJwJFV2d3lcGaVDhxn"></small>
-      </div>
-    </div>
-    <button class="link-btn" id="cred-edit" data-page-node-id="d6OaUjET2O6dIHeG01NSRf">更新</button>
-  </div>
+  <!-- 🔴 2026-10-21 修 #55：`#cred`（凭证框）**已搬到 `#settings-dialog` 里**，这里不再保留。
+       上一版这里是「**复制**」而不是「搬移」→ 页面上出现**两个** `#cred` / `#cred-title` / `#cred-edit`，
+       而 `getElementById` 只认**文档里靠前的那个**（= 这里这个）→
+       弹窗里那块永远 `hidden`、它那个「更新」按钮也是死的 —— **④ 的效果正好反了**（WorkBuddy 审查发现）。
+       删掉这一块后，`getElementById('cred')` 自然指到弹窗里那个，
+       `paintCred()` 与 `$('cred-edit')` 的绑定**都不用改**。
+       ⚠️ 教训：做「搬迁」必须**旧处删掉 + 新处加上**两边都确认，只加不删就是复制。 -->
 
   <div class="guide" id="guide" hidden data-page-node-id="C4XifYoyPG77isnSV6yObd">
     <h2 data-page-node-id="QzkXmhKoxfMym5k8NLBg9q">先接上一次</h2>
@@ -551,26 +540,18 @@
   </script>
 
   <div class="stats" id="stats" hidden data-page-node-id="5x1j2QDohgutPLD0k1nbee">
-    <div class="stat" data-page-node-id="VF9BnkcoZS3CBHClACttK4"><b class="free" id="s-free" data-page-node-id="8KiCFjRHb57uVEwYg4SeN0">–</b><span data-page-node-id="Mqk5tE3OM0RDro1qnSSyXt">空闲插座</span></div>
+    <div class="stat" id="stat-free" data-page-node-id="VF9BnkcoZS3CBHClACttK4"><b class="free" id="s-free" data-page-node-id="8KiCFjRHb57uVEwYg4SeN0">–</b><span data-page-node-id="Mqk5tE3OM0RDro1qnSSyXt">空闲插座</span><small class="stat-sub" id="s-free-sub">共统计 –/（–）插座</small></div>
+
     <div class="stat" data-page-node-id="UCQnmDQg4sfZE6g9eEA3YZ"><b id="s-busy" data-page-node-id="pN33F2HXrfx0hcB5nJwegB">–</b><span data-page-node-id="sduqE7P2SxNDCFGONIGTHA">正在充电</span></div>
     <div class="stat" data-page-node-id="EvSCvZrMYRFGd0cC9sewCg"><b id="s-time" style="font-size:14px;padding-top:6px" data-page-node-id="3wstmKTUeo1VMQ7z6XI5wN">–</b><span data-page-node-id="WWX2YKA9UKp2MCAXiyTkVE">更新时间</span></div>
   </div>
 
-  <div class="progress" id="progress" hidden>
-    <div class="progress-bar"><span id="progress-fill"></span></div>
-    <div class="progress-text" id="progress-text">正在查询…</div>
-  </div>
-
-  <div class="auto-toggle-card" id="auto-toggle-card" hidden>
-    <div class="auto-toggle-text">
-      <b>前台自动更新</b>
-      <small>打开应用时，每分钟更新设备状态</small>
-    </div>
-    <label class="switch" aria-label="前台自动更新开关">
-      <input type="checkbox" id="auto-refresh-main">
-      <span class="slider"></span>
-    </label>
-  </div>
+  <!-- 🔴 2026-10-21 产品方：**进度条已下线**，改由上面「空闲插座」卡承担进度显示
+       （空闲数递增 + 「共统计 有效/（有效+无效）插座」副标 + 查询中灰、查完淡绿）。
+       原 `<div class="progress" id="progress">…` 整块删除；
+       `.progress*` / `#progress-*` 的 CSS 保留未删，但**已没有任何元素引用**。
+       ⚠️ 改这块时注意：`setProgress` / `hideProgress` 两个函数名保留（调用方不变），
+          只是内部改成驱动 `#stat-free` / `#s-free` / `#s-free-sub`，不再碰 `#progress`。 -->
 
   <div class="toolbar" id="toolbar" hidden>
     <select id="filter-location" aria-label="地址筛选">
@@ -593,7 +574,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.01</div>
+    <div id="app-ver" class="foot-ver">版本 v2.02</div>
   </footer>
 </div>
 
@@ -752,6 +733,19 @@
       <h2 data-page-node-id="FYar4wNT6i9MjN8yuaVBey">设备与设置</h2>
       <button class="link-btn" data-close data-page-node-id="zanNl501XbLAkE3C67gAro">关闭</button>
     </div>
+    <!-- 🔴 2026-10-21 产品方要求：凭证更新框从主页收纳到这里（整块搬来，id 不变，JS 无需改）。
+         显隐仍由 `paintCred()` 控制：没凭证时 `hidden=true` → 弹窗里也不显示这一块。 -->
+    <div class="cred" id="cred" hidden data-page-node-id="pgVuBLP1nD869Cjsk7QBtn">
+      <div class="cred-main" data-page-node-id="3OhBRQma69VsXCiOaDk05z">
+        <span class="dot-status" data-page-node-id="J1UK2fsAgnSh6y7XcXhywM"></span>
+        <div class="cred-text" data-page-node-id="K8DDoxDAR86jn3t6m7ujls">
+          <b id="cred-title" data-page-node-id="kiNOw92TFEaRs7PHtXP1I9">凭证状态</b>
+          <small id="cred-sub" data-page-node-id="x8HMnJwJFV2d3lcGaVDhxn"></small>
+        </div>
+      </div>
+      <button class="link-btn" id="cred-edit" data-page-node-id="d6OaUjET2O6dIHeG01NSRf">更新</button>
+    </div>
+
     <label for="devices-input" data-page-node-id="DGjs0M3GYAb4rdnX7K6jZt">要看的设备，每行一个：<code data-page-node-id="KsL6Gk1UTPQAxSxX9zgksQ">桩号 名称 @地址</code>（地址可省略，新地址会自动加进筛选列表）</label>
     <textarea id="devices-input" placeholder="XLA29464 渭水校区 TY-36 号桩 @渭水-朝晖体育场南&#10;XLA29999 渭土校区 TZ-37 号桩 @思源广场"></textarea>
     <div class="row" data-page-node-id="KXaFTpYMXwCDHfjWFWlXjn">
@@ -761,7 +755,7 @@
     <div class="note" id="devices-cloud-state" style="margin-top:4px"></div>
     <label style="display:flex;align-items:center;gap:9px;margin-top:16px;font-size:13.5px;color:var(--text)" data-page-node-id="hhO9Pq8QS0mqltv6kBPuOQ">
       <input type="checkbox" id="auto-refresh" style="width:auto;min-width:18px;height:18px;padding:0" data-page-node-id="Vi63dqGunNGDQnk4DGAXAP">
-      打开时每分钟自动刷新
+      <span>前台自动更新<small style="display:block;font-size:12px;color:var(--hint)">打开应用时，每分钟更新一次设备状态</small></span>
     </label>
 
     <div class="cloud-block" data-page-node-id="XqxpEXXGe7AZGm5ruJHw4x">
@@ -1465,8 +1459,6 @@ function render(devices, results) {
 
   // 工具栏：有数据才显示
   $('toolbar').hidden = devices.length === 0;
-  const autoCard = $('auto-toggle-card');
-  if (autoCard) autoCard.hidden = devices.length === 0;
 
   // 顶部横幅只保留「凭证失效」这种必须人工处理的提示；
   // 网络波动引起的单设备错误，在卡片内用「设备状态未知，请重新查询」表达，不再弹横幅
@@ -2583,18 +2575,35 @@ function bindMapGestures() {
 
 let busyFlag = false;
 
+/** 「空闲插座」卡的状态：查询中灰、查完淡绿（产品方 2026-10-21 要求） */
+function setFreeCardState(state) {
+  const box = $('stat-free');
+  if (!box) return;
+  box.classList.toggle('stat--loading', state === 'loading');
+  box.classList.toggle('stat--done', state === 'done');
+}
+
+/** 写入滚动中的统计数字：空闲数 + 副标「共统计 有效/（有效+无效）插座」 */
+function setFreeRolling(free, valid, invalid) {
+  const n = $('s-free');
+  if (n) n.textContent = String(free);
+  const sub = $('s-free-sub');
+  if (sub) sub.textContent = `共统计 ${valid}/（${valid + invalid}）插座`;
+}
+
+/* 🔴 2026-10-21 产品方：**进度条下线**，换成「空闲插座」卡上的滚动统计。
+ *
+ * 保留 `setProgress` / `hideProgress` 两个函数名与签名 —— 调用方（refresh 内两处 + finally）
+ * 一个字都不用改，只把内部实现从「驱动 #progress」换成「切 #stat-free 的状态类」。
+ * 数字的写入在 `refresh()` 里的局部函数 `paintRolling()`（因为 `results` 是那边的局部变量）。 */
 function setProgress(done, total) {
-  const el = $('progress');
-  if (!el) return;
-  if (total <= 0) { el.hidden = true; return; }
-  el.hidden = false;
-  $('progress-fill').style.width = (done / total * 100).toFixed(1) + '%';
-  $('progress-text').textContent = `正在查询 ${done}/${total} 个位置`;
+  // 全部查完 → 淡绿；否则（含一上来 done=0）→ 灰
+  setFreeCardState(total > 0 && done >= total ? 'done' : 'loading');
 }
 
 function hideProgress() {
-  const el = $('progress');
-  if (el) el.hidden = true;
+  // 收尾：数字已经是最终值（render() 也会再写一次 s-free），这里只把底色定成淡绿
+  setFreeCardState('done');
 }
 
 async function refresh({ force = false, retried = false } = {}) {
@@ -2662,6 +2671,33 @@ async function refresh({ force = false, retried = false } = {}) {
       render(devices, results);
     };
 
+    /* ⑤ 2026-10-21 产品方：进度条下线，改成「空闲插座」卡上的滚动统计。
+     *
+     * 数字**直接由 results 现算**，而不是自己另起一套累加 ——
+     *   这样和 `render()` 里那个 free 合计**天然同源**，不会出现
+     *   「卡片滚到 137、最终统计却是 133」这种对不上的情况。
+     *
+     * 「无效插座」口径（产品方 2026-10-21 确认）：
+     *   **查询失败 / 没返回合法插座数据的那台桩，按其应有口数（PORTS_PER_DEVICE = 4）计入无效。**
+     *   例：73 台里 70 台各查到 4 口 → 有效 280；3 台查不到 → 无效 12 → 副标 `280/（292）`。
+     *
+     * ⚠️ 判据里带 `rec.at`：**还没查、也没缓存的桩先不计入**（`{at:0, ports:[], error:null}`），
+     *   否则页面刚打开、一台都没查时就会报出一大堆「无效」，看着像坏了。
+     *   有缓存（`at>0`）但没数据的，说明这台确实拿不到 → 计入无效，这是对的。 */
+    const paintRolling = () => {
+      let free = 0, valid = 0, invalid = 0;
+      for (const rec of results) {
+        const ports = rec && rec.ports;
+        if (ports && ports.length) {
+          valid += ports.length;
+          free += ports.filter((p) => p.state === SLOT_FREE).length;
+        } else if (rec && (rec.error || rec.at)) {
+          invalid += PORTS_PER_DEVICE;
+        }
+      }
+      setFreeRolling(free, valid, invalid);
+    };
+
     const worker = async () => {
       while (!aborted) {
         const k = cursor++;
@@ -2681,6 +2717,7 @@ async function refresh({ force = false, retried = false } = {}) {
         }
         done += 1;
         setProgress(done, targets.length);
+        paintRolling();          // 卡片上的空闲数/副标每次也刷新（73 台 × 73 次遍历，可忽略）
         paintThrottled();
       }
     };
@@ -3156,9 +3193,45 @@ async function writeHistory(records) {
       }));
     if (!rows.length) return;
 
-    // 第二步：查-改-写（不依赖唯一约束）
-    let inserted = 0, updated = 0;
-    for (const row of rows) {
+    /* 🔴 2026-10-21 优化（配合 #52）：**本小时已落库的位置不再重复写**。
+     *
+     * 为什么：`refresh()` 每刷新一次就调一次 `writeHistory()`（开着前台自动更新时**每分钟一次**），
+     * 而一个小时内除第一次外**全是白跑** —— 每次都要发一遍查询、再发一遍注定失败的覆盖。
+     * 用 localStorage 记「本小时哪些位置已落库」，跳过的只有已覆盖的位置：
+     *   · 移动端每小时省掉 ~2 × 位置数 次请求
+     *   · 控制台不再每小时刷一条 `[history] 覆盖失败`
+     *
+     * ⚠️⚠️ **必须按位置记，不能只记「本小时写过」**（原本写成整段跳过，被我改掉了）：
+     *   本小时第一次写入时若某个位置一台桩都没回报（平台限流、设备超时，「设备状态未知」那种），
+     *   这个位置**压根不在 `rows` 里**。整段跳过会让它**整小时都没有聚合行** —— 旧代码不会，
+     *   后续那次刷新会把它补插进去。所以只能按位置粒度判重，凑齐了才算这一小时写完。
+     *
+     * ⚠️ 用**独立的键** `cpk.history.wrote`，别复用 `cpk.history.last`
+     *   （那个是 `hourlyHistoryTick` 的「本小时是否已**采集**」，语义不同，混用会互相干扰）。
+     *   值的格式：`{ h: 'YYYY-MM-DDTHH', locs: ['渭水-北门', ...] }`。 */
+    const hk = historyHourKey();
+    let wroteState = null;
+    try { wroteState = store.get('cpk.history.wrote', null); } catch (e) {}
+    const doneLocs = new Set(
+      wroteState && wroteState.h === hk && Array.isArray(wroteState.locs) ? wroteState.locs : []
+    );
+    const todo = rows.filter((r) => !doneLocs.has(r.location));
+    if (!todo.length) {
+      console.log(`[history] 本小时 ${rows.length} 个位置均已落库，跳过重复写入`);
+      return;
+    }
+
+    /* 第二步：**查-无则插**（不依赖唯一约束）
+     *
+     * ⚠️ 2026-10-21 更正：这里原来是「查-改-写」，但 `pile_history` **没有 UPDATE 策略**
+     *   （`pg_policies` 实测只有 `pile_history_read` / `pile_history_insert`），
+     *   所以「有则 UPDATE 覆盖」**永远走不通**，每小时白留一条 `permission denied` 日志。
+     *   好在原实现失败后**不插入**，所以行为一直是「本小时第一个写入者说了算」、表也没涨。
+     *   现在把那次注定失败的 UPDATE **去掉**：有行就跳过，不再发那次请求。
+     *   → **行为与改前完全一致**，只是少一次无效请求、少一条噪音日志。
+     *   口径仍是「每小时一个采样点」（第一个写入者的值），**不是「该小时最后一次采样」**。 */
+    let inserted = 0, skipped = 0;
+    for (const row of todo) {
       try {
         const { data: exist, error: qErr } = await cloudDb()
           .from(HISTORY_TABLE)
@@ -3171,23 +3244,24 @@ async function writeHistory(records) {
 
         const hit = Array.isArray(exist) && exist.length ? exist[0] : null;
         if (hit && hit.id != null) {
-          // 已存在 → 覆盖那一行，表不增长
-          const { error: uErr } = await cloudDb()
-            .from(HISTORY_TABLE)
-            .update({ free: row.free, total: row.total })
-            .eq('id', hit.id);
-          if (uErr) console.warn('[history] 覆盖失败', uErr.message || uErr);
-          else updated += 1;
+          skipped += 1;                 // 本小时已被写过 → 保持原值，不覆盖、不再试 UPDATE
         } else {
           const { error: iErr } = await cloudDb().from(HISTORY_TABLE).insert(row);
-          if (iErr) console.warn('[history] 插入失败', iErr.message || iErr);
-          else inserted += 1;
+          if (iErr) { console.warn('[history] 插入失败', iErr.message || iErr); continue; }
+          inserted += 1;
         }
+        doneLocs.add(row.location);     // 这个位置有下落了（新插入 / 本来就在）
       } catch (e) {
         console.warn('[history] 单行写入异常', e);
       }
     }
-    console.log(`[history] ${hhmmss(now)} 聚合写入：新增 ${inserted} / 覆盖 ${updated}（${rows.length} 个位置）`);
+    console.log(`[history] ${hhmmss(now)} 聚合写入：新增 ${inserted} / 已存在跳过 ${skipped}`
+      + `（本次处理 ${todo.length} / 共 ${rows.length} 个位置）`);
+    // 把「已落库的位置」记下来（可能是部分成功：没落库的下次刷新只补那几个）。
+    // doneLocs 为空就不写这个键；换小时后 `h` 不匹配，自然失效。
+    try {
+      if (doneLocs.size) store.set('cpk.history.wrote', { h: hk, locs: Array.from(doneLocs) });
+    } catch (e) {}
   } catch (e) {
     console.warn('[history] 写入异常', e);
   }
@@ -3984,8 +4058,15 @@ function bindAutoToggle() {
 
 // 管理员密码的 SHA-256 哈希（不存明文）
 const SETTINGS_PASSWORD_HASH = 'a5a7815a7e253e165ce1ebfbc1c7fe93845121fceb8092cbcc076dad8841cb6c';
-// 云端同步密码的 SHA-256 哈希（不存明文）
-const SYNC_PASSWORD_HASH = 'a1a5b81d7d18cf508dd533f9209f3dc851a0eb52e7d3c9b51d5886543eb928e8';
+/* 云端同步密码的 SHA-256 哈希（不存明文）
+ * 🔑 2026-10-21 产品方指示：更换同步口令，旧口令已作废（旧值不留在代码里）。
+ *   · **管理员密码（上一行 `SETTINGS_PASSWORD_HASH`）没动** —— 两把本来就是不同的口令。
+ *   · 历史快照目录 `versions-chd` 里的同一常量保持原样，那是历史记录，不改。
+ *   ⚠️ **明文口令绝不可写进本文件**：`index.html` 是公开托管的，任何人 curl 都能读到，
+ *     写进去等于把口令贴在网上（本轮就是踩了这个坑，已清理）。
+ *   ⚠️ 换口令的实际效果有限：哈希在公开页面里、口令又是 8 位数字形态，
+ *     无盐 SHA-256 面对 10^8 候选只是毫秒级成本。它挡的是「随手点进来的人」，不是真正的访问控制。 */
+const SYNC_PASSWORD_HASH = '6a05e5175268a81846a753699528470abe2556016e1127f6ad9f9f03a88f6090';
 
 async function sha256hex(str) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));

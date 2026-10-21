@@ -70,6 +70,12 @@ def main():
     ix = read("index.html")
     sw = read("sw.js")
     am = read("map-amap.js")
+    # 2026-10-21 加：可见视觉改版（如 #44）未验收时，内测版改引 `map-amap-preview.js`，
+    # 正式版仍引 `map-amap.js` —— 因为 SW 是 stale-while-revalidate，共用同一个文件时
+    # 「只发内测」实际会让正式版用户第二次打开就拿到未验收的 js。
+    # 这里把两份内容并起来做 CSS 类名检查，预览文件不存在时为空串（旧行为不变）。
+    amp = read("map-amap-preview.js")
+    am_all = am + "\n" + amp
     c = Checker()
 
     if not pv or not ix:
@@ -147,9 +153,9 @@ def main():
         )
 
     pv_srcs = script_srcs(pv)
-    pv_v = re.search(r"map-amap\.js\?v=(\d+)", pv_srcs)
+    pv_v = re.search(r"map-amap(?:-preview)?\.js\?v=(\d+)", pv_srcs)
     c.check(bool(pv_v), "preview 引用 map-amap.js 带版本号",
-            f'?v={pv_v.group(1)}' if pv_v else "没找到（高德页签没启用时属正常）")
+            (("?v=" + pv_v.group(1) + ("（内测专用文件）" if "-preview" in pv_srcs else "")) if pv_v else "没找到（高德页签没启用时属正常）"))
 
     ix_srcs = script_srcs(ix)
     if "map-amap.js" in ix_srcs:
@@ -183,8 +189,8 @@ def main():
     # 类名自动从 map-amap.js 里提取（class="x" 与 classList.toggle('x')），
     # 这样以后它新增了带样式的类，这里会自动跟上，不用再改脚本。
     am_classes = sorted(set(
-        re.findall(r'class="([a-z][a-z0-9_-]*)', am)
-        + re.findall(r"classList\.(?:add|toggle|remove)\('([a-z][a-z0-9_-]*)'", am)
+        re.findall(r'class="([a-z][a-z0-9_-]*)', am_all)
+        + re.findall(r"classList\.(?:add|toggle|remove)\('([a-z][a-z0-9_-]*)'", am_all)
     ))
     # 例外：纯状态标记类，显隐由 syncLayers 的 setMap 控制、本来就没有也不需要 CSS 规则。
     # 断言只看「有视觉意义」的类。
@@ -198,7 +204,7 @@ def main():
         for cls in am_classes:
             missing = [n for n, t in (("preview.html", pv), ("index.html", ix)) if not _has_rule(t, cls)]
             c.check(not missing,
-                    f"两版 HTML 都有 .{cls} 样式（map-amap.js 生成的类）",
+                    f"两版 HTML 都有 .{cls} 样式（地图 js 生成的类）",
                     ("缺：" + " / ".join(missing)) if missing else "")
 
     # ---------- 站点目录保洁 ----------

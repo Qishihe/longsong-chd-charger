@@ -127,26 +127,11 @@
     border-radius:var(--radius); line-height:1.7;
   }
 
-  /* 前台自动更新开关 */
-  .auto-toggle-card{
-    display:flex; align-items:center; justify-content:space-between; gap:10px;
-    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
-    padding:13px 15px; margin-bottom:12px;
-  }
-  .auto-toggle-text b{font-size:14px; font-weight:600; display:block}
-  .auto-toggle-text small{font-size:12px; color:var(--muted); display:block; margin-top:2px}
-  .switch{position:relative; display:inline-block; width:46px; height:26px; flex:none}
-  .switch input{opacity:0; width:0; height:0}
-  .switch .slider{
-    position:absolute; cursor:pointer; inset:0; border-radius:26px;
-    background:var(--line-strong); transition:.2s;
-  }
-  .switch .slider::before{
-    content:""; position:absolute; height:20px; width:20px; left:3px; top:3px;
-    border-radius:50%; background:#fff; transition:.2s; box-shadow:0 1px 3px rgba(0,0,0,.2);
-  }
-  .switch input:checked + .slider{background:var(--free)}
-  .switch input:checked + .slider::before{transform:translateX(20px)}
+  /* 🔴 2026-10-21 清理：`.auto-toggle-card` / `.auto-toggle-text` / `.switch` / `.slider`
+     这四组样式随「前台自动更新卡」一起下线（④ 把那个开关收进了设置弹窗，
+     弹窗里用的是原生 checkbox + 行内样式，不再用这套开关外观）。
+     已核实：本页**没有任何元素**再用这几个类（`class="switch"` / `class="slider"` 全项目
+     **只剩 `index.html` 那一处** —— 正式版还没同步 ④，所以那份**必须留着**，同步时再一起清）。 */
 
   /* 弹窗右下角的「管理员身份」绿色入口 */
   .dlg-footer-right{
@@ -530,16 +515,13 @@
 
   <div class="banner" id="banner" hidden data-page-node-id="x7L6Gbhv1ZDYOfOXiGxOOL"></div>
 
-  <div class="cred" id="cred" hidden data-page-node-id="pgVuBLP1nD869Cjsk7QBtn">
-    <div class="cred-main" data-page-node-id="3OhBRQma69VsXCiOaDk05z">
-      <span class="dot-status" data-page-node-id="J1UK2fsAgnSh6y7XcXhywM"></span>
-      <div class="cred-text" data-page-node-id="K8DDoxDAR86jn3t6m7ujls">
-        <b id="cred-title" data-page-node-id="kiNOw92TFEaRs7PHtXP1I9">凭证状态</b>
-        <small id="cred-sub" data-page-node-id="x8HMnJwJFV2d3lcGaVDhxn"></small>
-      </div>
-    </div>
-    <button class="link-btn" id="cred-edit" data-page-node-id="d6OaUjET2O6dIHeG01NSRf">更新</button>
-  </div>
+  <!-- 🔴 2026-10-21 修 #55：`#cred`（凭证框）**已搬到 `#settings-dialog` 里**，这里不再保留。
+       上一版这里是「**复制**」而不是「搬移」→ 页面上出现**两个** `#cred` / `#cred-title` / `#cred-edit`，
+       而 `getElementById` 只认**文档里靠前的那个**（= 这里这个）→
+       弹窗里那块永远 `hidden`、它那个「更新」按钮也是死的 —— **④ 的效果正好反了**（WorkBuddy 审查发现）。
+       删掉这一块后，`getElementById('cred')` 自然指到弹窗里那个，
+       `paintCred()` 与 `$('cred-edit')` 的绑定**都不用改**。
+       ⚠️ 教训：做「搬迁」必须**旧处删掉 + 新处加上**两边都确认，只加不删就是复制。 -->
 
   <div class="guide" id="guide" hidden data-page-node-id="C4XifYoyPG77isnSV6yObd">
     <h2 data-page-node-id="QzkXmhKoxfMym5k8NLBg9q">先接上一次</h2>
@@ -617,7 +599,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.07 · 内测</div>
+    <div id="app-ver" class="foot-ver">版本 v2.08 · 内测</div>
   </footer>
 </div>
 

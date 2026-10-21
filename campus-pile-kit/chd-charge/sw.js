@@ -5,7 +5,7 @@
    云端的同步请求同样不能碰：那是同一域名下的接口，一旦被缓存优先命中，
    手机就会永远读到第一份密文，电脑换了凭证它也换不掉。 */
 
-const CACHE = 'campus-pile-v81';
+const CACHE = 'campus-pile-v82';
 const SHELL = [
   './',
   './index.html',

@@ -610,6 +610,7 @@
   </div>
   <div class="map-tabs" id="map-tabs" role="tablist" aria-label="切换地图">
     <button class="map-tab" data-map="amap" role="tab">渭水校区</button>
+    <button class="map-tab" data-map="wuliu" role="tab">渭水-物流服务中心</button>
     <button class="map-tab" data-map="beimen" role="tab">渭水-北门</button>
     <button class="map-tab on" data-map="chaohui" role="tab">渭水-朝晖体育场南</button>
   </div>
@@ -831,8 +832,9 @@ const KEY_TOKEN = 'cpk.token';
 const KEY_DEVICES = 'cpk.devices';
 const KEY_DEVICES_SCHEMA = 'cpk.devices.schema';
 const KEY_DEVICES_TS = 'cpk.devices.ts';
-const DEVICE_SCHEMA = 3;   // 清单格式版本：2 = 支持「桩号 名称 @地址」+ 任意编号前缀
+const DEVICE_SCHEMA = 4;   // 清单格式版本：2 = 支持「桩号 名称 @地址」+ 任意编号前缀
 /* schema 3（2026-10-21）= 「**新增分区要能自动补进老浏览器**」。
+ * schema 4（2026-10-21）= 再加一个分区（物流服务中心）。
  *
  * 🔴 起因：产品方反馈"更新后还是没显示 20 号楼的充电桩"。查下来是三重原因：
  *   ① 改动还没发布（那是发布问题，见记录）；
@@ -842,10 +844,15 @@ const DEVICE_SCHEMA = 3;   // 清单格式版本：2 = 支持「桩号 名称 @�
  *   ③ 云端还会覆盖回来：`cloudPullDevices()` 发现云端更新就用云端那份覆盖本机（也是 73 台）。
  * 所以「往 DEFAULT_DEVICES 里加设备」这件事，**对老用户是不生效的** —— 必须靠 schema 迁移补。
  *
+ * ⚠️ **每加一个新分区就要把版本号 +1，并把分区挂在新的版本键下**：
+ *   挂在旧版本键下的话，**已经迁到那个版本的浏览器**会走 `schema >= DEVICE_SCHEMA`
+ *   提前返回，拿不到新分区（等于白加）。这正是 schema 4 存在的原因。
+ *
  * 做法：本版本**只补这些分区的默认桩**（而不是"与默认清单全量对齐"）。
  * 这一点是刻意的 —— 全量对齐会把用户**故意删掉**的北门/朝晖老桩又塞回来。 */
 const SCHEMA_ADDED_LOCATIONS = {
-  3: ['渭水-20号楼'],   // E-01~E-24（公路学院 20 号楼，红线段）
+  3: ['渭水-20号楼'],            // E-01~E-24（公路学院 20 号楼，横红线段）
+  4: ['渭水-物流服务中心'],      // W-01~W-12（图上竖红线段，从下到上）
 };
 
 // 腾讯位置服务 key（WebServiceAPI）。填入后地图弹窗自动使用真实地图；
@@ -992,6 +999,27 @@ const DEFAULT_DEVICES = [
   { id: 'XLA35363', code: 'E-22', name: '渭水校区 E-22 号桩', location: '渭水-20号楼' },
   { id: 'XLA31980', code: 'E-23', name: '渭水校区 E-23 号桩', location: '渭水-20号楼' },
   { id: 'XLA35421', code: 'E-24', name: '渭水校区 E-24 号桩', location: '渭水-20号楼' },
+
+  /* 🔌 2026-10-21 新增「渭水-物流服务中心」W-01~W-12（产品方在图上圈的**竖**红线，从下到上排）。
+     清单来自产品方给的 12 行，id **逐行照抄**。
+     ⚠️ 两条**需要产品方复核**的地方（我按"他要的是 W-01~W-12 完整序列"处理了）：
+       ① 产品方那 12 行里 **`W-03` 出现了两次**（XLA28839 / XLA29461），而 **`W-04` 缺失**。
+          12 台设备对应 12 个位置，所以我把**第 4 台 XLA29461 定为 `W-04`**。
+          若实际不是（例如真的是两台 W-03、W-04 另有其桩），把这一行改回去即可 —— 只是显示编号。
+       ② 产品方原文用的是**不换行连字符 `‑`（U+2011）**，不是普通 `-`。这里统一成普通连字符
+          （`W-01`），与 `TY-01` / `E-01` 的写法一致；地图上的短编号会渲染成 `W01`。 */
+  { id: 'XLA55127', code: 'W-01', name: '渭水校区 W-01 号桩', location: '渭水-物流服务中心' },
+  { id: 'XLA29284', code: 'W-02', name: '渭水校区 W-02 号桩', location: '渭水-物流服务中心' },
+  { id: 'XLA28839', code: 'W-03', name: '渭水校区 W-03 号桩', location: '渭水-物流服务中心' },
+  { id: 'XLA29461', code: 'W-04', name: '渭水校区 W-04 号桩', location: '渭水-物流服务中心' },
+  { id: 'XLB04073', code: 'W-05', name: '渭水校区 W-05 号桩', location: '渭水-物流服务中心' },
+  { id: 'XLA29263', code: 'W-06', name: '渭水校区 W-06 号桩', location: '渭水-物流服务中心' },
+  { id: 'XLA29408', code: 'W-07', name: '渭水校区 W-07 号桩', location: '渭水-物流服务中心' },
+  { id: 'XLA28996', code: 'W-08', name: '渭水校区 W-08 号桩', location: '渭水-物流服务中心' },
+  { id: 'XLA29457', code: 'W-09', name: '渭水校区 W-09 号桩', location: '渭水-物流服务中心' },
+  { id: 'XLA35412', code: 'W-10', name: '渭水校区 W-10 号桩', location: '渭水-物流服务中心' },
+  { id: 'XLA36111', code: 'W-11', name: '渭水校区 W-11 号桩', location: '渭水-物流服务中心' },
+  { id: 'XLB04070', code: 'W-12', name: '渭水校区 W-12 号桩', location: '渭水-物流服务中心' },
 ];
 
 const $ = (id) => document.getElementById(id);
@@ -1663,10 +1691,21 @@ const CAMPUS_MAP = {
 const AMAP_MAP = {
   id: 'amap', label: '渭水校区', name: '渭水校区', layout: 'amap',
 };
+/* 「物流服务中心」分区页签（2026-10-21 产品方要求：这个新分区也要有自己的页签）。
+ * ⚠️ 它和北门/朝晖**不一样** —— 那两张是**手绘静态图**（map-beimen.webp / map-clean.webp），
+ *   而物流服务中心没有手绘图，所以它走**高德底图**这条路：
+ *   同一个引擎（`layout:'amap'`），只是打开时把镜头定到 `area` 指的那个分区。
+ *   为此把 `switchMap()` / `openMap()` 里的判据从 `id === 'amap'` 泛化成了 `layout === 'amap'`，
+ *   并给 `amapApplyView()` 加了 `view` 参数。地图 js 侧无需改动。 */
+const WULIU_MAP = {
+  id: 'wuliu', label: '渭水 · 物流服务中心', name: '物流服务中心',
+  layout: 'amap', area: '渭水-物流服务中心',
+};
 // 筛选顺序：渭水校区（高德底图）→ 北门 → 朝晖
 // v1.97：CAMPUS_MAP（9600×3422 静态总览）已从页签和这里移除，底图不再下载；
 //        代码对象保留，恢复只需把 CAMPUS_MAP 加回本行 + 顶部补 data-map="overview" 按钮。
-const MAP_ORDER = [AMAP_MAP, ADDRESS_MAPS['渭水-北门'], ADDRESS_MAPS['_default']];
+// 筛选顺序：渭水校区（高德底图）→ 物流服务中心（高德底图·分区）→ 北门 → 朝晖
+const MAP_ORDER = [AMAP_MAP, WULIU_MAP, ADDRESS_MAPS['渭水-北门'], ADDRESS_MAPS['_default']];
 // 总览图上的分区锚点（底图像素坐标，底图 9600×3422）
 //   labelSide:'left' 把地址名排到点的左边 —— 北门这个点在图上紧挨着底图自己的红色「北门」二字，
 //   标签往右会压住它，往左才读得清。锚点 x=7920 是量的：红字在 4800 图上 bbox x 4032~4196、
@@ -2436,7 +2475,7 @@ function ensureAMap() {
 //    SW 的 stale-while-revalidate 会让正式版用户第二次打开就拿到它 → 等于偷偷上线。
 //    验收通过后：cp map-amap-preview.js map-amap.js，两版 ?v 同升，再删掉这个预览文件。
 //    改了 js 一定要同时改 ?v（SW 缓存优先）。
-      .then(() => loadScriptOnce('map-amap-preview.js?v=3'))
+      .then(() => loadScriptOnce('map-amap-preview.js?v=4'))
       .then(boot)
       .catch(() => done(false));
   });
@@ -2478,7 +2517,13 @@ function onAMapPileClick(ev) {
 }
 
 /** 高德地图套用总览视角 */
-function amapApplyView() {
+/**
+ * `view` = 打开后镜头对准哪个分区键；省略/`'campus'` = 渭水校区总览。
+ * 2026-10-21：加了参数以支持「物流服务中心」页签（它和高德总览是同一个引擎、
+ * 只是落点不同）。`CHD_AMAP.setView(areaKey)` + `applyCamera()` 本来就支持任意分区键
+ * （`zoomToArea()` 走的同一条路），所以地图 js 那边一个字没改。
+ */
+function amapApplyView(view) {
   if (!amapActive || !window.CHD_AMAP) return;
   /* 🐛 修 bug：切回「高德地图」页签时地图显示不出来。
    *
@@ -2500,9 +2545,13 @@ function amapApplyView() {
    */
   $('map-dialog').setAttribute('data-engine', 'amap');
   window.CHD_AMAP.resize();
-  window.CHD_AMAP.setPiles(amapDevices());
-  window.CHD_AMAP.setView('campus');
-  const inView = amapDevices();
+  /* 分区页签（view 非 campus）**只喂该分区的桩** —— 否则「物流服务中心」页签上
+   * 表头会写着「109 个点位」，而页签名字是物流，对不上。
+   * 总览页签（campus）仍是全部桩。 */
+  const areaKey = view && view !== 'campus' ? view : '';
+  const inView = areaKey ? amapDevices().filter((d) => d.location === areaKey) : amapDevices();
+  window.CHD_AMAP.setPiles(inView);
+  window.CHD_AMAP.setView(view || 'campus');
   const freeN = inView.filter((x) => x.free > 0).length;
   $('map-sub').textContent = `${inView.length} 个点位 · ${freeN} 个有空位`;
 }
@@ -2524,10 +2573,12 @@ function switchMap(mapId, focusDeviceId) {
   if (!next) return;
   curMap = next;
   syncMapTabs();
-  // 「高德地图」页签 → 在线底图引擎
-  if (next.id === 'amap') {
+  // 「高德底图」类页签（渭水校区总览 / 物流服务中心分区）→ 在线底图引擎
+  // 2026-10-21：判据从 `id === 'amap'` 改成 `layout === 'amap'`，这样新分区页签
+  //   只要 `layout:'amap'` + `area:'渭水-xx'` 就能复用同一套引擎，不必再抄一遍这段。
+  if (next.layout === 'amap') {
     ensureAMap().then((ok) => {
-      if (ok) { amapApplyView(); return; }
+      if (ok) { amapApplyView(next.area); return; }
       // 高德加载失败：退回北门静态图，别留一片空底（总览图 v1.97 已下线）
       $('map-dialog').removeAttribute('data-engine');
       switchMap('beimen');
@@ -2571,10 +2622,10 @@ function openMap() {
   syncMapTabs();
   const dlg = $('map-dialog');
   if (!dlg.open) dlg.showModal();
-  // 「高德地图」页签 → 在线底图；其余页签 → 腾讯地图（未启用则回落静态图）
-  if (curMap.id === 'amap') {
+  // 「高德底图」类页签 → 在线底图；其余页签 → 腾讯地图（未启用则回落静态图）
+  if (curMap.layout === 'amap') {
     ensureAMap().then((ok) => {
-      if (ok) { amapApplyView(); return; }
+      if (ok) { amapApplyView(curMap.area); return; }
       $('map-dialog').removeAttribute('data-engine');
       switchMap('beimen');
     });

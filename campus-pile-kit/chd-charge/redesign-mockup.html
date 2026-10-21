@@ -364,10 +364,13 @@
      北门实测 144 而不是 37×4=148，朝晖 144 而不是 36×4=144（这个刚好相等）。
    · 三处地点、编号与位置都是真的：来自 DEFAULT_DEVICES 与 map-data.js 的 areas。
    ============================================================================ */
+/* ⚠️ 搬进真实版时这份清单**不能写死** —— 要跟着 `SCHEMA_ADDED_LOCATIONS` / 云端清单走，
+      否则每加一个分区这里就漏一个（WorkBuddy 2026-10-21 提醒：云端已经有 4 处了）。 */
 const PLACES = [
   { loc: '渭水-朝晖体育场南', name: '朝晖体育场南', devs: 36, total: 144, free: 3  },
   { loc: '渭水-北门',         name: '北门',         devs: 37, total: 144, free: 6  },
   { loc: '渭水-20号楼',       name: '20号楼',       devs: 24, total: 96,  free: 31 },
+  { loc: '渭水-物流服务中心', name: '物流服务中心', devs: 12, total: 48,  free: 2  },
 ];
 
 /* 说明：真实版这里会是「按地点聚合后的结果」；
@@ -420,11 +423,17 @@ function drawMap() {
   const xs = D.boundary.map((p) => p[0]), ys = D.boundary.map((p) => p[1]);
   const minx = Math.min(...xs), maxx = Math.max(...xs);
   const miny = Math.min(...ys), maxy = Math.max(...ys);
-  const s = Math.min((VW - PAD * 2) / (maxx - minx), (VH - PAD * 2) / (maxy - miny));
-  const ox = (VW - (maxx - minx) * s) / 2, oy = (VH - (maxy - miny) * s) / 2;
+  /* ⚠️ **X 和 Y 不能用同一个系数**（WorkBuddy 2026-10-21 量出来的）：
+   * 西安 1° 经度 ≈ 92.9km、1° 纬度 ≈ 111km —— 纬度方向每度更长。
+   * 原来两轴共用一个 s，把 2305m × 1385m（真实宽高比 1.66）画成了 1.99，**横向胖 19%**。
+   * 现在先把经纬跨度各自换成米、再取一个缩放比，两轴就等比例了。 */
+  const M_PER_LON = 91890, M_PER_LAT = 110900;
+  const spanMx = (maxx - minx) * M_PER_LON, spanMy = (maxy - miny) * M_PER_LAT;
+  const s = Math.min((VW - PAD * 2) / spanMx, (VH - PAD * 2) / spanMy);
+  const ox = (VW - spanMx * s) / 2, oy = (VH - spanMy * s) / 2;
   // lon→x，lat→y（注意 lat 要翻转，北在上）
-  const X = (lng) => ox + (lng - minx) * s;
-  const Y = (lat) => oy + (maxy - lat) * s;
+  const X = (lng) => ox + (lng - minx) * M_PER_LON * s;
+  const Y = (lat) => oy + (maxy - lat) * M_PER_LAT * s;
   const ring = (pts) => pts.map((p) => `${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(' ');
 
   let out = '';
@@ -448,11 +457,25 @@ function drawMap() {
   });
 
   // 地点数字圆标：位置取 D.areas[loc].line 的**中点**（真实位置，不是编的）
+  /* ⚠️ WorkBuddy 2026-10-21 量出：北门与朝晖的 `line` 中点投影后只差 **47px**，
+   * 而圆标 r=15 + 光晕 r=25 → **必然糊成一团**（①图右上角那两个就是）。
+   * 成因：这两处的 `line` 只是**很短的示意线段**，其中点并不代表地点重心
+   * （真正的重心该用 `D.labelPts` 或写死经纬度）。
+   * 线段型的两个分区（20号楼 / 物流服务中心）不存在这问题 —— 它们本来就是线段。
+   * 这里先用**简单避让**兜住（重叠就往下让一格），真实版应改成正确的位置来源。 */
+  const placedMarks = [];
   PLACES.forEach((p, i) => {
     const a = (D.areas || {})[p.loc];
     if (!a || !a.line) return;
-    const cx = X((a.line[0][0] + a.line[1][0]) / 2);
-    const cy = Y((a.line[0][1] + a.line[1][1]) / 2);
+    let cx = X((a.line[0][0] + a.line[1][0]) / 2);
+    let cy = Y((a.line[0][1] + a.line[1][1]) / 2);
+    // 避让：与已放的圆标距离 < 46px 就往下挪 46px，最多挪 3 次
+    for (let tries = 0; tries < 3; tries++) {
+      const hit = placedMarks.some((m) => Math.hypot(m[0] - cx, m[1] - cy) < 46);
+      if (!hit) break;
+      cy += 46;
+    }
+    placedMarks.push([cx, cy]);
     const st = stateOf(p);
     const isSel = p.loc === sel.loc;
     out += `<g class="mk ${isSel ? 'sel' : ''} ${st.k === 'g' ? 'ok' : ''}" data-loc="${p.loc}" style="cursor:pointer">`
@@ -523,14 +546,14 @@ function cardOf(p) {
       <button class="fav ${on ? 'on' : ''}" data-fav="${p.loc}" title="收藏">${on ? '★' : '☆'}</button>
     </div>
     <p class="meta">${p.loc} · ${p.devs} 台设备</p>
-    <p class="meta2">${p.devs * 4} 个桩位 · 观测到 ${p.total} 个插座</p>
+    <p class="meta2">${p.devs} 个桩位 · 观测到 ${p.total} 个插座</p>
     <div class="numrow">
       <span class="big-n ${numCls}">${p.free}</span>
       <span class="cap">空闲 / ${p.total} 口</span>
       <span class="pill ${st.k}">${st.txt}</span>
     </div>
     <div class="bar"><i class="${st.k === 'g' ? '' : st.k}" style="width:${pct.toFixed(1)}%"></i></div>
-    <div class="foot"><span>实时 · ${new Date().toTimeString().slice(0, 8)}</span><span>→</span></div>
+    <div class="foot"><span>样例数据 · ${new Date().toTimeString().slice(0, 8)}</span><span>→</span></div>
   </div>`;
 }
 

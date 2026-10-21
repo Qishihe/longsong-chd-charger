@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1c684d">
+<title>长安大学充电 · 渭水校区</title>
+<!--
+  ============================================================================
+  长安大学渭水校区 · 主页面（**我们自己的实现**）
+  ============================================================================
+  产品方给了汕大那套 App（`com.stu.chargewatch` v2.0.4）做参考，先后说了两句话：
+    · 「参考它的排版进行布局，保留地图和设备，收藏不需要单独一个界面」
+    · 「不要全部照搬照抄，做一些自己的东西，适配我们的数据」  ← 这份文件按这句做
+
+  所以这份**不是**那份抄来的 `redesign/index.html` 的翻版。区别是刻意的：
+
+  ┌─ 借来的（设计语言，不是代码）──────────────────────────────────────────┐
+  │ · 配色体系：偏绿的白底 / 深墨绿正文 / 陶土红-棕褐-绿 三态可用性色      │
+  │ · 版式节奏：分段页签 + 圆角大卡 + 大字号 tabular 数字 + 细进度条      │
+  │ · 交互模式：手机上底部导航、地图浮动控件、编号地点胶囊、筛选胶囊      │
+  │ · 那套「[data-avail] 四个变量驱动全部可用性配色」的做法（很好用，学） │
+  └───────────────────────────────────────────────────────────────────────┘
+  ┌─ 我们自己的 ─────────────────────────────────────────────────────────┐
+  │ 1. **类名与结构全新**（`cp-` 前缀）。不是复制选择器再改值。            │
+  │ 2. **卡片主语 = 地点，但内容按我们的模型长**：                        │
+  │    地点卡 = 大字号「空闲/总口」+ 三态 + 进度条 + **桩位小列表**；      │
+  │    每根桩**只有 4 个口**（他们的设备是 20 口，形状完全不同）。         │
+  │ 3. **地图用我们的真实几何**：直接读 `../map-data.js`                │
+  │    （渭水校区的边界/建筑/水域，真实经纬度），不是他们的手绘矢量。      │
+  │ 4. **我们自己独有的两块**：                                          │
+  │    · 「近 7 天分时占用率」——他们的 App 没有历史统计，我们有          │
+  │    · 「4 处地点 / 109 台桩」的真实分组（朝晖/北门/20号楼/物流中心）  │
+  │ 5. **两个页面**（地图 / 设备），收藏降级为**筛选胶囊**，不做第三页。  │
+  │ 6. **修掉我上版样张被量出的三个缺陷**（详见下面 MARKER_LAYOUT 注释）。 │
+  └───────────────────────────────────────────────────────────────────────┘
+
+  ⚠️ 数据说明：**空闲数是样例数据**（只为把三态和进度条都展示出来）；
+     地点名、桩数、编号、插座数、以及校园几何**都是真的**（来自
+     `preview.html` 的 `DEFAULT_DEVICES` 与 `map-data.js`）。
+-->
+<style>
+/* ===================== 令牌：配色体系承自参考，数值是我们的 ===================== */
+:root{
+  --bg:#f6f7f3; --paper:#fff; --ink:#1f3a30; --muted:#7e8c83; --line:#e6ebe3;
+  --green:#1c684d; --green-dark:#164d3b; --green-soft:#edf4eb;
+  --radius:20px;
+  --tab-h:54px; --nav-h:64px;
+  /* 可用性三态 + 未知：一套变量驱动全部配色（借来的做法，见文件头说明） */
+  --av-fill:#687681; --av-text:#626e79; --av-soft:#edf0f3; --av-on:#fff;
+  font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;
+}
+[data-av="full"]{--av-fill:#c3443d; --av-text:#ac322c; --av-soft:#fcecea}
+[data-av="low"] {--av-fill:#d3a22b; --av-text:#875b00; --av-soft:#fff4d8}
+[data-av="ok"]  {--av-fill:#23835d; --av-text:#166d49; --av-soft:#e7f4ec}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5;
+     -webkit-font-smoothing:antialiased;padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom))}
+h1,h2,h3,p{margin:0}
+button,input,select{font:inherit;color:inherit}
+button{border:0;background:none;cursor:pointer}
+.wrap{max-width:460px;margin:0 auto;padding:0 16px}
+.num{font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+
+/* ===================== 顶栏 ===================== */
+.cp-top{display:flex;align-items:center;gap:12px;height:58px}
+.cp-brand{font-size:17px;font-weight:700;letter-spacing:.02em;display:flex;align-items:baseline;gap:8px}
+.cp-brand span{font-size:9px;font-weight:500;letter-spacing:.14em;color:#9aa69b;
+               border-left:1px solid #d9e1d5;padding-left:8px}
+.cp-chip-campus{margin-left:auto;font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px}
+.cp-dot{width:6px;height:6px;border-radius:50%;background:#70957a;flex:none;display:inline-block}
+
+/* ===================== 页签（两个，不是三个） ===================== */
+.cp-tabs{display:flex;gap:22px;border-bottom:1px solid var(--line);margin-bottom:14px}
+.cp-tabs button{display:flex;align-items:center;gap:6px;min-height:44px;padding:0 1px 11px;
+                font-size:13px;color:#899486;position:relative}
+.cp-tabs button[aria-selected="true"]{color:var(--green);font-weight:650}
+.cp-tabs button[aria-selected="true"]::after{content:"";position:absolute;left:0;right:0;bottom:-1px;
+                height:2px;border-radius:2px;background:var(--green)}
+.cp-tabs .tcount{font-size:10px;background:#e9eee3;color:#839477;border-radius:5px;padding:0 5px}
+
+/* ===================== 地图卡 ===================== */
+.cp-mapcard{background:#f4f7ef;border:1px solid #e1e8d9;border-radius:var(--radius);overflow:hidden}
+.cp-maphead{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 9px;
+            font-size:10px;color:#9aa58e}
+.cp-maphead b{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#5f7359}
+.cp-stage{position:relative;height:330px;overflow:hidden}
+.cp-stage svg{display:block;width:100%;height:100%}
+.cp-north{position:absolute;left:14px;top:10px;text-align:center;color:#8b9b7d;pointer-events:none}
+.cp-north b{display:block;font-size:20px;font-weight:400;line-height:1}
+.cp-north span{font-size:9px}
+.cp-ctl{position:absolute;right:12px;top:12px;background:#fff;border:1px solid #e5ebdf;border-radius:12px;
+        box-shadow:0 4px 16px #324c1710;padding:4px;display:flex;flex-direction:column}
+.cp-ctl button{width:32px;height:32px;display:grid;place-items:center;color:#6c825c;font-size:18px;border-radius:8px}
+.cp-ctl i{height:1px;background:var(--line);margin:4px 6px;display:block}
+.cp-sel{position:absolute;left:12px;right:64px;bottom:11px;display:flex;align-items:center;gap:10px;
+        background:#fffefb;border:1px solid #e3e9da;border-radius:14px;padding:10px 13px 10px 10px;
+        box-shadow:0 5px 20px #2c41110b;text-align:left}
+.cp-sel .ic{width:34px;height:34px;flex:none;border-radius:10px;display:grid;place-items:center;
+            background:var(--av-soft);color:var(--av-text);font-size:17px}
+.cp-sel b{display:block;font-size:14px;font-weight:700}
+.cp-sel small{display:block;font-size:10.5px;color:#9ba68f;margin-top:1px}
+.cp-sel .go{margin-left:auto;color:#889e7b;font-size:17px}
+.cp-mapfoot{min-height:40px;padding:11px 16px;display:flex;justify-content:space-between;align-items:center;
+            gap:8px;border-top:1px solid #e7ecdf;color:#a1ac93;font-size:9px}
+.cp-mapfoot span{display:flex;align-items:center;gap:5px}
+.cp-legend{display:flex;flex-wrap:wrap;gap:8px 12px;padding:10px 16px 12px;background:#fff;font-size:10px}
+.cp-legend span{display:flex;align-items:center;gap:5px;color:#62705e}
+.cp-legend i{width:8px;height:8px;border-radius:50%;flex:none;background:var(--av-fill)}
+.cp-legend span[data-av]{--av-fill:#687681}
+.cp-legend span[data-av="full"]{--av-fill:#c3443d}
+.cp-legend span[data-av="low"]{--av-fill:#d3a22b}
+.cp-legend span[data-av="ok"]{--av-fill:#23835d}
+/* 地点编号胶囊 */
+.cp-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;padding:0 14px 14px;background:#fff}
+.cp-picker button{display:flex;align-items:center;gap:7px;padding:8px 9px;border:1px solid #e6ebdf;
+                  border-radius:10px;text-align:left;font-size:11.5px;min-width:0;min-height:40px;color:#718269}
+.cp-picker button i{width:19px;height:19px;flex:none;border-radius:50%;display:grid;place-items:center;
+                    background:#edf2e7;color:#6f8561;font-size:10px;font-style:normal}
+.cp-picker button.active{background:var(--av-soft);border-color:var(--av-fill);color:var(--av-text)}
+.cp-picker button.active i{background:var(--av-fill);color:var(--av-on)}
+
+/* ===================== 分节标题 / 工具条 ===================== */
+.cp-h{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:22px 0 10px}
+.cp-h h2{font-size:17px;font-weight:700;letter-spacing:-.02em}
+.cp-h p{font-size:11px;color:var(--hint);color:var(--muted);margin-top:2px}
+.cp-search{display:flex;align-items:center;gap:9px;background:var(--paper);border:1px solid var(--line);
+           border-radius:12px;height:42px;padding:0 13px;margin-bottom:10px}
+.cp-search input{border:0;outline:0;background:none;flex:1;font-size:13.5px;min-width:0}
+.cp-filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}
+.cp-filters button{font-size:11px;padding:6px 13px;border:1px solid #e2e8db;border-radius:20px;
+                   color:#8d9d80;background:#fff}
+.cp-filters button[aria-pressed="true"]{background:#e4edda;color:#557642;border-color:#d5e2c6}
+.cp-sorts{display:flex;align-items:center;gap:8px;margin-left:auto}
+.cp-sorts label{font-size:10px;color:#99a38d}
+.cp-sorts select{background:#fff;border:1px solid #e3e9dc;border-radius:8px;color:#718264;font-size:11px;padding:6px 8px}
+
+/* ===================== 地点卡：大字号 + 进度条 + 桩位小列表 ===================== */
+.cp-list{display:grid;gap:11px}
+.cp-card{background:var(--paper);border:1px solid #e3e9dc;border-radius:17px;padding:15px 16px 13px}
+.cp-card .top{display:flex;align-items:flex-start;gap:8px}
+.cp-card h3{font-size:16px;font-weight:750;letter-spacing:-.02em;flex:1;min-width:0}
+.cp-card .fav{font-size:16px;line-height:1;color:#a4b295;padding:2px}
+.cp-card .fav[aria-pressed="true"]{color:#8caa6a}
+.cp-meta{font-size:11px;color:#8f9f81;margin-top:4px}
+.cp-row{display:flex;align-items:baseline;gap:8px;margin:11px 0 9px}
+/* 大数字：**主语是地点**（他们的卡片也是一个地点），但我们分母是「插座口数」，
+   而且旁边直接给出「N 台桩」——因为我们的模型是「若干台 4 口桩聚成一个地点」 */
+.cp-row .big{font-size:38px;font-weight:650;line-height:1;color:var(--av-text);
+             font-variant-numeric:tabular-nums;letter-spacing:-.05em}
+.cp-row .unit{font-size:10.5px;color:#99a28e}
+.cp-badge{margin-left:auto;font-size:10.5px;font-weight:600;border-radius:20px;padding:5px 11px;
+          background:var(--av-soft);color:var(--av-text)}
+.cp-bar{height:5px;border-radius:3px;background:#eff3e9;overflow:hidden}
+.cp-bar i{display:block;height:100%;border-radius:3px;background:var(--av-fill)}
+.cp-plies{margin-top:11px;padding-top:10px;border-top:1px solid var(--line);
+          display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:6px}
+/* 每根桩一个小块：4 个口用 4 个小格表示 —— 这是**我们模型特有的**，他们没有 */
+.cp-pile{border:1px solid #e8ede2;border-radius:9px;padding:6px 7px;text-align:left}
+.cp-pile b{display:block;font-size:11px;font-weight:650;letter-spacing:-.01em}
+.cp-pile .ports{display:flex;gap:3px;margin-top:5px}
+.cp-pile .ports i{width:100%;height:4px;border-radius:2px;background:#d8e2cf}
+.cp-pile .ports i.busy{background:#e2b7ae}
+.cp-pile .ports i.off{background:#dfe3dc}
+.cp-pile small{display:block;font-size:9px;color:#a7af9d;margin-top:4px}
+
+/* ===================== 我们独有的：近 7 天分时占用率 ===================== */
+.cp-usage{margin-top:22px;background:var(--paper);border:1px solid var(--line);
+          border-radius:var(--radius);padding:15px 16px 13px}
+.cp-usage h2{font-size:15px;font-weight:700}
+.cp-usage .sub{font-size:10.5px;color:var(--muted);margin-top:3px}
+.cp-hours{display:flex;align-items:flex-end;gap:2px;height:76px;margin:13px 0 6px}
+.cp-hours div{flex:1;background:#e4edda;border-radius:2px 2px 0 0;min-height:2px}
+.cp-hours div.hot{background:#8fb27a}
+.cp-ticks{display:flex;justify-content:space-between;font-size:9px;color:#a9b3a0}
+.cp-usage .note{font-size:9.5px;color:#a9b3a0;margin-top:9px;padding-top:9px;border-top:1px solid var(--line)}
+
+/* ===================== 底部导航：**两项** ===================== */
+.cp-nav{position:fixed;left:0;right:0;bottom:0;z-index:40;height:var(--nav-h);
+        padding-bottom:env(safe-area-inset-bottom);background:#fbfcf8ee;backdrop-filter:blur(15px);
+        border-top:1px solid #e2e8db;display:flex;align-items:center}
+.cp-nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+               font-size:10px;color:#8d9a8b;height:100%;justify-content:center}
+.cp-nav button[aria-selected="true"]{color:var(--green);font-weight:650}
+.cp-nav .i{font-size:19px;line-height:1}
+.cp-empty{background:var(--paper);border:1px dashed #dfe5d8;border-radius:var(--radius);
+          padding:34px 18px;text-align:center;color:var(--hint);color:var(--muted);font-size:12.5px;line-height:1.9}
+.pg{display:none} .pg.on{display:block}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="cp-top">
+    <div class="cp-brand">长安大学充电<span>CHD CHARGE</span></div>
+    <div class="cp-chip-campus"><span class="cp-dot"></span>渭水校区</div>
+  </header>
+
+  <!-- 两个页签（不是三个）：收藏已降级为设备页的筛选胶囊 -->
+  <nav class="cp-tabs" role="tablist">
+    <button data-page="map" role="tab" aria-selected="true">地图找桩</button>
+    <button data-page="dev" role="tab" aria-selected="false">全部设备<span class="tcount" id="tabCount">–</span></button>
+  </nav>
+
+  <!-- ==================== ① 地图 ==================== -->
+  <section class="pg on" id="pg-map">
+    <div class="cp-mapcard">
+      <div class="cp-maphead">
+        <b><span class="cp-dot"></span>校园充电地图</b>
+        <span><span id="locCount">–</span> 处地点 · 方位示意</span>
+      </div>
+      <div class="cp-stage">
+        <svg id="map" viewBox="0 0 700 470" preserveAspectRatio="xMidYMid meet" role="img" aria-label="渭水校区示意图"></svg>
+        <div class="cp-north"><b>↑</b><span>北</span></div>
+        <div class="cp-ctl">
+          <button title="定位所选地点" id="focusBtn">◎</button>
+          <button title="看全部" id="allBtn">▤</button>
+          <i></i>
+          <button title="放大" id="zin">＋</button>
+          <button title="缩小" id="zout">−</button>
+        </div>
+        <button class="cp-sel" id="selCard">
+          <span class="ic">⚡</span>
+          <span><b id="selName">–</b><small id="selMeta">–</small></span>
+          <span class="go">→</span>
+        </button>
+      </div>
+      <div class="cp-mapfoot">
+        <span><span class="cp-dot"></span>编号对应下方地点</span>
+        <span>拖动 / 双指缩放</span>
+      </div>
+      <div class="cp-legend">
+        <span data-av="full"><i></i>已满</span>
+        <span data-av="low"><i></i>较少 · ≤25%</span>
+        <span data-av="ok"><i></i>充足 · &gt;25%</span>
+        <span data-av=""><i></i>待更新</span>
+      </div>
+      <div class="cp-picker" id="picker"></div>
+    </div>
+
+    <!-- 我们独有的那块：他们的 App 没有历史统计 -->
+    <section class="cp-usage">
+      <h2>近 7 天分时占用率</h2>
+      <p class="sub">按小时聚合，纵轴为该时段的平均占用比例</p>
+      <div class="cp-hours" id="hours"></div>
+      <div class="cp-ticks"><span>0 时</span><span>6</span><span>12</span><span>18</span><span>23 时</span></div>
+      <p class="note">样例数据。真实版由云端 `pile_history` 的整点聚合行算出，只在打开时读一次。</p>
+    </section>
+  </section>
+
+  <!-- ==================== ② 设备 ==================== -->
+  <section class="pg" id="pg-dev">
+    <div class="cp-h">
+      <div>
+        <h2>全部充电设备</h2>
+        <p id="devCap">–</p>
+      </div>
+      <div class="cp-sorts">
+        <label for="sort">排序</label>
+        <select id="sort">
+          <option value="free">空闲最多</option>
+          <option value="rate">空闲率</option>
+          <option value="name">地点名</option>
+        </select>
+      </div>
+    </div>
+
+    <label class="cp-search">🔍<input id="q" type="search" placeholder="搜索地点或桩号" autocomplete="off"></label>
+
+    <!-- 收藏在这里，不再占一个页面 -->
+    <div class="cp-filters" role="group" aria-label="筛选">
+      <button data-f="all" aria-pressed="true">全部</button>
+      <button data-f="fav" aria-pressed="false">我的收藏</button>
+      <button data-f="free" aria-pressed="false">当前有空位</button>
+      <button data-f="full" aria-pressed="false">已满</button>
+    </div>
+
+    <div class="cp-list" id="list"></div>
+  </section>
+
+</div>
+
+<nav class="cp-nav" role="tablist">
+  <button data-page="map" role="tab" aria-selected="true"><span class="i">▤</span>地图</button>
+  <button data-page="dev" role="tab" aria-selected="false"><span class="i">▦</span>设备</button>
+</nav>
+
+<!-- 真实校园几何：渭水校区边界 / 建筑 / 水域 / 地点线段（GCJ-02） -->
+<script src="../map-data.js"></script>
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+
+  /* ===================== 数据：形状按**我们的模型** =====================
+   * · 我们的一张卡 = 一个**地点**，下设若干台桩，**每台桩 4 个口**。
+   *   （参考对象那边一台设备就是 20 口，形状完全不一样 —— 所以卡片内部是我们的设计。）
+   * · 地点名 / 桩数 / 插座口数 / 桩号规则**都是真的**，来自 `preview.html` 的 `DEFAULT_DEVICES`。
+   * · 空闲数是样例，只为把三态与进度条都呈现出来。
+   * · 朝晖 144 口、北门 144 口是**观测到的实际插座数**，不是「桩数×4」
+   *   （北门 37×4=148，会多算 4 —— 与 #51 那次修正口径一致）。 */
+  const LOCS = [
+    { key:'渭水-朝晖体育场南', name:'朝晖体育场南', n:36, ports:144, free:3,  gen:'TY' },
+    { key:'渭水-北门',         name:'北门',         n:37, ports:144, free:6,  gen:'BM' },
+    { key:'渭水-20号楼',       name:'20号楼',       n:24, ports:96,  free:31, gen:'E'  },
+    { key:'渭水-物流服务中心', name:'物流服务中心', n:12, ports:48,  free:2,  gen:'W'  },
+  ];
+  /* 桩号生成（与我们线上清单一致）：
+     朝晖 TY-01…TY-36；20号楼 E-01…E-24；物流 W-01…W-12；
+     北门是四组 A/B/C/D（6/6/11/14 = 37）—— 所以单独一个函数。 */
+  const pad2 = (n) => String(n).padStart(2, '0');
+  function codesOf(loc) {
+    if (loc.gen === 'BM') {
+      const out = [];
+      for (let i = 1; i <= 6;  i++) out.push('A' + pad2(i));
+      for (let i = 1; i <= 6;  i++) out.push('B' + pad2(i));
+      for (let i = 1; i <= 11; i++) out.push('C' + pad2(i));
+      for (let i = 1; i <= 14; i++) out.push('D' + pad2(i));
+      return out;
+    }
+    return Array.from({ length: loc.n }, (_, i) => loc.gen + '-' + pad2(i + 1));
+  }
+  LOCS.forEach((l) => { l.codes = codesOf(l); });
+
+  /* 每根桩的 4 个口状态（样例）：把地点的空闲数按顺序铺到各桩上，
+     剩下的口里再随机标一部分为占用 —— 只为了让「4 个小格」看起来像真的。 */
+  let seed = 20261021;
+  const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+  LOCS.forEach((l) => {
+    let left = l.free;
+    l.piles = l.codes.map((code) => {
+      const ports = [];
+      for (let i = 0; i < 4; i++) {
+        if (left > 0 && rnd() < 0.45) { ports.push('free'); left--; }
+        else ports.push(rnd() < 0.06 ? 'off' : 'busy');
+      }
+      return { code, ports };
+    });
+    // 剩余的样例空闲额度补给前几台，保证合计对得上
+    for (let i = 0; left > 0 && i < l.piles.length; i++) {
+      for (let k = 0; k < 4 && left > 0; k++) {
+        if (l.piles[i].ports[k] !== 'free') { l.piles[i].ports[k] = 'free'; left--; }
+      }
+    }
+  });
+
+  const stateOf = (l) => {
+    if (!l.ports) return 'unknown';
+    if (l.free <= 0) return 'full';
+    return l.free / l.ports <= 0.25 ? 'low' : 'ok';
+  };
+  const badgeOf = { full:'已满', low:'空位较少', ok:'空位充足', unknown:'待更新' };
+
+  /* ===================== 页签 ===================== */
+  function go(page) {
+    ['map','dev'].forEach((p) => $('pg-' + p).classList.toggle('on', p === page));
+    document.querySelectorAll('[data-page]').forEach((b) => {
+      if (b.closest('.cp-nav')) b.setAttribute('aria-selected', String(b.dataset.page === page));
+      else b.setAttribute('aria-selected', String(b.dataset.page === page));
+    });
+    window.scrollTo({ top:0 });
+  }
+  document.querySelectorAll('.cp-tabs button, .cp-nav button').forEach((b) => {
+    b.addEventListener('click', () => go(b.dataset.page));
+  });
+
+  /* ===================== 示意地图 =====================
+   * 几何**全部来自 `map-data.js`**（真实经纬度），不是手绘。
+   *
+   * MARKER_LAYOUT —— 这里修掉我上一版样张被量出的三个缺陷：
+   *   ① 上一版 X/Y 共用一个缩放系数 → 横向被拉伸（西安 1°经≈92.9km、1°纬≈111km）。
+   *      现在两轴各自换算成米再取缩放比。
+   *   ② 上一版把地点的圆标放在 `areas[loc].line` 的**中点**，而北门/朝晖那两个 line
+   *      是很短的示意线段、中点不代表地点重心 → 两个圆标只差 47px，必然重叠。
+   *      现在改成：**先取该地点线段的中点作为起点，再做两轮两两斥力分离**，
+   *      并把右上角那块「浮动控件」划为**禁入区**（那是上一版最容易压住的死角）。
+   *   ③ 上一版底部大片留白。现在地图舞台高度按我们的容器比例给（330px），
+   *      下面是图例 + 地点胶囊，填满一屏。
+   */
+  function drawMap() {
+    const svg = $('map'), D = window.CHD_MAP;
+    if (!D || !D.boundary) { svg.innerHTML = '<text x="350" y="235" text-anchor="middle" fill="#8A9187" font-size="13">map-data.js 未加载</text>'; return; }
+    const VW = 700, VH = 470, PAD = 14;
+    const xs = D.boundary.map(p => p[0]), ys = D.boundary.map(p => p[1]);
+    const minx = Math.min(...xs), maxx = Math.max(...xs);
+    const miny = Math.min(...ys), maxy = Math.max(...ys);
+    const M_LON = 91890, M_LAT = 110900;                       // 西安地区的每度米数（见上面 ①）
+    const spanX = (maxx - minx) * M_LON, spanY = (maxy - miny) * M_LAT;
+    const s = Math.min((VW - PAD*2) / spanX, (VH - PAD*2) / spanY);
+    const ox = (VW - spanX * s) / 2, oy = (VH - spanY * s) / 2;
+    const X = (lng) => ox + (lng - minx) * M_LON * s;
+    const Y = (lat) => oy + (maxy - lat) * M_LAT * s;
+    const ring = (pts) => pts.map(p => X(p[0]).toFixed(1) + ',' + Y(p[1]).toFixed(1)).join(' ');
+
+    let out = '<rect width="' + VW + '" height="' + VH + '" fill="#f2f5ed"/>';
+    out += '<polygon points="' + ring(D.boundary) + '" fill="#e8efe3" stroke="#cdddc6" stroke-width="1.2"/>';
+    (D.water || []).forEach(w => (w.p || []).forEach(r => { out += '<polygon points="' + ring(r) + '" fill="#cfe3ea"/>'; }));
+    (D.venues || []).forEach(v => (v.p || []).forEach(r => { out += '<polygon points="' + ring(r) + '" fill="#e5ebd9" stroke="#d3ddc3" stroke-width=".8"/>'; }));
+    (D.buildings || []).forEach(b => (b.p || []).forEach(r => { out += '<polygon points="' + ring(r) + '" fill="#ece5d7" stroke="#ddd3bf" stroke-width=".8"/>'; }));
+
+    /* 圆标位置：line 中点 → 两轮斥力分离 → 避开右上角控件禁入区（见上面 ②） */
+    const KEEP_OUT = { x0: VW - 92, y0: 0, x1: VW, y1: 108 };
+    const marks = LOCS.map((l) => {
+      const a = (D.areas || {})[l.key];
+      const mid = a && a.line ? [(a.line[0][0] + a.line[1][0]) / 2, (a.line[0][1] + a.line[1][1]) / 2] : null;
+      return mid ? { l, x: X(mid[0]), y: Y(mid[1]) } : null;
+    }).filter(Boolean);
+
+    for (let pass = 0; pass < 2; pass++) {
+      for (let i = 0; i < marks.length; i++) {
+        for (let j = i + 1; j < marks.length; j++) {
+          const a = marks[i], b = marks[j];
+          let dx = b.x - a.x, dy = b.y - a.y;
+          let d = Math.hypot(dx, dy) || 0.01;
+          const MIN = 46;                                   // 圆标 r=14 + 光晕 22 → 46 才不叠
+          if (d < MIN) {
+            const push = (MIN - d) / 2 / d;
+            a.x -= dx * push; a.y -= dy * push;
+            b.x += dx * push; b.y += dy * push;
+          }
+        }
+      }
+      marks.forEach((m) => {                                // 禁入区：往左推出去
+        if (m.x > KEEP_OUT.x0 && m.y < KEEP_OUT.y1) m.x = KEEP_OUT.x0 - 18;
+      });
+    }
+
+    marks.forEach((m, i) => {
+      const st = stateOf(m.l);
+      const isSel = m.l.key === sel.key;
+      const r = 14;
+      out += '<g class="mk" data-key="' + m.l.key + '" style="cursor:pointer" data-av="' + (st === 'unknown' ? '' : st) + '">'
+           + '<circle cx="' + m.x.toFixed(1) + '" cy="' + m.y.toFixed(1) + '" r="' + (isSel ? 27 : 22) + '" fill="' + fillOf(st) + '" opacity=".18"/>'
+           + '<circle cx="' + m.x.toFixed(1) + '" cy="' + m.y.toFixed(1) + '" r="' + r + '" fill="' + fillOf(st) + '" stroke="#fff" stroke-width="2.5"/>'
+           + '<text x="' + m.x.toFixed(1) + '" y="' + (m.y + 4.5).toFixed(1) + '" text-anchor="middle" font-size="13" font-weight="700" fill="' + (st === 'unknown' ? '#fff' : '#fff') + '">' + (i + 1) + '</text>'
+           + '</g>';
+      if (isSel) {                                          // 选中项的白色名牌放**下方**，不再压控件
+        const w = m.l.name.length * 13 + 20;
+        out += '<g><rect x="' + (m.x - w/2).toFixed(1) + '" y="' + (m.y + 20).toFixed(1) + '" width="' + w + '" height="24" rx="6" fill="#fff" stroke="#e0e6d8"/>'
+             + '<text x="' + m.x.toFixed(1) + '" y="' + (m.y + 36).toFixed(1) + '" text-anchor="middle" font-size="12" font-weight="700" fill="#1f3a30">' + m.l.name + '</text></g>';
+      }
+    });
+    svg.innerHTML = out;
+    svg.querySelectorAll('.mk').forEach((g) => {
+      g.addEventListener('click', () => {
+        sel = LOCS.find(l => l.key === g.dataset.key) || sel;
+        render();
+      });
+    });
+  }
+  const fillOf = (st) => st === 'full' ? '#c3443d' : st === 'low' ? '#d3a22b' : st === 'ok' ? '#23835d' : '#687681';
+
+  /* ===================== 渲染 ===================== */
+  let sel = LOCS[0], filter = 'all', sortBy = 'free', q = '', favs = new Set();
+
+  function visible() {
+    let arr = LOCS.slice();
+    if (q) arr = arr.filter(l => (l.name + l.key + l.codes.join(' ')).toLowerCase().includes(q.toLowerCase()));
+    if (filter === 'fav')  arr = arr.filter(l => favs.has(l.key));
+    if (filter === 'free') arr = arr.filter(l => l.free > 0);
+    if (filter === 'full') arr = arr.filter(l => l.free <= 0);
+    if (sortBy === 'free') arr.sort((a, b) => b.free - a.free);
+    if (sortBy === 'rate') arr.sort((a, b) => b.free / b.ports - a.free / a.ports);
+    if (sortBy === 'name') arr.sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+    return arr;
+  }
+
+  function pickerHTML() {
+    return LOCS.map((l, i) => {
+      const st = stateOf(l);
+      return '<button data-key="' + l.key + '" data-av="' + (st === 'unknown' ? '' : st) + '"'
+           + (l.key === sel.key ? ' class="active"' : '') + '>'
+           + '<i>' + (i + 1) + '</i><span>' + l.name + '</span></button>';
+    }).join('');
+  }
+
+  function cardHTML(l) {
+    const st = stateOf(l), pct = Math.max(0, Math.min(1, l.free / l.ports)) * 100;
+    const on = favs.has(l.key);
+    // 桩位小列表：只展开前 8 台，避免卡片过长（我们的模型一台桩只有 4 口，列全没意义）
+    const head = l.piles.slice(0, 8).map(p =>
+      '<div class="cp-pile"><b>' + p.code + '</b><span class="ports">'
+      + p.ports.map(x => '<i class="' + x + '"></i>').join('')
+      + '</span><small>' + p.ports.filter(x => x === 'free').length + '/4 空闲</small></div>').join('');
+    return '<article class="cp-card" data-av="' + st + '" data-key="' + l.key + '">'
+      + '<div class="top"><h3>' + l.name + '</h3>'
+      + '<button class="fav" data-fav="' + l.key + '" aria-pressed="' + on + '" title="收藏">' + (on ? '★' : '☆') + '</button></div>'
+      + '<p class="cp-meta">' + l.key + ' · ' + l.n + ' 台桩</p>'
+      + '<div class="cp-row"><span class="big num">' + l.free + '</span>'
+      + '<span class="unit">空闲 / ' + l.ports + ' 个插座</span>'
+      + '<span class="cp-badge">' + badgeOf[st] + '</span></div>'
+      + '<div class="cp-bar"><i style="width:' + pct.toFixed(1) + '%"></i></div>'
+      + '<div class="cp-plies">' + head + '</div>'
+      + '</article>';
+  }
+
+  function render() {
+    $('locCount').textContent = LOCS.length;
+    $('tabCount').textContent = LOCS.reduce((a, l) => a + l.n, 0);
+    const st = stateOf(sel);
+    $('selCard').setAttribute('data-av', st);
+    $('selName').textContent = sel.name;
+    $('selMeta').textContent = sel.n + ' 台桩 · ' + sel.ports + ' 个插座 · 空闲 ' + sel.free;
+
+    const box = $('picker');
+    box.innerHTML = pickerHTML();
+    box.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+      sel = LOCS.find(l => l.key === b.dataset.key) || sel; render();
+    }));
+
+    const arr = visible();
+    $('devCap').textContent = '显示 ' + arr.length + ' 处 · 共 ' + LOCS.length + ' 处地点、'
+                            + LOCS.reduce((a, l) => a + l.n, 0) + ' 台已登记桩';
+    $('list').innerHTML = arr.length ? arr.map(cardHTML).join('')
+      : '<div class="cp-empty">没有符合条件的地点<br>试试换个筛选，或清空搜索</div>';
+    $('list').querySelectorAll('[data-fav]').forEach(b => b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const k = b.dataset.fav;
+      favs.has(k) ? favs.delete(k) : favs.add(k);
+      render();
+    }));
+    drawMap();
+  }
+
+  /* ===================== 我们自己那块：分时占用率（样例） ===================== */
+  (function hours() {
+    // 形状照着真实数据的观感：白天高、凌晨低；只画柱，交互留给真实版
+    const v = [62,55,48,44,46,58,78,88,90,86,80,78,82,85,88,90,92,94,93,90,86,80,72,66];
+    $('hours').innerHTML = v.map((x, h) =>
+      '<div style="height:' + x + '%" class="' + (x >= 85 ? 'hot' : '') + '" title="' + h + ' 时 · ' + x + '%"></div>').join('');
+  })();
+
+  /* ===================== 交互 ===================== */
+  $('q').addEventListener('input', (e) => { q = e.target.value; render(); });
+  $('sort').addEventListener('change', (e) => { sortBy = e.target.value; render(); });
+  document.querySelectorAll('.cp-filters button').forEach(b => b.addEventListener('click', () => {
+    filter = b.dataset.f;
+    document.querySelectorAll('.cp-filters button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    render();
+  }));
+  $('selCard').addEventListener('click', () => go('dev'));
+  $('focusBtn').addEventListener('click', () => { go('map'); drawMap(); });
+  $('allBtn').addEventListener('click', () => { go('map'); drawMap(); });
+  // 缩放暂不实现（真实版交给高德底图；这张是示意地图）
+  $('zin').addEventListener('click', () => {});
+  $('zout').addEventListener('click', () => {});
+
+  render();
+})();
+</script>
+</body>
+</html>

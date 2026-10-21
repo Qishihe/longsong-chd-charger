@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1c684d">
+<meta name="description" content="长安大学渭水校区充电地图：先看空位，再出发。">
+<title>长安大学充电 · 渭水校区</title>
+<!--
+  ============================================================================
+  redesign-v2 · 长安大学渭水校区充电桩主页面（**我们自己的实现**）
+  ============================================================================
+  产品方指示：「不要全部照搬照抄，做一些自己的东西，适配我们的数据。」
+
+  所以这份文件**不是**任何现成 App 的移植。它只借**版式语言**（配色体系 / 版式节奏 /
+  交互模式 / 「一组 CSS 变量驱动全部可用性配色」这个做法），**markup、class 名、
+  组件划分、数据组织全部是我们自己的**（`cp-` 前缀）。`redesign/` 下那 5 个抄来的文件
+  只当参考留着，没有被逐字搬进这里。
+
+  外部依赖只有 1 个：同目录的 `map-data.js`（定义 `window.CHD_MAP`）。
+  其余 CSS / JS 全内联，无框架、无构建。
+
+  ── 与参考对象的关键差异（因为数据模型不同）────────────────────────────────
+  参考对象：**一张卡 = 一台设备，一台 20 个插座**。
+  我们    ：**一张卡 = 一个地点**，一个地点挂 24~37 根桩，**每根桩只有 4 个插座**。
+            所以卡片里那句大数字是「地点级空闲插座数 / 地点级插座总数」，
+            而单桩的 4 个插座用**一组 4 小格**表达 —— 这是我们的数据比它多出来的一层。
+  ────────────────────────────────────────────────────────────────────────────
+
+  ⚠️ 数据真假：**空闲数是样例数据**（只为把三态与进度条都呈现出来，页脚也写「样例数据」
+     而不是「实时」，免得截图流出去被当真）；**地点名 / 桩数 / 插座数 / 桩号规则 /
+     校园几何 / 4 个地图标点 全部是真的**，来源逐条写在对应代码注释里。
+-->
+<style>
+/* ===================== 令牌（数值取自参考对象量出来的真值） ===================== */
+:root{
+  --bg:#f6f7f3; --paper:#fff; --ink:#213c32; --muted:#829087; --line:#e7ece4;
+  --green:#1c684d; --green-dark:#164d3b; --green-soft:#edf4eb;
+  --red:#b96b62; --amber:#967447; --radius:22px;
+  font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;
+}
+/* 四态配色系统：整套 UI 的**动态色唯一入口**。
+   `[data-availability]` 上放 4 个变量，四个枚举值各自覆盖 —— 换配色只动这里。 */
+[data-availability]{
+  --fill:#687681;      /* 默认 = 待更新（灰） */
+  --text:#626e79;
+  --soft:#edf0f3;
+  --on-fill:#fff;
+}
+[data-availability="full"]     { --fill:#c3443d; --text:#ac322c; --soft:#fcecea; --on-fill:#fff }
+[data-availability="low"]      { --fill:#d3a22b; --text:#875b00; --soft:#fff4d8; --on-fill:#332600 }
+[data-availability="available"]{ --fill:#23835d; --text:#166d49; --soft:#e7f4ec; --on-fill:#fff }
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--ink); font-size:14px; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  padding-bottom:calc(66px + env(safe-area-inset-bottom));   /* 给底部导航留位 */
+}
+h1,h2,h3,p{margin:0}
+button,input,select{font:inherit;color:inherit}
+button{border:0;background:none;cursor:pointer;padding:0}
+.num{font-variant-numeric:tabular-nums}
+
+/* ===================== 顶栏 ===================== */
+.cp-topbar{
+  height:97px; border-bottom:1px solid var(--line);
+  display:flex; align-items:center; gap:30px;
+}
+.cp-brand{font-size:20px; font-weight:700; letter-spacing:.05em; display:flex; align-items:center; gap:13px}
+.cp-brand>span{
+  color:#9aa69b; font-size:10px; font-weight:500; letter-spacing:.14em;
+  border-left:1px solid #d9e1d5; padding-left:14px;
+}
+.cp-campus{font-size:12px; color:#7e8b80; display:flex; align-items:center; gap:7px}
+.cp-dot{width:6px;height:6px;border-radius:50%;background:#70957a;flex:none;display:inline-block}
+.cp-topactions{margin-left:auto; display:flex; align-items:center; gap:20px}
+.cp-live{color:var(--muted); font-size:11px; max-width:180px; display:flex; align-items:center; gap:6px}
+.cp-live::before{content:"";width:5px;height:5px;border-radius:50%;background:#a4b1a1;flex:none}
+.cp-live.fresh::before{background:#3c8e60}
+.cp-refresh{
+  display:flex; align-items:center; gap:8px; background:var(--green); color:#fff;
+  border-radius:11px; min-height:39px; padding:8px 15px; font-size:12px;
+}
+
+/* ===================== 分段页签（两个，不是三个） ===================== */
+.cp-tabs{display:flex; align-items:center; gap:20px; min-height:41px; border-bottom:1px solid var(--line); margin:12px 0 20px}
+.cp-tabs>button{
+  display:flex; align-items:center; gap:7px; min-height:41px; padding:0 2px 12px;
+  font-size:12px; color:#899486; position:relative;
+}
+.cp-tabs>button[aria-selected="true"]{color:var(--green); font-weight:650}
+.cp-tabs>button[aria-selected="true"]::after{
+  content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px;
+  border-radius:2px; background:var(--green);
+}
+.cp-tabcount{font-size:10px; background:#e9eee3; color:#839477; border-radius:4px; padding:0 5px}
+.cp-auto{margin-left:auto; display:flex; align-items:center; gap:7px; font-size:10px; color:#99a38d}
+.cp-auto input{width:auto}
+
+/* ===================== 统计条 ===================== */
+.cp-stats{
+  display:grid; grid-template-columns:repeat(4,minmax(0,1fr));
+  border:1px solid var(--line); border-radius:18px; background:var(--paper); overflow:hidden;
+  margin-bottom:22px;
+}
+.cp-stat{padding:19px 25px; position:relative}
+.cp-stat+.cp-stat::before{
+  content:""; position:absolute; left:0; top:24px; bottom:24px; width:1px; background:var(--line);
+}
+.cp-stat>span{font-size:11px; color:#8d988c; display:flex; align-items:center; gap:6px}
+.cp-stat>strong{
+  display:block; font-size:31px; font-weight:600; line-height:1.55;
+  letter-spacing:-.04em; font-variant-numeric:tabular-nums;
+}
+.cp-stat>strong small{font-size:12px; font-weight:400; margin-left:7px; letter-spacing:0; color:#8b9889}
+.cp-stat>p{font-size:10px; color:#a4ada0}
+/* 第三格用可用性配色高亮（当前位置的已知空闲） */
+.cp-stat.is-live{background:var(--soft)}
+.cp-stat.is-live>strong{color:var(--text)}
+.cp-stat.is-live .cp-dot{background:var(--fill)}
+
+/* ===================== 地图卡 + 右侧地点卡 ===================== */
+.cp-maplayout{display:grid; grid-template-columns:minmax(0,1.7fr) minmax(290px,1fr); gap:20px; align-items:start}
+.cp-mapcard{border:1px solid #e1e8d9; border-radius:var(--radius); background:#f4f7ef; overflow:hidden}
+.cp-maptop{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:20px 23px 12px; font-size:10px; color:#9aa58e;
+}
+.cp-maptop>b{display:flex; align-items:center; gap:7px; font-size:11px; font-weight:600; color:#73846b}
+.cp-stage{position:relative; height:468px; overflow:hidden}
+.cp-stage>svg{display:block; width:100%; height:100%; touch-action:none; user-select:none; cursor:grab}
+.cp-stage>svg:active{cursor:grabbing}
+.cp-north{position:absolute; left:23px; top:15px; text-align:center; color:#8b9b7d; pointer-events:none}
+.cp-north b{display:block; font-size:25px; line-height:1.1; font-weight:400}
+.cp-north span{font-size:10px}
+.cp-controls{
+  position:absolute; right:16px; top:16px; background:#fff; border:1px solid #e5ebdf;
+  border-radius:13px; box-shadow:0 4px 16px #324c1710; padding:4px; display:flex; flex-direction:column;
+}
+.cp-controls>button{width:34px; height:34px; display:grid; place-items:center; color:#6c825c; font-size:20px; border-radius:8px}
+.cp-controls>button:hover{background:#eef4e8}
+.cp-controls>i{height:1px; background:var(--line); margin:4px; display:block}
+/* 选中地点的浮层（在地图左下，不占右上一个字节 —— 那是我上一版翻车的地方） */
+.cp-place{
+  position:absolute; left:19px; bottom:12px; max-width:calc(100% - 38px);
+  display:flex; align-items:center; gap:12px; text-align:left;
+  background:#fffefb; border:1px solid #e3e9da; border-radius:15px;
+  padding:12px 17px 12px 12px; box-shadow:0 5px 20px #2c41110b;
+}
+.cp-place .ic{
+  width:38px; height:38px; flex:none; border-radius:11px; display:grid; place-items:center;
+  background:var(--soft); color:var(--text); font-size:19px;
+}
+.cp-place b{display:block; font-size:12px; font-weight:600}
+.cp-place small{display:block; font-size:10px; color:#9ba68f; margin-top:2px}
+.cp-place .arrow{margin-left:28px; color:#889e7b; font-size:16px}
+.cp-mapfoot{
+  min-height:46px; padding:13px 22px; border-top:1px solid #e7ecdf;
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  color:#a1ac93; font-size:9px;
+}
+.cp-mapfoot span{display:flex; align-items:center; gap:6px}
+.cp-legend{display:flex; flex-wrap:wrap; justify-content:space-between; gap:10px 13px; padding:0 20px 15px; background:#fff; font-size:10px}
+.cp-legend span{display:flex; align-items:center; gap:5px; color:#62705e; white-space:nowrap}
+.cp-legend i{width:8px; height:8px; border-radius:50%; background:var(--fill); flex:none}
+/* 编号地点胶囊：3 列 */
+.cp-picker{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; padding:0 19px 18px; background:#fff}
+.cp-picker>button{
+  display:flex; align-items:center; gap:7px; min-width:0; min-height:38px; padding:8px 9px;
+  border:1px solid #e6ebdf; border-radius:9px; text-align:left; font-size:11px; color:#718269;
+}
+.cp-picker>button i{
+  width:19px; height:19px; flex:none; border-radius:50%; display:grid; place-items:center;
+  background:#edf2e7; color:#6f8561; font-size:10px; font-style:normal;
+}
+.cp-picker>button span{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.cp-picker>button[aria-pressed="true"]{background:var(--soft); border-color:var(--fill); color:var(--text)}
+.cp-picker>button[aria-pressed="true"] i{background:var(--fill); color:var(--on-fill)}
+
+/* ===================== 地点卡（地图页右栏 与 设备页列表 共用） ===================== */
+.cp-sitecard{border:1px solid var(--line); border-radius:var(--radius); background:var(--paper); overflow:hidden}
+.cp-sitecard .cover{padding:20px 24px 23px; background:#285f48; color:#fff; position:relative; overflow:hidden}
+.cp-sitecard .cover::after{                     /* 装饰圆环，纯视觉 */
+  content:""; position:absolute; width:240px; height:240px; right:-60px; top:6px;
+  border:1px solid #ffffff0c; border-radius:50%;
+  box-shadow:0 0 0 24px #ffffff03, 0 0 0 48px #ffffff03; pointer-events:none;
+}
+.cp-sitecard .cover h2{font-size:26px; font-weight:550; letter-spacing:.025em; margin:8px 0 13px; position:relative; z-index:1}
+.cp-sitecard .cover .idx{font-size:10px; background:#ffffff1f; border-radius:5px; padding:2px 8px; position:relative; z-index:1}
+.cp-sitecard .cover .fav{position:absolute; right:18px; top:16px; z-index:2; font-size:19px; color:#ffffffb0}
+.cp-sitecard .cover .fav[aria-pressed="true"]{color:#ffe9a8}
+.cp-sitecard .cover .where{display:flex; align-items:center; gap:6px; font-size:10px; color:#ffffffa8; position:relative; z-index:1}
+.cp-sitecard .body{padding:20px 23px 18px}
+.cp-avail{display:flex; align-items:center; justify-content:space-between; gap:6px}
+.cp-avail>div{display:flex; align-items:baseline; gap:8px}
+.cp-avail strong{                          /* 地点卡大数字 39px（参考对象量出的真值） */
+  font-size:39px; font-weight:550; line-height:1.1; letter-spacing:-.05em;
+  font-variant-numeric:tabular-nums; color:var(--text);
+}
+.cp-avail>div>span{font-size:10px; color:#99a28e}
+.cp-badge{font-size:10px; font-weight:600; border-radius:20px; padding:5px 11px; background:var(--soft); color:var(--text)}
+.cp-bar{height:5px; border-radius:3px; background:#eff3e9; overflow:hidden; margin:12px 0}
+.cp-bar>i{display:block; height:100%; border-radius:3px; background:var(--fill)}
+.cp-update{font-size:9.5px; color:#a3ad96}
+.cp-minihead{
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  border-top:1px solid var(--line); margin-top:14px; padding:14px 0 11px;
+}
+.cp-minihead h3{font-size:11px; font-weight:550}
+.cp-minihead span{font-size:9px; color:#a3ad96}
+/* 单桩列表：每桩 4 个插座方格 —— 我们数据比参考对象多出来的一层 */
+.cp-piles{display:grid; grid-template-columns:repeat(auto-fill,minmax(74px,1fr)); gap:7px}
+.cp-pile{border:1px solid #e8ede2; border-radius:9px; padding:8px 9px; text-align:left; min-width:0}
+.cp-pile>b{display:block; font-size:11px; font-weight:650}
+.cp-pile>span{display:block; font-size:9px; color:#a7af9d; margin-top:4px}
+.cp-pile>span em{font-style:normal; color:#64805a}
+.cp-ports{display:grid; grid-template-columns:repeat(4,1fr); gap:3px; margin-top:6px}
+.cp-ports i{height:6px; border-radius:2px; background:#dbe4d2}
+.cp-ports i.free{background:#7fae62}
+.cp-ports i.busy{background:#c99080}
+.cp-ports i.off{background:#dfe3dc}
+
+/* ===================== 设备页 ===================== */
+.cp-heading{display:flex; align-items:flex-end; justify-content:space-between; gap:20px; padding:6px 0 18px}
+/* h1 32px / -0.035em（参考对象量出的真值） */
+.cp-heading h1{font-size:32px; font-weight:650; line-height:1.5; letter-spacing:-.035em}
+.cp-heading p{font-size:13px; color:var(--muted); margin-top:7px}
+.cp-search{
+  display:flex; align-items:center; gap:9px; background:var(--paper); border:1px solid var(--line);
+  border-radius:12px; height:44px; padding:0 13px; margin-bottom:14px;
+}
+.cp-search>input{border:0; outline:0; background:none; flex:1; min-width:0; font-size:14px}
+.cp-filterrow{display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:22px}
+.cp-chips{display:flex; gap:7px; flex-wrap:wrap}
+.cp-chips>button{font-size:10px; padding:6px 13px; border:1px solid #e2e8db; border-radius:20px; color:#8d9d80; background:#fff}
+.cp-chips>button[aria-pressed="true"]{background:#e4edda; color:#557642; border-color:#d5e2c6}
+.cp-sorts{display:flex; align-items:center; gap:16px}
+.cp-sorts label{display:flex; align-items:center; gap:8px; font-size:10px; color:#99a38d; white-space:nowrap}
+.cp-sorts select{background:#fff; border:1px solid #e3e9dc; border-radius:7px; color:#718264; font-size:10px; padding:6px 8px}
+/* 设备列表：3 列 → ≤1150px 2 列 → **≤600px 1 列**
+   ⚠️ 2026-10-21 更正：这里原写「≤600px → 2 列」是**过时错注释**。CDP 实测
+   `getComputedStyle(#list).gridTemplateColumns` 在 390px 下是 `"358px"`（单值 = 1 列）。
+   真实级联是：L243 `repeat(3,…)` → ≤1150px `repeat(2,…)` → **≤600px `1fr`（靠后、同特异性，胜出）**。
+   1 列在 390px 下是对的（2 列每张只有 ~170px，放不下「36 台设备 · 144 个插座」+ 大数字 + 进度条），
+   所以**保留 1 列、改掉这句注释**。 */
+.cp-list{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px}
+.cp-dev{
+  border:1px solid #e3e9dc; border-radius:17px; padding:18px 19px; background:#fff;
+  cursor:pointer; transition:box-shadow .15s, transform .15s;
+}
+.cp-dev:hover{box-shadow:0 7px 22px #29431609; transform:translateY(-2px)}
+.cp-dev .top{display:flex; align-items:center; justify-content:space-between; gap:9px}
+.cp-dev h3{font-size:14px; font-weight:600}
+.cp-dev .fav{font-size:16px; color:#a4b295; flex:none}
+.cp-dev .fav[aria-pressed="true"]{color:#8caa6a}
+.cp-dev .where{font-size:11px; color:#8f9f81; margin-top:5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.cp-dev .tag{display:inline-block; font-size:8px; padding:1px 6px; border-radius:4px; background:#eff5e8; color:#7f986b; white-space:nowrap}
+.cp-dev .count{display:flex; align-items:baseline; gap:7px; margin-top:16px}
+.cp-dev .count>strong{                        /* 设备卡数字 29px（参考对象真值） */
+  font-size:29px; font-weight:550; line-height:1; color:var(--text); font-variant-numeric:tabular-nums;
+}
+.cp-dev .count>span{font-size:10px; color:#98a58a}
+.cp-dev .count>.cp-badge{margin-left:auto}
+.cp-dev .foot{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:10px; font-size:9px; color:#a5ae9b}
+.cp-dev .expand{font-size:9.5px; color:#8ba07c}
+.cp-dev .detail{border-top:1px solid var(--line); margin-top:12px; padding-top:11px; display:none}
+.cp-dev[data-open="1"] .detail{display:block}
+.cp-empty{grid-column:1/-1; background:var(--paper); border:1px dashed #dfe5d8; border-radius:var(--radius);
+  padding:36px 18px; text-align:center; color:var(--muted); font-size:12.5px; line-height:1.9}
+
+/* ===================== 底部导航：**两项** ===================== */
+.cp-nav{
+  position:fixed; left:0; right:0; bottom:0; z-index:40; height:66px;
+  padding-bottom:env(safe-area-inset-bottom);
+  background:#fbfcf8ee; backdrop-filter:blur(15px); border-top:1px solid #e2e8db;
+  display:flex; align-items:center;
+}
+.cp-nav>button{
+  flex:1; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:3px; font-size:10px; color:#8d9a8b;
+}
+.cp-nav>button[aria-selected="true"]{color:var(--green); font-weight:650}
+.cp-nav .i{font-size:20px; line-height:1}
+
+.cp-app{max-width:1420px; margin:0 auto; padding:0 22px}
+.cp-page{display:none}
+.cp-page.on{display:block}
+
+/* ===================== 只在需要处写媒体查询（不复刻参考对象那 8 个块） =====================
+   目标：390px 手机好看；桌面只要不塌。
+   ⚠️ 没有 600px 段时，顶栏 97px + 地图 468px + 3 列列表在手机上会挤爆，
+      所以这一段是必须的，不是"照抄"。 */
+@media(max-width:1150px){
+  .cp-maplayout{grid-template-columns:1fr}
+  .cp-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:600px){
+  .cp-app{padding:0 16px}
+  .cp-topbar{height:72px; gap:10px}
+  .cp-brand{font-size:18px}
+  .cp-brand>span{display:none}
+  .cp-campus{display:none}
+  .cp-live{display:none}
+  .cp-refresh{min-height:34px; padding:6px 11px; font-size:11px}
+  .cp-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cp-stat{padding:13px 16px 12px}
+  .cp-stat:nth-child(3),.cp-stat:nth-child(4){border-top:1px solid var(--line)}
+  .cp-stat:nth-child(3)::before{display:none}
+  .cp-stat>strong{font-size:28px}
+  .cp-stage{height:360px}
+  .cp-heading{padding:2px 0 14px}
+  .cp-heading h1{font-size:28px}
+  .cp-heading p{font-size:11px}
+  .cp-mapcard{border-radius:18px}
+  .cp-maptop{padding:16px 17px 9px}
+  .cp-north{left:18px; top:10px}
+  .cp-controls{right:11px; top:10px}
+  .cp-controls>button{width:32px; height:32px}
+  .cp-place{left:13px; bottom:10px; padding:10px 14px 10px 10px}
+  .cp-place .arrow{margin-left:14px}
+  .cp-picker{padding:0 13px 13px; gap:6px}
+  .cp-picker>button{padding:7px 6px; font-size:10px; min-height:36px}
+  .cp-picker>button i{width:17px; height:17px; font-size:9px}
+  .cp-list{grid-template-columns:1fr}
+  .cp-sorts{gap:10px}
+  .cp-avail strong{font-size:33px}
+}
+</style>
+</head>
+<body>
+
+<div class="cp-app">
+
+  <header class="cp-topbar">
+    <div class="cp-brand">长安大学充电<span>CHD CHARGE</span></div>
+    <div class="cp-campus"><span class="cp-dot"></span>渭水校区</div>
+    <div class="cp-topactions">
+      <span class="cp-live" id="live">样例数据 · 未连接平台</span>
+      <button class="cp-refresh" id="refresh">↻ 刷新状态</button>
+    </div>
+  </header>
+
+  <!-- 两个页签。收藏已降级为设备页的筛选胶囊，不占第三页 -->
+  <nav class="cp-tabs" role="tablist" aria-label="查看方式">
+    <button data-page="map" role="tab" aria-selected="true">地图找桩</button>
+    <button data-page="dev" role="tab" aria-selected="false">全部设备<span class="cp-tabcount" id="tabCount">–</span></button>
+    <label class="cp-auto"><input type="checkbox" id="autoRefresh" checked>每分钟自动更新</label>
+  </nav>
+
+  <main>
+    <!-- ==================== ① 地图 ==================== -->
+    <section class="cp-page on" id="page-map">
+      <div class="cp-stats" aria-label="校园概况">
+        <div class="cp-stat"><span>已登记设备</span><strong class="num" id="sDev">–<small>台</small></strong><p>四个地点合计</p></div>
+        <div class="cp-stat"><span>已收录插座</span><strong class="num" id="sPort">–<small>个</small></strong><p>每台桩 4 个口</p></div>
+        <div class="cp-stat is-live" id="statFree" data-availability=""><span><i class="cp-dot"></i>当前已知空闲</span><strong class="num" id="sFree">–<small>个</small></strong><p id="sFreeNote">样例数据</p></div>
+        <div class="cp-stat"><span>地图充电地点</span><strong class="num" id="sLoc">–<small>处</small></strong><p>点标点查看该处设备</p></div>
+      </div>
+
+      <div class="cp-maplayout">
+        <div class="cp-mapcard">
+          <div class="cp-maptop">
+            <b><span class="cp-dot"></span>校园充电地图</b>
+            <span><span id="locCount">–</span> 处地点 · 方位示意</span>
+          </div>
+          <div class="cp-stage" id="stage">
+            <svg id="map" viewBox="0 0 700 470" preserveAspectRatio="xMidYMid meet" role="img"
+                 aria-label="渭水校区示意地图，四处充电地点按方位标注"></svg>
+            <div class="cp-north"><b>↑</b><span>北</span></div>
+            <div class="cp-controls">
+              <button id="btnFocus" title="聚焦所选地点" aria-label="聚焦所选地点">◎</button>
+              <button id="btnAll" title="查看全部标点" aria-label="查看全部标点">▤</button>
+              <i></i>
+              <button id="btnIn" aria-label="放大地图">＋</button>
+              <button id="btnOut" aria-label="缩小地图">−</button>
+            </div>
+            <button class="cp-place" id="placeChip" data-availability="">
+              <span class="ic">⚡</span>
+              <span><b id="placeName">–</b><small id="placeMeta">–</small></span>
+              <span class="arrow">→</span>
+            </button>
+          </div>
+          <div class="cp-mapfoot">
+            <span><span class="cp-dot"></span>编号对应下方地点</span>
+            <span>拖动 / 双指缩放</span>
+          </div>
+          <div class="cp-legend" aria-label="剩余空位配色">
+            <span data-availability="full"><i></i>已满 · 0</span>
+            <span data-availability="low"><i></i>较少 · ≤25%</span>
+            <span data-availability="available"><i></i>充足 · &gt;25%</span>
+            <span data-availability=""><i></i>待更新</span>
+          </div>
+          <div class="cp-picker" id="picker" aria-label="选择地图地点"></div>
+        </div>
+
+        <!-- 右栏：所选地点的明细（地图页与设备页共用同一个渲染） -->
+        <aside class="cp-sitecard" id="siteCard" data-availability=""></aside>
+      </div>
+    </section>
+
+    <!-- ==================== ② 设备 ==================== -->
+    <section class="cp-page" id="page-dev">
+      <div class="cp-heading">
+        <div>
+          <h1>全部充电设备</h1>
+          <p id="devCaption">–</p>
+        </div>
+      </div>
+
+      <label class="cp-search">🔍<input id="q" type="search" placeholder="搜索地点名、桩号或地址" autocomplete="off"></label>
+
+      <div class="cp-filterrow">
+        <div class="cp-chips" role="group" aria-label="筛选设备">
+          <button data-filter="all"  aria-pressed="true">全部</button>
+          <button data-filter="fav"  aria-pressed="false">我的收藏</button>
+          <button data-filter="free" aria-pressed="false">当前有空位</button>
+        </div>
+        <div class="cp-sorts">
+          <label>地点<select id="locSel"><option value="">全部地点</option></select></label>
+          <label>排序<select id="sortSel">
+            <option value="free">空闲最多</option>
+            <option value="rate">空闲率</option>
+            <option value="name">地点名</option>
+            <option value="fav">收藏优先</option>
+          </select></label>
+        </div>
+      </div>
+
+      <div class="cp-list" id="list"></div>
+    </section>
+  </main>
+</div>
+
+<nav class="cp-nav" role="tablist" aria-label="主导航">
+  <button data-page="map" role="tab" aria-selected="true"><span class="i">▤</span>地图</button>
+  <button data-page="dev" role="tab" aria-selected="false"><span class="i">▦</span>设备</button>
+</nav>
+
+<!-- 唯一的外部依赖：真实校园几何（渭水校区，GCJ-02） -->
+<script src="map-data.js"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ==========================================================================
+     一、数据
+     --------------------------------------------------------------------------
+     我们的模型：**一个地点挂若干根桩，每根桩 4 个插座**。
+       · 地点名 / 桩数 / 插座总数 / 桩号规则 —— **都是真的**，来自线上 `DEFAULT_DEVICES`。
+       · 插座总数用**观测到的实际值**，不是「桩数 × 4」：
+           朝晖 144（36×4 恰好也 144）、**北门 144（37×4 = 148，会多算 4）**、
+           20号楼 96（24×4）、物流服务中心 48（12×4）。
+         这个口径与之前修过的「插座数显示累计数」那次一致 —— 观测值优先。
+       · `free` 是**样例数据**：我们实测占用率 95~99%，所以地点级空闲是个位数，
+         只有新开的 20号楼 有空余。整页页脚也标「样例数据」，不写「实时」。
+     ========================================================================== */
+  var LOCATIONS = [
+    { key:'渭水-朝晖体育场南', name:'朝晖体育场南', devs:36, sockets:144, free:3,  seq:'TY' },
+    { key:'渭水-北门',         name:'北门',         devs:37, sockets:144, free:6,  seq:'BM' },
+    { key:'渭水-20号楼',       name:'20号楼',       devs:24, sockets:96,  free:31, seq:'E'  },
+    { key:'渭水-物流服务中心', name:'物流服务中心', devs:12, sockets:48,  free:2,  seq:'W'  }
+  ];
+
+  /* 地图标点坐标 —— **每个都写清来源，没有一个是编的**：
+     ① 朝晖体育场南：`map-amap-preview.js:115` 的 `CH_GEO.geo` 给出体育场四至
+        w=108.910110 / n=34.375411 / e=108.911984 / s=34.373651，
+        取中心 = (108.911047, 34.374531)。
+     ② 北门：`map-amap-preview.js:91-92` 的 `BM_GEO.lng/lat = 108.9083605 / 34.375141`，
+        注释写明是「紫框中心」（产品方在校区图上圈出来的北门范围）。
+     ③ 20号楼：`map-amap-preview.js` 的 `E_GEO` 是一条**真实线段**（横线，E-01…E-24），
+        取首尾 (108.892845,34.367344) 与 (108.894131,34.367623) 的中点 = (108.893488, 34.367484)。
+     ④ 物流服务中心：同上的 `W_GEO`（竖线，W-01…W-12），
+        首尾 (108.896000,34.369790) 与 (108.895921,34.370159) 中点 = (108.895961, 34.369975)。
+
+     ⚠️ **为什么不沿用 `CHD_MAP.areas[loc].line` 的中点**：
+        北门与朝晖的 `line` 只是**很短的示意线段**，中点不代表地点重心 ——
+        实测两者投影后只差 47px，圆标必然糊在一起，还会撞上右上角的浮动控件。
+        改用上面这 4 个真实锚点后，朝晖↔北门实际相距约 **256m**，投影后远大于 46px，不再重叠。
+        （20号楼 / 物流服务中心本来就是线段型，用中点是对的 —— 这两个保留线段中点。） */
+  var MARKER = {
+    '渭水-朝晖体育场南': [108.911047, 34.374531],
+    '渭水-北门':         [108.9083605, 34.375141],
+    '渭水-20号楼':       [108.893488, 34.367484],
+    '渭水-物流服务中心': [108.895961, 34.369975]
+  };
+  LOCATIONS.forEach(function (l) { l.geo = MARKER[l.key]; });
+
+  /* 桩号生成：与我们线上清单完全一致 */
+  var pad2 = function (n) { return String(n).padStart(2, '0'); };
+  function codesOf(loc) {
+    if (loc.seq === 'BM') {            // 北门是四组 A/B/C/D = 6+6+11+14 = 37
+      var out = [], i;
+      for (i = 1; i <= 6;  i++) out.push('A' + pad2(i));
+      for (i = 1; i <= 6;  i++) out.push('B' + pad2(i));
+      for (i = 1; i <= 11; i++) out.push('C' + pad2(i));
+      for (i = 1; i <= 14; i++) out.push('D' + pad2(i));
+      return out;
+    }
+    var arr = [];
+    for (var k = 1; k <= loc.devs; k++) arr.push(loc.seq + '-' + pad2(k));
+    return arr;
+  }
+
+  /* 每根桩的 4 个插座状态（样例）：把地点级空闲数铺到各桩上，
+     其余按固定伪随机标成占用/离线 —— 只为让「4 个小格」看起来像真的。 */
+  var seed = 20261021;
+  function rnd() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
+  LOCATIONS.forEach(function (l) {
+    var left = l.free, codes = codesOf(l);
+    l.piles = codes.map(function (code) {
+      var ports = [];
+      for (var i = 0; i < 4; i++) {
+        if (left > 0 && rnd() < 0.5) { ports.push('free'); left--; }
+        else ports.push(rnd() < 0.07 ? 'off' : 'busy');
+      }
+      return { code: code, ports: ports };
+    });
+    // 把没用完的空闲额度补齐（保证各桩空闲数之和 == 地点空闲数）
+    for (var p = 0; left > 0 && p < l.piles.length; p++) {
+      for (var q = 0; q < 4 && left > 0; q++) {
+        if (l.piles[p].ports[q] !== 'free') { l.piles[p].ports[q] = 'free'; left--; }
+      }
+    }
+  });
+
+  /* 三态判定：0 → 已满；≤25% → 较少；>25% → 充足；无数据 → 待更新 */
+  function availOf(l) {
+    if (!l.sockets) return '';
+    if (l.free <= 0) return 'full';
+    return (l.free / l.sockets <= 0.25) ? 'low' : 'available';
+  }
+  var AVAIL_TEXT = { full:'已满', low:'空位较少', available:'空位充足', '':'待更新' };
+
+  /* ==========================================================================
+     二、示意地图（几何全部来自 map-data.js，真实经纬度）
+     ========================================================================== */
+  var zoom = 1, panX = 0, panY = 0;      // 拖动 / 缩放（见下面 bindPanZoom）
+  var base = null;                        // 经纬度 → viewBox 的投影，drawMap 时算好
+  var selKey = LOCATIONS[0].key;
+
+  function drawMap() {
+    var svg = $('map');
+    var D = window.CHD_MAP;
+    if (!D || !D.boundary) {
+      svg.innerHTML = '<text x="350" y="235" text-anchor="middle" fill="#829087" font-size="13">map-data.js 未加载</text>';
+      return;
+    }
+    var VW = 700, VH = 470, PAD = 14;
+    var xs = D.boundary.map(function (p) { return p[0]; });
+    var ys = D.boundary.map(function (p) { return p[1]; });
+    var minx = Math.min.apply(null, xs), maxx = Math.max.apply(null, xs);
+    var miny = Math.min.apply(null, ys), maxy = Math.max.apply(null, ys);
+
+    /* ⚠️ **两轴不能共用一个缩放系数**：
+       西安地区 1° 经度 ≈ 91890 m、1° 纬度 ≈ 110900 m（纬度每度更长）。
+       共用一个 s 的话，2.3km × 1.39km 的校区会被画成宽高比 1.99（真实 1.66），**横向胖 19%**。
+       所以先把经纬跨度各自换成米，再取一个统一的缩放比 —— 这样两轴等比例。 */
+    var M_LON = 91890, M_LAT = 110900;
+    var spanX = (maxx - minx) * M_LON, spanY = (maxy - miny) * M_LAT;
+    var s = Math.min((VW - PAD * 2) / spanX, (VH - PAD * 2) / spanY);
+    var ox = (VW - spanX * s) / 2, oy = (VH - spanY * s) / 2;
+    var X = function (lng) { return ox + (lng - minx) * M_LON * s; };
+    var Y = function (lat) { return oy + (maxy - lat) * M_LAT * s; };   // 纬度要翻转（北在上）
+    base = { X: X, Y: Y };
+
+    var ring = function (pts) {
+      return pts.map(function (p) { return X(p[0]).toFixed(1) + ',' + Y(p[1]).toFixed(1); }).join(' ');
+    };
+
+    var out = '';
+    out += '<rect width="' + VW + '" height="' + VH + '" fill="#F5F7F1"/>';
+    // 校园边界：浅绿填充
+    out += '<polygon points="' + ring(D.boundary) + '" fill="#E8EFE3" stroke="#CDDDC6" stroke-width="1.2"/>';
+    // 水域：浅蓝
+    (D.water || []).forEach(function (w) {
+      (w.p || []).forEach(function (r) { out += '<polygon points="' + ring(r) + '" fill="#CFE3EA"/>'; });
+    });
+    // 场地：更暖的浅绿
+    (D.venues || []).forEach(function (v) {
+      (v.p || []).forEach(function (r) { out += '<polygon points="' + ring(r) + '" fill="#E5EBD9" stroke="#D3DDC3" stroke-width="0.8"/>'; });
+    });
+    // 建筑：米色块
+    (D.buildings || []).forEach(function (b) {
+      (b.p || []).forEach(function (r) { out += '<polygon points="' + ring(r) + '" fill="#ECE5D7" stroke="#DDD3BF" stroke-width="0.8"/>'; });
+    });
+
+    /* ---- 标点：真实锚点 + 推力避让 + 右上角禁入区 ----
+       禁入区 = 右上角 `.cp-controls` 的**实测矩形**，换算回「画布坐标」。
+       🔴 2026-10-21 改（CDP 实测驱动）：原来是手调常量 `VW-96 = 604`，注释还写着控件是
+       `right:16px top:16px` —— 但 `@media(max-width:600px)` 把它改成了 **`right:11px; top:10px`**，
+       于是那个常量算出来的边比屏幕上真实的边**松 4.18px**（604 用户 → 屏幕 324.18，实际左缘 320）。
+       结果是白色名牌底板仍被压掉 **2.14px**（文字已经不压了）。
+       改成现算后，换断点、换机型、改控件尺寸都不会再漂。
+       ⚠️ 关键：标点的 x/y 活在 `#mapLayer` 的 `translate(panX,panY) scale(zoom)` **之内**，
+       所以反算必须连图层变换一起算进去，否则会差一个缩放倍数。 */
+    var marks = LOCATIONS.map(function (l) {
+      return { l: l, x: X(l.geo[0]), y: Y(l.geo[1]) };
+    });
+    var KEEP_OUT = { x0: VW - 96, y0: 0, x1: VW, y1: 130 };   // 兜底常量（取不到控件时用）
+    try {
+      var svgEl = document.getElementById('map');
+      var ctrlEl = document.querySelector('.cp-controls');
+      var t = svgEl && svgEl.getScreenCTM && svgEl.getScreenCTM();
+      if (t && t.a && ctrlEl) {
+        var cr = ctrlEl.getBoundingClientRect();
+        // 屏幕 → 画布：x_screen = t.a*(panX + zoom*x) + t.e  ⇒  x = ((x_screen - t.e)/t.a - panX)/zoom
+        var k = t.a * zoom, ex = t.e + t.a * panX, ey = t.f + t.d * panY;
+        if (k > 0) {
+          var PAD = 2;   // 留 2 个画布单位（≈1px）的缝，别让底板正好贴着控件边
+          KEEP_OUT.x0 = (cr.left - ex) / k - PAD;
+          KEEP_OUT.y0 = (cr.top - ey) / k - PAD;
+          KEEP_OUT.x1 = (cr.right - ex) / k + PAD;
+          KEEP_OUT.y1 = (cr.bottom - ey) / k + PAD;
+        }
+      }
+    } catch (e) { /* 取不到就退回上面的常量，不影响渲染 */ }
+
+    /* ⚠️ **已知局限（写在这里，别当成已解决）**：
+       上面算出的 `KEEP_OUT` 是「**画布坐标**里的一块矩形」，而 `.cp-controls` 在**屏幕**上是固定的。
+       两者只在 `drawMap()` 那一刻对齐 —— 用户**拖动/缩放之后**，与控件屏幕区域对应的画布区域会变，
+       这个禁入区就**过期了**（标点/名牌理论上可以再滑到控件底下）。
+       现在没处理它，因为：① 拖动时重算+重绘会掉帧；② 这是示意地图，控件只在右上角一小块。
+       真要彻底解决，两条路（择一）：
+         a) 在 `applyTransform()` 里对**选中项名牌**单独做一次屏幕坐标夹取（只动一个元素，代价小）；
+         b) 把标点/名牌从 SVG 里挪出来，改用绝对定位的 HTML 图层（天生就在屏幕坐标里）。
+       选任何一条之前，先确认产品方真的会因为"拖动后名牌被压"而困扰。 */
+    for (var pass = 0; pass < 3; pass++) {
+      for (var i = 0; i < marks.length; i++) {
+        for (var j = i + 1; j < marks.length; j++) {
+          var a = marks[i], b = marks[j];
+          var dx = b.x - a.x, dy = b.y - a.y;
+          var d = Math.sqrt(dx * dx + dy * dy) || 0.01;
+          var MIN = 52;                                  // 圆标 r=15 + 光晕 22 → 52 才不叠
+          if (d < MIN) {
+            var push = (MIN - d) / 2 / d;
+            a.x -= dx * push; a.y -= dy * push;
+            b.x += dx * push; b.y += dy * push;
+          }
+        }
+      }
+      marks.forEach(function (m) {
+        if (m.x > KEEP_OUT.x0 && m.y < KEEP_OUT.y1) m.x = KEEP_OUT.x0 - 20;
+      });
+    }
+
+    marks.forEach(function (m, idx) {
+      var av = availOf(m.l);
+      var isSel = m.l.key === selKey;
+      /* ⚠️ 配色必须走**内联 style**，不能写成 `fill="var(--fill)"`：
+         CSS 自定义属性在 SVG 的**呈现属性**里不生效（那会被当成字符串 'var(--fill)' 解析），
+         只有 style 属性/CSS 规则里的 var() 才会解析。这里靠外层 <g data-availability> 继承那 4 个变量。 */
+      out += '<g class="mk" data-key="' + m.l.key + '" data-availability="' + av + '" style="cursor:pointer">'
+           +   '<circle cx="' + m.x.toFixed(1) + '" cy="' + m.y.toFixed(1) + '" r="' + (isSel ? 28 : 22) + '" style="fill:var(--fill)" opacity="0.20"/>'
+           +   '<circle cx="' + m.x.toFixed(1) + '" cy="' + m.y.toFixed(1) + '" r="15" style="fill:var(--fill);stroke:#fff;stroke-width:2.5"/>'
+           +   '<text x="' + m.x.toFixed(1) + '" y="' + (m.y + 5).toFixed(1) + '" text-anchor="middle" font-size="13" font-weight="700" style="fill:var(--on-fill)">' + (idx + 1) + '</text>'
+           + '</g>';
+      if (isSel) {
+        // 选中项名牌放**圆标下方**（不是上方）—— 上方在窄屏容易顶到浮动控件
+        var w = m.l.name.length * 13 + 20;
+        /* 🔴 2026-10-21 修（CDP 实测出来的）：名牌以圆标**居中**时，右半边会伸进右上角的浮动控件。
+         *   实测：控件左缘 x=320、名牌右缘 x=336.86 → **被压掉 16.86 × 9 CSS px**，
+         *   屏幕上「朝晖体育场南」只露出「朝晖体…」。
+         *   根因：上面那段 KEEP_OUT 只把**标点圆心**推出禁入区，**没管更宽的名牌**。
+         *   修法：对**名牌自己的矩形**再夹一次 —— 只有当它与控件纵向区间相交时，
+         *   才把它整体左移，使右缘不越过 KEEP_OUT.x0；同时不许越出画布左右边。
+         *   ⚠️ 这里全程用 SVG 用户坐标（和 KEEP_OUT 同一套），不要混入屏幕坐标。 */
+        var plateCX = m.x;
+        var plateTop = m.y + 21, plateBot = m.y + 45;
+        if (plateBot > KEEP_OUT.y0 && plateTop < KEEP_OUT.y1) {
+          plateCX = Math.min(plateCX, KEEP_OUT.x0 - w / 2 - 4);
+        }
+        plateCX = Math.max(w / 2 + 4, Math.min(VW - w / 2 - 4, plateCX));
+        out += '<g pointer-events="none"><rect x="' + (plateCX - w / 2).toFixed(1) + '" y="' + plateTop.toFixed(1) + '" width="' + w + '" height="24" rx="6" fill="#fff" stroke="#e0e6d8"/>'
+             +   '<text x="' + plateCX.toFixed(1) + '" y="' + (m.y + 37).toFixed(1) + '" text-anchor="middle" font-size="12" font-weight="700" fill="#213c32">' + m.l.name + '</text></g>';
+      }
+    });
+
+    // 外面包一层 <g> 承载 拖动/缩放 的 transform
+    svg.innerHTML = '<g id="mapLayer" transform="translate(' + panX + ' ' + panY + ') scale(' + zoom + ')">' + out + '</g>';
+    bindMarkClicks();
+  }
+
+  function bindMarkClicks() {
+    var svg = $('map');
+    Array.prototype.forEach.call(svg.querySelectorAll('.mk'), function (g) {
+      g.addEventListener('click', function () {
+        selKey = g.getAttribute('data-key');
+        render();
+      });
+    });
+  }
+
+  /* 拖动 / 缩放：**已实现**（用 SVG 的 transform，不改 viewBox，省得和 CSS 尺寸打架）。
+     鼠标与触摸各绑一套；不引第三方手势库。滚轮缩放一并支持，方便桌面核对。 */
+  function bindPanZoom() {
+    var stage = $('stage'), drag = null;
+    stage.addEventListener('pointerdown', function (e) {
+      if (e.target.closest('.cp-controls') || e.target.closest('.cp-place')) return;
+      drag = { x: e.clientX, y: e.clientY, px: panX, py: panY };
+      stage.setPointerCapture && stage.setPointerCapture(e.pointerId);
+    });
+    stage.addEventListener('pointermove', function (e) {
+      if (!drag) return;
+      // 屏幕像素 → viewBox 单位（stage 宽度对应 viewBox 宽 700）
+      var rect = stage.getBoundingClientRect();
+      var k = 700 / rect.width;
+      panX = drag.px + (e.clientX - drag.x) * k;
+      panY = drag.py + (e.clientY - drag.y) * k;
+      applyTransform();
+    });
+    stage.addEventListener('pointerup', function () { drag = null; });
+    stage.addEventListener('pointercancel', function () { drag = null; });
+    stage.addEventListener('wheel', function (e) {
+      e.preventDefault();
+      setZoom(zoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12));
+    }, { passive: false });
+    $('btnIn').addEventListener('click', function () { setZoom(zoom * 1.25); });
+    $('btnOut').addEventListener('click', function () { setZoom(zoom / 1.25); });
+    $('btnAll').addEventListener('click', function () { zoom = 1; panX = 0; panY = 0; applyTransform(); });
+    $('btnFocus').addEventListener('click', function () { focusSelected(); });
+  }
+  function applyTransform() {
+    var g = $('mapLayer');
+    if (g) g.setAttribute('transform', 'translate(' + panX + ' ' + panY + ') scale(' + zoom + ')');
+  }
+  function setZoom(z) { zoom = Math.max(0.6, Math.min(6, z)); applyTransform(); }
+  /** 把镜头对准所选地点的标点（把它移到舞台中心） */
+  function focusSelected() {
+    var l = LOCATIONS.filter(function (x) { return x.key === selKey; })[0];
+    if (!l || !base) return;
+    var mx = base.X(l.geo[0]), my = base.Y(l.geo[1]);
+    zoom = 2.2;
+    panX = 350 - mx * zoom;
+    panY = 235 - my * zoom;
+    applyTransform();
+  }
+
+  /* ==========================================================================
+     三、渲染
+     ========================================================================== */
+  var filter = 'all', sortBy = 'free', locFilter = '', query = '', favs = {};
+
+  function availText(l) { return AVAIL_TEXT[availOf(l)]; }
+
+  function visible() {
+    var arr = LOCATIONS.slice();
+    if (query) {
+      var q = query.toLowerCase();
+      arr = arr.filter(function (l) {
+        var hay = (l.name + ' ' + l.key + ' ' + l.piles.map(function (p) { return p.code; }).join(' ')).toLowerCase();
+        return hay.indexOf(q) >= 0;
+      });
+    }
+    if (locFilter) arr = arr.filter(function (l) { return l.key === locFilter; });
+    if (filter === 'fav')  arr = arr.filter(function (l) { return favs[l.key]; });
+    if (filter === 'free') arr = arr.filter(function (l) { return l.free > 0; });
+    if (sortBy === 'free') arr.sort(function (a, b) { return b.free - a.free; });
+    if (sortBy === 'rate') arr.sort(function (a, b) { return b.free / b.sockets - a.free / a.sockets; });
+    if (sortBy === 'name') arr.sort(function (a, b) { return a.name.localeCompare(b.name, 'zh'); });
+    if (sortBy === 'fav')  arr.sort(function (a, b) { return (favs[b.key] ? 1 : 0) - (favs[a.key] ? 1 : 0); });
+    return arr;
+  }
+
+  function pileGrid(l, limit) {
+    var list = limit ? l.piles.slice(0, limit) : l.piles;
+    return list.map(function (p) {
+      var n = p.ports.filter(function (x) { return x === 'free'; }).length;
+      return '<div class="cp-pile"><b>' + p.code + '</b>'
+           + '<span class="cp-ports">' + p.ports.map(function (x) { return '<i class="' + x + '"></i>'; }).join('') + '</span>'
+           + '<span><em>' + n + '/4</em> 空闲</span></div>';
+    }).join('') + (limit && l.piles.length > limit
+      ? '<div class="cp-pile" style="display:grid;place-items:center;color:#a7af9d">+' + (l.piles.length - limit) + ' 台</div>' : '');
+  }
+
+  /** 地图页右栏的地点明细卡 */
+  function siteCardHTML(l) {
+    var av = availOf(l), pct = l.sockets ? Math.min(100, l.free / l.sockets * 100) : 0;
+    var on = favs[l.key];
+    var idx = LOCATIONS.map(function (x) { return x.key; }).indexOf(l.key) + 1;
+    return '<div class="cover">'
+      +   '<button class="fav" data-fav="' + l.key + '" aria-pressed="' + !!on + '" title="收藏此处">' + (on ? '★' : '☆') + '</button>'
+      +   '<span class="idx">地图地点 ' + pad2(idx) + ' / ' + pad2(LOCATIONS.length) + '</span>'
+      +   '<h2>' + l.name + '</h2>'
+      +   '<div class="where"><span class="cp-dot" style="background:#ffffff9e"></span>' + l.key + '</div>'
+      + '</div>'
+      + '<div class="body">'
+      +   '<div class="cp-avail"><div><strong class="num">' + l.free + '</strong><span>个空闲插座</span></div>'
+      +     '<span class="cp-badge">' + AVAIL_TEXT[av] + '</span></div>'
+      +   '<div class="cp-bar"><i style="width:' + pct.toFixed(1) + '%"></i></div>'
+      +   '<p class="cp-update">样例数据 · 共 ' + l.sockets + ' 个插座 / ' + l.devs + ' 台桩</p>'
+      +   '<div class="cp-minihead"><h3>此处的充电桩</h3><span>' + l.devs + ' 台 / ' + l.sockets + ' 口</span></div>'
+      +   '<div class="cp-piles">' + pileGrid(l, 8) + '</div>'
+      + '</div>';
+  }
+
+  /** 设备页的地点卡（点开可展开全部单桩） */
+  function deviceCardHTML(l) {
+    var av = availOf(l), pct = l.sockets ? Math.min(100, l.free / l.sockets * 100) : 0;
+    var on = favs[l.key];
+    return '<article class="cp-dev" data-availability="' + av + '" data-key="' + l.key + '">'
+      +   '<div class="top"><h3>' + l.name + '</h3>'
+      +     '<button class="fav" data-fav="' + l.key + '" aria-pressed="' + !!on + '" title="收藏">' + (on ? '★' : '☆') + '</button></div>'
+      +   '<p class="where">' + l.key + ' · <span class="tag">地点</span></p>'
+      +   '<div class="count"><strong class="num">' + l.free + '</strong><span>空闲 / ' + l.sockets + ' 口</span>'
+      +     '<span class="cp-badge">' + AVAIL_TEXT[av] + '</span></div>'
+      +   '<div class="cp-bar"><i style="width:' + pct.toFixed(1) + '%"></i></div>'
+      +   '<div class="foot"><span>样例数据 · ' + l.devs + ' 台桩 / ' + l.sockets + ' 个插座</span><span class="expand">展开单桩 ›</span></div>'
+      +   '<div class="detail"><div class="cp-minihead" style="border-top:0;margin-top:0;padding-top:0">'
+      +     '<h3>单桩与插座</h3><span>' + l.devs + ' 台</span></div>'
+      +     '<div class="cp-piles">' + pileGrid(l, 0) + '</div></div>'
+      + '</article>';
+  }
+
+  function render() {
+    var totalDev = LOCATIONS.reduce(function (a, l) { return a + l.devs; }, 0);
+    var totalPort = LOCATIONS.reduce(function (a, l) { return a + l.sockets; }, 0);
+    var totalFree = LOCATIONS.reduce(function (a, l) { return a + l.free; }, 0);
+
+    $('sDev').innerHTML = totalDev + '<small>台</small>';
+    $('sPort').innerHTML = totalPort + '<small>个</small>';
+    $('sFree').innerHTML = totalFree + '<small>个</small>';
+    $('sLoc').innerHTML = LOCATIONS.length + '<small>处</small>';
+    $('tabCount').textContent = totalDev;
+    $('locCount').textContent = LOCATIONS.length;
+    $('sFreeNote').textContent = '样例数据 · 约占 ' + (totalFree / totalPort * 100).toFixed(1) + '%';
+
+    // 第三个统计格跟着「所选地点」走还是跟合计走？——跟**合计**走，理由是它标着「当前已知空闲」，
+    // 是全校口径；所选地点的数字在右栏卡里单独给（避免同一个数字两处含义不同）。
+    $('statFree').setAttribute('data-availability', totalFree <= 0 ? 'full' : (totalFree / totalPort <= 0.25 ? 'low' : 'available'));
+
+    // 地图页右栏 + 地点胶囊 + 浮层
+    var sel = LOCATIONS.filter(function (l) { return l.key === selKey; })[0] || LOCATIONS[0];
+    $('siteCard').setAttribute('data-availability', availOf(sel));
+    $('siteCard').innerHTML = siteCardHTML(sel);
+    $('placeChip').setAttribute('data-availability', availOf(sel));
+    $('placeName').textContent = sel.name;
+    $('placeMeta').textContent = sel.devs + ' 台设备 · ' + sel.sockets + ' 个插座 · 空闲 ' + sel.free;
+
+    $('picker').innerHTML = LOCATIONS.map(function (l, i) {
+      return '<button data-key="' + l.key + '" data-availability="' + availOf(l) + '"'
+           + ' aria-pressed="' + (l.key === selKey) + '"><i>' + (i + 1) + '</i><span>' + l.name + '</span></button>';
+    }).join('');
+
+    // 设备页
+    var arr = visible();
+    $('devCaption').textContent = '显示 ' + arr.length + ' 处 · 共 ' + LOCATIONS.length
+                                + ' 处地点、' + totalDev + ' 台已导入设备';
+    $('list').innerHTML = arr.length ? arr.map(deviceCardHTML).join('')
+      : '<div class="cp-empty">没有符合条件的地点<br>试试清空搜索，或换个筛选条件。</div>';
+
+    drawMap();
+    bindEvents();
+  }
+
+  function bindEvents() {
+    // 地点胶囊 / 浮层 → 切换所选地点
+    Array.prototype.forEach.call($('picker').querySelectorAll('button'), function (b) {
+      b.addEventListener('click', function () { selKey = b.getAttribute('data-key'); render(); });
+    });
+    // ⚠️ `#placeChip` 是**静态节点**（不会被 innerHTML 重建），所以它的监听器只在
+    //    外面绑一次（见下面「只绑一次」那段）。放在 render() 里每渲染一次就绑一次会**累积监听器**。
+
+    // 收藏（地图页右栏 + 设备页卡片都走这里）
+    Array.prototype.forEach.call(document.querySelectorAll('[data-fav]'), function (b) {
+      b.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var k = b.getAttribute('data-fav');
+        if (favs[k]) delete favs[k]; else favs[k] = 1;
+        render();
+      });
+    });
+    // 设备卡点开 → 展开单桩
+    Array.prototype.forEach.call(document.querySelectorAll('.cp-dev'), function (card) {
+      card.addEventListener('click', function () {
+        card.setAttribute('data-open', card.getAttribute('data-open') === '1' ? '0' : '1');
+      });
+    });
+    bindMarkClicks();
+  }
+
+  /* ==========================================================================
+     四、页签与交互
+     ========================================================================== */
+  function go(page) {
+    ['map', 'dev'].forEach(function (p) { $('page-' + p).classList.toggle('on', p === page); });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-page]'), function (b) {
+      b.setAttribute('aria-selected', String(b.getAttribute('data-page') === page));
+    });
+    window.scrollTo(0, 0);
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.cp-tabs>button, .cp-nav>button'), function (b) {
+    b.addEventListener('click', function () { go(b.getAttribute('data-page')); });
+  });
+  // 只绑一次（静态节点，见上面 bindEvents 的注释）
+  $('placeChip').addEventListener('click', function () { go('dev'); });
+
+  $('q').addEventListener('input', function (e) { query = e.target.value; render(); });
+  $('locSel').addEventListener('change', function (e) { locFilter = e.target.value; render(); });
+  $('sortSel').addEventListener('change', function (e) { sortBy = e.target.value; render(); });
+  Array.prototype.forEach.call(document.querySelectorAll('.cp-chips>button'), function (b) {
+    b.addEventListener('click', function () {
+      filter = b.getAttribute('data-filter');
+      Array.prototype.forEach.call(document.querySelectorAll('.cp-chips>button'), function (x) {
+        x.setAttribute('aria-pressed', String(x === b));
+      });
+      render();
+    });
+  });
+  $('refresh').addEventListener('click', function () {
+    // 真实版在这里发起查询；本文件是样例，只提示一下，不假装查到了
+    var live = $('live');
+    live.textContent = '样例数据 · 刷新按钮在接入平台后生效';
+    live.classList.add('fresh');
+    setTimeout(function () { live.classList.remove('fresh'); }, 1200);
+  });
+
+  /* 地点下拉：从数据填，不写死 */
+  (function fillLocSel() {
+    var s = $('locSel');
+    LOCATIONS.forEach(function (l) {
+      var o = document.createElement('option');
+      o.value = l.key; o.textContent = l.name;
+      s.appendChild(o);
+    });
+  })();
+
+  bindPanZoom();
+  render();
+})();
+</script>
+</body>
+</html>

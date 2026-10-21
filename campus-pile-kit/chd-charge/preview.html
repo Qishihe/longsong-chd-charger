@@ -598,7 +598,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.12 · 内测</div>
+    <div id="app-ver" class="foot-ver">版本 v2.13 · 内测</div>
   </footer>
 </div>
 
@@ -1002,12 +1002,13 @@ const DEFAULT_DEVICES = [
 
   /* 🔌 2026-10-21 新增「渭水-物流服务中心」W-01~W-12（产品方在图上圈的**竖**红线，从下到上排）。
      清单来自产品方给的 12 行，id **逐行照抄**。
-     ⚠️ 两条**需要产品方复核**的地方（我按"他要的是 W-01~W-12 完整序列"处理了）：
-       ① 产品方那 12 行里 **`W-03` 出现了两次**（XLA28839 / XLA29461），而 **`W-04` 缺失**。
-          12 台设备对应 12 个位置，所以我把**第 4 台 XLA29461 定为 `W-04`**。
-          若实际不是（例如真的是两台 W-03、W-04 另有其桩），把这一行改回去即可 —— 只是显示编号。
-       ② 产品方原文用的是**不换行连字符 `‑`（U+2011）**，不是普通 `-`。这里统一成普通连字符
-          （`W-01`），与 `TY-01` / `E-01` 的写法一致；地图上的短编号会渲染成 `W01`。 */
+     ✅ **产品方 2026-10-21 19:0x 已确认：`XLA29461` = `W-04`**（不再是我的推测）。
+       他给的 12 行里第 3、4 台都写着 `W-03`（XLA28839 / XLA29461）、第 5 台直接跳 `W-05`；
+       12 台设备对应 12 个位置，所以第 4 台是 `W-04`。
+       ⚠️ 另一条仍然成立：产品方原文用的是**不换行连字符 `‑`（U+2011）**，不是普通 `-`。
+          这里统一成普通连字符（`W-01`），与 `TY-01` / `E-01` 写法一致；地图上渲染成 `W01`。
+          **而云端那份数据里 `W‑01` 的连字符仍是 U+2011** —— 靠 `normKey()` 在判据处归一化兜住
+          （见 `normKey` 的说明；那是本轮查出的线上 P0）。 */
   { id: 'XLA55127', code: 'W-01', name: '渭水校区 W-01 号桩', location: '渭水-物流服务中心' },
   { id: 'XLA29284', code: 'W-02', name: '渭水校区 W-02 号桩', location: '渭水-物流服务中心' },
   { id: 'XLA28839', code: 'W-03', name: '渭水校区 W-03 号桩', location: '渭水-物流服务中心' },
@@ -1125,13 +1126,15 @@ function appendNewLocationDevices(list, fromSchema) {
   const locations = [];
   for (let v = Number(fromSchema || 0) + 1; v <= DEVICE_SCHEMA; v++) {
     const locs = SCHEMA_ADDED_LOCATIONS[v];
-    if (locs) locations.push(...locs);
+    // 归一化：常量表里写的是普通 `-`，而云端/用户填的可能是 U+2011 变体（见 normKey）
+    if (locs) locations.push(...locs.map(normKey));
   }
   if (!locations.length) return { list, added: [], locations: [] };
 
   const have = new Set((list || []).map((d) => String((d && d.id) || '').toUpperCase()));
   const added = DEFAULT_DEVICES.filter(
-    (d) => locations.includes(d.location) && !have.has(String(d.id).toUpperCase())
+    // ⚠️ 两边都过 `normKey`：云端那份的 location 可能是 U+2011 变体（见 normKey 的说明）
+    (d) => locations.includes(normKey(d.location)) && !have.has(String(d.id).toUpperCase())
   );
   return { list: added.length ? list.concat(added) : list, added, locations };
 }
@@ -1164,7 +1167,9 @@ function getDevices() {
       ...d,
       name: meta.name,
       code: d.code || meta.code,
-      location: meta.location || d.location,
+      // ⚠️ 过 `normKey`：云端/手填的 location 可能带 U+2011 等变体连字符，
+      //    不归一化的话 `areas[location]` 查不到 → 会被 mapAreaOf 误判成朝晖（见 normKey 说明）
+      location: normKey(meta.location || d.location),
     };
   });
 
@@ -2294,8 +2299,30 @@ function loadScriptOnce(src) {
  *    现在改成：**真实位置只要是已登记分区就原样保留**，认不出才退回老的二分类。
  *    ⚠️ 判据是 `CHD_MAP.areas` 的键（= `map-data.js` 里登记过的分区），不是写死的名单 ——
  *    以后再加新分区，只要登记进 `areas`，这里自动生效，不用再来改一次。 */
+/* 🔴 2026-10-21 P0：**连字符归一化**。
+ *
+ * 产品方在 App 里手填的分区名用的是**不换行连字符 U+2011**（`渭水‑物流服务中心`），
+ * 而仓库里的 `map-data.js` areas 键、`DEFAULT_DEVICES`、`LINE_AREAS` 用的都是普通 `-`（U+002D）。
+ * **字符串不相等** → `areas[location]` 查不到 → `mapAreaOf()` 退回「非北门即朝晖」的二分类
+ * → 12 台物流桩被贴成朝晖 → 朝晖弧只有 36 个弧位、48 台挤 → **被 `filter(pos)` 静默丢掉**
+ * → 地图上根本看不见（这正是 #59 那类"列表里有、地图上没"）。
+ *
+ * ⚠️ **内测「看起来正常」是偶然，不是实现对**：我把 `DEVICE_SCHEMA` 升到 4 后，
+ *   迁移分支里 `location: meta.location || d.location` 会拿 `DEFAULT_DEVICES` 的值**覆写**，
+ *   顺手把 U+2011 改回 U+002D，**把脏数据盖住了**。而正式版 schema 还是旧值、
+ *   且没有这 12 条默认数据 → **躲不掉**。教训：**内测正常 ≠ 正式版正常。**
+ *
+ * ⚠️ **只能在判据处归一化，不能在数据文件里手改** —— 云端那批脏数据
+ *   **已经躺在产品方所有设备上了**，改仓库文件一点用都没有。
+ *
+ * 推荐方括号范围 `[\u2010-\u2015\u2212]` 覆盖：U+2010 连字符 / **U+2011 不换行连字符** /
+ * U+2012 数字线 / U+2013 短破折 / U+2014 长破折 / U+2015 横线 / U+2212 减号。 */
+function normKey(s) {
+  return String(s == null ? '' : s).replace(/[\u2010-\u2015\u2212]/g, '-');
+}
+
 function mapAreaOf(d) {
-  const real = String((d && d.location) || '').trim();
+  const real = normKey(String((d && d.location) || '').trim());
   const areas = (window.CHD_MAP && window.CHD_MAP.areas) || {};
   if (real && areas[real]) return real;
   const target = mapForAddress([d.location, d.name].filter(Boolean).join(' '));

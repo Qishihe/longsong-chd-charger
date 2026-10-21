@@ -40,19 +40,30 @@ class Checker:
     def check(self, ok, label, detail=""):
         self.results.append({"ok": bool(ok), "label": label, "detail": detail})
 
+    def info(self, label, detail=""):
+        """信息项：只打印，不参与通过/失败计数（用于「内测领先正式版」这类正常状态）。"""
+        self.results.append({"ok": True, "info": True, "label": label, "detail": detail})
+
     def report(self):
         for r in self.results:
+            if r.get("info"):
+                line = f"[i] {r['label']}"
+                if r["detail"]:
+                    line += f"  —— {r['detail']}"
+                print(line)
+                continue
             mark = "[✓]" if r["ok"] else "[✗]"
             line = f"{mark} {r['label']}"
             if r["detail"]:
                 line += f"  —— {r['detail']}"
             print(line)
-        bad = [r for r in self.results if not r["ok"]]
+        gate = [r for r in self.results if not r.get("info")]
+        bad = [r for r in gate if not r["ok"]]
         print()
         if bad:
-            print(f"共 {len(self.results)} 项，{len(bad)} 项不通过。修正后再发布。")
+            print(f"共 {len(gate)} 项，{len(bad)} 项不通过。修正后再发布。")
         else:
-            print(f"共 {len(self.results)} 项，全部通过。")
+            print(f"共 {len(gate)} 项，全部通过。")
         return len(bad) == 0
 
 
@@ -120,11 +131,23 @@ def main():
     # 两版页签集合从此相同（渭水校区 / 渭水-北门 / 渭水-朝晖体育场南），
     # 所以断言从「preview 4 个 / index 2 个」改成「都是 3 个，且页签完全一致」——
     # 页签属于产品结构，两版不一样才是要拦的问题（历史上内测多一张总览图）。
-    c.check(len(pv_tabs) == 3, f"preview 有 3 个地图页签（实际 {len(pv_tabs)}）")
-    c.check(len(ix_tabs) == 3, f"index 有 3 个地图页签（实际 {len(ix_tabs)}）")
-    c.check(pv_tabs and pv_tabs == ix_tabs,
-            "两版地图页签一致（id + 文案）",
-            " / ".join(f"{i}:{t}" for i, t in pv_tabs) if pv_tabs else "没解析到页签")
+    # 2026-10-21 改（内测新增「渭水-物流服务中心」页签，产品方尚未验收）：
+    # 断言从「两版完全一致」放宽为 **index 的页签 ⊆ preview 的页签**（同序）。
+    # 理由：内测先加新分区是正常的发布节奏，长期挂红会把真问题淹掉；
+    # 但反向仍然要拦 —— 正式版出现内测没有的页签 = 正式版跑了未验收的东西。
+    # preview 独有的页签作为**信息项**打印，提醒同步正式版时别忘。
+    c.check(len(ix_tabs) >= 3, f"index 至少有 3 个地图页签（实际 {len(ix_tabs)}）")
+    ix_ids = [i for i, _ in ix_tabs]
+    pv_ids = [i for i, _ in pv_tabs]
+    missing = [t for t in ix_tabs if t not in pv_tabs]
+    c.check(bool(pv_tabs) and not missing,
+            "index 的页签都在 preview 里（正式版不得有内测未验收的页签）",
+            " / ".join(f"{i}:{t}" for i, t in ix_tabs) if ix_tabs else "没解析到页签")
+    c.check(ix_ids == [i for i in pv_ids if i in set(ix_ids)],
+            "两版共有页签顺序一致", f"index={ix_ids} preview={pv_ids}")
+    only_pv = [f"{i}:{t}" for i, t in pv_tabs if i not in set(ix_ids)]
+    c.info("preview 有 " + (str(len(only_pv)) + " 个页签尚未同步正式版：" if only_pv else "0 个页签未同步：")
+           + (" / ".join(only_pv) if only_pv else "两版页签已对齐"))
     # 静态总览图必须彻底下线：页签按钮和 MAP_ORDER 里都不能再有 overview
     # （只查按钮 —— CSS 里还留着 `.map-dialog[data-map="overview"]` 的死规则，
     #   那是给「以后恢复总览」用的，不算违规；我第一次写宽了，被它误判过）

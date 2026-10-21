@@ -598,7 +598,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.11 · 内测</div>
+    <div id="app-ver" class="foot-ver">版本 v2.12 · 内测</div>
   </footer>
 </div>
 
@@ -2244,16 +2244,34 @@ function loadScriptOnce(src) {
   return p;
 }
 
+/** 设备 → 在线底图（高德 / 腾讯）上的分区名。
+ *
+ * 🔴 2026-10-21 修：原来是「不是北门就一律朝晖」的**二分类**，
+ *    新增的「渭水-20号楼」E-01~E-24 会被一律贴成「渭水-朝晖体育场南」→
+ *    `layoutPiles` 走朝晖弧分支，而朝晖 36 个弧位已被 TY-01~36 占满，
+ *    这 24 台**一个落点都分不到**，最后被 `out.filter(o => !!o.pos)` 整批丢掉 ——
+ *    表现就是产品方说的「**列表里有，地图上完全没有**」。
+ *
+ *    现在改成：**真实位置只要是已登记分区就原样保留**，认不出才退回老的二分类。
+ *    ⚠️ 判据是 `CHD_MAP.areas` 的键（= `map-data.js` 里登记过的分区），不是写死的名单 ——
+ *    以后再加新分区，只要登记进 `areas`，这里自动生效，不用再来改一次。 */
+function mapAreaOf(d) {
+  const real = String((d && d.location) || '').trim();
+  const areas = (window.CHD_MAP && window.CHD_MAP.areas) || {};
+  if (real && areas[real]) return real;
+  const target = mapForAddress([d.location, d.name].filter(Boolean).join(' '));
+  return target && target.id === 'beimen' ? '渭水-北门' : '渭水-朝晖体育场南';
+}
+
 /** 设备清单 → 真实地图用的桩数据（含状态与所属分区） */
 function tmapDevices() {
   return mapDevices.map((d, i) => {
     const ports = (mapResults[i] || {}).ports || [];
     const free = ports.filter((p) => p.state === SLOT_FREE).length;
-    const target = mapForAddress([d.location, d.name].filter(Boolean).join(' '));
     return {
       id: d.id,
       code: d.code || d.name,
-      location: target && target.id === 'beimen' ? '渭水-北门' : '渭水-朝晖体育场南',
+      location: mapAreaOf(d),
       free: ports.length ? free : 0,
       total: ports.length,
     };
@@ -2430,11 +2448,10 @@ function amapDevices() {
   return mapDevices.map((d, i) => {
     const ports = (mapResults[i] || {}).ports || [];
     const free = ports.filter((p) => p.state === SLOT_FREE).length;
-    const target = mapForAddress([d.location, d.name].filter(Boolean).join(' '));
     return {
       id: d.id,
       code: d.code || d.name,
-      location: target && target.id === 'beimen' ? '渭水-北门' : '渭水-朝晖体育场南',
+      location: mapAreaOf(d),   // 见 mapAreaOf 的说明：不能用「非北门即朝晖」的二分类
       free: ports.length ? free : 0,
       total: ports.length,
     };

@@ -155,6 +155,22 @@ python campus-pile-kit/tools/restore_snapshot.py --state release-2026-10-25-v2.3
 **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)** —— 包括为什么放弃复刻、为什么最后没有后端、
 凭证为什么要在浏览器里加密、以及那些只有真实网络才暴露出来的问题。
 
+### 更多文档
+
+| 文档 | 内容 |
+|---|---|
+| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | 从零开始的完整开发历程（8 天 / 92 次提交） |
+| [HANDOFF.md](HANDOFF.md) | 工程交接说明：目录地图、模块职责、发布流程、易错点 |
+| [campus-pile-kit/docs/DEPLOY-GUIDE.md](campus-pile-kit/docs/DEPLOY-GUIDE.md) | Cloudflare Pages 部署步骤 |
+| [campus-pile-kit/docs/自部署清单.md](campus-pile-kit/docs/自部署清单.md) | 自己架服务器需要的完整清单 |
+| [campus-pile-kit/docs/FIDDLER-抓包启动清单.md](campus-pile-kit/docs/FIDDLER-抓包启动清单.md) | 取凭证的抓包操作清单 |
+| [campus-pile-kit/versions-chd/SNAPSHOTS.md](campus-pile-kit/versions-chd/SNAPSHOTS.md) | 每个历史版本对应哪些文件、怎么回退 |
+| [项目记忆-长安大学充电桩查询.md](项目记忆-长安大学充电桩查询.md) | 项目总览：三条链路、硬规则、未决事项 |
+| [街电接口分析.md](街电接口分析.md) | 数据源可行性分析与结论 |
+
+> 根目录下另有 `沟通记录-*.md`（多助手协作时的交接记录）、`性能审计与优化报告.md`、
+> `scratch/`（一次性探测脚本与截图，已 gitignore）等过程材料。
+
 ## 免责声明
 
 - 本项目是**学生公益项目**，与长安大学及任何充电桩运营商无隶属关系。

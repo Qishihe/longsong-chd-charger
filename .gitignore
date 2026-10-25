@@ -23,6 +23,12 @@ Thumbs.db
 desktop.ini
 .DS_Store
 
+# 第三方参考仓库：独立克隆（自带 .git），且其 LICENSE-CHOICES.md 自述
+# 「尚未写入覆盖全部文件的 LICENSE」= 保留所有权利，不该随本仓库分发。
+# ⚠️ 2026-10-25 发现它此前以 gitlink（mode 160000）形式混进了索引，却没有 .gitmodules ——
+#    别人 clone 下来只会得到一个空目录，点也点不开。已 git rm --cached，本地保留。
+stu-charge-watch/
+
 # 独立部署包：是由 chd-charge/ 复制出来的构建产物（tools/make_dist.py 生成），
 # 内容与 chd-charge/ 重复，且会随时间过时 —— 不入库，需要时重新生成
 campus-pile-kit/dist-chd-charge/

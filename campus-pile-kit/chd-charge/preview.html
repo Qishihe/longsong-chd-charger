@@ -589,12 +589,12 @@
     </div>
     <div class="head-actions" data-page-node-id="Q3boauP5Su80GKToe6W0jU">
       <button class="icon-btn" id="map-open" data-page-node-id="map-open-btn">地图</button>
-      <!-- 2026-10-25：「使用情况」改叫「一周数据」—— 新增的「使用说明」与它只差一个字，
-           两个名字并排放会让人点错。这个按钮打开的是过去一周的占用率图表，
-           叫「一周数据」更直白，也和「使用说明」区分开了。 -->
-      <button class="icon-btn" id="usage-open" data-page-node-id="usage-open-btn">一周数据</button>
-      <button class="icon-btn" id="open-settings" data-page-node-id="nHLZrShKG5WyOR67FcOFsb">设置</button>
+      <!-- 2026-10-25 第六轮：「一周数据」入口**先下掉**（产品方要求，功能保留待用）——
+           弹窗 `#usage-dialog` 与 `openUsageDialog()` 都留着，只是没人能点开它；
+           对应绑定改成存在才绑，否则 `$('usage-open')` 为 null 会抛错、后面整段 boot 断掉。
+           现在的顺序是「地图 / 使用说明 / 设置」，三个 flex:1 平分。 -->
       <button class="icon-btn" id="help-open">使用说明</button>
+      <button class="icon-btn" id="open-settings" data-page-node-id="nHLZrShKG5WyOR67FcOFsb">设置</button>
     </div>
   </header>
 
@@ -690,7 +690,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.31 · 内测</div>
+    <div id="app-ver" class="foot-ver">版本 v2.33 · 内测</div>
   </footer>
 </div>
 
@@ -831,7 +831,7 @@
       <button class="link-btn" data-close>关闭</button>
     </div>
     <p class="note" style="margin-top:0">
-      首先感谢参与数据采集、拍摄照片、核对桩位信息的各位同学：<b>F.、卷不动根本卷不动、W、元气少女</b>。
+      首先感谢参与数据采集、拍摄照片、核对桩位信息的各位同学：<b>F.、ditto、W、元气少女</b>。
       大家利用课余时间实地走访，为这个校园充电桩项目提供了宝贵的实地数据，
       让网站能够真实、准确地展示充电桩状态，帮助同学们避免跑空。
       所有参与贡献的同学名单，已收录在贡献名单页面。
@@ -916,11 +916,11 @@
     </p>
 
     <h3 class="help-sec">关于赞助</h3>
-    <p class="help-body">本站没有广告，服务器和域名是我自己掏钱。</p>
+    <p class="help-body">本站没有广告，也从不收费；服务器和域名由我自己维护。</p>
     <div class="sponsor-box">
       <img class="sponsor-qr" src="./sponsor-qr.png" alt="支付宝收款二维码" loading="lazy" decoding="async">
       <p class="sponsor-note">
-        如果它帮到了你，可以扫上面这个码请我喝杯水。<br>
+        上面是<b>支付宝</b>收款码，如果它帮到了你，可以用支付宝扫码请我喝杯水。<br>
         <b>完全自愿</b>：不打赏也能用全部功能，也没有任何额外权限或数据上的差别。
       </p>
     </div>
@@ -5524,8 +5524,11 @@ $('password-cancel').addEventListener('click', () => $('password-dialog').close(
 $('password-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('password-ok').click(); });
 
 /* ---------------- 使用情况统计 ---------------- */
-
-$('usage-open').addEventListener('click', openUsageDialog);
+/* 2026-10-25 第六轮：入口按钮 `#usage-open` 已下掉（弹窗与渲染函数保留，随时能挂回来）。
+   这里必须判空 —— `$('usage-open')` 现在是 null，直接 .addEventListener 会抛 TypeError，
+   而这段在 boot() 里，抛了它后面的初始化全部不执行（表现为刷新按钮全哑）。 */
+var _usageOpenBtn = $('usage-open');
+if (_usageOpenBtn) _usageOpenBtn.addEventListener('click', openUsageDialog);
 
 // 折线图数据点点击：查看该点具体数值（点同一个点收起，点别的点切换）
 $('usage-hour').addEventListener('click', (event) => {

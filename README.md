@@ -180,7 +180,7 @@ python campus-pile-kit/tools/restore_snapshot.py --state release-2026-10-25-v2.3
 
 ## 致谢
 
-感谢参与数据采集、拍摄照片、核对桩位信息的同学：**F.、卷不动根本卷不动、W、元气少女**。
+感谢参与数据采集、拍摄照片、核对桩位信息的同学：**F.、ditto、W、元气少女**。
 
 特别感谢 **MyCHD** 作者 **Rinn**，为本项目的地图开发提供了思路与实现参考。
 

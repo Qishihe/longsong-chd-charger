@@ -26,8 +26,10 @@
    v105 → v106（2026-10-25 v2.18/v2.29：内测同步正式版 —— 正式版也加了
                   「致谢 & 贡献名单」弹窗，离线壳里的 index.html 还是旧结构）
    v106 → v107（2026-10-25 v2.19/v2.30：致谢名单「元气少女李方朵」→「元气少女」，
-                  两版文案都改了，离线壳里的那份还是旧名字）*/
-const CACHE = 'campus-pile-v107';
+                  两版文案都改了，离线壳里的那份还是旧名字）
+   v107 → v108（2026-10-25 v2.20/v2.31：新增「使用说明」弹窗 + 赞助码图片，
+                  SHELL 补 ./sponsor-qr.png —— 不加的话断网点开说明会裂图）*/
+const CACHE = 'campus-pile-v108';
 const SHELL = [
   './',
   './index.html',
@@ -35,6 +37,9 @@ const SHELL = [
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
+  /* 「使用说明」弹窗里的赞助码（39KB）。断网时点开说明也得看得见图，
+     否则会是一个破图占位符。它不带 query，所以直接写路径即可。 */
+  './sponsor-qr.png',
   /* ⚠️ 必须**带 `?v=164`** —— Cache API 按**完整 URL** 匹配：
      存不带 query 的 `./map-data.js`，断网时那个带 `?v=164` 的请求**命中不了**，等于没存 ✗
      ⚠️ 而且这个 `?v=` 要与页面里的**静态标签** `<script src="map-data.js?v=164">`

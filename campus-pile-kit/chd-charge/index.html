@@ -53,6 +53,30 @@
   .thanks-list li{margin:3px 0}
   .thanks-list a{color:var(--free); text-decoration:none; word-break:break-all}
   .thanks-list a:hover{text-decoration:underline}
+
+  /* 「使用说明」弹窗（2026-10-25）：分节标题 / 三步流程 / 赞助卡片。
+     ⚠️ 本文件是**两版共享**的样式区，改动要同时进 index（sync 脚本会搬），
+        注释里绝对不能出现星号加斜杠的组合 —— 会提前闭合注释块、整页白屏。 */
+  .help-sec{font-size:13px; font-weight:600; margin:16px 0 0; color:var(--text); letter-spacing:-.1px}
+  .help-body{font-size:12.5px; color:var(--muted); line-height:1.75; margin:6px 0 0}
+  .help-steps{margin:8px 0 0; padding:0; list-style:none; counter-reset:hs}
+  .help-steps li{position:relative; padding-left:24px; font-size:12.5px; color:var(--muted); line-height:1.7; margin-top:10px}
+  .help-steps li::before{
+    counter-increment:hs; content:counter(hs);
+    position:absolute; left:0; top:1px; width:17px; height:17px; border-radius:50%;
+    background:var(--line); color:var(--muted); font-size:10.5px; font-weight:600;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .help-steps b{color:var(--text); font-weight:600}
+  .help-list{margin:6px 0 0; padding-left:16px; font-size:12.5px; color:var(--muted); line-height:1.7}
+  .help-list li{margin:4px 0}
+  /* 页脚的 .foot-link 带 word-break:break-all（页脚窄，长链接必须能断），
+     搬进说明弹窗后邮箱会被切成 `@qq.co` / `m` 两行 —— 这里把它掰回来：
+     normal 优先按空格断，anywhere 只在实在放不下时才硬断。 */
+  .help-body .foot-link{word-break:normal; overflow-wrap:anywhere}
+  .sponsor-box{margin-top:12px; padding:12px 12px 10px; border:1px dashed var(--line-strong); border-radius:12px; text-align:center; background:var(--bg)}
+  .sponsor-qr{display:block; width:150px; height:auto; margin:0 auto; border-radius:8px}
+  .sponsor-note{font-size:11.5px; color:var(--hint); line-height:1.7; margin:8px 0 0}
   .icon-btn{
     font:inherit; font-size:13px; padding:8px 14px; border-radius:10px; cursor:pointer;
     border:1px solid var(--line-strong); background:var(--card); color:var(--text);
@@ -539,8 +563,12 @@
     </div>
     <div class="head-actions" data-page-node-id="Q3boauP5Su80GKToe6W0jU">
       <button class="icon-btn" id="map-open" data-page-node-id="map-open-btn">地图</button>
-      <button class="icon-btn" id="usage-open" data-page-node-id="usage-open-btn">使用情况</button>
+      <!-- 2026-10-25：「使用情况」改叫「一周数据」—— 新增的「使用说明」与它只差一个字，
+           两个名字并排放会让人点错。这个按钮打开的是过去一周的占用率图表，
+           叫「一周数据」更直白，也和「使用说明」区分开了。 -->
+      <button class="icon-btn" id="usage-open" data-page-node-id="usage-open-btn">一周数据</button>
       <button class="icon-btn" id="open-settings" data-page-node-id="nHLZrShKG5WyOR67FcOFsb">设置</button>
+      <button class="icon-btn" id="help-open">使用说明</button>
     </div>
   </header>
 
@@ -633,10 +661,10 @@
   <footer data-page-node-id="FcAfbyjWi7cXyHxRagdnt4">
     <div class="foot-contact">
       <div class="foot-line">有任何问题，欢迎联系 <a href="mailto:2742973313@qq.com" class="foot-link" data-page-node-id="contact-mail">2742973313@qq.com</a></div>
-      <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
+      <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.19</div>
+    <div id="app-ver" class="foot-ver">版本 v2.20</div>
   </footer>
 </div>
 
@@ -796,6 +824,81 @@
     <p class="note" style="margin-bottom:0">
       本项目为学生公益项目，持续维护更新中，欢迎大家继续反馈问题、提供数据。
     </p>
+    <div class="row">
+      <button class="icon-btn primary" data-close>知道了</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- 使用说明（2026-10-25）。入口在 head-actions 末尾的「使用说明」按钮（id=help-open）。
+     ⚠️ 和「一周数据」按钮只差一个字，所以原来那个「使用情况」已改名 —— 两个名字并排会点错。
+     ⚠️ 赞助码是 sponsor-qr.png：从支付宝收款海报里裁出白卡部分（原图是 1350×2025 的蓝色海报，
+        蓝底跟站点浅色风格不搭）。二维码本身一个像素没动，只裁掉了外框和「推荐使用支付宝」标题。
+     ⚠️ 群号链接带 data-qq-open，复用页脚那套「唤起 QQ 失败就弹兜底」的逻辑，
+        不要在别处另写一份。 -->
+<dialog id="help-dialog" aria-label="使用说明">
+  <div class="dlg-body">
+    <div class="dlg-head">
+      <h2>使用说明</h2>
+      <button class="link-btn" data-close>关闭</button>
+    </div>
+
+    <h3 class="help-sec">为什么做这个站</h3>
+    <p class="help-body">
+      渭水校区四个充电区、一百多台桩。官方小程序要先登录，进去还只能一台一台点开看 ——
+      想知道「现在哪里有空位」，得翻好几遍。
+    </p>
+    <p class="help-body">
+      这个站把一百多台桩一次性摊开：哪个区、几号桩、还剩几个空位，一屏看完，点一下「刷新」就是最新的。
+      数据来自充电平台本身，本站<b>只读不写</b>，不涉及账号、订单和支付。
+    </p>
+
+    <h3 class="help-sec">三步查到空桩</h3>
+    <ol class="help-steps">
+      <li><b>选地址</b>　上方「全部地址」里选你要去的区：渭水、物业服务中心、北门、朝晖体育场南。</li>
+      <li><b>只看有空的</b>　右边下拉选「目前空闲」，有空位的桩会排到最前面；想看编号顺序就选「按编号」。</li>
+      <li><b>点「查找」看位置</b>　每张卡片上都有一个「查找」按钮。点它，地图会打开并直接定位到这台桩，同时标出它周围还有哪些桩。</li>
+    </ol>
+    <p class="help-body">卡片上的数字读作「<b>空闲数 / 总数</b>」，绿色表示可用。</p>
+
+    <h3 class="help-sec">如果页面卡住了</h3>
+    <p class="help-body">
+      先做一件事：<b>关掉 Wi-Fi，改用手机流量打开。</b><br>
+      学校 Wi-Fi 人多的时候出口带宽是共享的，而本站服务器在境外，走 Wi-Fi 要绕一圈才拿得到数据；
+      手机流量走运营商直连，反而更稳更快。
+    </p>
+    <ul class="help-list">
+      <li>点右上角「刷新」重查一次，或者下拉页面重新加载</li>
+      <li>等一两分钟再试 —— 平台对短时间内的密集查询有限流，缓一下就恢复</li>
+      <li>一直转圈超过一分钟，到群里说一声，一般很快有人处理</li>
+    </ul>
+
+    <h3 class="help-sec">一起把它做得更好</h3>
+    <p class="help-body">
+      桩位、照片、新装的桩、拆掉的桩，这些都得有人真去跑一趟才知道。
+      如果你发现哪台桩的位置标错了，或者某个区新加了桩，欢迎在群里说。
+    </p>
+    <p class="help-body" style="margin-bottom:0">
+      QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" data-qq-open>1128669064</a>（点一下直接加群）<br>
+      邮箱 <a href="mailto:2742973313@qq.com" class="foot-link">2742973313@qq.com</a>
+    </p>
+
+    <h3 class="help-sec">项目开源</h3>
+    <p class="help-body">
+      代码在 GitHub：<a href="https://github.com/Qishihe/longsong-chd-charger" target="_blank" rel="noopener noreferrer" class="foot-link">github.com/Qishihe/longsong-chd-charger</a>
+      　欢迎看看、提问题，或者自己部署一份。
+    </p>
+
+    <h3 class="help-sec">关于赞助</h3>
+    <p class="help-body">本站没有广告，服务器和域名是我自己掏钱。</p>
+    <div class="sponsor-box">
+      <img class="sponsor-qr" src="./sponsor-qr.png" alt="支付宝收款二维码" loading="lazy" decoding="async">
+      <p class="sponsor-note">
+        如果它帮到了你，可以扫上面这个码请我喝杯水。<br>
+        <b>完全自愿</b>：不打赏也能用全部功能，也没有任何额外权限或数据上的差别。
+      </p>
+    </div>
+
     <div class="row">
       <button class="icon-btn primary" data-close>知道了</button>
     </div>
@@ -5520,15 +5623,30 @@ document.querySelectorAll('[data-close]').forEach((btn) => {
   });
 })();
 
+/* ---------------- 「使用说明」弹窗（2026-10-25） ---------------- */
+
+(function bindHelp() {
+  const trigger = $('help-open');
+  const dlg = $('help-dialog');
+  if (!trigger || !dlg) return;
+  trigger.addEventListener('click', () => {
+    if (typeof dlg.showModal === 'function') dlg.showModal();
+    else dlg.setAttribute('open', '');
+  });
+})();
+
 /* ---------------- 页脚 QQ 群号：唤起 QQ，失败给兜底 ---------------- */
 
 (function bindQQGroupLink() {
   const QQ_GROUP = '1128669064';
   // 官方群卡片协议：直接按群号打开 QQ 群资料页（已加群会显示「发消息」）
   const scheme = 'mqqapi://card/show_pslcard?src_type=internal&version=1&uin=' + QQ_GROUP + '&card_type=group&source=sharecard';
-  const link = $('qq-group-link');
+  // 页脚 +「使用说明」弹窗里各有一个群号链接，共用同一套唤起/兜底逻辑 ——
+  // 不要在别处再写一份，否则两边行为会慢慢分叉。
+  const links = Array.from(document.querySelectorAll('[data-qq-open]'));
   const dlg = $('qq-fallback-dialog');
-  if (!link || !dlg) return;
+  const helpDlg = $('help-dialog');
+  if (!links.length || !dlg) return;
 
   let fallbackTimer = null;
   const cancelFallback = () => { if (fallbackTimer) { clearTimeout(fallbackTimer); fallbackTimer = null; } };
@@ -5537,17 +5655,22 @@ document.querySelectorAll('[data-close]').forEach((btn) => {
   document.addEventListener('visibilitychange', () => { if (document.hidden) cancelFallback(); });
   window.addEventListener('pagehide', cancelFallback);
 
-  link.addEventListener('click', (event) => {
-    event.preventDefault();
-    cancelFallback();
-    try {
-      window.location.href = scheme;
-    } catch (e) {}
-    // 1.2 秒后页面还活着（没被 QQ 接管）→ 说明没跳成功，弹兜底
-    fallbackTimer = setTimeout(() => {
-      if (document.hidden) return;
-      if (!dlg.open) dlg.showModal();
-    }, 1200);
+  links.forEach((link) => {
+    link.addEventListener('click', (event) => {
+      event.preventDefault();
+      cancelFallback();
+      // 从「使用说明」弹窗里点的话，先把那个模态关掉 —— 两个 dialog 叠在一起时
+      // 兜底弹窗没有显示在最上层，用户会以为按钮没反应。
+      if (helpDlg && helpDlg.open) helpDlg.close();
+      try {
+        window.location.href = scheme;
+      } catch (e) {}
+      // 1.2 秒后页面还活着（没被 QQ 接管）→ 说明没跳成功，弹兜底
+      fallbackTimer = setTimeout(() => {
+        if (document.hidden) return;
+        if (!dlg.open) dlg.showModal();
+      }, 1200);
+    });
   });
 
   // 复制群号：clipboard API 优先，老浏览器用 textarea 兜底

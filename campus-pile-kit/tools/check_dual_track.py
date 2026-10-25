@@ -139,10 +139,19 @@ def main():
     c.check(len(ix_tabs) >= 3, f"index 至少有 3 个地图页签（实际 {len(ix_tabs)}）")
     ix_ids = [i for i, _ in ix_tabs]
     pv_ids = [i for i, _ in pv_tabs]
-    missing = [t for t in ix_tabs if t not in pv_tabs]
+    # 2026-10-24 改：判据从「(id, 文案) 必须完全一致」放宽成「**id** 必须都在 preview 里」。
+    # 理由：分区改名（物流服务中心 → 物业服务中心）时，必然是内测先改、正式版后同步，
+    #   中间状态文案不同是正常的；要拦的真问题仍然是「正式版有内测没有的页签」。
+    #   文案差异不静默放过 —— 单独作为信息项打印出来，提示同步正式版时别忘。
+    missing = [i for i in ix_ids if i not in set(pv_ids)]
     c.check(bool(pv_tabs) and not missing,
-            "index 的页签都在 preview 里（正式版不得有内测未验收的页签）",
+            "index 的页签 id 都在 preview 里（正式版不得有内测未验收的页签）",
             " / ".join(f"{i}:{t}" for i, t in ix_tabs) if ix_tabs else "没解析到页签")
+    ix_lbl = dict(ix_tabs)
+    pv_lbl = dict(pv_tabs)
+    label_diff = [f"{i}: 正式版「{ix_lbl[i]}」≠ 内测「{pv_lbl[i]}」"
+                  for i in ix_ids if i in pv_lbl and ix_lbl[i] != pv_lbl[i]]
+    c.info("两版页签文案不一致（改名未同步）：" + (" / ".join(label_diff) if label_diff else "无"))
     c.check(ix_ids == [i for i in pv_ids if i in set(ix_ids)],
             "两版共有页签顺序一致", f"index={ix_ids} preview={pv_ids}")
     only_pv = [f"{i}:{t}" for i, t in pv_tabs if i not in set(ix_ids)]
@@ -186,6 +195,29 @@ def main():
         c.check(bool(ix_v), "index 引用 map-amap.js 带版本号",
                 f'?v={ix_v.group(1)}' if ix_v else "引用了但没版本号")
 
+    # SW 预缓存清单里的 `?v=` 必须与页面里的 `?v=` 逐字相同 ——
+    # Cache API 按**完整 URL** 匹配，差一位就等于这条没预缓存（断网时才暴露，平时零信号）。
+    # 2026-10-25 真实踩过：页面 map-data.js 升到 164，sw.js 的 SHELL 还钉在 163，
+    # 而当时的三条版本检查全绿（CACHE 名只查存在、?v 只查页面侧）→ 断网丢 map-data.js。
+    shell = re.search(r"const\s+SHELL\s*=\s*\[(.*?)\];", sw, re.S)
+    shell_urls = re.findall(r"['\"]\./([^'\"]+\?v=\d+)['\"]", shell.group(1)) if shell else []
+    page_blob = pv_srcs + " " + ix_srcs
+    for u in shell_urls:
+        c.check(u in page_blob, f"sw.js 预缓存 {u} 与页面引用一致",
+                "" if u in page_blob else "页面里没有同 URL 的引用（Cache API 按完整 URL 匹配，等于没预缓存）")
+    # 反向：页面里带 ?v 的本地 js 若在 SHELL 里有同名条目，版本号必须一致
+    # （页面里同一文件会出现多次引用，先去重，否则同一条断言会被打印 N 遍）
+    seen = set()
+    for m in re.finditer(r"([\w.-]+\.js)\?v=(\d+)", pv_srcs + " " + ix_srcs):
+        name, ver = m.group(1), m.group(2)
+        if (name, ver) in seen:
+            continue
+        seen.add((name, ver))
+        sm = re.search(re.escape(name) + r"\?v=(\d+)", " ".join(shell_urls))
+        if sm:
+            c.check(sm.group(1) == ver, f"{name} 页面 ?v={ver} 与 sw.js 一致",
+                    "" if sm.group(1) == ver else f"sw.js 里是 ?v={sm.group(1)}")
+
     num = lambda s: re.search(r"v(\d+\.\d+)", s)
     a, b = num(pv_ver), num(ix_ver)
     c.check(bool(a and b), "两版页脚都能解析出版本号",
@@ -211,10 +243,21 @@ def main():
     #
     # 类名自动从 map-amap.js 里提取（class="x" 与 classList.toggle('x')），
     # 这样以后它新增了带样式的类，这里会自动跟上，不用再改脚本。
-    am_classes = sorted(set(
-        re.findall(r'class="([a-z][a-z0-9_-]*)', am_all)
-        + re.findall(r"classList\.(?:add|toggle|remove)\('([a-z][a-z0-9_-]*)'", am_all)
-    ))
+    #
+    # ⚠️ 2026-10-25 细化：**按「哪个引擎生成这个类」来要求对应的 HTML**。
+    #   原来是无条件「两版 HTML 都必须有」，但两版加载的是**不同文件**
+    #   （preview → map-amap-preview.js，index → map-amap.js）。只在内测先做的改版
+    #   （比如总览聚合圈加分区名）会在正式版报 2 项红，逼得人要么先改正式版 CSS、
+    #   要么无视这条告警 —— 两种都不对。现在：类只在 A 引擎里出现，就只要求加载 A 的页面有样式。
+    #   ⚠️ 但「两版共用同一个引擎」时（`map-amap-preview.js` 不存在 → 预览也引 map-amap.js），
+    #   两个页面都会被要求，保护性一点没减弱。
+    def _classes_in(src):
+        return set(
+            re.findall(r'class="([a-z][a-z0-9_-]*)', src)
+            + re.findall(r"classList\.(?:add|toggle|remove)\('([a-z][a-z0-9_-]*)'", src)
+        )
+
+    am_classes = sorted(_classes_in(am_all))
     # 例外：纯状态标记类，显隐由 syncLayers 的 setMap 控制、本来就没有也不需要 CSS 规则。
     # 断言只看「有视觉意义」的类。
     am_classes = [k for k in am_classes if k not in ("zoom-cluster",)]
@@ -224,10 +267,16 @@ def main():
             # 但不能是 `.cluster` 命中 `.cluster-num` 这种前缀误配
             return re.search(r"\." + re.escape(cls) + r"(?![a-z0-9_-])", html) is not None
 
+        # 页面 → 它实际加载的引擎源码（预览版没有独立引擎时，它引的就是 map-amap.js）
+        page_engines = (
+            ("preview.html", pv, _classes_in(amp or am)),
+            ("index.html", ix, _classes_in(am)),
+        )
         for cls in am_classes:
-            missing = [n for n, t in (("preview.html", pv), ("index.html", ix)) if not _has_rule(t, cls)]
+            missing = [n for n, html, eng_cls in page_engines
+                       if cls in eng_cls and not _has_rule(html, cls)]
             c.check(not missing,
-                    f"两版 HTML 都有 .{cls} 样式（地图 js 生成的类）",
+                    f"加载该引擎的页面都有 .{cls} 样式（地图 js 生成的类）",
                     ("缺：" + " / ".join(missing)) if missing else "")
 
     # ---------- 站点目录保洁 ----------
@@ -262,6 +311,20 @@ def main():
         c.check('os.environ.get("PORT"' in s or "os.environ.get('PORT'" in s,
                 "serve_gzip.py 从 PORT 环境变量取端口", "平台只暴露这一个端口")
         c.check("SELF_BLOCK" in s, "serve_gzip.py 屏蔽自身（不对外提供源码）")
+
+        # ---------- /api 反代：页面所有接口都是相对路径，静态服务会 501 ----------
+        # 2026-10-25 踩过：workbuddy.host 那边只有静态服务，`POST /api/pile` 返回 501，
+        # 页面「一直转圈、一个桩都查不到」。这条断言防的是「本地测试全绿、线上是空壳」。
+        c.check("_proxy_api" in s and "handle_pile" in s,
+                "serve_gzip.py 反代 /api/*（静态服务会让页面查不到任何桩）",
+                "页面接口是相对路径 /api/pile、/api/shop、/api/cred，必须由服务端转发")
+        c.check("UPSTREAM_UA" in s,
+                "serve_gzip.py 给上游带浏览器 UA",
+                "Cloudflare 按签名拦 Python-urllib/3.x，返回 Error 1010（HTML 错误页），"
+                "表现成上游全挂")
+        c.check("UPSTREAM_ORIGIN" in s and 'add_header("origin"' in s,
+                "serve_gzip.py 反代时改写 Origin",
+                "Worker 里有 origin !== url.origin → 403 的防盗链判断")
 
     ok = c.report()
     if args.json:

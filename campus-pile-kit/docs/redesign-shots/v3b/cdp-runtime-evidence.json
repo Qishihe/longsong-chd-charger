@@ -1,0 +1,1684 @@
+{
+ "generatedBy": "verification subagent (read-only pass over preview-v3.html)",
+ "subject": {
+  "path": "C:\\Users\\Administrator\\WorkBuddy\\2026-10-18-12-23-42\\campus-pile-kit\\chd-charge\\preview-v3.html",
+  "bytes": 260517,
+  "lines": 5303,
+  "sha256": "250DBDB469B82527401F5C383A98A445AFB27CEDD09904CB19CE01BFAF0C78AD",
+  "sha256BeforeRun": "250DBDB469B82527401F5C383A98A445AFB27CEDD09904CB19CE01BFAF0C78AD",
+  "sha256AfterRun": "250DBDB469B82527401F5C383A98A445AFB27CEDD09904CB19CE01BFAF0C78AD",
+  "verifiedUnmodified": true
+ },
+ "protocol": {
+  "browser": "msedge.exe 155.0.4283.62, --headless=new, --force-device-scale-factor=2, --window-size=390,1200",
+  "url": "file:///.../chd-charge/_host-v3b.html (iframe 390x844 -> preview-v3.html)",
+  "hostViewportClamped": {
+   "requested": [
+    390,
+    1200
+   ],
+   "actualHostInner": [
+    484,
+    1108
+   ],
+   "frameInner": [
+    390,
+    844,
+    2
+   ]
+  },
+  "screenshotPipeline": "Page.captureScreenshot of host (968x2216 device px) -> crop top-left 780x1688 = the iframe box at DPR2 -> PNG colorType 2",
+  "userDataDirs": "4 fresh random dirs, one per launch"
+ },
+ "A_console": {
+  "run1_clean12s": {
+   "consoleAPICalled": 1,
+   "exceptionThrown": 0,
+   "logEntryAdded": 0,
+   "consoleAPI": [
+    {
+     "type": "warning",
+     "text": "[history] 跳过采集：云端不可用",
+     "ctx": 3,
+     "ts": 1792593459700.54,
+     "stack": [
+      "preview-v3.html:4862",
+      "preview-v3.html:4939",
+      "preview-v3.html:4974"
+     ]
+    }
+   ],
+   "exceptions": [],
+   "logEntries": []
+  },
+  "run2_final": {
+   "consoleAPICalled": 1,
+   "exceptionThrown": 0,
+   "logEntryAdded": 0
+  },
+  "run3_final": {
+   "consoleAPICalled": 1,
+   "exceptionThrown": 0,
+   "logEntryAdded": 0
+  },
+  "netFailed": [],
+  "netResponses": [
+   {
+    "url": "file:///C:/Users/Administrator/WorkBuddy/2026-10-18-12-23-42/campus-pile-kit/chd-charge/map-clean.webp",
+    "status": 200,
+    "mime": "image/webp"
+   },
+   {
+    "url": "file:///C:/Users/Administrator/WorkBuddy/2026-10-18-12-23-42/campus-pile-kit/chd-charge/map-beimen.webp",
+    "status": 200,
+    "mime": "image/webp"
+   }
+  ],
+  "baseline_previous_version": {
+   "consoleAPICalled": 1,
+   "exceptionThrown": 0,
+   "logEntryAdded": 0
+  },
+  "verdict": "1 warning only ([history] 跳过采集：云端不可用, stack preview-v3.html:4862/4939/4974), 0 exceptions, 0 log entries - identical to baseline, no new errors"
+ },
+ "B_firstScreenMap_run1": {
+  "imgHref": "map-clean.webp",
+  "isPlaceholderGif": false,
+  "markersChildCount": 0,
+  "markerEls": 0,
+  "polylines": 0,
+  "stageW": 360,
+  "stageH": 300,
+  "dataEngineOnCard": null,
+  "dataEngineOnDialog": null,
+  "campusMapDisplay": "block",
+  "amapHostDisplay": "none",
+  "mapSub": "",
+  "mapNote": "四张底图 · 方位示意",
+  "curMapId": "chaohui",
+  "curMapLayout": "arc",
+  "imgNatural": [
+   200,
+   300
+  ]
+ },
+ "B_timeline_run2": [
+  {
+   "at": 1000,
+   "state": {
+    "t": 1023,
+    "mapDevicesLen": 0,
+    "mapScopeLen": 0,
+    "mapResultsLen": 0,
+    "markerEls": 0,
+    "markersChildren": 0,
+    "imgHref": "map-clean.webp",
+    "isPlaceholderGif": false,
+    "sub": "",
+    "note": "四张底图 · 方位示意",
+    "curMap": "chaohui",
+    "sFree": "–",
+    "tabCount": "–",
+    "cardsChildren": 0,
+    "scrollY": 0,
+    "docH": 1235
+   }
+  },
+  {
+   "at": 3000,
+   "state": {
+    "t": 3008,
+    "mapDevicesLen": 0,
+    "mapScopeLen": 0,
+    "mapResultsLen": 0,
+    "markerEls": 0,
+    "markersChildren": 0,
+    "imgHref": "map-clean.webp",
+    "isPlaceholderGif": false,
+    "sub": "",
+    "note": "四张底图 · 方位示意",
+    "curMap": "chaohui",
+    "sFree": "–",
+    "tabCount": "–",
+    "cardsChildren": 0,
+    "scrollY": 0,
+    "docH": 1235
+   }
+  },
+  {
+   "at": 12000,
+   "state": {
+    "t": 12002,
+    "mapDevicesLen": 0,
+    "mapScopeLen": 0,
+    "mapResultsLen": 0,
+    "markerEls": 0,
+    "markersChildren": 0,
+    "imgHref": "map-clean.webp",
+    "isPlaceholderGif": false,
+    "sub": "",
+    "note": "四张底图 · 方位示意",
+    "curMap": "chaohui",
+    "sFree": "–",
+    "tabCount": "–",
+    "cardsChildren": 0,
+    "scrollY": 0,
+    "docH": 1235
+   }
+  },
+  {
+   "at": 25000,
+   "state": {
+    "t": 25011,
+    "mapDevicesLen": 0,
+    "mapScopeLen": 0,
+    "mapResultsLen": 0,
+    "markerEls": 0,
+    "markersChildren": 0,
+    "imgHref": "map-clean.webp",
+    "isPlaceholderGif": false,
+    "sub": "",
+    "note": "四张底图 · 方位示意",
+    "curMap": "chaohui",
+    "sFree": "–",
+    "tabCount": "–",
+    "cardsChildren": 0,
+    "scrollY": 0,
+    "docH": 1235
+   }
+  }
+ ],
+ "B_rootCauseChain_run3": [
+  {
+   "step": "0-after12s-clean",
+   "st": {
+    "mapDevices": 0,
+    "mapScope": 0,
+    "markers": 0,
+    "children": 0,
+    "sub": "",
+    "href": "map-clean.webp",
+    "curMap": "chaohui",
+    "onTab": "amap:false,wuliu:false,beimen:false,chaohui:true"
+   }
+  },
+  {
+   "step": "1-after-inject-render",
+   "inject": "ok",
+   "st": {
+    "mapDevices": 109,
+    "mapScope": 0,
+    "markers": 0,
+    "children": 0,
+    "sub": "",
+    "href": "map-clean.webp",
+    "curMap": "chaohui",
+    "onTab": "amap:false,wuliu:false,beimen:false,chaohui:true"
+   }
+  },
+  {
+   "step": "2-call-cpShowPage(map)-again",
+   "call": "called",
+   "waitMs": 600
+  },
+  {
+   "step": "3-after-cpShowPage-again",
+   "st": {
+    "mapDevices": 109,
+    "mapScope": 0,
+    "markers": 0,
+    "children": 0,
+    "sub": "",
+    "href": "map-clean.webp",
+    "curMap": "chaohui",
+    "onTab": "amap:false,wuliu:false,beimen:false,chaohui:true"
+   }
+  },
+  {
+   "step": "4-click-chaohui-capsule",
+   "click": "渭水-朝晖体育场南"
+  },
+  {
+   "step": "5-after-chaohui",
+   "st": {
+    "mapDevices": 109,
+    "mapScope": 72,
+    "markers": 72,
+    "children": 74,
+    "sub": "72 个点位 · 0 个有空位",
+    "href": "map-clean.webp",
+    "curMap": "chaohui",
+    "onTab": "amap:false,wuliu:false,beimen:false,chaohui:true"
+   },
+   "crowd": {
+    "n": 72,
+    "stage": [
+     360,
+     300
+    ],
+    "pinW": 9.4,
+    "minDist": 0,
+    "pairsWithin24": 610,
+    "pairsWithin12": 309,
+    "totalPairs": 2556,
+    "inside": 72,
+    "xSpread": 144,
+    "ySpread": 77
+   }
+  },
+  {
+   "step": "6-beimen",
+   "st": {
+    "mapDevices": 109,
+    "mapScope": 37,
+    "markers": 37,
+    "children": 37,
+    "sub": "37 个充电车位",
+    "href": "map-beimen.webp",
+    "curMap": "beimen",
+    "onTab": "amap:false,wuliu:false,beimen:true,chaohui:false"
+   },
+   "crowd": {
+    "n": 37,
+    "stage": [
+     360,
+     300
+    ],
+    "pinW": 7.2,
+    "minDist": 6.4,
+    "pairsWithin24": 130,
+    "pairsWithin12": 33,
+    "totalPairs": 666,
+    "inside": 37,
+    "xSpread": 144,
+    "ySpread": 21
+   }
+  }
+ ],
+ "B_verdict": "isPlaceholderGif=false and imgHref=map-clean.webp (base image FIXED) BUT markerEls=0 / markersChildCount=0 after 25s (pins NOT fixed). mapDevices stays [] because refresh() returns early when tokenState().status==='none' (L3035) so render() - which assigns mapDevices at L1702 - never runs; and cpInitMap() ran at parse time when mapDevices was already [] and then latched cpMapInited=true, so the 80ms fallback and every later cpShowPage('map') short-circuit.",
+ "C_capsuleOrder_run1": {
+  "childrenOrder": [
+   "map-stage",
+   "map-tabs"
+  ],
+  "stageTop": 569.6328125,
+  "stageBottom": 869.6328125,
+  "stageLeft": 15,
+  "stageW": 360,
+  "tabsTop": 869.6328125,
+  "tabsBottom": 966.6328125,
+  "tabsH": 97,
+  "tabsDisplay": "flex",
+  "tabCount": 4,
+  "tabLabels": [
+   "渭水校区",
+   "渭水-物流服务中心",
+   "渭水-北门",
+   "渭水-朝晖体育场南"
+  ]
+ },
+ "D_footer_visibility_run1": {
+  "footerTop": 989.6328125,
+  "footerBottom": 1128.921875,
+  "navTop": 778,
+  "navH": 66,
+  "navPosition": "fixed",
+  "docScrollHeight": 1235,
+  "innerHeight": 844,
+  "innerWidth": 390,
+  "docClientWidth": 390,
+  "bodyPadBottom": "66px",
+  "guideH": 270.8046875,
+  "guideDisplay": "block",
+  "mapcardTop": 526.0390625,
+  "mapcardBottom": 967.6328125,
+  "mapcardH": 441.59375,
+  "scrollY": 0,
+  "hasToken": false
+ },
+ "D_visibilityMath": {
+  "innerHeight": 844,
+  "navTop": 778,
+  "navBottom": 844,
+  "stage": [
+   569.6328125,
+   869.6328125
+  ],
+  "tabs": [
+   869.6328125,
+   966.6328125
+  ],
+  "capsuleRowInFirstScreen": false,
+  "scrollNeededToPutFirstCapsuleRowAboveNav_px": 91.6,
+  "scrollNeededToFullyRevealCapsuleRow_px": 188.6,
+  "scrollNeededForAnyPartInsideViewport_ignoringNav_px": 25.6,
+  "maxScroll_px": 391,
+  "stageVisibleAboveNav_px": 208.3671875,
+  "stageObscuredByNavOrBelowFold_px": 91.6328125,
+  "rule": "tabsTop - navTop, navTop=778 (fixed .cp-nav 66px at bottom of the 844px viewport)"
+ },
+ "E_regression_run1": {
+  "amapHost": {
+   "idAmapHostCount": 1,
+   "parentChain": [
+    "div#amap-host.amap-host",
+    "div#map-stage.map-stage",
+    "div#cp-mapslot.cp-mapslot",
+    "div#cp-mapcard.cp-mapcard",
+    "section#cp-page-map.cp-page.on",
+    "div.wrap",
+    "body",
+    "html"
+   ],
+   "mapStageParent": "cp-mapslot",
+   "markerEls": 0
+  },
+  "render_inject_run1": {
+   "defaultDevicesLen": 109,
+   "renderType": "function",
+   "inject": "ok",
+   "cardsChildCount": 109,
+   "cardEls": 109,
+   "cpDevCardsBefore": null,
+   "sFree": "0",
+   "sFreeSub": "共统计 –/（–）插座",
+   "tabCount": "–",
+   "locOptions": 5,
+   "statsHidden": false,
+   "toolbarHidden": false,
+   "visibleCards": 109,
+   "devDocH": 20548,
+   "footerTop": 20302.953125
+  },
+  "render_inject_run2_afterTick": {
+   "cards": 109,
+   "tabCountAfterTick": "109",
+   "sFree": "0",
+   "sFreeSub": "共统计 –/（–）插座",
+   "locOptions": 5,
+   "visibleCards": 109,
+   "docH": 20548,
+   "footerTop": 20302.953125,
+   "emptyHidden": true
+  },
+  "dialogs": {
+   "usageOpenBefore": false,
+   "mapOpenBefore": false,
+   "usageOpenAfterClick": true,
+   "usageModalFlag": true,
+   "usageLoadingHidden": false,
+   "usageOpenAfterClose": false,
+   "mapOpenAfterMapOpenClick": false,
+   "mapPageDisplay": "block",
+   "scrollYAfterMapOpen": 0,
+   "dialogCount": 0
+  },
+  "dialogsLate": {
+   "usageOpen": false,
+   "mapOpen": false,
+   "sub": "72 个点位 · 0 个有空位",
+   "note": "72 个点位 · 0 个有空位",
+   "hasCHD_AMAP": false,
+   "amapHostChildren": 0,
+   "cardEngine": null
+  },
+  "guide": {
+   "display": "block",
+   "hidden": false,
+   "top": -308,
+   "h": 271,
+   "w": 362,
+   "padding": "12px 14px",
+   "marginBottom": "10px",
+   "scrollH": 269,
+   "clientH": 269,
+   "ovX": false,
+   "liCount": 3,
+   "kids": [
+    {
+     "tag": "h2",
+     "cls": "",
+     "h": 21.7,
+     "sh": 22,
+     "ch": 22,
+     "sw": 332,
+     "cw": 332,
+     "ovX": false,
+     "textLen": 5
+    },
+    {
+     "tag": "p",
+     "cls": "",
+     "h": 50.4,
+     "sh": 50,
+     "ch": 50,
+     "sw": 332,
+     "cw": 332,
+     "ovX": false,
+     "textLen": 64
+    },
+    {
+     "tag": "ol",
+     "cls": "",
+     "h": 81.4,
+     "sh": 81,
+     "ch": 81,
+     "sw": 332,
+     "cw": 332,
+     "ovX": false,
+     "textLen": 103
+    },
+    {
+     "tag": "div",
+     "cls": "row",
+     "h": 38.1,
+     "sh": 38,
+     "ch": 38,
+     "sw": 332,
+     "cw": 332,
+     "ovX": false,
+     "textLen": 17
+    },
+    {
+     "tag": "div",
+     "cls": "note",
+     "h": 0,
+     "sh": 0,
+     "ch": 0,
+     "sw": 332,
+     "cw": 332,
+     "ovX": false,
+     "textLen": 0
+    },
+    {
+     "tag": "div",
+     "cls": "note",
+     "h": 19.2,
+     "sh": 19,
+     "ch": 19,
+     "sw": 332,
+     "cw": 332,
+     "ovX": false,
+     "textLen": 14
+    }
+   ],
+   "h2fs": "14px",
+   "pfs": "12px",
+   "olfs": "12px",
+   "lifs": "12px",
+   "pls": "16.8px"
+  },
+  "guide_run2": {
+   "guideDisplay": "block",
+   "guideHidden": false,
+   "guideH": 270.8,
+   "guideTop": 179,
+   "guideKids": [
+    {
+     "tag": "h2",
+     "h": 21.7,
+     "sw": 332,
+     "cw": 332,
+     "ovX": false
+    },
+    {
+     "tag": "p",
+     "h": 50.4,
+     "sw": 332,
+     "cw": 332,
+     "ovX": false
+    },
+    {
+     "tag": "ol",
+     "h": 81.4,
+     "sw": 332,
+     "cw": 332,
+     "ovX": false
+    },
+    {
+     "tag": "div",
+     "h": 38.1,
+     "sw": 332,
+     "cw": 332,
+     "ovX": false
+    },
+    {
+     "tag": "div",
+     "h": 0,
+     "sw": 332,
+     "cw": 332,
+     "ovX": false
+    },
+    {
+     "tag": "div",
+     "h": 19.2,
+     "sw": 332,
+     "cw": 332,
+     "ovX": false
+    }
+   ],
+   "ovX": false,
+   "liCount": 3,
+   "mapcardTop": 526.0390625,
+   "stageTop": 569.6328125,
+   "tabsTop": 869.6328125,
+   "tabsBottom": 966.6328125,
+   "cptabsTop": 470.0390625,
+   "cptabsH": 42,
+   "navTop": 778,
+   "innerHeight": 844,
+   "gateLocked": false,
+   "bannerEl": "none",
+   "bodyTop": 0
+  },
+  "mountMapToMain_occurrences": 0,
+  "baseline": {
+   "cardsChildCount": 109,
+   "sFree": "0",
+   "tabCount": "109",
+   "locOptions": 5
+  }
+ },
+ "F_crowding": {
+  "run1_defaultArc_0markers": {
+   "markerCount": 0,
+   "stage": {
+    "left": 15,
+    "top": 570,
+    "w": 360,
+    "h": 300
+   },
+   "minPairDistPx": null,
+   "pairsWithin24px": 0,
+   "pairsWithin12px": 0,
+   "totalPairs": 0,
+   "markersInsideStage": 0,
+   "markerW": null,
+   "frag": {
+    "xSpread": 0,
+    "ySpread": 0
+   }
+  },
+  "run1_beimen_37": {
+   "markerCount": 37,
+   "stage": {
+    "left": 15,
+    "top": 179,
+    "w": 360,
+    "h": 300
+   },
+   "imgHref": "map-beimen.webp",
+   "minPairDistPx": 6.4,
+   "pairsWithin24px": 130,
+   "pairsWithin12px": 33,
+   "totalPairs": 666,
+   "markersInsideStage": 37,
+   "markerW": {
+    "min": 7.2,
+    "max": 7.2
+   },
+   "xSpread": 144,
+   "ySpread": 21,
+   "pxPerMarker": 2919
+  },
+  "run3_chaohui_72": {
+   "n": 72,
+   "stage": [
+    360,
+    300
+   ],
+   "pinW": 9.4,
+   "minDist": 0,
+   "pairsWithin24": 610,
+   "pairsWithin12": 309,
+   "totalPairs": 2556,
+   "inside": 72,
+   "xSpread": 144,
+   "ySpread": 77
+  },
+  "run3_beimen_37": {
+   "n": 37,
+   "stage": [
+    360,
+    300
+   ],
+   "pinW": 7.2,
+   "minDist": 6.4,
+   "pairsWithin24": 130,
+   "pairsWithin12": 33,
+   "totalPairs": 666,
+   "inside": 37,
+   "xSpread": 144,
+   "ySpread": 21
+  },
+  "note": "pin screen size 7.2-9.4px; chaohui 72 pins -> min pair distance 0px (exact duplicates), 610/2556 pairs <24px; beimen 37 pins -> xSpread 144px, min 6.4px"
+ },
+ "screenshots": {
+  "C:\\Users\\Administrator\\WorkBuddy\\2026-10-18-12-23-42\\campus-pile-kit\\docs\\redesign-shots\\v3b\\01-map.png": {
+   "bytes": 229921,
+   "size": [
+    780,
+    1688
+   ],
+   "ihdr": {
+    "width": 780,
+    "height": 1688,
+    "bitDepth": 8,
+    "colorType": 2,
+    "colorTypeName": "RGB (24bpp)",
+    "interlace": 0
+   },
+   "nonWhitePixels": 940676,
+   "nonWhitePct": 71.445,
+   "neitherWhiteNorBasePixels": 644498,
+   "neitherWhiteNorBasePct": 48.95,
+   "baseColor": "#F7F6F2",
+   "baseColorPixels": 296178,
+   "baseColorPct": 22.495,
+   "whitePct": 28.555,
+   "distinctColors": 15584,
+   "topColors": [
+    {
+     "hex": "#FFFFFF",
+     "pct": 28.55
+    },
+    {
+     "hex": "#F7F6F2",
+     "pct": 22.49
+    },
+    {
+     "hex": "#EDEBE3",
+     "pct": 8.45
+    },
+    {
+     "hex": "#FFF4E2",
+     "pct": 5.02
+    },
+    {
+     "hex": "#F4F7EF",
+     "pct": 4.26
+    },
+    {
+     "hex": "#E4DDCD",
+     "pct": 3.06
+    },
+    {
+     "hex": "#FAFBF7",
+     "pct": 2.57
+    },
+    {
+     "hex": "#E1F5EE",
+     "pct": 1.6
+    }
+   ]
+  },
+  "C:\\Users\\Administrator\\WorkBuddy\\2026-10-18-12-23-42\\campus-pile-kit\\docs\\redesign-shots\\v3b\\02-devices.png": {
+   "bytes": 187828,
+   "size": [
+    780,
+    1688
+   ],
+   "ihdr": {
+    "width": 780,
+    "height": 1688,
+    "bitDepth": 8,
+    "colorType": 2,
+    "colorTypeName": "RGB (24bpp)",
+    "interlace": 0
+   },
+   "nonWhitePixels": 881437,
+   "nonWhitePct": 66.946,
+   "neitherWhiteNorBasePixels": 337625,
+   "neitherWhiteNorBasePct": 25.643,
+   "baseColor": "#F7F6F2",
+   "baseColorPixels": 543812,
+   "baseColorPct": 41.303,
+   "whitePct": 33.054,
+   "distinctColors": 9715,
+   "topColors": [
+    {
+     "hex": "#F7F6F2",
+     "pct": 41.3
+    },
+    {
+     "hex": "#FFFFFF",
+     "pct": 33.05
+    },
+    {
+     "hex": "#FFF4E2",
+     "pct": 5.02
+    },
+    {
+     "hex": "#FAFBF7",
+     "pct": 2.79
+    },
+    {
+     "hex": "#FBFCF8",
+     "pct": 2.43
+    },
+    {
+     "hex": "#FBFCF7",
+     "pct": 1.62
+    },
+    {
+     "hex": "#E1F5EE",
+     "pct": 1.6
+    },
+    {
+     "hex": "#2C2C2A",
+     "pct": 1.01
+    }
+   ]
+  }
+ },
+ "previousRoundShot_forComparison": {
+  "path": "C:\\Users\\Administrator\\WorkBuddy\\2026-10-18-12-23-42\\campus-pile-kit\\docs\\redesign-shots\\v3\\01-map.png",
+  "bytes": 163982,
+  "size": [
+   780,
+   1688
+  ],
+  "colorType": 2,
+  "note": "previous version: capsules on TOP of card, stage empty/beige (the bug). baseColorPct 22.495 in both old and new 01-map -> identical crop frame."
+ },
+ "rawReports": {
+  "run1": {
+   "meta": {
+    "host": "file:///C:/Users/Administrator/WorkBuddy/2026-10-18-12-23-42/campus-pile-kit/chd-charge/_host-v3b.html",
+    "port": "9337",
+    "startedAt": "2026-10-21T14:37:31.534Z",
+    "targets": [
+     {
+      "type": "page",
+      "url": "edge://sync-confirmation-dialog/"
+     },
+     {
+      "type": "page",
+      "url": "about:blank"
+     },
+     {
+      "type": "service_worker",
+      "url": "chrome-extension://ndcpkimcihhghdcddljkfmmjccdmcmof/background.rollup.js"
+     }
+    ],
+    "target": {
+     "id": "438BB7DA9193456564E19D4A38C11DEA",
+     "url": "about:blank"
+    },
+    "loadWaitedMs": 206,
+    "waitedTotalMs": 12213,
+    "iframeCtx": 3
+   },
+   "consoleAPI": [
+    {
+     "type": "warning",
+     "text": "[history] 跳过采集：云端不可用",
+     "ctx": 3,
+     "ts": 1792593459700.54,
+     "stack": [
+      "preview-v3.html:4862",
+      "preview-v3.html:4939",
+      "preview-v3.html:4974"
+     ]
+    }
+   ],
+   "exceptions": [],
+   "logEntries": [],
+   "contexts": [
+    {
+     "id": 1,
+     "origin": "://",
+     "name": "",
+     "frame": "438BB7DA9193456564E19D4A38C11DEA",
+     "isDefault": true
+    },
+    {
+     "id": 2,
+     "origin": "file://",
+     "name": "",
+     "frame": "438BB7DA9193456564E19D4A38C11DEA",
+     "isDefault": true
+    },
+    {
+     "id": 3,
+     "origin": "file://",
+     "name": "",
+     "frame": "FD51AD140E3D7C7F2F458BA74421FB17",
+     "isDefault": true
+    }
+   ],
+   "loadEvents": 1,
+   "netFailed": [],
+   "netResponses": [
+    {
+     "url": "file:///C:/Users/Administrator/WorkBuddy/2026-10-18-12-23-42/campus-pile-kit/chd-charge/map-clean.webp",
+     "status": 200,
+     "mime": "image/webp"
+    },
+    {
+     "url": "file:///C:/Users/Administrator/WorkBuddy/2026-10-18-12-23-42/campus-pile-kit/chd-charge/map-beimen.webp",
+     "status": 200,
+     "mime": "image/webp"
+    }
+   ],
+   "marks": [
+    {
+     "name": "afterCleanLoad12s",
+     "at": 12227,
+     "console": 1,
+     "exceptions": 0,
+     "log": 0
+    },
+    {
+     "name": "afterDevShot",
+     "at": 13055,
+     "console": 1,
+     "exceptions": 0,
+     "log": 0
+    },
+    {
+     "name": "afterDialogClicks",
+     "at": 13520,
+     "console": 1,
+     "exceptions": 0,
+     "log": 0
+    },
+    {
+     "name": "final",
+     "at": 15941,
+     "console": 1,
+     "exceptions": 0,
+     "log": 0
+    }
+   ],
+   "contextsCleared": 2,
+   "frames": [
+    {
+     "id": "438BB7DA9193456564E19D4A38C11DEA",
+     "url": "file:///C:/Users/Administrator/WorkBuddy/2026-10-18-12-23-42/campus-pile-kit/chd-charge/_host-v3b.html"
+    },
+    {
+     "id": "FD51AD140E3D7C7F2F458BA74421FB17",
+     "url": "file:///C:/Users/Administrator/WorkBuddy/2026-10-18-12-23-42/campus-pile-kit/chd-charge/preview-v3.html",
+     "parent": "438BB7DA9193456564E19D4A38C11DEA"
+    }
+   ],
+   "contextProbe": [
+    {
+     "id": 1,
+     "err": "{\"code\":-32000,\"message\":\"Cannot find context with specified id\"}"
+    },
+    {
+     "id": 2,
+     "href": "file:///C:/Users/Administrator/WorkBuddy/2026-10-18-12-23-42/campus-pile-kit/chd-charge/_host-v3b.html"
+    },
+    {
+     "id": 3,
+     "href": "file:///C:/Users/Administrator/WorkBuddy/2026-10-18-12-23-42/campus-pile-kit/chd-charge/preview-v3.html"
+    }
+   ],
+   "geometry": {
+    "hostInner": [
+     484,
+     1108
+    ],
+    "hostDpr": 2,
+    "iframeRect": [
+     0,
+     0,
+     390,
+     844
+    ],
+    "frameInner": [
+     390,
+     844,
+     2
+    ],
+    "frameDoc": [
+     390,
+     844,
+     1235
+    ]
+   },
+   "A_clean": {
+    "consoleAPICalled": 1,
+    "exceptionThrown": 0,
+    "logEntryAdded": 0,
+    "consoleAPI": [
+     {
+      "type": "warning",
+      "text": "[history] 跳过采集：云端不可用",
+      "ctx": 3,
+      "ts": 1792593459700.54,
+      "stack": [
+       "preview-v3.html:4862",
+       "preview-v3.html:4939",
+       "preview-v3.html:4974"
+      ]
+     }
+    ],
+    "exceptions": [],
+    "logEntries": []
+   },
+   "B": {
+    "imgHref": "map-clean.webp",
+    "isPlaceholderGif": false,
+    "markersChildCount": 0,
+    "markerEls": 0,
+    "polylines": 0,
+    "stageW": 360,
+    "stageH": 300,
+    "dataEngineOnCard": null,
+    "dataEngineOnDialog": null,
+    "campusMapDisplay": "block",
+    "amapHostDisplay": "none",
+    "mapSub": "",
+    "mapNote": "四张底图 · 方位示意",
+    "curMapId": "chaohui",
+    "curMapLayout": "arc",
+    "imgNatural": [
+     200,
+     300
+    ]
+   },
+   "C": {
+    "childrenOrder": [
+     "map-stage",
+     "map-tabs"
+    ],
+    "stageTop": 569.6328125,
+    "stageBottom": 869.6328125,
+    "stageLeft": 15,
+    "stageW": 360,
+    "tabsTop": 869.6328125,
+    "tabsBottom": 966.6328125,
+    "tabsH": 97,
+    "tabsDisplay": "flex",
+    "tabCount": 4,
+    "tabLabels": [
+     "渭水校区",
+     "渭水-物流服务中心",
+     "渭水-北门",
+     "渭水-朝晖体育场南"
+    ]
+   },
+   "D": {
+    "footerTop": 989.6328125,
+    "footerBottom": 1128.921875,
+    "navTop": 778,
+    "navH": 66,
+    "navPosition": "fixed",
+    "docScrollHeight": 1235,
+    "innerHeight": 844,
+    "innerWidth": 390,
+    "docClientWidth": 390,
+    "bodyPadBottom": "66px",
+    "guideH": 270.8046875,
+    "guideDisplay": "block",
+    "mapcardTop": 526.0390625,
+    "mapcardBottom": 967.6328125,
+    "mapcardH": 441.59375,
+    "scrollY": 0,
+    "hasToken": false
+   },
+   "E_amapHost": {
+    "idAmapHostCount": 1,
+    "parentChain": [
+     "div#amap-host.amap-host",
+     "div#map-stage.map-stage",
+     "div#cp-mapslot.cp-mapslot",
+     "div#cp-mapcard.cp-mapcard",
+     "section#cp-page-map.cp-page.on",
+     "div.wrap",
+     "body",
+     "html"
+    ],
+    "mapStageParent": "cp-mapslot",
+    "markerEls": 0
+   },
+   "F_crowd_default": {
+    "markerCount": 0,
+    "stage": {
+     "left": 15,
+     "top": 570,
+     "w": 360,
+     "h": 300
+    },
+    "minPairDistPx": null,
+    "pairsWithin24px": 0,
+    "pairsWithin12px": 0,
+    "totalPairs": 0,
+    "markersInsideStage": 0,
+    "markerW": null,
+    "frag": {
+     "xSpread": 0,
+     "ySpread": 0
+    }
+   },
+   "shot01raw": "C:\\Users\\Administrator\\AppData\\Local\\Temp\\v3bverify\\_raw-01-map.png",
+   "shot01size": 248070,
+   "switchDev": {
+    "before": [
+     "block",
+     "none"
+    ],
+    "after": [
+     "none",
+     "block"
+    ],
+    "tabOn": true,
+    "navOn": true,
+    "devDocH": 958,
+    "cardsChildren": 0,
+    "emptyHidden": true,
+    "emptyText": "",
+    "tabCount": "–"
+   },
+   "shot02raw": "C:\\Users\\Administrator\\AppData\\Local\\Temp\\v3bverify\\_raw-02-devices.png",
+   "shot02size": 198978,
+   "E_render": {
+    "defaultDevicesLen": 109,
+    "renderType": "function",
+    "inject": "ok",
+    "cardsChildCount": 109,
+    "cardEls": 109,
+    "cpDevCardsBefore": null,
+    "sFree": "0",
+    "sFreeSub": "共统计 –/（–）插座",
+    "tabCount": "–",
+    "locOptions": 5,
+    "statsHidden": false,
+    "toolbarHidden": false,
+    "visibleCards": 109,
+    "devDocH": 20548,
+    "footerTop": 20302.953125
+   },
+   "backToMap": {
+    "map": "block",
+    "dev": "none",
+    "scrollY": 0,
+    "docH": 1347,
+    "tabsTop": 981.53125,
+    "stageTop": 681.53125,
+    "markers": 0,
+    "imgHref": "map-clean.webp"
+   },
+   "E_dialogs": {
+    "usageOpenBefore": false,
+    "mapOpenBefore": false,
+    "usageOpenAfterClick": true,
+    "usageModalFlag": true,
+    "usageLoadingHidden": false,
+    "usageOpenAfterClose": false,
+    "mapOpenAfterMapOpenClick": false,
+    "mapPageDisplay": "block",
+    "scrollYAfterMapOpen": 0,
+    "dialogCount": 0
+   },
+   "E_dialogsLate": {
+    "usageOpen": false,
+    "mapOpen": false,
+    "sub": "72 个点位 · 0 个有空位",
+    "note": "72 个点位 · 0 个有空位",
+    "hasCHD_AMAP": false,
+    "amapHostChildren": 0,
+    "cardEngine": null
+   },
+   "E_guide": {
+    "display": "block",
+    "hidden": false,
+    "top": -308,
+    "h": 271,
+    "w": 362,
+    "padding": "12px 14px",
+    "marginBottom": "10px",
+    "scrollH": 269,
+    "clientH": 269,
+    "ovX": false,
+    "liCount": 3,
+    "kids": [
+     {
+      "tag": "h2",
+      "cls": "",
+      "h": 21.7,
+      "sh": 22,
+      "ch": 22,
+      "sw": 332,
+      "cw": 332,
+      "ovX": false,
+      "textLen": 5
+     },
+     {
+      "tag": "p",
+      "cls": "",
+      "h": 50.4,
+      "sh": 50,
+      "ch": 50,
+      "sw": 332,
+      "cw": 332,
+      "ovX": false,
+      "textLen": 64
+     },
+     {
+      "tag": "ol",
+      "cls": "",
+      "h": 81.4,
+      "sh": 81,
+      "ch": 81,
+      "sw": 332,
+      "cw": 332,
+      "ovX": false,
+      "textLen": 103
+     },
+     {
+      "tag": "div",
+      "cls": "row",
+      "h": 38.1,
+      "sh": 38,
+      "ch": 38,
+      "sw": 332,
+      "cw": 332,
+      "ovX": false,
+      "textLen": 17
+     },
+     {
+      "tag": "div",
+      "cls": "note",
+      "h": 0,
+      "sh": 0,
+      "ch": 0,
+      "sw": 332,
+      "cw": 332,
+      "ovX": false,
+      "textLen": 0
+     },
+     {
+      "tag": "div",
+      "cls": "note",
+      "h": 19.2,
+      "sh": 19,
+      "ch": 19,
+      "sw": 332,
+      "cw": 332,
+      "ovX": false,
+      "textLen": 14
+     }
+    ],
+    "h2fs": "14px",
+    "pfs": "12px",
+    "olfs": "12px",
+    "lifs": "12px",
+    "pls": "16.8px"
+   },
+   "clickBeimen": "渭水-北门",
+   "F_crowd_beimen": {
+    "markerCount": 37,
+    "stage": {
+     "left": 15,
+     "top": 179,
+     "w": 360,
+     "h": 300
+    },
+    "imgHref": "map-beimen.webp",
+    "minPairDistPx": 6.4,
+    "pairsWithin24px": 130,
+    "pairsWithin12px": 33,
+    "totalPairs": 666,
+    "markersInsideStage": 37,
+    "markerW": {
+     "min": 7.2,
+     "max": 7.2
+    },
+    "xSpread": 144,
+    "ySpread": 21,
+    "pxPerMarker": 2919
+   },
+   "scrollToCard": 503,
+   "shot03raw": "C:\\Users\\Administrator\\AppData\\Local\\Temp\\v3bverify\\_raw-03-mapcard-beimen.png",
+   "scrollBottom": 503,
+   "shot04raw": "C:\\Users\\Administrator\\AppData\\Local\\Temp\\v3bverify\\_raw-04-bottom.png",
+   "A_final": {
+    "consoleAPICalled": 1,
+    "exceptionThrown": 0,
+    "logEntryAdded": 0
+   }
+  },
+  "run2": {
+   "meta": {
+    "host": "file:///C:/Users/Administrator/WorkBuddy/2026-10-18-12-23-42/campus-pile-kit/chd-charge/_host-v3b.html",
+    "ctx": 3
+   },
+   "consoleAPI": [
+    {
+     "type": "warning",
+     "text": "[history] 跳过采集：云端不可用",
+     "ctx": 3,
+     "stack": [
+      "preview-v3.html:4862",
+      "preview-v3.html:4939",
+      "preview-v3.html:4974"
+     ]
+    }
+   ],
+   "exceptions": [],
+   "logEntries": [],
+   "samples": [
+    {
+     "at": 1000,
+     "state": {
+      "t": 1023,
+      "mapDevicesLen": 0,
+      "mapScopeLen": 0,
+      "mapResultsLen": 0,
+      "markerEls": 0,
+      "markersChildren": 0,
+      "imgHref": "map-clean.webp",
+      "isPlaceholderGif": false,
+      "sub": "",
+      "note": "四张底图 · 方位示意",
+      "curMap": "chaohui",
+      "sFree": "–",
+      "tabCount": "–",
+      "cardsChildren": 0,
+      "scrollY": 0,
+      "docH": 1235
+     }
+    },
+    {
+     "at": 3000,
+     "state": {
+      "t": 3008,
+      "mapDevicesLen": 0,
+      "mapScopeLen": 0,
+      "mapResultsLen": 0,
+      "markerEls": 0,
+      "markersChildren": 0,
+      "imgHref": "map-clean.webp",
+      "isPlaceholderGif": false,
+      "sub": "",
+      "note": "四张底图 · 方位示意",
+      "curMap": "chaohui",
+      "sFree": "–",
+      "tabCount": "–",
+      "cardsChildren": 0,
+      "scrollY": 0,
+      "docH": 1235
+     }
+    },
+    {
+     "at": 12000,
+     "state": {
+      "t": 12002,
+      "mapDevicesLen": 0,
+      "mapScopeLen": 0,
+      "mapResultsLen": 0,
+      "markerEls": 0,
+      "markersChildren": 0,
+      "imgHref": "map-clean.webp",
+      "isPlaceholderGif": false,
+      "sub": "",
+      "note": "四张底图 · 方位示意",
+      "curMap": "chaohui",
+      "sFree": "–",
+      "tabCount": "–",
+      "cardsChildren": 0,
+      "scrollY": 0,
+      "docH": 1235
+     }
+    },
+    {
+     "at": 25000,
+     "state": {
+      "t": 25011,
+      "mapDevicesLen": 0,
+      "mapScopeLen": 0,
+      "mapResultsLen": 0,
+      "markerEls": 0,
+      "markersChildren": 0,
+      "imgHref": "map-clean.webp",
+      "isPlaceholderGif": false,
+      "sub": "",
+      "note": "四张底图 · 方位示意",
+      "curMap": "chaohui",
+      "sFree": "–",
+      "tabCount": "–",
+      "cardsChildren": 0,
+      "scrollY": 0,
+      "docH": 1235
+     }
+    }
+   ],
+   "netResponses": [
+    {
+     "url": "map-clean.webp",
+     "status": 200
+    },
+    {
+     "url": "map-beimen.webp",
+     "status": 200
+    }
+   ],
+   "netFailed": [],
+   "ctx": [
+    {
+     "id": 1,
+     "origin": "://",
+     "frame": "0882656D98E0B8B2935BB88098E74812"
+    },
+    {
+     "id": 2,
+     "origin": "file://",
+     "frame": "0882656D98E0B8B2935BB88098E74812"
+    },
+    {
+     "id": 3,
+     "origin": "file://",
+     "frame": "2D194BFF3214466B2C659F7C21E8A1E6"
+    }
+   ],
+   "at0": {
+    "guideDisplay": "block",
+    "guideHidden": false,
+    "guideH": 270.8,
+    "guideTop": 179,
+    "guideKids": [
+     {
+      "tag": "h2",
+      "h": 21.7,
+      "sw": 332,
+      "cw": 332,
+      "ovX": false
+     },
+     {
+      "tag": "p",
+      "h": 50.4,
+      "sw": 332,
+      "cw": 332,
+      "ovX": false
+     },
+     {
+      "tag": "ol",
+      "h": 81.4,
+      "sw": 332,
+      "cw": 332,
+      "ovX": false
+     },
+     {
+      "tag": "div",
+      "h": 38.1,
+      "sw": 332,
+      "cw": 332,
+      "ovX": false
+     },
+     {
+      "tag": "div",
+      "h": 0,
+      "sw": 332,
+      "cw": 332,
+      "ovX": false
+     },
+     {
+      "tag": "div",
+      "h": 19.2,
+      "sw": 332,
+      "cw": 332,
+      "ovX": false
+     }
+    ],
+    "ovX": false,
+    "liCount": 3,
+    "mapcardTop": 526.0390625,
+    "stageTop": 569.6328125,
+    "tabsTop": 869.6328125,
+    "tabsBottom": 966.6328125,
+    "cptabsTop": 470.0390625,
+    "cptabsH": 42,
+    "navTop": 778,
+    "innerHeight": 844,
+    "gateLocked": false,
+    "bannerEl": "none",
+    "bodyTop": 0
+   },
+   "manualBefore": {
+    "t": 25013,
+    "mapDevicesLen": 0,
+    "mapScopeLen": 0,
+    "mapResultsLen": 0,
+    "markerEls": 0,
+    "markersChildren": 0,
+    "imgHref": "map-clean.webp",
+    "isPlaceholderGif": false,
+    "sub": "",
+    "note": "四张底图 · 方位示意",
+    "curMap": "chaohui",
+    "sFree": "–",
+    "tabCount": "–",
+    "cardsChildren": 0,
+    "scrollY": 0,
+    "docH": 1235
+   },
+   "manualCall": "ok",
+   "manualAfter": {
+    "t": 25416,
+    "mapDevicesLen": 0,
+    "mapScopeLen": 0,
+    "mapResultsLen": 0,
+    "markerEls": 0,
+    "markersChildren": 0,
+    "imgHref": "map-clean.webp",
+    "isPlaceholderGif": false,
+    "sub": "",
+    "note": "四张底图 · 方位示意",
+    "curMap": "chaohui",
+    "sFree": "–",
+    "tabCount": "–",
+    "cardsChildren": 0,
+    "scrollY": 0,
+    "docH": 1235
+   },
+   "clickChaohui": "渭水-朝晖体育场南",
+   "afterChaohui": {
+    "t": 26926,
+    "mapDevicesLen": 0,
+    "mapScopeLen": 0,
+    "mapResultsLen": 0,
+    "markerEls": 0,
+    "markersChildren": 0,
+    "imgHref": "map-clean.webp",
+    "isPlaceholderGif": false,
+    "sub": "",
+    "note": "四张底图 · 方位示意",
+    "curMap": "chaohui",
+    "sFree": "–",
+    "tabCount": "–",
+    "cardsChildren": 0,
+    "scrollY": 0,
+    "docH": 1235
+   },
+   "crowdChao": {
+    "__error": "Uncaught",
+    "__desc": "TypeError: Cannot read properties of undefined (reading 'w')\n    at <anonymous>:12:33\n    at <anonymous>:12:105"
+   },
+   "shotChaohui": "C:\\Users\\Administrator\\AppData\\Local\\Temp\\v3bverify\\_raw-05-chaohui.png",
+   "renderInject": {
+    "cards": 109,
+    "tabCountImmediate": "–",
+    "sFree": "0",
+    "locOptions": 5
+   },
+   "renderInjectLate": {
+    "cards": 109,
+    "tabCountAfterTick": "109",
+    "sFree": "0",
+    "sFreeSub": "共统计 –/（–）插座",
+    "locOptions": 5,
+    "visibleCards": 109,
+    "docH": 20548,
+    "footerTop": 20302.953125,
+    "emptyHidden": true
+   },
+   "css": {
+    "stageH": "300px",
+    "guidePadding": "12px 14px",
+    "guideMb": "10px",
+    "guideH2": "14px",
+    "guideP": "12px",
+    "guidePLh": "16.8px",
+    "guideOl": "12px",
+    "guideLiMb": "3px",
+    "mq600": true,
+    "innerW": 390
+   },
+   "A_final": {
+    "consoleAPICalled": 1,
+    "exceptionThrown": 0,
+    "logEntryAdded": 0
+   }
+  },
+  "run3": {
+   "consoleAPI": [
+    {
+     "type": "warning",
+     "text": "[history] 跳过采集：云端不可用"
+    }
+   ],
+   "exceptions": [],
+   "logEntries": [],
+   "steps": [
+    {
+     "step": "0-after12s-clean",
+     "st": {
+      "mapDevices": 0,
+      "mapScope": 0,
+      "markers": 0,
+      "children": 0,
+      "sub": "",
+      "href": "map-clean.webp",
+      "curMap": "chaohui",
+      "onTab": "amap:false,wuliu:false,beimen:false,chaohui:true"
+     }
+    },
+    {
+     "step": "1-after-inject-render",
+     "inject": "ok",
+     "st": {
+      "mapDevices": 109,
+      "mapScope": 0,
+      "markers": 0,
+      "children": 0,
+      "sub": "",
+      "href": "map-clean.webp",
+      "curMap": "chaohui",
+      "onTab": "amap:false,wuliu:false,beimen:false,chaohui:true"
+     }
+    },
+    {
+     "step": "2-call-cpShowPage(map)-again",
+     "call": "called",
+     "waitMs": 600
+    },
+    {
+     "step": "3-after-cpShowPage-again",
+     "st": {
+      "mapDevices": 109,
+      "mapScope": 0,
+      "markers": 0,
+      "children": 0,
+      "sub": "",
+      "href": "map-clean.webp",
+      "curMap": "chaohui",
+      "onTab": "amap:false,wuliu:false,beimen:false,chaohui:true"
+     }
+    },
+    {
+     "step": "4-click-chaohui-capsule",
+     "click": "渭水-朝晖体育场南"
+    },
+    {
+     "step": "5-after-chaohui",
+     "st": {
+      "mapDevices": 109,
+      "mapScope": 72,
+      "markers": 72,
+      "children": 74,
+      "sub": "72 个点位 · 0 个有空位",
+      "href": "map-clean.webp",
+      "curMap": "chaohui",
+      "onTab": "amap:false,wuliu:false,beimen:false,chaohui:true"
+     },
+     "crowd": {
+      "n": 72,
+      "stage": [
+       360,
+       300
+      ],
+      "pinW": 9.4,
+      "minDist": 0,
+      "pairsWithin24": 610,
+      "pairsWithin12": 309,
+      "totalPairs": 2556,
+      "inside": 72,
+      "xSpread": 144,
+      "ySpread": 77
+     }
+    },
+    {
+     "step": "6-beimen",
+     "st": {
+      "mapDevices": 109,
+      "mapScope": 37,
+      "markers": 37,
+      "children": 37,
+      "sub": "37 个充电车位",
+      "href": "map-beimen.webp",
+      "curMap": "beimen",
+      "onTab": "amap:false,wuliu:false,beimen:true,chaohui:false"
+     },
+     "crowd": {
+      "n": 37,
+      "stage": [
+       360,
+       300
+      ],
+      "pinW": 7.2,
+      "minDist": 6.4,
+      "pairsWithin24": 130,
+      "pairsWithin12": 33,
+      "totalPairs": 666,
+      "inside": 37,
+      "xSpread": 144,
+      "ySpread": 21
+     }
+    }
+   ],
+   "targetUrl": "file:///C:/Users/Administrator/WorkBuddy/2026-10-18-12-23-42/campus-pile-kit/chd-charge/_host-v3b.html",
+   "probes": [
+    {
+     "id": 1,
+     "href": "file:///C:/Users/Administrator/WorkBuddy/2026-10-18-12-23-42/campus-pile-kit/chd-charge/_host-v3b.html"
+    },
+    {
+     "id": 1,
+     "href": "file:///C:/Users/Administrator/WorkBuddy/2026-10-18-12-23-42/campus-pile-kit/chd-charge/_host-v3b.html"
+    },
+    {
+     "id": 2,
+     "href": "file:///C:/Users/Administrator/WorkBuddy/2026-10-18-12-23-42/campus-pile-kit/chd-charge/preview-v3.html"
+    }
+   ],
+   "ctxIds": [
+    1,
+    1,
+    2
+   ],
+   "ctx": 2,
+   "scroll": 503,
+   "shotChao": "C:\\Users\\Administrator\\AppData\\Local\\Temp\\v3bverify\\_raw-06-chaohui-card.png",
+   "A_final": {
+    "consoleAPICalled": 1,
+    "exceptionThrown": 0,
+    "logEntryAdded": 0
+   }
+  }
+ }
+}

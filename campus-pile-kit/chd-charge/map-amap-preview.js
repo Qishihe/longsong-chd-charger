@@ -40,7 +40,7 @@
   var curView = 'campus';
   var ready = false, failed = false;
   var failReason = '', mountCount = 0;
-  var onFailCb = null, onPileCb = null;
+  var onFailCb = null, onPileCb = null, onViewCb = null;
   var PIN_POS = {};             // id -> [lng, lat]（供 focusPile 用）
   var BADGE_POS = {};           // 分区 -> [lng, lat]（取景要把徽章也算进去，否则会被裁掉）
   var CLUSTER_POS = {};         // 分区 -> [lng, lat]（缩小时的聚合圈位置）
@@ -172,7 +172,7 @@
     [108.893963, 34.367586], [108.894019, 34.367599], [108.894075, 34.367611], [108.894131, 34.367623],
   ];
   var W_GEO = [
-    // 物流服务中心：**竖**线，W-01~W-12 **自下而上**（产品方原话「从下到上」）。
+    // 物业服务中心：**竖**线，W-01~W-12 **自下而上**（产品方原话「从下到上」）。
     // 红线两端 ≈ (607,963)=下端 / (578,793)=上端；线长约 41.5m ÷ 11 段 ≈ 3.8m 一档。
     // 位置在西区后勤管理中心（108.89616, 34.369613）的西北侧。
     [108.896000, 34.369790], [108.895993, 34.369823], [108.895986, 34.369857], [108.895978, 34.369891],
@@ -181,7 +181,7 @@
   ];
   var LINE_AREAS = [
     { loc: '渭水-20号楼',       prefix: 'E', geo: E_GEO },
-    { loc: '渭水-物流服务中心', prefix: 'W', geo: W_GEO },
+    { loc: '渭水-物业服务中心', prefix: 'W', geo: W_GEO },
   ];
   function lineAreaOf(loc) {
     for (var i = 0; i < LINE_AREAS.length; i++) {
@@ -223,7 +223,10 @@
     var m = String(code || '').toUpperCase().match(/[A-Z]?\d{1,2}/);
     return m ? m[0] : String(code || '?').slice(0, 3);
   }
-  /** 桩号 → 朝晖弧序号：'TY-07' / 'TZ-36' / '… 7 号桩' 取最后一段数字 */
+  /** 桩号 → 朝晖弧序号：'TY-07' / '… 7 号桩' 取最后一段数字
+   *  ⚠️ 别拿 `TZ-36` 当例子 —— 数据里根本没有 `TZ` 这一组（只有 `TY-01~36`），
+   *     这个不存在的例子曾误导过一轮排查。而且**"只看末尾数字"本身就是坑**：
+   *     调用方必须先确认分区（用 `mapAreaOf()`），否则 `E-01`/`W-01` 会被当成朝晖桩。 */
   function arcSeq(code) {
     var m = String(code || '').match(/(\d+)(?!.*\d)/);
     var n = m ? Number(m[1]) : 0;
@@ -233,7 +236,7 @@
   /** 把一个分区的桩逐台落到静态图的位置上；编号认不出的按顺序补进空位 */
   function layoutPiles(list, areaKey) {
     var out = [], i, used = {};
-    /* 【线段型分区】20号楼（横线，E-01~E-24 从左到右）、物流服务中心（竖线，W-01~W-12 自下而上）。
+    /* 【线段型分区】20号楼（横线，E-01~E-24 从左到右）、物业服务中心（竖线，W-01~W-12 自下而上）。
      * 桩位就是 `geo` 里那串固定经纬度，按桩号序号取第 n 个。
      * ⚠️ 这个分支必须放在**最后那个 else（朝晖弧）之前** —— 那个 else 用 `arcSeq` 认桩号
      *   （"末尾数字在 1~36 内就算朝晖"），而 `E-01`/`W-03` 的末尾数字正是 1/3，
@@ -521,6 +524,15 @@
    * 于是 `onZoomTier` 里 `applyZoomTier()` 不传 z 时会读到动画中间值 → 假聚合态
    * → 把刚进的分区视图强退回总览。见 applyZoomTier 里那段视频式时序记录。 */
   var progZoomAt = 0;
+  /* 首帧「飞入」动画（2026-10-24 产品方要求：打开地图时**从默认位置平移到目标位置**，不要瞬移到位）。
+   *
+   * 做法：mount 时相机停在 zoom 15.2 / campusCenter（默认位置），
+   * 第一次取景走 `setZoomAndCenter(z, center, false, FLY_MS)` 让高德补间过去；
+   * 之后（切页签、换筛选、刷新数据）一律直接到位 —— 每次都飞一遍既慢又烦，
+   * 还会把用户自己拖到的视角拽走。
+   * mount() 里会重置 firstCamera，所以「关掉再打开」会再飞一次，这正是要的效果。 */
+  var FLY_MS = 700;
+  var firstCamera = true;
   function applyZoomTier(z, allowViewReset) {
     if (!host) return;
     if (typeof z !== 'number') z = map ? map.getZoom() : 0;
@@ -559,6 +571,20 @@
     // 小点大小**随 gap 自适应**：gap 越小点越小，缩到很小时不会糊成一坨。
     // 上限 13px（再大就退回徽章档了），下限 5px（保证还看得见）。
     host.style.setProperty('--pile-gap', gap.toFixed(2) + 'px');
+    /* 建筑层 + 楼名标签随缩放显隐（阈值 16.3）。
+     * ⚠️ 2026-10-25 从 onZoomTier 挪到这里：那边只有**用户手势缩放**才会跑到，
+     *   而「打开地图的第一帧」是程序化取景（fitBBox → 本函数），**永远不经过它**。
+     *   于是 z≈15 的总览上几十个楼名全铺着，把四个分区圈和底图都糊住（截图实测）。
+     *   放在这里以后，程序化取景与手势缩放**共用同一条阈值**，不会再出现两套口径。
+     *   `bldLayer` 自 2026-10-21 起是 AMap.Polygon 数组（#44 修掉 GeoJSON），
+     *   不能调 .show()/.setOptions()，只能逐元素 setMap(map|null)。 */
+    var showDetail = z >= 16.3;
+    [bldLayer, labelLayer].forEach(function (arr) {
+      if (!arr) return;
+      arr.forEach(function (m) {
+        try { m.setMap(showDetail ? map : null); } catch (e) {}
+      });
+    });
     // 显隐统一交给 syncLayers 裁决（它同时感知分区过滤 + 缩放态），这里只负责定态
     syncLayers();
   }
@@ -588,14 +614,9 @@
       /* 建筑层与楼名标签随缩放显隐 —— 2026-10-21 起 `bldLayer` 是 **AMap.Polygon 数组**
        *（#44 修掉了 `AMap.GeoJSON`），所以不能再调 `.show()` / `.setOptions()`，
        * 改成逐元素 `setMap(map|null)`；楼名标签（`labelLayer`）用同一条阈值一起显隐，
-       * 免得缩到全校时几十个楼名糊成一团。 */
-      var showDetailed = map.getZoom() >= 16.3;
-      [bldLayer, labelLayer].forEach(function (arr) {
-        if (!arr) return;
-        arr.forEach(function (m) {
-          try { m.setMap(showDetailed ? map : null); } catch (e) {}
-        });
-      });
+       * 免得缩到全校时几十个楼名糊成一团。
+       * ⚠️ 2026-10-25：这段**挪进 applyZoomTier**（每一档都会跑到，含程序化取景），
+       *    这里不再重复做 —— 见 applyZoomTier 里的说明。 */
       // true = 用户主动缩放，允许「缩到标点重叠就退回总览」
       applyZoomTier(undefined, true);
     }, 120);
@@ -666,6 +687,7 @@
      * 而聚合圈的显隐条件是 `isCampus && clustered` —— curView 刚改成分区名（已不是 campus），
      * 会瞬间出现「逐台点被藏 + 聚合圈也不显示」的空档。
      * fitBBox 内部会走 applyZoomTier → syncLayers，用新的缩放态一次性算对。 */
+    notifyView();
   }
 
   /* ---------- 总览气泡（分区徽章） ---------- */
@@ -736,7 +758,15 @@
    * 点这个圈 → 放大到该分区全景（逐台点自然回到可读状态）。
    *
    * 与 rebuildBadges 的区别：badge 是「总览气泡」一直挂在分区外缘（带分区名），
-   * 这个是缩小时**替代逐台点**的主体标记，只写数字不写名字，视觉更大更干净。 */
+   * 这个是缩小时**替代逐台点**的主体标记，只写数字不写名字，视觉更大更干净。
+   *
+   * ⚠️ 2026-10-25 补：**圈下面加分区名**。总览成了默认第一屏以后，四个圈只写数字
+   * 谁也分不清是哪儿（产品方要的是「显示四个分区」）。名字用绝对定位挂在圈外，
+   * 不改变 marker 的盒子尺寸 ⇒ 圈心仍然钉在分区几何中心。
+   * 🔴 北门与朝晖的圈心只差 **37px**（188m，圈径 30px），名字都往下挂会叠在一起，
+   *    所以北门的名字往上放（北边是空的），这是唯一需要单独配的一个分区。
+   */
+  var CL_LABEL_UP = { '渭水-北门': true };
   function rebuildClusters() {
     clearLayer(clusterLayer); clusterLayer = null;
     CLUSTER_POS = {};
@@ -745,7 +775,7 @@
     piles.forEach(function (p) {
       var a = D.areas[p.location];
       if (!a) return;
-      if (!groups[p.location]) groups[p.location] = { free: 0, n: 0 };
+      if (!groups[p.location]) groups[p.location] = { free: 0, n: 0, name: a.name };
       groups[p.location].n++;
       if (p.free > 0) groups[p.location].free += p.free;
     });
@@ -761,9 +791,14 @@
       var inner = ok
         ? '<span class="cluster-num">' + g.free + '</span>'
         : '<span class="cluster-x">×</span>';
+      /* 名字用绝对定位挂在圈外（见上面 CL_LABEL_UP 的说明）——
+         这样 marker 盒子仍是 30×30 的圈，圈心不会被名字顶偏。 */
+      var nm = g.name || loc.replace(/^渭水-/, '');
       markers.push(new AMap.Marker({
         position: mid, anchor: 'center',
-        content: '<div class="cluster ' + (ok ? 'ok' : 'full') + '">' + inner + '</div>',
+        content: '<div class="cluster-cell' + (CL_LABEL_UP[loc] ? ' lbl-up' : '') + '">'
+          + '<div class="cluster ' + (ok ? 'ok' : 'full') + '">' + inner + '</div>'
+          + '<span class="cluster-name">' + nm + '</span></div>',
         extData: { area: loc },
         zIndex: 90,
       }));
@@ -864,7 +899,7 @@
   /* pad：四周留白比例；minZ：缩放托底
      托底是为了让「桩号方框」稳定出现 —— 容器窄的时候按 bbox 算出来只有 18.0 级，
      桩距折算成像素不够 13px，桩号就被降级成圆点，同一份代码在不同手机上长得不一样。 */
-  function fitBBox(b, pad, minZ) {
+  function fitBBox(b, pad, minZ, animate) {
     progZoomAt = Date.now();      // 标记「这是程序化取景」，onZoomTier 在 1200ms 内不重算档位
     var el = host || document.getElementById('amap-host');
     var cw = (el && el.clientWidth) || 360;
@@ -878,76 +913,125 @@
     var zx = Math.log2(res0 * cw / spanLon);
     var zy = Math.log2(res0 * ch / spanLat);
     var z = Math.max(minZ || 14, Math.min(19.4, Math.min(zx, zy)));
+    var center = [(b.w + b.e) / 2, lat];
     /* 第三参 immediately=true：无动画直接跳。
      * 🔴 2026-10-21 实测（WorkBuddy）：同一次调用里既改 center 又改 zoom 时，
      *   高德会把 zoom **压在动画中间值**上 —— 点圈后地图停在 z=17.23（目标 18.05），
      *   于是朝晖 36 台只占屏幕中间 224px（左右各留白 83px），产品方说的
      *   「点绿圈后区域还是有点小」其实是这条没到位，不是 AREA_PAD 的问题。
      *   对照实验：同一起点手动 setZoom(18.05) → 立刻到 18.05、36 台占 382px。
-     *   加 immediately 之后 zoom 精确落到 z，取景才真的贴着标点边界。 */
-    map.setZoomAndCenter(z, [(b.w + b.e) / 2, lat], true);
+     *   加 immediately 之后 zoom 精确落到 z，取景才真的贴着标点边界。
+     *
+     * 2026-10-24：新增 `animate` —— **只给「打开地图后的第一帧」用**，走高德补间，
+     *   从 mount 的默认相机飞过去。终点仍要补一次精确落位（见下）。 */
+    if (animate) {
+      map.setZoomAndCenter(z, center, false, FLY_MS);
+      /* 🔴 动画模式下高德会把 zoom 停在中间值（同上面那条实测）。所以动画结束后
+       *    **无条件**再精确落一次：目标本就到位时这是一次等值设置，没有视觉变化；
+       *    落偏了就当场补正（幅度很小，用户只看到「停稳」）。
+       *    ⚠️ 不要读 `map.getZoom()` 来判断要不要补 —— 它在 setZoomAndCenter 之后
+       *    长期滞后（实测 2.7s 仍报旧值），读出来会误判成「偏很多」而立刻跳一下，
+       *    等于把刚做的动画取消掉。 */
+      setTimeout(function () {
+        if (!map) return;
+        progZoomAt = Date.now();
+        map.setZoomAndCenter(z, center, true);
+        applyZoomTier(z);
+      }, FLY_MS + 90);
+    } else {
+      map.setZoomAndCenter(z, center, true);
+    }
     // 先按目标档位刷一次，再靠 zoomend / 定时器兜住高德回填 zoom 的延迟
     applyZoomTier(z);
     setTimeout(function () { applyZoomTier(z); }, 60);
     setTimeout(function () { applyZoomTier(z); }, 400);
   }
 
+  /** 四个分区的总览外接框 = 各分区桩阵外接框的并集 ∪ 分区徽章位置。
+   *  ⚠️ 用 `areaBBoxWithPiles` 而不是 `areaBBox`：桩点是沿线自适应排出来的，
+   *     会溢出排布线两端（2026-10-21 朝晖实测差 21px），只按排布线取景会裁掉最外侧的桩。
+   *  ⚠️ 徽章/标签挂在桩阵外缘，取景时也要算进去，否则名字会被顶到画面外。 */
+  function campusBBox() {
+    var b = unionBBox(Object.keys(D.areas).map(function (k) {
+      return areaBBoxWithPiles(k) || areaBBox(k);
+    }));
+    Object.keys(BADGE_POS).forEach(function (k) {
+      var p = BADGE_POS[k];
+      if (!p) return;
+      b = {
+        w: Math.min(b.w, p[0]), e: Math.max(b.e, p[0]),
+        s: Math.min(b.s, p[1]), n: Math.max(b.n, p[1]),
+      };
+    });
+    return b;
+  }
+
   /**
-   * 「渭水校区」页签的默认取景。
+   * 「渭水校区」页签的默认取景 = **四个分区一起进画面**（2026-10-25 产品方改回并加强）。
    *
-   * ⚠️ 2026-10-21 改（产品方选 A）：**从「全域并集」改成「只框朝晖」**。
+   * 历史（两版都跑过，别再来回翻烧饼）：
+   *   · v1.x 全域并集：视野被拉到全校级（z≈17.1）→ 桩号 `gap<13` 全变圆点，编号看不见 ✗
+   *   · 2026-10-21 改「只框朝晖」（z≈18.1，编号可读）→ 代价是北门/物业/20号楼
+   *     **全落在画面外**，可当时默认页签不是它，问题不明显。
+   *   · 2026-10-25 v2.23 把它设成默认打开的第一屏后，产品方一眼看出「只能看到朝晖 36 台」，
+   *     要求：「点击地图显示四个分区，点击后放大」→ 就是现在这一版。
    *
-   * 原实现是 unionBBox(所有 area) + 徽章位置 → 把北门和朝晖一起塞进视野。
-   * 后果：视野被拉到全校级别（实测 z≈17.1，约 1.74 px/m），这时
-   *   · 朝晖左弧点距 7.79m → 屏幕 13.5px、右弧 3.71m → **仅 6.5px**（点框固定 16px）
-   *   · 且缩到 `gap<13` 时 `.pile` 的 font-size 归零（小点档）→ **一个编号都看不见**
-   * 这正是产品方「看不出编号」的根因。
+   * 现在的语义不是「把 109 个编号塞进一屏」（物理上不可能），而是**分区级总览**：
+   *   一屏 z≈14.6（约 5.1 m/px）→ `gap≈1.3px` 远低于 `GAP_CLUSTER` → 自动进聚合圈档，
+   *   屏幕上就是**四个带名字的圈**（20号楼 / 物业服务中心 / 北门 / 朝晖体育场南），
+   *   点哪个圈就 `zoomToArea()` 放大到哪个分区 —— 那一档才是逐台编号（z≥18，编号必显）。
    *
-   * 改成只框朝晖后（pad 0.12，实测 z≈18.1，约 2.05 px/m）：
-   *   · 东西跨度 ≈172m = 体育场宽度，v1.70 的**双弧形状一眼可见**
-   *   · 左弧点距 → 屏幕 ≈16px，**编号可读**
-   *   · ⚠️ 右弧 24 点（点距 3.71m）→ 屏幕仅 ≈7.6px，**编号仍会重叠**，需再放大一档才是清的。
-   *     这是「36 个编号 + 完整双弧形状」物理上不可兼得的必然结果，
-   *     产品方已知情并选择「先保证看见形状」（详见沟通记录 01:5x / 待办 29）。
-   *
-   * 代价：**北门那一侧的桩点与徽章落到视野外**。可接受 ——
-   *   北门有自己独立的「渭水-北门」页签（静态图引擎，不走这里）。
-   *
-   * minZ=18.0 是关键兜底：低于它 `applyZoomTier` 就落到 `gap<13` → 进小点档，编号看不见了。
-   *   z=18.0 时 gap = 6.5 / (129290/2^18) ≈ 13.2 ≥ 13，编号必定显示。
-   *   （2026-10-21：档位阈值已提到 `GAP_BADGE`/`GAP_CLUSTER` 两个常量，见 applyZoomTier。）
+   * minZ 传 0（fitBBox 内部 floor 到 14）：四个分区横跨 **1.8km**（108.8928~108.9125），
+   *   任何比这更近的托底都会把最西的 20 号楼或最东的北门裁掉 —— 这里**不能有托底**。
    */
-  function fitCampus() {
-    var b = areaBBox('渭水-朝晖体育场南');
-    if (!b) {
-      // 拿不到朝晖落点（例如桩表还没灌进来）→ 退回原来的全域并集，免得黑屏
-      b = unionBBox(Object.keys(D.areas).map(areaBBox));
-      Object.keys(BADGE_POS).forEach(function (k) {
-        var p = BADGE_POS[k];
-        if (!p) return;
-        b = {
-          w: Math.min(b.w, p[0]), e: Math.max(b.e, p[0]),
-          s: Math.min(b.s, p[1]), n: Math.max(b.n, p[1]),
-        };
-      });
-      fitBBox(b, 0.10, 17.0);
-      return;
-    }
-    fitBBox(b, 0.12, 18.0);
+  function fitCampus(animate) {
+    fitBBox(campusBBox(), 0.10, 0, animate);
+  }
+
+  /* ---------- 视图状态回传（给页面表头 / 「返回总览」按钮用） ----------
+   * 为什么要它：总览成了默认第一屏以后，「点圈放大」是**引擎内部**行为（zoomToArea），
+   * 页面并不知道镜头已经落到某个分区 —— 表头会一直写着「109 个点位」，
+   * 与屏幕上只显示的 36 台自相矛盾；而且放大以后页面没有任何「回总览」的入口。
+   * 所以状态一变就回传：curView + **当前视图**的点位数 / 有空位位数。 */
+  function viewInfo() {
+    var total = 0, free = 0;
+    piles.forEach(function (p) {
+      if (curView !== 'campus' && p.location !== curView) return;
+      total++;
+      if (p.free > 0) free++;
+    });
+    var a = (D && D.areas) ? D.areas[curView] : null;
+    return {
+      view: curView,
+      name: a ? a.name : '渭水校区',
+      school: curView === 'campus',
+      piles: total,
+      free: free,
+    };
+  }
+  function notifyView() {
+    if (!onViewCb) return;
+    try { onViewCb(viewInfo()); } catch (e) {}
   }
 
   function applyCamera() {
+    /* 只有「打开地图后的第一帧」做飞入动画（见 firstCamera 的说明）。
+     * 注意这个判断必须在最前面取一次就置 false：同一次 applyCamera 里
+     * fitCampus / fitBBox 可能被调用多次，不能都当成首帧。 */
+    var fly = firstCamera;
+    firstCamera = false;
     if (curView === 'campus') {
-      fitCampus();
+      fitCampus(fly);
     } else {
       var b = areaBBox(curView);
       // 北门桩阵只占一块 137m×58m 的地块，留白 9%（窄屏单边约 15px，扣掉徽章半宽 8px 还剩 7px，
       // 最东头的 D14 不会被容器切掉），缩放托底 18.05 级 —— 低于这个级别桩距不够 13px，桩号就降级成圆点
-      if (b) fitBBox(b, curView === '渭水-北门' ? 0.09 : 0.22, curView === '渭水-北门' ? 18.05 : 0);
-      else fitCampus();
+      if (b) fitBBox(b, curView === '渭水-北门' ? 0.09 : 0.22, curView === '渭水-北门' ? 18.05 : 0, fly);
+      else fitCampus(fly);
     }
     try { map.resize(); } catch (e) {}
     // 档位已经在 fitBBox 里按目标 zoom 设过了，这里再读 map.getZoom() 反而会拿旧值覆盖
+    notifyView();
   }
 
   /* ---------- 对外 ---------- */
@@ -959,8 +1043,12 @@
       opts = opts || {};
       mountCount++;
       host = hostEl;
+      /* 每次（重新）挂载都重置首帧标志 —— 「关掉地图再打开」应该再飞一次。
+       * 不重置的话第二次打开会直接瞬移到位，与产品方要的过渡效果不一致。 */
+      firstCamera = true;
       onFailCb = opts.onFail || null;
       onPileCb = opts.onPileClick || null;
+      onViewCb = opts.onViewChange || null;
       if (typeof CHD_MAP === 'undefined') { failed = true; onFailCb && onFailCb('data'); return; }
       D = CHD_MAP;
 
@@ -1047,13 +1135,19 @@
       syncLayers();
       // opts2.keepCamera：刷新数据时别把用户正在看的视角拉回全景
       if (!(opts2 && opts2.keepCamera)) applyCamera();
+      notifyView();          // 数量变了（keepCamera 那条路不会走 applyCamera）
     },
 
-    setView: function (view) {
+    setView: function (view, opts2) {
       if (!ready) return;
       curView = view;
       syncLayers();
-      applyCamera();
+      /* keepCamera：只切「视图状态」，不动相机。
+       * 给「首帧飞入」和「卡片定位」用 —— 页面在 onReady 里紧跟的那次
+       * setPiles/setView 如果照默认走 applyCamera，会把刚起的飞入动画一把拽到终点，
+       * 用户看到的就还是「瞬移到位」。 */
+      if (!(opts2 && opts2.keepCamera)) applyCamera();
+      notifyView();
     },
 
     // 程序化设定缩放（保持当前中心）；供测试与未来「缩到全校」入口复用。
@@ -1087,13 +1181,25 @@
        *   ② 直接用**目标 zoom** 定档，不等滞后的 getZoom()
        */
       progZoomAt = Date.now();
-      map.setZoomAndCenter(19.2, PIN_POS[id]);
+      /* 2026-10-24：显式给「动画 + 时长」，让「查找」是**飞过去**而不是瞬移。
+       * 终点照样补一次精确落位 —— 高德在同时改 center + zoom 的动画里会把 zoom
+       * 停在中间值（见 fitBBox 那段实测），读 getZoom 又不可靠，所以直接等值重设。 */
+      map.setZoomAndCenter(19.2, PIN_POS[id], false, FLY_MS);
       applyZoomTier(19.2);                                   // 用目标值定档（19.2 → gap≈30.8，必进徽章档）
-      setTimeout(function () { applyZoomTier(19.2); }, 400);  // 动画收尾后再钉一次
+      setTimeout(function () {                               // 动画收尾后再钉一次
+        if (!map) return;
+        progZoomAt = Date.now();
+        map.setZoomAndCenter(19.2, PIN_POS[id], true);
+        applyZoomTier(19.2);
+      }, FLY_MS + 90);
+      notifyView();          // 「查找」也是切了视图（curView 已变成该桩所属分区）
       return true;
     },
 
     resize: function () { if (map && map.resize) try { map.resize(); } catch (e) {} },
+
+    /* 当前视图状态（页面表头 / 返回按钮用；也是验收「点圈放大后到底进了哪个分区」的判据） */
+    viewInfo: viewInfo,
 
     debug: function () {
       var ks = Object.keys(PIN_POS);
@@ -1104,7 +1210,13 @@
         pins: pinLayer ? pinLayer.length : 0,
         clusters: clusterLayer ? clusterLayer.length : 0,
         clustered: clustered,
+        gap: (host && host.dataset.gap) || '',
         zoom: map ? map.getZoom() : null,
+        /* 相机中心：给「飞入动画」验收用（动画中每 100ms 采一次，中心应连续变化）。
+         * `getZoom()` 在 setZoomAndCenter 后会滞后，`getCenter()` 不会 —— 所以判据用 center。 */
+        center: (map && map.getCenter) ? (function () {
+          try { var c = map.getCenter(); return [c.getLng(), c.getLat()]; } catch (e) { return null; }
+        })() : null,
         sample: ks.slice(0, 3).map(function (k) { return k + ':' + PIN_POS[k].join(','); }),
         sampleLast: ks.length ? PIN_POS[ks[ks.length - 1]].join(',') : '',
         /* 2026-10-21 加（只为验收 #44 用）：建筑 / 场地 / 水域 / 楼名标签的真实数量，

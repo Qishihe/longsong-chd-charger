@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="theme-color" content="#1D9E75">
+<title>凭证更新 · 管理</title>
+<style>
+  :root{--g:#1D9E75;--g2:#0F6E56;--ink:#16211c;--mut:#6b7a73;--bg:#f4f6f5;--line:#e3e8e5;--bad:#c0392b;--ok:#1D9E75}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+  main{max-width:520px;margin:0 auto;padding:22px 16px 48px}
+  h1{font-size:20px;font-weight:600;margin:0 0 4px}
+  .sub{margin:0 0 18px;color:var(--mut);font-size:13px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 15px;margin-bottom:14px}
+  .k{font-size:12px;color:var(--mut);letter-spacing:.02em;margin-bottom:6px}
+  #state{font-size:14px;word-break:break-word}
+  #state b{font-weight:600}
+  label{display:block;font-size:13px;color:var(--mut);margin:0 0 12px}
+  input,textarea{display:block;width:100%;margin-top:6px;padding:11px 12px;font-size:16px;color:var(--ink);
+    background:#fbfcfb;border:1px solid var(--line);border-radius:10px;outline:none;font-family:inherit}
+  input:focus,textarea:focus{border-color:var(--g);background:#fff}
+  textarea{resize:vertical;line-height:1.45;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
+  .parsed{font-size:13px;padding:9px 11px;border-radius:9px;background:#f6f8f7;border:1px dashed var(--line);margin:2px 0 12px;word-break:break-all}
+  .parsed.ok{background:#eef8f3;border-color:#bfe3d3}
+  .parsed.bad{background:#fdf0ee;border-color:#f2c9c2;color:var(--bad)}
+  button{width:100%;padding:13px;font-size:16px;font-weight:600;color:#fff;background:var(--g);border:0;border-radius:11px;
+    cursor:pointer;-webkit-appearance:none}
+  button:active{background:var(--g2)}
+  button[disabled]{opacity:.55;cursor:default}
+  .msg{margin-top:10px;font-size:13px;min-height:18px}
+  .msg.ok{color:var(--ok)}
+  .msg.bad{color:var(--bad)}
+  .hint{font-size:12px;color:var(--mut);line-height:1.7;margin:16px 2px 0}
+  .hint code{background:#ecefed;padding:1px 5px;border-radius:5px;font-size:11.5px}
+</style>
+</head>
+<body>
+<main>
+  <h1>凭证更新</h1>
+  <p class="sub">每周一次。上传后，同学下次打开站点会自动换上，不需要做任何操作。</p>
+
+  <section class="card">
+    <div class="k">信箱状态</div>
+    <div id="state">读取中…</div>
+  </section>
+
+  <section class="card">
+    <label>写口令
+      <input id="adm" type="password" autocomplete="current-password" placeholder="Cloudflare 里的 ADMIN_TOKEN">
+    </label>
+    <label>凭证
+      <textarea id="tok" rows="5" placeholder="整段粘进来即可，会自动挑出三段点分隔的那串"
+        autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
+    </label>
+    <label>备注（可选）
+      <input id="note" maxlength="60" placeholder="例如：第 43 周 · 10-22 更新">
+    </label>
+    <div class="parsed" id="parsed">还没有读到凭证</div>
+    <button id="go">加密并上传</button>
+    <div class="msg" id="msg"></div>
+  </section>
+
+  <p class="hint">
+    凭证在浏览器里用 AES-GCM 加好密才发出，信箱里只有密文；密钥与站点内置密钥一致，
+    所以同学那边的浏览器能自动解开。<b>写口令只在上传时用一次</b>，不会存到本机长期保存。<br>
+    这个页面不对外开放入口，但地址本身是公开的 —— 别人打开也传不了，因为写入口令在服务端校验。
+  </p>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  var BOX = '/api/cred';
+  // 与站点 BUILTIN_SYNC_KEY 同一串（preview.html / index.html 里的 _dec('...')）
+  var SYNC_KEY = atob('REhOMlVJTU5qN3NXRHlPY3FKY0gxNDZpMDVOb1hqbjNkZ2hZZzhETUV1bw==');
+  var ROUNDS = 200000;
+  var KDF = 'PBKDF2-SHA256-200000';
+  var JWT = /eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var adm = $('adm'), tok = $('tok'), note = $('note'), parsed = $('parsed'), msg = $('msg'), go = $('go');
+
+  function b64(bytes) {
+    var s = '';
+    for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+    return btoa(s);
+  }
+  function unb64(text) {
+    var bin = atob(text), out = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  function b64urlToJson(part) {
+    var s = part.replace(/-/g, '+').replace(/_/g, '/');
+    while (s.length % 4) s += '=';
+    return JSON.parse(new TextDecoder().decode(unb64(s)));
+  }
+
+  function derive(salt) {
+    var material = crypto.subtle.importKey('raw', new TextEncoder().encode(SYNC_KEY), 'PBKDF2', false, ['deriveKey']);
+    return material.then(function (m) {
+      return crypto.subtle.deriveKey(
+        { name: 'PBKDF2', salt: salt, iterations: ROUNDS, hash: 'SHA-256' },
+        m, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
+      );
+    });
+  }
+
+  function seal(token) {
+    var salt = crypto.getRandomValues(new Uint8Array(16));
+    var iv = crypto.getRandomValues(new Uint8Array(12));
+    return derive(salt).then(function (key) {
+      return crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, new TextEncoder().encode(token));
+    }).then(function (ct) {
+      var sealed = new Uint8Array(ct);
+      var packed = new Uint8Array(iv.length + sealed.length);
+      packed.set(iv, 0); packed.set(sealed, iv.length);
+      return { salt: b64(salt), cipher: b64(packed), kdf: KDF };
+    });
+  }
+
+  function unseal(saltB64, cipherB64) {
+    var packed = unb64(cipherB64);
+    return derive(unb64(saltB64)).then(function (key) {
+      return crypto.subtle.decrypt({ name: 'AES-GCM', iv: packed.slice(0, 12) }, key, packed.slice(12));
+    }).then(function (pt) { return new TextDecoder().decode(pt); });
+  }
+
+  function pickToken(raw) {
+    var text = String(raw || '').trim();
+    if (!text) return '';
+    var named = text.match(/(?:authorization|token)["']?\s*[:=]\s*["']?\s*(?:Bearer\s+)?(eyJ[A-Za-z0-9_.-]{20,})/i);
+    if (named) return named[1];
+    var any = text.match(JWT);
+    return any ? any[0] : '';
+  }
+
+  function describe(token) {
+    var parts = token.split('.');
+    if (parts.length !== 3) return { ok: false, why: '不是三段点分隔的凭证' };
+    var payload;
+    try { payload = b64urlToJson(parts[1]); } catch (e) { return { ok: false, why: '中段解不开，可能没复制全' }; }
+    var exp = Number(payload && payload.exp) * 1000;
+    if (!exp) return { ok: true, exp: 0, left: '' };
+    var days = (exp - Date.now()) / 86400000;
+    if (exp <= Date.now()) return { ok: false, why: '这串已经过期了', exp: exp };
+    return { ok: true, exp: exp, left: days >= 1 ? days.toFixed(1) + ' 天后过期' : '不到 1 天就过期' };
+  }
+
+  function fmt(ts) {
+    var d = new Date(ts);
+    var p = function (n) { return (n < 10 ? '0' : '') + n; };
+    return (d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+
+  function setMsg(text, good) {
+    msg.className = 'msg' + (text ? (good ? ' ok' : ' bad') : '');
+    msg.textContent = text || '';
+  }
+
+  // ---- 读取信箱当前状态（顺便验证解密链路是否通）----
+  function refreshState() {
+    var state = $('state');
+    return fetch(BOX, { cache: 'no-store', headers: { accept: 'application/json' } })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d || !d.ok) throw new Error((d && d.error) || '接口异常');
+        if (!d.exists) {
+          state.innerHTML = '<b>空</b>，还没有人上传过。';
+          return;
+        }
+        var size = Math.round((d.data || '').length / 1024 * 10) / 10;
+        var head = '已上传 · <b>' + fmt(d.updatedAt) + '</b> · ' + size + ' KB';
+        var pack;
+        try { pack = JSON.parse(d.data); } catch (e) {
+          state.innerHTML = head + '<br>内容损坏，建议重新上传。';
+          return;
+        }
+        unseal(pack.salt, pack.cipher).then(function (token) {
+          var info = describe(token);
+          var line = info.ok
+            ? '解出来的凭证' + (info.left ? '：' + info.left : '：没带过期时间')
+            : '解出来的凭证有问题：' + info.why;
+          state.innerHTML = head + (d.note ? ' · ' + d.note : '') +
+            '<br><span style="color:' + (info.ok ? '#1D9E75' : '#c0392b') + '">' + line + '</span>';
+        }).catch(function () {
+          state.innerHTML = head + '<br><span style="color:#c0392b">解密失败：密钥与站点不一致</span>';
+        });
+      })
+      .catch(function (e) {
+        state.innerHTML = '<span style="color:#c0392b">读不到信箱：' + (e.message || '网络问题') + '</span>';
+      });
+  }
+
+  // ---- 实时解析粘贴的内容 ----
+  function onInput() {
+    var token = pickToken(tok.value);
+    if (!token) {
+      parsed.className = 'parsed';
+      parsed.textContent = tok.value.trim() ? '这一段里没找到凭证' : '还没有读到凭证';
+      return '';
+    }
+    var info = describe(token);
+    if (!info.ok) {
+      parsed.className = 'parsed bad';
+      parsed.textContent = info.why;
+      return '';
+    }
+    parsed.className = 'parsed ok';
+    parsed.textContent = '读到凭证 · ' + token.slice(0, 18) + '… · ' + (info.left || '没有过期时间');
+    return token;
+  }
+  tok.addEventListener('input', onInput);
+
+  // 写口令只记在本次会话里（标签页关掉就没了），不落 localStorage
+  try {
+    var saved = sessionStorage.getItem('cpk.adm');
+    if (saved) adm.value = saved;
+  } catch (e) {}
+
+  go.addEventListener('click', function () {
+    var token = onInput();
+    var pass = String(adm.value || '').trim();
+    if (!pass) { setMsg('先填写口令（Cloudflare 里的 ADMIN_TOKEN）', false); adm.focus(); return; }
+    if (!token) { setMsg('凭证没读到，把整段重新粘贴一次', false); tok.focus(); return; }
+
+    go.disabled = true;
+    setMsg('加密中…', true);
+    seal(token).then(function (pack) {
+      setMsg('上传中…', true);
+      return fetch(BOX, {
+        method: 'POST',
+        cache: 'no-store',
+        headers: { 'content-type': 'application/json', 'x-admin-token': pass },
+        body: JSON.stringify({ data: JSON.stringify(pack), note: String(note.value || '').trim().slice(0, 60) })
+      });
+    }).then(function (r) {
+      return r.json().then(function (d) { return { status: r.status, body: d }; });
+    }).then(function (res) {
+      var code = res.body && res.body.error;
+      if (res.status === 200 && res.body && res.body.ok) {
+        try { sessionStorage.setItem('cpk.adm', pass); } catch (e) {}
+        setMsg('上传成功。同学下次打开站点会自动换上。', true);
+        tok.value = '';
+        onInput();
+        refreshState();
+        return;
+      }
+      var map = {
+        bad_token: '写口令不对，看 Cloudflare 里的 ADMIN_TOKEN',
+        too_many_attempts: '错太多次被挡了，等 10 分钟再试',
+        empty_data: '凭证是空的',
+        too_large: '凭证太大（超过 64 KB）',
+        kv_not_bound: 'KV 绑定没生效，去控制台重新部署一次',
+        token_not_set: 'ADMIN_TOKEN 还没配上'
+      };
+      setMsg(map[code] || ('上传失败：' + (code || ('HTTP ' + res.status))), false);
+    }).catch(function (e) {
+      setMsg('上传失败：' + (e.message || '网络问题'), false);
+    }).then(function () {
+      go.disabled = false;
+    });
+  });
+
+  if (location.protocol === 'file:') {
+    $('state').innerHTML = '<span style="color:#c0392b">这个页面必须从线上地址打开，本地文件没有接口</span>';
+  } else {
+    refreshState();
+  }
+})();
+</script>
+</body>
+</html>

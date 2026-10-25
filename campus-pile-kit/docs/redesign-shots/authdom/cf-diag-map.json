@@ -1,0 +1,186 @@
+{
+  "dbg": {
+    "view": "campus",
+    "piles": 109,
+    "ready": true,
+    "failed": false,
+    "failReason": "",
+    "mountCount": 1,
+    "badges": 4,
+    "pins": 109,
+    "clusters": 4,
+    "clustered": false,
+    "zoom": 18,
+    "sample": [
+      "XLA36125:108.892845,34.367344",
+      "XLA35420:108.892901,34.367357",
+      "XLA31449:108.892956,34.367369"
+    ],
+    "sampleLast": "108.911984,34.374531",
+    "bld": 83,
+    "venue": 8,
+    "water": 2,
+    "labels": 95,
+    "mapStyle": "amap://styles/fresh",
+    "mask": 0
+  },
+  "raw": {
+    "typeofAMap": "object",
+    "typeofWindowAmap": "object",
+    "winKeys": [
+      "ensureAMap",
+      "amapDevices",
+      "onAMapPileClick",
+      "amapApplyView",
+      "CHD_AMAP_KEY",
+      "CHD_AMAP_SCODE",
+      "CHD_AMAP",
+      "_AMapSecurityConfig",
+      "AMap"
+    ],
+    "scripts": [
+      "https://chd-charge.pages.dev/map-amap.js?v=138",
+      "https://webapi.amap.com/maps?v=2.0&key=amap-key-placeholder"
+    ],
+    "canvasN": 1,
+    "hostRect": [
+      390,
+      695
+    ],
+    "markers": 208,
+    "keySet": "db2ca0…",
+    "secCfg": [
+      "securityJsCode"
+    ],
+    "amapErrText": "amap-maps"
+  },
+  "reqs": [
+    {
+      "url": "https://webapi.amap.com/maps?v=2.0&key=amap-key-placeholder",
+      "phase": "sent"
+    },
+    {
+      "url": "https://webapi.amap.com/maps?v=2.0&key=amap-key-placeholder",
+      "phase": "resp",
+      "status": 200,
+      "mime": "application/javascript"
+    },
+    {
+      "url": "https://restapi.amap.com/v3/log/init?jscode=amap-key-placeholder&eventId=resource.load&s=rsv3&product=JsInit&platform=JS&logvers",
+      "phase": "sent"
+    },
+    {
+      "url": "https://jsapi.amap.com/web/init?key=amap-key-placeholder",
+      "phase": "sent"
+    },
+    {
+      "url": "https://jsapi-service.amap.com/mapsplugincdn?v=2.3.5.6&cls=WebGLRender&key=amap-key-placeholder&t=1773639622895",
+      "phase": "sent"
+    },
+    {
+      "url": "https://webapi.amap.com/theme/v2.0/logo@2x.png",
+      "phase": "sent"
+    },
+    {
+      "url": "https://jsapi-service.amap.com/mapsplugincdn?v=2.3.5.6&cls=WebGLRender&key=amap-key-placeholder&t=1773639622895",
+      "phase": "resp",
+      "status": 200,
+      "mime": "application/javascript"
+    },
+    {
+      "url": "https://webapi.amap.com/theme/v2.0/logo@2x.png",
+      "phase": "resp",
+      "status": 200,
+      "mime": "image/png"
+    },
+    {
+      "url": "https://jsapi.amap.com/web/init?key=amap-key-placeholder",
+      "phase": "resp",
+      "status": 200,
+      "mime": "application/json"
+    },
+    {
+      "url": "https://o4.amap.com/style/2.0.2.45/v1/pbf/1_0_s_migrate?key=amap-key-placeholder",
+      "phase": "sent"
+    },
+    {
+      "url": "https://custyle.amap.com/web/rendering/vdata/getMergedStyleData?key=amap-key-placeholder&format=pbf&t=1_0_s_migrate&v=2.0.2.45&p",
+      "phase": "sent"
+    },
+    {
+      "url": "https://jsapi.amap.com/web_map/get_tile?key=amap-key-placeholder",
+      "phase": "sent"
+    },
+    {
+      "url": "https://restapi.amap.com/v3/log/init?jscode=amap-key-placeholder&eventId=resource.load&s=rsv3&product=JsInit&platform=JS&logvers",
+      "phase": "resp",
+      "status": 200,
+      "mime": "application/octet-stream"
+    },
+    {
+      "url": "https://jsapi.amap.com/web_map/get_tile?key=amap-key-placeholder",
+      "phase": "sent"
+    },
+    {
+      "url": "https://jsapi.amap.com/web_map/get_tile?key=amap-key-placeholder",
+      "phase": "resp",
+      "status": 200,
+      "mime": "application/json"
+    },
+    {
+      "url": "https://jsapi.amap.com/web_map/get_tile?key=amap-key-placeholder",
+      "phase": "resp",
+      "status": 200,
+      "mime": "application/json"
+    },
+    {
+      "url": "https://custyle.amap.com/web/rendering/vdata/getMergedStyleData?key=amap-key-placeholder&format=pbf&t=1_0_s_migrate&v=2.0.2.45&p",
+      "phase": "resp",
+      "status": 200,
+      "mime": "application/x-protobuf"
+    },
+    {
+      "url": "https://o4.amap.com/icon/2.0.2.45/v1/1_0_s/icons_1?key=amap-key-placeholder",
+      "phase": "sent"
+    },
+    {
+      "url": "https://o4.amap.com/icon/2.0.2.45/v1/1_0_s/icons_4?key=amap-key-placeholder",
+      "phase": "sent"
+    },
+    {
+      "url": "https://o4.amap.com/icon/2.0.2.45/v1/1_0_s/icons_9?key=amap-key-placeholder",
+      "phase": "sent"
+    },
+    {
+      "url": "https://o4.amap.com/icon/2.0.2.45/v1/1_0_s/icons_64?key=amap-key-placeholder",
+      "phase": "sent"
+    },
+    {
+      "url": "https://o4.amap.com/style/2.0.2.45/v1/pbf/1_0_s_migrate?key=amap-key-placeholder",
+      "phase": "resp",
+      "status": 200,
+      "mime": "application/x-protobuf"
+    },
+    {
+      "url": "https://jsapi.amap.com/web_map/get_tile?key=amap-key-placeholder",
+      "phase": "sent"
+    },
+    {
+      "url": "https://webapi.amap.com/maps/checkredirect?key=amap-key-placeholder&v=2.3.5.6&defaultLocation=107.663753%252C33.693877%252C109.8",
+      "phase": "sent"
+    },
+    {
+      "url": "https://o4.amap.com/icon/2.0.2.45/v1/1_0_s/icons_4?key=amap-key-placeholder",
+      "phase": "resp",
+      "status": 200,
+      "mime": "image/png"
+    },
+    {
+      "url": "https://o4.amap.com/icon/2.0.2.45/v1/1_0_s/icons_64?key=amap-key-placeholder",
+      "phase": "resp",
+      "status": 200,
+      "mime": "image/png"
+    }
+  ],
+  "logs": []
+}

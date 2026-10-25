@@ -1,0 +1,1671 @@
+{
+ "meta": {
+  "target": "file:///C:/Users/Administrator/WorkBuddy/2026-10-18-12-23-42/campus-pile-kit/chd-charge/preview-v3.html",
+  "loadMethod": "file:// 直接导航（无本地服务器、无 Fetch 改写）；随页面相对加载的 sdk/preview-banner/map-data/map-amap-preview 都从本地磁盘读到；高德 CDN 与云端因断网不可用（预期）",
+  "browser": "Edg/155.0.4283.62",
+  "viewportAfterNav": {
+   "innerW": 390,
+   "innerH": 844,
+   "clientW": 390,
+   "clientH": 844,
+   "dpr": 2,
+   "vsW": 390,
+   "vsH": 844
+  },
+  "deviceMetrics": "Emulation.setDeviceMetricsOverride{width:390,height:844,deviceScaleFactor:2,mobile:true}",
+  "windowSizeFlag": "--window-size=390,1200",
+  "screenshotMethod": "CDP Page.captureScreenshot（非 msedge 落盘轮询）",
+  "profilePolicy": "每次运行全新随机 user-data-dir；localStorage/sessionStorage 均为空（无 token 真相）",
+  "ranAt": {
+   "run1": "2026-10-21T15:01:58.630Z",
+   "run2": "2026-10-21T15:06:34.610Z",
+   "run3": "2026-10-21T15:12:38.526Z"
+  },
+  "note_runs": {
+   "run1": "时间线 1/3/12/25s + 回归 + 二次点击序列（该轮胶囊点击时元素在视口外，未生效，仅用于回归/序列）",
+   "run2": "权威截图 01/02/03：先 scrollIntoView 把胶囊滚进视口，再用真实鼠标事件点击（hitSelf=true 已验证）",
+   "run3": "默认滚动位置下桩点遮挡/可点性 slice vs meet + 北门"
+  }
+ },
+ "console": {
+  "run1_counts": {
+   "consoleAPICalled": 2,
+   "exceptionThrown": 0,
+   "LogEntryAdded": 0
+  },
+  "run1_events": [
+   {
+    "t": 8545,
+    "kind": "consoleAPICalled",
+    "level": "warning",
+    "text": "[history] 跳过采集：云端不可用",
+    "stack": [
+     "collectHistorySilently@file:///C:/Users/Administrator/WorkBuddy/2026-10-18-12-23-42/campus-pile-kit/chd-charge/preview-v3.html:4869",
+     "hourlyHistoryTick@file:///C:/Users/Administrator/WorkBuddy/2026-10-18-12-23-42/campus-pile-kit/chd-charge/preview-v3.html:4946",
+     "@file:///C:/Users/Administrator/WorkBuddy/2026-10-18-12-23-42/campus-pile-kit/chd-charge/preview-v3.html:4981"
+    ]
+   },
+   {
+    "t": 37517,
+    "kind": "consoleAPICalled",
+    "level": "warning",
+    "text": "[map] 高德地图加载失败：load:error",
+    "stack": [
+     "onFail@file:///C:/Users/Administrator/WorkBuddy/2026-10-18-12-23-42/campus-pile-kit/chd-charge/preview-v3.html:2678",
+     "s.onerror@file:///C:/Users/Administrator/WorkBuddy/2026-10-18-12-23-42/campus-pile-kit/chd-charge/map-amap-preview.js?v=4:1029"
+    ]
+   }
+  ],
+  "run2_counts": {
+   "consoleAPICalled": 1,
+   "exceptionThrown": 0,
+   "LogEntryAdded": 0
+  },
+  "run2_events": [
+   {
+    "t": 8483,
+    "kind": "consoleAPICalled",
+    "level": "warning",
+    "text": "[history] 跳过采集：云端不可用",
+    "stack": [
+     "collectHistorySilently@4869",
+     "hourlyHistoryTick@4946"
+    ]
+   }
+  ],
+  "run3_counts": null,
+  "note": "run1 的第 2 条 warning 只在「点渭水校区胶囊」之后才出现（高德 CDN 断网）；默认页静置到 25s 只有 1 条 [history] warning，0 exception、0 Log.entryAdded。"
+ },
+ "B_timeline_run1": [
+  {
+   "at": 1432,
+   "label": "1000ms",
+   "value": {
+    "imgHref": "map-clean.webp",
+    "isPlaceholderGif": false,
+    "markersChildCount": 74,
+    "markerEls": 74,
+    "stageW": 360,
+    "stageH": 300,
+    "mapSub": "72 个点位 · 0 个有空位",
+    "cpMapNote": "72 个点位 · 0 个有空位",
+    "preserveAspectRatio": "xMidYMid slice"
+   }
+  },
+  {
+   "at": 3442,
+   "label": "3000ms",
+   "value": {
+    "imgHref": "map-clean.webp",
+    "isPlaceholderGif": false,
+    "markersChildCount": 74,
+    "markerEls": 74,
+    "stageW": 360,
+    "stageH": 300,
+    "mapSub": "72 个点位 · 0 个有空位",
+    "cpMapNote": "72 个点位 · 0 个有空位",
+    "preserveAspectRatio": "xMidYMid slice"
+   }
+  },
+  {
+   "at": 12443,
+   "label": "12000ms",
+   "value": {
+    "imgHref": "map-clean.webp",
+    "isPlaceholderGif": false,
+    "markersChildCount": 74,
+    "markerEls": 74,
+    "stageW": 360,
+    "stageH": 300,
+    "mapSub": "72 个点位 · 0 个有空位",
+    "cpMapNote": "72 个点位 · 0 个有空位",
+    "preserveAspectRatio": "xMidYMid slice"
+   }
+  },
+  {
+   "at": 25437,
+   "label": "25000ms",
+   "value": {
+    "imgHref": "map-clean.webp",
+    "isPlaceholderGif": false,
+    "markersChildCount": 74,
+    "markerEls": 74,
+    "stageW": 360,
+    "stageH": 300,
+    "mapSub": "72 个点位 · 0 个有空位",
+    "cpMapNote": "72 个点位 · 0 个有空位",
+    "preserveAspectRatio": "xMidYMid slice"
+   }
+  }
+ ],
+ "B_default_run2": {
+  "imgHref": "map-clean.webp",
+  "isPlaceholderGif": false,
+  "markersChildCount": 74,
+  "markerEls": 74,
+  "stageW": 360,
+  "stageH": 300,
+  "mapSub": "72 个点位 · 0 个有空位",
+  "cpMapNote": "72 个点位 · 0 个有空位",
+  "preserveAspectRatio": "xMidYMid slice"
+ },
+ "B_afterClick_run2": {
+  "imgHref": "map-clean.webp",
+  "isPlaceholderGif": false,
+  "markersChildCount": 74,
+  "markerEls": 74,
+  "stageW": 360,
+  "stageH": 300,
+  "mapSub": "72 个点位 · 0 个有空位",
+  "cpMapNote": "72 个点位 · 0 个有空位",
+  "preserveAspectRatio": "xMidYMid slice"
+ },
+ "C_run1": {
+  "viewBox": "0 0 1024 1536",
+  "svgRect": {
+   "w": 360,
+   "h": 300
+  },
+  "pinCount": 74,
+  "pinYRange": [
+   147,
+   286
+  ],
+  "pinXRange": [
+   42,
+   301
+  ],
+  "pinsOutside": 0
+ },
+ "C_afterClick_run1": {
+  "viewBox": "0 0 1024 1536",
+  "svgRect": {
+   "w": 360,
+   "h": 300
+  },
+  "pinCount": 74,
+  "pinYRange": [
+   147,
+   286
+  ],
+  "pinXRange": [
+   42,
+   301
+  ],
+  "pinsOutside": 0
+ },
+ "C_boxes_run1": {
+  "svgRect": {
+   "w": 360,
+   "h": 300
+  },
+  "pinW": 49.7,
+  "pinH": 138.8,
+  "sample": [
+   {
+    "i": 0,
+    "label": "",
+    "tag": "polyline",
+    "cx": 75.1,
+    "cy": 225,
+    "w": 49.7,
+    "h": 138.8,
+    "class": ""
+   },
+   {
+    "i": 1,
+    "label": "",
+    "tag": "polyline",
+    "cx": 284.2,
+    "cy": 225,
+    "w": 49.7,
+    "h": 138.8,
+    "class": ""
+   },
+   {
+    "i": 2,
+    "label": "TY-01·无数据01",
+    "tag": "g",
+    "cx": 50.3,
+    "cy": 155.6,
+    "w": 17,
+    "h": 17,
+    "class": "map-marker"
+   },
+   {
+    "i": 3,
+    "label": "TY-02·无数据02",
+    "tag": "g",
+    "cx": 50.7,
+    "cy": 170.1,
+    "w": 17,
+    "h": 17,
+    "class": "map-marker"
+   }
+  ],
+  "nearestNeighbor": [
+   {
+    "label": "TY-01·无数据01",
+    "nearest": 0,
+    "to": "E-01·无数据01"
+   },
+   {
+    "label": "TY-02·无数据02",
+    "nearest": 0,
+    "to": "E-02·无数据02"
+   },
+   {
+    "label": "TY-03·无数据03",
+    "nearest": 0,
+    "to": "E-03·无数据03"
+   },
+   {
+    "label": "TY-04·无数据04",
+    "nearest": 0,
+    "to": "E-04·无数据04"
+   },
+   {
+    "label": "TY-05·无数据05",
+    "nearest": 0,
+    "to": "E-05·无数据05"
+   },
+   {
+    "label": "TY-06·无数据06",
+    "nearest": 0,
+    "to": "E-06·无数据06"
+   },
+   {
+    "label": "TY-07·无数据07",
+    "nearest": 0,
+    "to": "E-07·无数据07"
+   },
+   {
+    "label": "TY-08·无数据08",
+    "nearest": 0,
+    "to": "E-08·无数据08"
+   },
+   {
+    "label": "TY-09·无数据09",
+    "nearest": 0,
+    "to": "E-09·无数据09"
+   },
+   {
+    "label": "TY-10·无数据10",
+    "nearest": 0,
+    "to": "E-10·无数据10"
+   },
+   {
+    "label": "TY-11·无数据11",
+    "nearest": 0,
+    "to": "E-11·无数据11"
+   },
+   {
+    "label": "TY-12·无数据12",
+    "nearest": 0,
+    "to": "E-12·无数据12"
+   }
+  ],
+  "coincidentPairs_lt1_5px": [
+   {
+    "a": "TY-01·无数据01",
+    "b": "E-01·无数据01",
+    "d": 0
+   },
+   {
+    "a": "TY-01·无数据01",
+    "b": "W-01·无数据01",
+    "d": 0
+   },
+   {
+    "a": "TY-02·无数据02",
+    "b": "E-02·无数据02",
+    "d": 0
+   },
+   {
+    "a": "TY-02·无数据02",
+    "b": "W-02·无数据02",
+    "d": 0
+   },
+   {
+    "a": "TY-03·无数据03",
+    "b": "E-03·无数据03",
+    "d": 0
+   },
+   {
+    "a": "TY-03·无数据03",
+    "b": "W-03·无数据03",
+    "d": 0
+   },
+   {
+    "a": "TY-04·无数据04",
+    "b": "E-04·无数据04",
+    "d": 0
+   },
+   {
+    "a": "TY-04·无数据04",
+    "b": "W-04·无数据04",
+    "d": 0
+   },
+   {
+    "a": "TY-05·无数据05",
+    "b": "E-05·无数据05",
+    "d": 0
+   },
+   {
+    "a": "TY-05·无数据05",
+    "b": "W-05·无数据05",
+    "d": 0
+   },
+   {
+    "a": "TY-06·无数据06",
+    "b": "E-06·无数据06",
+    "d": 0
+   },
+   {
+    "a": "TY-06·无数据06",
+    "b": "W-06·无数据06",
+    "d": 0
+   },
+   {
+    "a": "TY-07·无数据07",
+    "b": "E-07·无数据07",
+    "d": 0
+   },
+   {
+    "a": "TY-07·无数据07",
+    "b": "W-07·无数据07",
+    "d": 0
+   },
+   {
+    "a": "TY-08·无数据08",
+    "b": "E-08·无数据08",
+    "d": 0
+   },
+   {
+    "a": "TY-08·无数据08",
+    "b": "W-08·无数据08",
+    "d": 0
+   },
+   {
+    "a": "TY-09·无数据09",
+    "b": "E-09·无数据09",
+    "d": 0
+   },
+   {
+    "a": "TY-09·无数据09",
+    "b": "W-09·无数据09",
+    "d": 0
+   },
+   {
+    "a": "TY-10·无数据10",
+    "b": "E-10·无数据10",
+    "d": 0
+   },
+   {
+    "a": "TY-10·无数据10",
+    "b": "W-10·无数据10",
+    "d": 0
+   }
+  ],
+  "coincidentCount": 48,
+  "minNearest": 0
+ },
+ "D_run1": {
+  "mapDevicesLen": 109,
+  "mapResultsLen": 0,
+  "mapSub": "72 个点位 · 0 个有空位",
+  "sFree": "–",
+  "cardsChildCount": 0
+ },
+ "D_run2": {
+  "mapDevicesLen": 109,
+  "mapResultsLen": 0,
+  "mapSub": "72 个点位 · 0 个有空位",
+  "sFree": "–",
+  "cardsChildCount": 0
+ },
+ "E": {
+  "dupIds": {
+   "amapHostCount": 1,
+   "tmapHostCount": 1,
+   "mapStageCount": 1,
+   "mapMarkersCount": 1,
+   "campusMapCount": 1,
+   "mapDialogCount": 1,
+   "duplicateIds": [],
+   "totalIdNodes": 101
+  },
+  "usageDialog_before": {
+   "open": false
+  },
+  "usageDialog_after_click": {
+   "open": true,
+   "isOpen": true
+  },
+  "mapOpen_after": {
+   "mapDialogOpen": false,
+   "pageMapOn": true,
+   "scrollY": 392,
+   "markers": 74
+  },
+  "renderInject": "injected:render(DEFAULT_DEVICES,[])",
+  "renderRead": {
+   "cardsChildCount": 109,
+   "cardEls": 109,
+   "sFree": "0",
+   "sFreeSub": "共统计 –/（–）插座",
+   "sBusy": "0",
+   "filterLocationOptions": 5,
+   "filterLocationValues": [
+    "",
+    "渭水-20号楼",
+    "渭水-北门",
+    "渭水-朝晖体育场南",
+    "渭水-物流服务中心"
+   ],
+   "filterLocationHidden": false,
+   "statsHidden": false,
+   "mapDevicesLen": 109,
+   "mapResultsLen": 109,
+   "mapMarkers": 74,
+   "cpTabCount": "109",
+   "camera": "{\"x\":209.04142011834324,\"y\":313.56213017751486,\"w\":605.9171597633135,\"h\":908.8757396449703}"
+  },
+  "cameraNotTouched_byRender": {
+   "before": {
+    "x": 0,
+    "y": 0,
+    "w": 1024,
+    "h": 1536
+   },
+   "zoomed": {
+    "x": 209.04142011834324,
+    "y": 313.56213017751486,
+    "w": 605.9171597633135,
+    "h": 908.8757396449703
+   },
+   "afterRender": {
+    "x": 209.04142011834324,
+    "y": 313.56213017751486,
+    "w": 605.9171597633135,
+    "h": 908.8757396449703
+   }
+  },
+  "clickSeq": [
+   {
+    "id": "chaohui",
+    "click": {
+     "sel": "#map-tabs .map-tab[data-map=\"chaohui\"]",
+     "found": true,
+     "x": 87,
+     "y": 657,
+     "w": 116,
+     "h": 31,
+     "top": 641,
+     "hitSelf": true,
+     "hitTag": "BUTTON.map-tab on"
+    },
+    "camBefore": "{\"x\":209.04142011834324,\"y\":313.56213017751486,\"w\":605.9171597633135,\"h\":908.8757396449703}",
+    "mapId": "chaohui",
+    "curMapId": "chaohui",
+    "curMapLayout": "arc",
+    "activeTab": "chaohui",
+    "markers": 74,
+    "mapSub": "72 个点位 · 0 个有空位",
+    "imgHrefTail": "map-clean.webp",
+    "isPlaceholderGif": false,
+    "viewBox": "0 0 1024 1536",
+    "preserveAspectRatio": "xMidYMid slice",
+    "svgRect": {
+     "w": 360,
+     "h": 300
+    },
+    "camera": "{\"x\":0,\"y\":0,\"w\":1024,\"h\":1536}",
+    "mapScopeLen": 72,
+    "cardEngine": null,
+    "dialogEngine": null,
+    "amapHostVisible": "none",
+    "campusMapVisible": "block",
+    "newEvents": []
+   },
+   {
+    "id": "beimen",
+    "click": {
+     "sel": "#map-tabs .map-tab[data-map=\"beimen\"]",
+     "found": true,
+     "x": 264,
+     "y": 619,
+     "w": 72,
+     "h": 31,
+     "top": 603,
+     "hitSelf": true,
+     "hitTag": "BUTTON.map-tab"
+    },
+    "camBefore": "{\"x\":0,\"y\":0,\"w\":1024,\"h\":1536}",
+    "mapId": "beimen",
+    "curMapId": "beimen",
+    "curMapLayout": "park",
+    "activeTab": "beimen",
+    "markers": 37,
+    "mapSub": "37 个充电车位",
+    "imgHrefTail": "map-beimen.webp",
+    "isPlaceholderGif": false,
+    "viewBox": "0 0 1226 924",
+    "preserveAspectRatio": "xMidYMid slice",
+    "svgRect": {
+     "w": 360,
+     "h": 300
+    },
+    "camera": "{\"x\":0,\"y\":0,\"w\":1226,\"h\":924}",
+    "mapScopeLen": 37,
+    "cardEngine": null,
+    "dialogEngine": null,
+    "amapHostVisible": "none",
+    "campusMapVisible": "block",
+    "newEvents": []
+   },
+   {
+    "id": "amap",
+    "click": {
+     "sel": "#map-tabs .map-tab[data-map=\"amap\"]",
+     "found": true,
+     "x": 63,
+     "y": 619,
+     "w": 68,
+     "h": 31,
+     "top": 603,
+     "hitSelf": true,
+     "hitTag": "BUTTON.map-tab"
+    },
+    "camBefore": "{\"x\":0,\"y\":0,\"w\":1226,\"h\":924}",
+    "mapId": "amap",
+    "curMapId": "beimen",
+    "curMapLayout": "park",
+    "activeTab": "beimen",
+    "markers": 37,
+    "mapSub": "37 个充电车位",
+    "imgHrefTail": "map-beimen.webp",
+    "isPlaceholderGif": false,
+    "viewBox": "0 0 1226 924",
+    "preserveAspectRatio": "xMidYMid slice",
+    "svgRect": {
+     "w": 360,
+     "h": 300
+    },
+    "camera": "{\"x\":0,\"y\":0,\"w\":1226,\"h\":924}",
+    "mapScopeLen": 37,
+    "cardEngine": null,
+    "dialogEngine": null,
+    "amapHostVisible": "none",
+    "campusMapVisible": "block",
+    "newEvents": [
+     {
+      "kind": "consoleAPICalled",
+      "level": "warning",
+      "text": "[map] 高德地图加载失败：load:error"
+     }
+    ]
+   }
+  ],
+  "clickReports_run2": {
+   "clickReport_#map-tabs .map-tab[data-map=\"chaohui\"]": {
+    "found": true,
+    "x": 87,
+    "y": 545,
+    "w": 116,
+    "h": 31,
+    "top": 530,
+    "scrollY": 392,
+    "hitSelf": true,
+    "hitTag": "BUTTON"
+   },
+   "clickReport_#cp-nav .cp-navbtn[data-cp-page=\"dev\"]": {
+    "found": true,
+    "x": 293,
+    "y": 812,
+    "w": 195,
+    "h": 65,
+    "top": 779,
+    "scrollY": 0,
+    "hitSelf": true,
+    "hitTag": "I"
+   },
+   "clickReport_#cp-nav .cp-navbtn[data-cp-page=\"map\"]": {
+    "found": true,
+    "x": 98,
+    "y": 812,
+    "w": 195,
+    "h": 65,
+    "top": 779,
+    "scrollY": 0,
+    "hitSelf": true,
+    "hitTag": "I"
+   },
+   "clickReport_#map-tabs .map-tab[data-map=\"beimen\"]": {
+    "found": true,
+    "x": 264,
+    "y": 507,
+    "w": 72,
+    "h": 31,
+    "top": 492,
+    "scrollY": 392,
+    "hitSelf": true,
+    "hitTag": "BUTTON"
+   }
+  },
+  "markerDomRebuilt_byClick_run2": {
+   "before": {
+    "n": 74,
+    "cam": "{\"x\":0,\"y\":0,\"w\":1024,\"h\":1536}",
+    "first": null
+   },
+   "after": {
+    "n": 74,
+    "cam": "{\"x\":0,\"y\":0,\"w\":1024,\"h\":1536}",
+    "sameFirstNode": false,
+    "sameLastNode": false,
+    "first": null
+   }
+  }
+ },
+ "shots": {
+  "run2": {
+   "s01": {
+    "file": "C:\\Users\\Administrator\\WorkBuddy\\2026-10-18-12-23-42\\campus-pile-kit\\docs\\redesign-shots\\v3c\\raw2\\01-map.png",
+    "bytes": 268793,
+    "clip": "viewport",
+    "at": 4763
+   },
+   "s02": {
+    "file": "C:\\Users\\Administrator\\WorkBuddy\\2026-10-18-12-23-42\\campus-pile-kit\\docs\\redesign-shots\\v3c\\raw2\\02-map-after-click.png",
+    "bytes": 268793,
+    "clip": "viewport",
+    "at": 7575
+   },
+   "s03": {
+    "file": "C:\\Users\\Administrator\\WorkBuddy\\2026-10-18-12-23-42\\campus-pile-kit\\docs\\redesign-shots\\v3c\\raw2\\03-devices.png",
+    "bytes": 194755,
+    "clip": "viewport",
+    "at": 8552
+   },
+   "s04_slice_zoom": {
+    "file": "C:\\Users\\Administrator\\WorkBuddy\\2026-10-18-12-23-42\\campus-pile-kit\\docs\\redesign-shots\\v3c\\raw2\\04-slice-zoom.png",
+    "bytes": 710589,
+    "clip": {
+     "x": 14,
+     "y": 527,
+     "width": 362,
+     "height": 441.59375,
+     "scale": 3
+    },
+    "at": 10123
+   },
+   "s05_meet_zoom": {
+    "file": "C:\\Users\\Administrator\\WorkBuddy\\2026-10-18-12-23-42\\campus-pile-kit\\docs\\redesign-shots\\v3c\\raw2\\05-meet-zoom.png",
+    "bytes": 578751,
+    "clip": {
+     "x": 14,
+     "y": 527,
+     "width": 362,
+     "height": 441.59375,
+     "scale": 3
+    },
+    "at": 10889
+   }
+  },
+  "run1": {
+   "01-map": {
+    "file": "C:\\Users\\Administrator\\WorkBuddy\\2026-10-18-12-23-42\\campus-pile-kit\\docs\\redesign-shots\\v3c\\raw\\01-map.png",
+    "bytes": 268793,
+    "at": 3548
+   },
+   "02-map-after-click": {
+    "file": "C:\\Users\\Administrator\\WorkBuddy\\2026-10-18-12-23-42\\campus-pile-kit\\docs\\redesign-shots\\v3c\\raw\\02-map-after-click.png",
+    "bytes": 268793,
+    "at": 28268
+   },
+   "03-devices": {
+    "file": "C:\\Users\\Administrator\\WorkBuddy\\2026-10-18-12-23-42\\campus-pile-kit\\docs\\redesign-shots\\v3c\\raw\\03-devices.png",
+    "bytes": 194755,
+    "at": 29170
+   }
+  }
+ },
+ "slice_letterbox_AB": {
+  "meet": {
+   "imgRenderedW": 200,
+   "imgRenderedH": 300,
+   "imgLeftRelStage": 80,
+   "imgRightRelStage": 280,
+   "stageW": 360,
+   "stageH": 300,
+   "svgViewBox": "0 0 1024 1536",
+   "svgAspectRendered": 1.2,
+   "imgAspectRendered": 0.667
+  },
+  "slice": {
+   "imgRenderedW": 360,
+   "imgRenderedH": 540,
+   "imgLeftRelStage": 0,
+   "imgRightRelStage": 360,
+   "stageW": 360,
+   "stageH": 300,
+   "svgViewBox": "0 0 1024 1536",
+   "svgAspectRendered": 1.2,
+   "imgAspectRendered": 0.667
+  },
+  "restored": "xMidYMid slice",
+  "stageBg": "rgb(237, 235, 227)",
+  "svgBg": "rgba(0, 0, 0, 0)",
+  "note": "imgRenderedW 是 <image> 的渲染宽度（不受 SVG 视口裁剪影响）；meet 时明显小于 stageW 即 letterbox"
+ },
+ "occlusion_at_scroll0": {
+  "slice": {
+   "mode": "slice",
+   "pinCount": 72,
+   "distinctPositions": 36,
+   "pinScreenW": 17,
+   "stageTop": 571,
+   "stageBottom": 871,
+   "fold": 844,
+   "navTop": 778,
+   "controlsRect": {
+    "top": 663,
+    "bottom": 801,
+    "left": 321,
+    "right": 363
+   },
+   "tallyPinTapTarget": 4,
+   "tallyControls": 7,
+   "tallyNav": 33,
+   "tallyNone": 19,
+   "byKind": {
+    "circle.": 9,
+    "cp-nav": 33,
+    "none": 19,
+    "map-controls": 7,
+    "pin": 4
+   },
+   "pinsBelowFold": 19,
+   "pinsBehindFixedNav": 33,
+   "pinsNotCleanlyTappable": 68,
+   "sample": [
+    {
+     "label": "TY-01",
+     "id": "XLA29282",
+     "cy": 726.2,
+     "cx": 65.3,
+     "hitKind": "circle.",
+     "pinW": 17
+    },
+    {
+     "label": "TY-02",
+     "id": "XLA30300",
+     "cy": 740.7,
+     "cx": 65.7,
+     "hitKind": "circle.",
+     "pinW": 17
+    },
+    {
+     "label": "TY-03",
+     "id": "XLA29720",
+     "cy": 755.2,
+     "cx": 67,
+     "hitKind": "circle.",
+     "pinW": 17
+    },
+    {
+     "label": "TY-04",
+     "id": "XLA23805",
+     "cy": 769.4,
+     "cx": 69.2,
+     "hitKind": "circle.",
+     "pinW": 17
+    },
+    {
+     "label": "TY-05",
+     "id": "XLA23789",
+     "cy": 783.3,
+     "cx": 72.3,
+     "hitKind": "cp-nav",
+     "pinW": 17
+    },
+    {
+     "label": "TY-06",
+     "id": "XLA23807",
+     "cy": 796.8,
+     "cx": 76.1,
+     "hitKind": "cp-nav",
+     "pinW": 17
+    }
+   ],
+   "tail": [
+    {
+     "label": "W-07",
+     "id": "XLA29408",
+     "cy": 809.9,
+     "cx": 80.8,
+     "hitKind": "cp-nav",
+     "pinW": 17
+    },
+    {
+     "label": "W-08",
+     "id": "XLA28996",
+     "cy": 822.4,
+     "cx": 86.3,
+     "hitKind": "cp-nav",
+     "pinW": 17
+    },
+    {
+     "label": "W-09",
+     "id": "XLA29457",
+     "cy": 834.2,
+     "cx": 92.4,
+     "hitKind": "cp-nav",
+     "pinW": 17
+    },
+    {
+     "label": "W-10",
+     "id": "XLA35412",
+     "cy": 845.3,
+     "cx": 99.3,
+     "hitKind": "none",
+     "pinW": 17
+    },
+    {
+     "label": "W-11",
+     "id": "XLA36111",
+     "cy": 855.6,
+     "cx": 106.9,
+     "hitKind": "none",
+     "pinW": 17
+    },
+    {
+     "label": "W-12",
+     "id": "XLB04070",
+     "cy": 865,
+     "cx": 115,
+     "hitKind": "none",
+     "pinW": 17
+    }
+   ]
+  },
+  "meet": {
+   "mode": "meet",
+   "pinCount": 72,
+   "distinctPositions": 36,
+   "pinScreenW": 9.4,
+   "stageTop": 571,
+   "stageBottom": 871,
+   "fold": 844,
+   "navTop": 778,
+   "controlsRect": {
+    "top": 663,
+    "bottom": 801,
+    "left": 321,
+    "right": 363
+   },
+   "tallyPinTapTarget": 9,
+   "tallyControls": 0,
+   "tallyNav": 33,
+   "tallyNone": 0,
+   "byKind": {
+    "circle.": 30,
+    "cp-nav": 33,
+    "pin": 9
+   },
+   "pinsBelowFold": 0,
+   "pinsBehindFixedNav": 30,
+   "pinsNotCleanlyTappable": 63,
+   "sample": [
+    {
+     "label": "TY-01",
+     "id": "XLA29282",
+     "cy": 723.7,
+     "cx": 122.9,
+     "hitKind": "circle.",
+     "pinW": 9.4
+    },
+    {
+     "label": "TY-02",
+     "id": "XLA30300",
+     "cy": 731.8,
+     "cx": 123.2,
+     "hitKind": "circle.",
+     "pinW": 9.4
+    },
+    {
+     "label": "TY-03",
+     "id": "XLA29720",
+     "cy": 739.8,
+     "cx": 123.9,
+     "hitKind": "circle.",
+     "pinW": 9.4
+    },
+    {
+     "label": "TY-04",
+     "id": "XLA23805",
+     "cy": 747.7,
+     "cx": 125.1,
+     "hitKind": "circle.",
+     "pinW": 9.4
+    },
+    {
+     "label": "TY-05",
+     "id": "XLA23789",
+     "cy": 755.4,
+     "cx": 126.8,
+     "hitKind": "circle.",
+     "pinW": 9.4
+    },
+    {
+     "label": "TY-06",
+     "id": "XLA23807",
+     "cy": 763,
+     "cx": 129,
+     "hitKind": "circle.",
+     "pinW": 9.4
+    }
+   ],
+   "tail": [
+    {
+     "label": "W-07",
+     "id": "XLA29408",
+     "cy": 770.2,
+     "cx": 131.6,
+     "hitKind": "pin",
+     "pinW": 9.4
+    },
+    {
+     "label": "W-08",
+     "id": "XLA28996",
+     "cy": 777.1,
+     "cx": 134.6,
+     "hitKind": "cp-nav",
+     "pinW": 9.4
+    },
+    {
+     "label": "W-09",
+     "id": "XLA29457",
+     "cy": 783.7,
+     "cx": 138,
+     "hitKind": "cp-nav",
+     "pinW": 9.4
+    },
+    {
+     "label": "W-10",
+     "id": "XLA35412",
+     "cy": 789.9,
+     "cx": 141.9,
+     "hitKind": "cp-nav",
+     "pinW": 9.4
+    },
+    {
+     "label": "W-11",
+     "id": "XLA36111",
+     "cy": 795.6,
+     "cx": 146,
+     "hitKind": "cp-nav",
+     "pinW": 9.4
+    },
+    {
+     "label": "W-12",
+     "id": "XLB04070",
+     "cy": 800.8,
+     "cx": 150.5,
+     "hitKind": "cp-nav",
+     "pinW": 9.4
+    }
+   ]
+  },
+  "beimen": {
+   "mode": "slice",
+   "pinCount": 37,
+   "distinctPositions": 37,
+   "pinScreenW": 8,
+   "stageTop": 571,
+   "stageBottom": 871,
+   "fold": 844,
+   "navTop": 778,
+   "controlsRect": {
+    "top": 663,
+    "bottom": 801,
+    "left": 321,
+    "right": 363
+   },
+   "tallyPinTapTarget": 37,
+   "tallyControls": 0,
+   "tallyNav": 0,
+   "tallyNone": 0,
+   "byKind": {
+    "pin": 37
+   },
+   "pinsBelowFold": 0,
+   "pinsBehindFixedNav": 0,
+   "pinsNotCleanlyTappable": 0,
+   "sample": [
+    {
+     "label": "A06",
+     "id": "XLB03595",
+     "cy": 607,
+     "cx": 160,
+     "hitKind": "pin",
+     "pinW": 8
+    },
+    {
+     "label": "A05",
+     "id": "XLB03721",
+     "cy": 607,
+     "cx": 169.4,
+     "hitKind": "pin",
+     "pinW": 8
+    },
+    {
+     "label": "A04",
+     "id": "XLB03769",
+     "cy": 607,
+     "cx": 178.7,
+     "hitKind": "pin",
+     "pinW": 8
+    },
+    {
+     "label": "A03",
+     "id": "XLB02992",
+     "cy": 607,
+     "cx": 188,
+     "hitKind": "pin",
+     "pinW": 8
+    },
+    {
+     "label": "A02",
+     "id": "XLB03277",
+     "cy": 607,
+     "cx": 197.3,
+     "hitKind": "pin",
+     "pinW": 8
+    },
+    {
+     "label": "A01",
+     "id": "XLB03249",
+     "cy": 607,
+     "cx": 206.6,
+     "hitKind": "pin",
+     "pinW": 8
+    }
+   ],
+   "tail": [
+    {
+     "label": "D09",
+     "id": "XLB03369",
+     "cy": 629.7,
+     "cx": 284.1,
+     "hitKind": "pin",
+     "pinW": 8
+    },
+    {
+     "label": "D10",
+     "id": "XLB03403",
+     "cy": 629.7,
+     "cx": 291.2,
+     "hitKind": "pin",
+     "pinW": 8
+    },
+    {
+     "label": "D11",
+     "id": "XLB04215",
+     "cy": 629.7,
+     "cx": 298.3,
+     "hitKind": "pin",
+     "pinW": 8
+    },
+    {
+     "label": "D12",
+     "id": "XLB03505",
+     "cy": 629.7,
+     "cx": 305.5,
+     "hitKind": "pin",
+     "pinW": 8
+    },
+    {
+     "label": "D13",
+     "id": "XLB03062",
+     "cy": 629.7,
+     "cx": 312.6,
+     "hitKind": "pin",
+     "pinW": 8
+    },
+    {
+     "label": "D14",
+     "id": "XLB03357",
+     "cy": 629.7,
+     "cx": 319.7,
+     "hitKind": "pin",
+     "pinW": 8
+    }
+   ]
+  }
+ },
+ "pins_chaohui": {
+  "mapId": "chaohui",
+  "pinCount": 72,
+  "groupCounts": {
+   "TY": 36,
+   "E": 24,
+   "W": 12
+  },
+  "pinScreenSize": {
+   "w": 17,
+   "h": 17
+  },
+  "xRange": [
+   50.3,
+   309
+  ],
+  "yRange": [
+   155.6,
+   294.4
+  ],
+  "svgRect": {
+   "w": 360,
+   "h": 300
+  },
+  "pinsTouchingEdge": [
+   "TY-12 · 无数据12",
+   "TY-13 · 无数据13",
+   "E-12 · 无数据12",
+   "E-13 · 无数据13",
+   "W-12 · 无数据12"
+  ],
+  "coincidentPairs": 48,
+  "overlapPairs_lt_pinW": 258,
+  "worstPairs": [
+   {
+    "a": "TY-01 · 无数据01",
+    "b": "E-01 · 无数据01",
+    "d": 0
+   },
+   {
+    "a": "TY-01 · 无数据01",
+    "b": "W-01 · 无数据01",
+    "d": 0
+   },
+   {
+    "a": "TY-02 · 无数据02",
+    "b": "E-02 · 无数据02",
+    "d": 0
+   },
+   {
+    "a": "TY-02 · 无数据02",
+    "b": "W-02 · 无数据02",
+    "d": 0
+   },
+   {
+    "a": "TY-03 · 无数据03",
+    "b": "E-03 · 无数据03",
+    "d": 0
+   },
+   {
+    "a": "TY-03 · 无数据03",
+    "b": "W-03 · 无数据03",
+    "d": 0
+   },
+   {
+    "a": "TY-04 · 无数据04",
+    "b": "E-04 · 无数据04",
+    "d": 0
+   },
+   {
+    "a": "TY-04 · 无数据04",
+    "b": "W-04 · 无数据04",
+    "d": 0
+   },
+   {
+    "a": "TY-05 · 无数据05",
+    "b": "E-05 · 无数据05",
+    "d": 0
+   },
+   {
+    "a": "TY-05 · 无数据05",
+    "b": "W-05 · 无数据05",
+    "d": 0
+   },
+   {
+    "a": "TY-06 · 无数据06",
+    "b": "E-06 · 无数据06",
+    "d": 0
+   },
+   {
+    "a": "TY-06 · 无数据06",
+    "b": "W-06 · 无数据06",
+    "d": 0
+   }
+  ],
+  "worstNearest": [
+   {
+    "label": "TY-01 · 无数据01",
+    "nearest": 0,
+    "to": "E-01 · 无数据01",
+    "cx": 50.3,
+    "cy": 155.6
+   },
+   {
+    "label": "TY-02 · 无数据02",
+    "nearest": 0,
+    "to": "E-02 · 无数据02",
+    "cx": 50.7,
+    "cy": 170.1
+   },
+   {
+    "label": "TY-03 · 无数据03",
+    "nearest": 0,
+    "to": "E-03 · 无数据03",
+    "cx": 52,
+    "cy": 184.6
+   },
+   {
+    "label": "TY-04 · 无数据04",
+    "nearest": 0,
+    "to": "E-04 · 无数据04",
+    "cx": 54.2,
+    "cy": 198.8
+   },
+   {
+    "label": "TY-05 · 无数据05",
+    "nearest": 0,
+    "to": "E-05 · 无数据05",
+    "cx": 57.3,
+    "cy": 212.7
+   },
+   {
+    "label": "TY-06 · 无数据06",
+    "nearest": 0,
+    "to": "E-06 · 无数据06",
+    "cx": 61.1,
+    "cy": 226.3
+   },
+   {
+    "label": "TY-07 · 无数据07",
+    "nearest": 0,
+    "to": "E-07 · 无数据07",
+    "cx": 65.8,
+    "cy": 239.3
+   },
+   {
+    "label": "TY-08 · 无数据08",
+    "nearest": 0,
+    "to": "E-08 · 无数据08",
+    "cx": 71.3,
+    "cy": 251.8
+   },
+   {
+    "label": "TY-09 · 无数据09",
+    "nearest": 0,
+    "to": "E-09 · 无数据09",
+    "cx": 77.4,
+    "cy": 263.6
+   },
+   {
+    "label": "TY-10 · 无数据10",
+    "nearest": 0,
+    "to": "E-10 · 无数据10",
+    "cx": 84.3,
+    "cy": 274.7
+   },
+   {
+    "label": "TY-11 · 无数据11",
+    "nearest": 0,
+    "to": "E-11 · 无数据11",
+    "cx": 91.9,
+    "cy": 285
+   },
+   {
+    "label": "TY-12 · 无数据12",
+    "nearest": 0,
+    "to": "E-12 · 无数据12",
+    "cx": 100,
+    "cy": 294.4
+   }
+  ]
+ },
+ "pins_beimen": {
+  "mapId": "beimen",
+  "pinCount": 37,
+  "groupCounts": {
+   "A": 6,
+   "B": 6,
+   "C": 11,
+   "D": 14
+  },
+  "pinScreenSize": {
+   "w": 8,
+   "h": 8
+  },
+  "xRange": [
+   145,
+   304.7
+  ],
+  "yRange": [
+   36.4,
+   59.1
+  ],
+  "svgRect": {
+   "w": 360,
+   "h": 300
+  },
+  "pinsTouchingEdge": [],
+  "coincidentPairs": 0,
+  "overlapPairs_lt_pinW": 13,
+  "worstPairs": [
+   {
+    "a": "D02 · 充电桩（未查到数据）",
+    "b": "D03 · 充电桩（未查到数据）",
+    "d": 7.1
+   },
+   {
+    "a": "D03 · 充电桩（未查到数据）",
+    "b": "D04 · 充电桩（未查到数据）",
+    "d": 7.1
+   },
+   {
+    "a": "D04 · 充电桩（未查到数据）",
+    "b": "D05 · 充电桩（未查到数据）",
+    "d": 7.1
+   },
+   {
+    "a": "D05 · 充电桩（未查到数据）",
+    "b": "D06 · 充电桩（未查到数据）",
+    "d": 7.1
+   },
+   {
+    "a": "D06 · 充电桩（未查到数据）",
+    "b": "D07 · 充电桩（未查到数据）",
+    "d": 7.1
+   },
+   {
+    "a": "D08 · 充电桩（未查到数据）",
+    "b": "D09 · 充电桩（未查到数据）",
+    "d": 7.1
+   },
+   {
+    "a": "D09 · 充电桩（未查到数据）",
+    "b": "D10 · 充电桩（未查到数据）",
+    "d": 7.1
+   },
+   {
+    "a": "D10 · 充电桩（未查到数据）",
+    "b": "D11 · 充电桩（未查到数据）",
+    "d": 7.1
+   },
+   {
+    "a": "D12 · 充电桩（未查到数据）",
+    "b": "D13 · 充电桩（未查到数据）",
+    "d": 7.1
+   },
+   {
+    "a": "D13 · 充电桩（未查到数据）",
+    "b": "D14 · 充电桩（未查到数据）",
+    "d": 7.1
+   },
+   {
+    "a": "D01 · 充电桩（未查到数据）",
+    "b": "D02 · 充电桩（未查到数据）",
+    "d": 7.2
+   },
+   {
+    "a": "D07 · 充电桩（未查到数据）",
+    "b": "D08 · 充电桩（未查到数据）",
+    "d": 7.2
+   }
+  ],
+  "worstNearest": [
+   {
+    "label": "D02 · 充电桩（未查到数据）",
+    "nearest": 7.1,
+    "to": "D03 · 充电桩（未查到数据）",
+    "cx": 219.3,
+    "cy": 59.1
+   },
+   {
+    "label": "D03 · 充电桩（未查到数据）",
+    "nearest": 7.1,
+    "to": "D02 · 充电桩（未查到数据）",
+    "cx": 226.4,
+    "cy": 59.1
+   },
+   {
+    "label": "D04 · 充电桩（未查到数据）",
+    "nearest": 7.1,
+    "to": "D03 · 充电桩（未查到数据）",
+    "cx": 233.5,
+    "cy": 59.1
+   },
+   {
+    "label": "D05 · 充电桩（未查到数据）",
+    "nearest": 7.1,
+    "to": "D04 · 充电桩（未查到数据）",
+    "cx": 240.6,
+    "cy": 59.1
+   },
+   {
+    "label": "D06 · 充电桩（未查到数据）",
+    "nearest": 7.1,
+    "to": "D05 · 充电桩（未查到数据）",
+    "cx": 247.7,
+    "cy": 59.1
+   },
+   {
+    "label": "D07 · 充电桩（未查到数据）",
+    "nearest": 7.1,
+    "to": "D06 · 充电桩（未查到数据）",
+    "cx": 254.8,
+    "cy": 59.1
+   },
+   {
+    "label": "D08 · 充电桩（未查到数据）",
+    "nearest": 7.1,
+    "to": "D09 · 充电桩（未查到数据）",
+    "cx": 262,
+    "cy": 59.1
+   },
+   {
+    "label": "D09 · 充电桩（未查到数据）",
+    "nearest": 7.1,
+    "to": "D10 · 充电桩（未查到数据）",
+    "cx": 269.1,
+    "cy": 59.1
+   },
+   {
+    "label": "D10 · 充电桩（未查到数据）",
+    "nearest": 7.1,
+    "to": "D09 · 充电桩（未查到数据）",
+    "cx": 276.2,
+    "cy": 59.1
+   },
+   {
+    "label": "D11 · 充电桩（未查到数据）",
+    "nearest": 7.1,
+    "to": "D10 · 充电桩（未查到数据）",
+    "cx": 283.3,
+    "cy": 59.1
+   },
+   {
+    "label": "D12 · 充电桩（未查到数据）",
+    "nearest": 7.1,
+    "to": "D13 · 充电桩（未查到数据）",
+    "cx": 290.5,
+    "cy": 59.1
+   },
+   {
+    "label": "D13 · 充电桩（未查到数据）",
+    "nearest": 7.1,
+    "to": "D14 · 充电桩（未查到数据）",
+    "cx": 297.6,
+    "cy": 59.1
+   }
+  ]
+ },
+ "geom_scroll0": {
+  "innerW": 390,
+  "innerH": 844,
+  "dpr": 2,
+  "scrollY": 0,
+  "docHeight": 1236,
+  "card": {
+   "top": 527,
+   "left": 14,
+   "w": 362,
+   "h": 442,
+   "bottom": 969
+  },
+  "stage": {
+   "top": 571,
+   "left": 15,
+   "w": 360,
+   "h": 300,
+   "bottom": 871
+  },
+  "tabsBox": {
+   "top": 871,
+   "left": 15,
+   "w": 360,
+   "h": 97,
+   "bottom": 968
+  },
+  "nav": {
+   "top": 778,
+   "left": 0,
+   "w": 390,
+   "h": 66,
+   "bottom": 844
+  },
+  "tabs": [
+   {
+    "map": "amap",
+    "on": false,
+    "top": 884,
+    "left": 29,
+    "w": 68,
+    "h": 31
+   },
+   {
+    "map": "wuliu",
+    "on": false,
+    "top": 884,
+    "left": 104,
+    "w": 116,
+    "h": 31
+   },
+   {
+    "map": "beimen",
+    "on": false,
+    "top": 884,
+    "left": 227,
+    "w": 72,
+    "h": 31
+   },
+   {
+    "map": "chaohui",
+    "on": true,
+    "top": 922,
+    "left": 29,
+    "w": 116,
+    "h": 31
+   }
+  ],
+  "capsuleBelowFold": true,
+  "guide": {
+   "top": 179,
+   "left": 14,
+   "w": 362,
+   "h": 272,
+   "bottom": 451
+  },
+  "stats": {
+   "top": 0,
+   "left": 0,
+   "w": 0,
+   "h": 0,
+   "bottom": 0
+  },
+  "toolbar": {
+   "top": 0,
+   "left": 0,
+   "w": 0,
+   "h": 0,
+   "bottom": 0
+  },
+  "cardTopAtScroll0": 527
+ },
+ "misc": {
+  "href": "file:///C:/Users/Administrator/WorkBuddy/2026-10-18-12-23-42/campus-pile-kit/chd-charge/preview-v3.html",
+  "readyState": "complete",
+  "htmlClass": "",
+  "bodyBg": "rgb(247, 246, 242)",
+  "bodyColor": "rgb(44, 44, 42)",
+  "bodyFontSize": "15px",
+  "wrapBg": "rgba(0, 0, 0, 0)",
+  "wrapDisplay": "block",
+  "localStorageKeys": [],
+  "sessionStorageKeys": [],
+  "cpkToken": null,
+  "hasWorkBuddyCloud": "object",
+  "cloudSupport": false,
+  "isLocalPreview": true,
+  "scriptSrcs": [
+   "map-data.js?v=163",
+   "map-key.local.js?v=1",
+   "map-amap-preview.js?v=4",
+   "https://webapi.amap.com/maps?v=2.0&key=amap-key-placeholder",
+   "sdk/workbuddy-cloud.global.js",
+   "preview-banner.js"
+  ],
+  "linkHrefs": [],
+  "slotChildren": [
+   "map-stage",
+   "map-tabs"
+  ],
+  "stageRect": {
+   "top": 290,
+   "left": 15,
+   "w": 360,
+   "h": 300
+  },
+  "cardRect": {
+   "top": 247,
+   "w": 362,
+   "h": 442
+  },
+  "tabsRect": {
+   "top": 590,
+   "h": 97
+  },
+  "docHeight": 1348,
+  "innerH": 844,
+  "guideHidden": false,
+  "credHidden": true,
+  "cpMapStartedVisible": "undefined",
+  "curMapId": "beimen",
+  "defaultDevicesLen": 109,
+  "defaultIds": "XLA29282,XLA30300,XLA29720,XLA23805,XLA23789,XLA23807,XLA29401,XLA29452,XLA30468,XLA29410,XLA28826,XLA29207,XLA28792,XLA29463,XLA29108,XLA29233,XLA29269,XLA29137,XLA28827,XLA29316,XLA29438,XLA28838,XLA29388,XLA29417,XLA29439,XLA29004,XLA29125,XLA29002,XLA29287,XLA29208,XLA28875,XLA29402,XLA28866,XLA29035,XLA29277,XLA29464,XLB03249,XLB03277,XLB02992,XLB03769,XLB03721,XLB03595,XLB03690,XLB04421,XLB03596,XLB04169,XLB03319,XLB04471,XLB03770,XLB03739,XLB03270,XLB03467,XLB03170,XLB03169,XLB02946,XLB03412,XLB03335,XLB03199,XLB03131,XLB03899,XLB03991,XLB03298,XLB01363,XLB01288,XLB01367,XLB01228,XLB04138,XLB03369,XLB03403,XLB04215,XLB03505,XLB03062,XLB03357,XLA36125,XLA35420,XLA31449,XLA31931,XLA31844,XLA31743,XLA31746,XLA35361,XLA31757,XLA33369,XLA35428,XLA36092,XLA32017,XLA35369,XLA36186,XLA31748,XLA35413,XLA32266,XLA31759,XLA35364,XLA35511,XLA35363,XLA31980,XLA35421,XLA55127,XLA29284,XLA28839,XLA29461,XLB04073,XLA29263,XLA29408,XLA28996,XLA29457,XLA35412,XLA36111,XLB04070",
+  "badge": "\n    3空闲数\n    ✕已满\n    ✕离线\n    点击地图上的点查看详情\n  ",
+  "cpNavRect": {
+   "position": "fixed",
+   "top": 778,
+   "h": 66
+  }
+ },
+ "svgNaturalSize": {
+  "w": "1024",
+  "h": "1536",
+  "href": "map-clean.webp"
+ },
+ "artifacts": {
+  "final": [
+   "01-map.png",
+   "02-map-after-click.png",
+   "03-devices.png",
+   "04-map-zoom-slice-extra.png",
+   "05-map-zoom-meet-extra.png"
+  ]
+ }
+}

@@ -39,6 +39,20 @@
   .head-actions .icon-btn{flex:1; justify-content:center; padding:8px 6px}
   h1{font-size:18px; font-weight:600; margin:0; letter-spacing:-.2px}
   .sub{font-size:12px; color:var(--hint); margin-top:2px}
+  /* 「致谢 & 贡献名单」入口：做成副标题里的下划线链接，**不要按钮框** ——
+     副标题只有 12px，套个 padding 会把 header 撑高、把右上「刷新」挤歪。 */
+  .sub-link{
+    font:inherit; font-size:12px; color:var(--free); background:none; border:none;
+    padding:0; margin:0; cursor:pointer; line-height:inherit;
+    text-decoration:underline; text-underline-offset:2px; text-decoration-thickness:1px;
+    text-decoration-color:rgba(29,158,117,.45);
+  }
+  .sub-link:hover, .sub-link:active{text-decoration-color:currentColor}
+  /* 致谢弹窗里的条目：默认 ul 在弹窗里 margin 太大、marker 也偏外，压紧一点 */
+  .thanks-list{margin:4px 0 0; padding-left:17px; font-size:12.5px; color:var(--muted); line-height:1.7}
+  .thanks-list li{margin:3px 0}
+  .thanks-list a{color:var(--free); text-decoration:none; word-break:break-all}
+  .thanks-list a:hover{text-decoration:underline}
   .icon-btn{
     font:inherit; font-size:13px; padding:8px 14px; border-radius:10px; cursor:pointer;
     border:1px solid var(--line-strong); background:var(--card); color:var(--text);
@@ -48,6 +62,23 @@
   .icon-btn.primary{background:#E1F5EE; border-color:#9FE1CB; color:#0F6E56}
   .icon-btn.ghost{border-color:transparent; background:transparent; color:var(--muted)}
   .icon-btn[disabled]{opacity:.5; cursor:default}
+  /* 查询中：**只做视觉提示，不禁用**。
+     禁用会让用户觉得「按钮坏了」（首屏那一轮要查上百台，十几秒不能点），
+     并发由 busyFlag 挡住就够了，没必要把入口也锁死。
+     这里保留可点性 + cursor:progress，点下去会排队并给一句提示。 */
+  /* v2.11：忙碌时按钮里显示**真实进度**（`37/109`）而不是光转圈。
+     没有终点的转圈会让人以为卡死；有分母的进度一眼就知道还剩多少。 */
+  #refresh.is-busy{
+    cursor:progress; border-color:#9FE1CB; background:#E1F5EE; color:#0F6E56;
+    min-width:7.2em; justify-content:center;
+    font-variant-numeric:tabular-nums; font-feature-settings:'tnum' 1;
+  }
+  #refresh.is-busy::before{
+    content:''; width:11px; height:11px; border-radius:50%;
+    border:2px solid currentColor; border-right-color:transparent;
+    animation:cpk-spin .7s linear infinite; flex:none;
+  }
+  @keyframes cpk-spin{to{transform:rotate(360deg)}}
   a.icon-btn{text-decoration:none}
 
   .banner{
@@ -73,7 +104,10 @@
     padding:6px 4px; cursor:pointer; text-decoration:underline; flex:none;
   }
 
-  .stats{display:grid; grid-template-columns:repeat(3,1fr); gap:9px; margin-bottom:16px}
+  /* 🔴 2026-10-25 产品方：删掉「正在充电」与「全站实时空闲」两块 ——
+     前者可由「空闲插座 / 总插座」直接推出，后者和「空闲插座」是同一件事的两个口径，
+     两处数字不一致时反而让人怀疑数据。现在只剩「空闲插座」+「更新时间」两列。 */
+  .stats{display:grid; grid-template-columns:repeat(2,1fr); gap:9px; margin-bottom:16px}
   .stat{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:11px 13px}
   .stat b{font-size:22px; font-weight:600; letter-spacing:-.5px; display:block; line-height:1.2}
   .stat b.free{color:var(--free)}
@@ -86,6 +120,7 @@
   .stat--loading b{color:#8A8F86}
   .stat--done{background:#E4F0E2; border-color:#C9DFC4}
   .stat-sub{display:block; font-size:10.5px; color:var(--hint); margin-top:2px; line-height:1.25}
+  /* 旧 `.live-line`（全站实时空闲细条）已随 DOM 一起下线，CSS 未保留。 */
 
   .card{
     background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
@@ -272,6 +307,18 @@
   .cluster.full{background:#E24B4A}
   .cluster-num{font-size:14px;letter-spacing:-.3px}
   .cluster-x{font-size:17px;font-weight:800;line-height:1}
+  /* 聚合圈的**分区名**（2026-10-25 加）：总览是默认第一屏，四个圈只写数字谁也分不清是哪儿。
+     名字用绝对定位挂在圈外，不参与 marker 的盒子计算 ⇒ 圈心仍钉在分区几何中心。
+     🔴 北门与朝晖的圈心只差 37px（188m），名字都往下挂会叠在一起 →
+        北门的名字往上放（`.lbl-up`，北边是空的），这是唯一需要单独配的分区。 */
+  .cluster-cell{position:relative;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .cluster-name{
+    position:absolute; left:50%; top:100%; transform:translateX(-50%); margin-top:3px;
+    font-size:10.5px; font-weight:700; line-height:1.3; color:#2B2F28; white-space:nowrap;
+    background:rgba(255,255,255,.93); border-radius:6px; padding:1px 5px;
+    box-shadow:0 1px 3px rgba(0,0,0,.18);
+  }
+  .cluster-cell.lbl-up .cluster-name{top:auto; bottom:100%; margin-top:0; margin-bottom:3px}
   /* 校园注记（楼名 / 地标名 / 水域名）—— 2026-10-21 按产品方给的参考图（汕大那套）的调子：
      灰绿字 + 白色柔光描边，压在浅色底图上不抢眼。
      `pointer-events:none` 保证不挡底下的桩点点击（Marker 那侧也设了 clickable:false）。
@@ -339,6 +386,17 @@
     display:flex; align-items:center; justify-content:center;
   }
   .map-controls button:active{background:#F0EFE9}
+  /* 「← 总览」：只在放大进某个分区时出现（页面按引擎回传的视图状态显隐）。
+     高德引擎下 `.map-controls`（＋ / − / 全景）是整块隐藏的，所以回总览
+     必须是**独立的一颗**按钮，不能借用 #map-overview（那是静态图的 setCamera）。 */
+  .map-back{
+    position:absolute; left:12px; top:12px; z-index:5; font:inherit;
+    font-size:12px; font-weight:600; padding:7px 12px; border-radius:999px;
+    border:1px solid var(--line-strong); background:var(--card); color:var(--text);
+    box-shadow:0 2px 8px rgba(0,0,0,.16); cursor:pointer; display:none;
+  }
+  .map-dialog[data-engine="amap"] .map-back:not([hidden]){display:block}
+  .map-back[hidden]{display:none}
   .map-legend{
     position:absolute; left:12px; bottom:14px; z-index:4;
     display:flex; gap:12px; font-size:11.5px; color:var(--muted);
@@ -501,7 +559,7 @@
     <div class="head-top" data-page-node-id="bNFvfAEYIuVvAVG5A0D3Rg">
       <div>
         <h1 data-page-node-id="8cCep9m9QumF173Welrzdi">长安大学充电桩查询<strong>（测试中）</strong></h1>
-        <div class="sub" id="sub" data-page-node-id="mWi9c9mTrdTE6oqwHFpZSH">by长歌 · 手机直连，不需要电脑</div>
+        <div class="sub" id="sub" data-page-node-id="mWi9c9mTrdTE6oqwHFpZSH">by长歌 · <button class="sub-link" id="thanks-open" type="button">致谢 &amp; 贡献名单</button></div>
       </div>
       <button class="icon-btn" id="refresh" data-page-node-id="Z7Wjk82ESACJPefc6MXIFG">刷新</button>
     </div>
@@ -538,13 +596,16 @@
     <div class="note"><a href="./help.html">不会抓？看这篇三分钟教程 →</a></div>
   </div>
 
-  <!-- ⚡ 性能（消除 CLS）：就地决定「凭证状态 / 引导卡」谁显示。
+  <!-- ⚡ 性能（消除 CLS）：就地决定首屏放「引导卡」还是「数据」。
        两个元素默认都是 hidden，原本要等文档末尾那段脚本跑到 paintCred() 才定下来；
        而那段脚本要等整份 175KB HTML 下载解析完（4G 下实测 DOMContentLoaded 在 5.6 秒），
        于是首屏先按「两个都不显示」排版，之后 #guide 插入 266px 把页脚整块推下去，
        实测 CLS 0.32（Google 阈值 0.1 以内才算「良好」）。
        放在这里执行，解析到该位置时就已经定好，首屏布局即最终布局，位移消失。
-       ⚠️ 判断口径必须和下方 tokenState() 保持一致（只看有没有 token，有就是「已有凭证」）。 -->
+       ⚠️ 判断口径必须和下方 tokenState() 保持一致（只看有没有 token，有就是「已有凭证」）。
+       ⚠️ 2026-10-24：`#cred` 已搬进 `#sync-dialog`（在本段**之后**），这里取到的是 null，
+          `cred.hidden` 那两行自然落空 —— 它不再参与首屏布局（弹窗默认关着），
+          显隐由末尾的 `paintCred()` 负责。这段现在只管 `#guide`。 -->
   <script>
   (function () {
     try {
@@ -566,9 +627,12 @@
 
   <div class="stats" id="stats" hidden data-page-node-id="5x1j2QDohgutPLD0k1nbee">
     <div class="stat" id="stat-free" data-page-node-id="VF9BnkcoZS3CBHClACttK4"><b class="free" id="s-free" data-page-node-id="8KiCFjRHb57uVEwYg4SeN0">–</b><span data-page-node-id="Mqk5tE3OM0RDro1qnSSyXt">空闲插座</span><small class="stat-sub" id="s-free-sub">共统计 –/（–）插座</small></div>
-    <div class="stat" data-page-node-id="UCQnmDQg4sfZE6g9eEA3YZ"><b id="s-busy" data-page-node-id="pN33F2HXrfx0hcB5nJwegB">–</b><span data-page-node-id="sduqE7P2SxNDCFGONIGTHA">正在充电</span></div>
     <div class="stat" data-page-node-id="EvSCvZrMYRFGd0cC9sewCg"><b id="s-time" style="font-size:14px;padding-top:6px" data-page-node-id="3wstmKTUeo1VMQ7z6XI5wN">–</b><span data-page-node-id="WWX2YKA9UKp2MCAXiyTkVE">更新时间</span></div>
   </div>
+
+  <!-- 🔴 2026-10-25 产品方：`#live-line`（全站实时空闲 N 口）整块下线，DOM 与 `.live-line` CSS 均已删除。
+       `refreshOverview()` / `shopOverviewOnce()` 的数据链路**故意保留**：它仍是自动刷新唯一的出口
+       （1 个汇总请求，不碰 109 台逐台），留着才不会把出口 IP 打进平台风控。只是不再有 UI 呈现。 -->
 
   <!-- 🔴 2026-10-21 产品方：**进度条已下线**，改由上面「空闲插座」卡承担进度显示
        （空闲数递增 + 「共统计 有效/（有效+无效）插座」副标 + 查询中灰、查完淡绿）。
@@ -598,7 +662,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.13 · 内测</div>
+    <div id="app-ver" class="foot-ver">版本 v2.30 · 内测</div>
   </footer>
 </div>
 
@@ -609,16 +673,16 @@
     <button class="icon-btn" id="map-close" style="flex:none">关闭</button>
   </div>
   <div class="map-tabs" id="map-tabs" role="tablist" aria-label="切换地图">
-    <button class="map-tab" data-map="amap" role="tab">渭水校区</button>
-    <button class="map-tab" data-map="wuliu" role="tab">渭水-物流服务中心</button>
+    <button class="map-tab on" data-map="amap" role="tab">渭水校区</button>
+    <button class="map-tab" data-map="wuliu" role="tab">渭水-物业服务中心</button>
     <button class="map-tab" data-map="beimen" role="tab">渭水-北门</button>
-    <button class="map-tab on" data-map="chaohui" role="tab">渭水-朝晖体育场南</button>
+    <button class="map-tab" data-map="chaohui" role="tab">渭水-朝晖体育场南</button>
   </div>
   <div class="map-badge-legend">
     <span><b class="ok">3</b>空闲数</span>
     <span><b class="full">✕</b>已满</span>
     <span><b class="off">✕</b>离线</span>
-    <em>点击地图上的点查看详情</em>
+    <em>点分区圈放大 · 点桩号看详情</em>
   </div>
   <div class="map-stage" id="map-stage">
     <div class="tmap-host" id="tmap-host"></div>
@@ -642,6 +706,8 @@
       <button id="map-zoom-out" aria-label="缩小">−</button>
       <button id="map-overview" aria-label="全景" style="font-size:13px">全景</button>
     </div>
+    <!-- 高德引擎：放大进某个分区后出现（显隐由 paintMapSub 按引擎回传的视图状态决定） -->
+    <button class="map-back" id="map-back" type="button" hidden>← 总览</button>
     <div class="map-legend">
       <span><i class="free"></i>有空位</span>
       <span><i class="busy"></i>已满</span>
@@ -678,7 +744,25 @@
       <h2>云端设备同步</h2>
       <button class="link-btn" data-close>关闭</button>
     </div>
-    <p class="note" style="margin-top:0">输入密码后，会把云端的最新设备清单（新桩位、新地址）更新并同步到本机。</p>
+
+    <!-- 🔴 2026-10-24 产品方要求：凭证框从「设备与设置」（**管理员才看得到**）搬到这个弹窗。
+         理由：凭证本来就是全网共享的 —— 谁抓一串新的粘进来都算续上，
+         把它藏在管理员口令后面，等于全校只有一个人能续命。
+         ⚠️ id 保持 `cred` / `cred-title` / `cred-sub` / `cred-edit` 不变，
+            `paintCred()` 和 `$('cred-edit')` 的事件绑定一行都不用改。
+         ⚠️ 搬迁必须「旧处删掉 + 新处加上」两边都确认（2026-10-21 只加不删踩过：文档里两个同 id）。 -->
+    <div class="cred" id="cred" hidden>
+      <div class="cred-main">
+        <span class="dot-status"></span>
+        <div class="cred-text">
+          <b id="cred-title">凭证状态</b>
+          <small id="cred-sub"></small>
+        </div>
+      </div>
+      <button class="link-btn" id="cred-edit">更新</button>
+    </div>
+
+    <p class="note" style="margin-top:0">凭证是所有人共享的，<b>谁都能更新</b>（上面那行，不需要密码）。下面的同步密码只用来把云端的最新设备清单（新桩位、新地址）拉到本机。</p>
     <input type="password" id="sync-password-input" placeholder="请输入同步密码" autocomplete="off">
     <div class="row">
       <button class="icon-btn" id="sync-cancel">取消</button>
@@ -703,6 +787,41 @@
       <button class="icon-btn" id="qq-copy-btn">复制群号</button>
     </div>
     <div class="note" id="qq-copy-note"></div>
+    <div class="row">
+      <button class="icon-btn primary" data-close>知道了</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- 致谢 & 贡献名单（2026-10-25 产品方提供文案）。入口在副标题 `by长歌 ·` 后面。
+     ⚠️ 两个 GitHub 链接都**实测过**：`RinnMoe/my_chu` 200、`zhuangchuyuan86-bot/stu-charge-watch` 200。
+        文案里「my_chu-」那个尾部 `-` 是列表符号粘连，不是仓库名的一部分（带 `-` 会 404）。 -->
+<dialog id="thanks-dialog" aria-label="致谢与贡献名单">
+  <div class="dlg-body">
+    <div class="dlg-head">
+      <h2>致谢 &amp; 贡献名单</h2>
+      <button class="link-btn" data-close>关闭</button>
+    </div>
+    <p class="note" style="margin-top:0">
+      首先感谢参与数据采集、拍摄照片、核对桩位信息的各位同学：<b>F.、卷不动根本卷不动、W、元气少女</b>。
+      大家利用课余时间实地走访，为这个校园充电桩项目提供了宝贵的实地数据，
+      让网站能够真实、准确地展示充电桩状态，帮助同学们避免跑空。
+      所有参与贡献的同学名单，已收录在贡献名单页面。
+    </p>
+    <p class="note">
+      特别感谢 <b>MyCHD</b> 开发作者 <b>Rinn</b>，为本项目地图开发提供思路与实现方法。
+    </p>
+    <p class="note" style="margin-bottom:0">同时，本项目在开发过程中参考、使用了优秀的开源项目：</p>
+    <ul class="thanks-list">
+      <li>MyCHD：<a href="https://github.com/RinnMoe/my_chu" target="_blank" rel="noopener noreferrer">github.com/RinnMoe/my_chu</a></li>
+      <li>汕头大学充电：<a href="https://github.com/zhuangchuyuan86-bot/stu-charge-watch" target="_blank" rel="noopener noreferrer">github.com/zhuangchuyuan86-bot/stu-charge-watch</a></li>
+    </ul>
+    <p class="note">
+      在此向所有开源开发者致以感谢。开源社区的共享精神，为本网站的实现提供了重要的技术支撑。
+    </p>
+    <p class="note" style="margin-bottom:0">
+      本项目为学生公益项目，持续维护更新中，欢迎大家继续反馈问题、提供数据。
+    </p>
     <div class="row">
       <button class="icon-btn primary" data-close>知道了</button>
     </div>
@@ -759,21 +878,14 @@
       <button class="link-btn" data-close data-page-node-id="zanNl501XbLAkE3C67gAro">关闭</button>
     </div>
 
-    <!-- 🔴 2026-10-21 产品方要求：凭证更新框从主页收纳到这里（整块搬来，id 不变，JS 无需改）。
-         显隐仍由 `paintCred()` 控制：没凭证时 `hidden=true` → 弹窗里也不显示这一块。 -->
-    <div class="cred" id="cred" hidden data-page-node-id="pgVuBLP1nD869Cjsk7QBtn">
-      <div class="cred-main" data-page-node-id="3OhBRQma69VsXCiOaDk05z">
-        <span class="dot-status" data-page-node-id="J1UK2fsAgnSh6y7XcXhywM"></span>
-        <div class="cred-text" data-page-node-id="K8DDoxDAR86jn3t6m7ujls">
-          <b id="cred-title" data-page-node-id="kiNOw92TFEaRs7PHtXP1I9">凭证状态</b>
-          <small id="cred-sub" data-page-node-id="x8HMnJwJFV2d3lcGaVDhxn"></small>
-        </div>
-      </div>
-      <button class="link-btn" id="cred-edit" data-page-node-id="d6OaUjET2O6dIHeG01NSRf">更新</button>
-    </div>
+    <!-- 🔴 2026-10-24：凭证框已**搬走**到 `#sync-dialog`（云端设备同步，所有人可见），
+         这里不再保留。原来它在这儿意味着「凭证状态/更新」只有输了管理员密码才看得到，
+         而凭证是全网共享的、谁都能续 —— 产品方要求放到公共入口。
+         这里只留一句指引，别再把它复制回来（复制 = 文档里两个同 id，`getElementById` 只认靠前的）。 -->
+    <p class="note" style="margin-top:0">凭证状态与更新入口在「设置 → 云端设备同步」弹窗里，所有人可见。</p>
 
     <label for="devices-input" data-page-node-id="DGjs0M3GYAb4rdnX7K6jZt">要看的设备，每行一个：<code data-page-node-id="KsL6Gk1UTPQAxSxX9zgksQ">桩号 名称 @地址</code>（地址可省略，新地址会自动加进筛选列表）</label>
-    <textarea id="devices-input" placeholder="XLA29464 渭水校区 TY-36 号桩 @渭水-朝晖体育场南&#10;XLA29999 渭土校区 TZ-37 号桩 @思源广场"></textarea>
+    <textarea id="devices-input" placeholder="XLA29464 渭水校区 TY-36 号桩 @渭水-朝晖体育场南&#10;XLA29461 渭水校区 W-04 号桩 @渭水-物业服务中心"></textarea>
     <div class="row" data-page-node-id="KXaFTpYMXwCDHfjWFWlXjn">
       <button class="icon-btn" id="devices-reset" data-page-node-id="GDhvRnKGFR7m3dpjzPquCO">恢复默认</button>
       <button class="icon-btn primary" id="devices-save" data-page-node-id="AnEKZEa36Z07EnspGF50QG">保存</button>
@@ -810,6 +922,28 @@
 
 <!-- 云服务 SDK（IIFE 形式，自托管，避免国内 CDN 波动导致同步功能失效） -->
 <script src="sdk/workbuddy-cloud.global.js"></script>
+<!-- 🔴 2026-10-21 改：`map-data.js` 由**懒加载**改为**提前静态加载**。
+     原因：`buildScope()` 的朝晖弧判据依赖 `mapAreaOf(d)`，而后者读 `window.CHD_MAP.areas`；
+     但 `map-data.js` 原先**只在 `ensureAMap()` 里**被 `loadScriptOnce` 拉取
+     （另一处 `ensureTMap()` 是死路，因为 `TMAP_ENABLED = false`），
+     **只有"开过一次高德页签"之后 `window.CHD_MAP` 才存在** ✗
+     → 冷启动时 `window.CHD_MAP === undefined` → `areas` 取到 `{}` → 查不到 →
+       `mapAreaOf()` 落到「非北门即朝晖」的**硬编码兜底 `'渭水-朝晖体育场南'`**；
+       而 `arcArea` 的兜底**恰好是同一个字面量** ⇒ **两边同值、闸门恒真** ✗
+     → `E-01~E-24`（20号楼）与 `W-01~W-12`（物流）照样被放行、画进朝晖弧
+       （CDP 实测：冷启动 62/74 个点，点过高德页签后才落到正确的 36 个）。
+     ⚠️ **这是"判据补了却不生效"的教训**：*两个兜底取了同一个值*，
+        于是"其实没有数据"这件事被掩盖了 —— 判据两边都由同一个常量兜底时，
+        它**永远不会为假**，也就等于没有判据。
+     所以让数据**先于主脚本就位** ✓
+     `?v=164` 与下面 `loadScriptOnce('map-data.js?v=164')` **保持同一个 URL**，
+     免得缓存出两份；那条懒加载链保留，作为"这个静态标签没加载成功"时的兜底
+     （`ensureAMap()` 里已有 `window.CHD_MAP` 守卫，不会重复拉）。 -->
+<!-- 🔴 2026-10-25 加 `defer`：这个文件 39KB（gzip 10KB），走 Cloudflare 时单次
+     跨境往返就要 1 秒左右 —— 不带 defer 会**阻塞 HTML 解析**，首屏白屏多等一秒。
+     安全前提（已核对）：页面只在函数里读 `window.CHD_MAP`（mapAreaOf / buildScope /
+     ensureAMap），没有任何顶层同步读；defer 在 DOMContentLoaded 之前执行完，赶得上 boot()。 -->
+<script src="map-data.js?v=164" defer></script>
 <script>
 'use strict';
 
@@ -828,13 +962,41 @@ const SLOT_FREE = 0;
 const PORTS_PER_DEVICE = 4;   // 每台充电桩固定 4 个插座口
 const THROTTLE_MS = 60000;
 
+/* 自动刷新间隔，和 THROTTLE_MS 是两件事，别再共用：
+ *   · THROTTLE_MS      = 「本地缓存多新算新」，用来省掉重复请求，60 秒合理；
+ *   · AUTO_REFRESH_MS  = 「多久自动去平台真查一轮」。
+ *
+ * 原来两者共用 60 秒 → 109 台 × 每分钟 = 每分钟 109 个请求直冲平台。
+ * 2026-10-23 产品方实测：连续这样打会把**出口 IP** 拖进平台风控 ——
+ * 表现为整片请求 8 秒超时、换电脑换手机都一样，只有换网络（换出口 IP）才恢复。
+ *
+ * 所以从 2026-10-23 v2.09 起，自动刷新**不再逐台查**，只打 1 个「站点汇总」请求
+ * （见 `refreshOverview()`）。这个常量只用于「切回前台是否补一次逐台明细」和
+ * 汇总请求的去重窗口，10 分钟对电动车充电场景完全够（一充就是几个小时）。 */
+const AUTO_REFRESH_MS = 10 * 60 * 1000;
+
+/* 自动刷新节拍的随机抖动（±60 秒）。
+ * 固定整点发车有两个坏处：① 是「机器」特征，风控最容易认；② 全校同学的页面会在
+ * 同一秒一起发请求，把峰值顶起来。错开之后峰值就摊平了。 */
+const AUTO_JITTER_MS = 60 * 1000;
+
+/* 被平台风控（整片超时）之后的自动刷新静默期：这期间不再自动打，
+ * 免得封着还一直撞，既没用又延长解封时间。用户手动点刷新不受这个限制。 */
+const AUTO_COOLDOWN_MS = 10 * 60 * 1000;
+
 const KEY_TOKEN = 'cpk.token';
 const KEY_DEVICES = 'cpk.devices';
 const KEY_DEVICES_SCHEMA = 'cpk.devices.schema';
 const KEY_DEVICES_TS = 'cpk.devices.ts';
-const DEVICE_SCHEMA = 4;   // 清单格式版本：2 = 支持「桩号 名称 @地址」+ 任意编号前缀
+const DEVICE_SCHEMA = 5;   // 清单格式版本：2 = 支持「桩号 名称 @地址」+ 任意编号前缀
 /* schema 3（2026-10-21）= 「**新增分区要能自动补进老浏览器**」。
- * schema 4（2026-10-21）= 再加一个分区（物流服务中心）。
+ * schema 4（2026-10-21）= 再加一个分区（当时的名字是「物流服务中心」）。
+ * schema 5（2026-10-24）= 该分区**改名**「物流服务中心」→「物业服务中心」。
+ *   为什么改名也要升 schema：存量浏览器里存的是旧名字（本机 `cpk.devices`、云端清单、
+ *   甚至 `cpk.filter` 里的筛选值）。名字只改仓库文件的话，这些机器上还是旧名 →
+ *   地图侧按 `areas` 键查不到 → 掉回「非北门即朝晖」→ 12 台 W 桩挤朝晖弧位被丢。
+ *   升 schema 后 `getDevices()` 的迁移分支会拿 `DEFAULT_DEVICES` 的 location 覆写，
+ *   旧名字就在每台机器打开页面时**自动**改成新名字，不需要谁去点「云端设备同步」。
  *
  * 🔴 起因：产品方反馈"更新后还是没显示 20 号楼的充电桩"。查下来是三重原因：
  *   ① 改动还没发布（那是发布问题，见记录）；
@@ -852,8 +1014,20 @@ const DEVICE_SCHEMA = 4;   // 清单格式版本：2 = 支持「桩号 名称 @�
  * 这一点是刻意的 —— 全量对齐会把用户**故意删掉**的北门/朝晖老桩又塞回来。 */
 const SCHEMA_ADDED_LOCATIONS = {
   3: ['渭水-20号楼'],            // E-01~E-24（公路学院 20 号楼，横红线段）
-  4: ['渭水-物流服务中心'],      // W-01~W-12（图上竖红线段，从下到上）
+  4: ['渭水-物业服务中心'],      // W-01~W-12（图上竖红线段，从下到上）
+  5: ['渭水-物业服务中心'],      // 同 4（改名版）：覆盖「已经迁到 schema 4」的浏览器
 };
+
+/* 分区**改名**表：[旧名片段, 新名片段]。由 `normKey()` 统一套用。
+ *
+ * 🔴 2026-10-24：产品方把「物流服务中心」改成「物业服务中心」。
+ *   改名不能只动 `DEFAULT_DEVICES`：云端清单、本机 `cpk.devices`、`cpk.filter`
+ *   里存的都还是旧名字，而 `areas` 的键已经是新名字 → 查不到 → 掉回二分类 →
+ *   12 台 W 桩被塞进朝晖 36 个弧位 → 静默丢弃（与 2026-10-21 那次 U+2011 事故同型）。
+ *   放在 `normKey()` 里，所有键比对（`mapAreaOf` / `getDevices` /
+ *   `appendNewLocationDevices` / `inFilterScope`）自动同时认新旧两个名字。
+ *   ⚠️ 这是**键比对**层面的兼容，不是数据清洗：写回盘时也会顺带写成新名字。 */
+const LOCATION_RENAMES = [['物流服务中心', '物业服务中心']];
 
 // 腾讯位置服务 key（WebServiceAPI）。填入后地图弹窗自动使用真实地图；
 // 留空时页面会提示填写，也可用 ?tmapkey=xxx 临时注入（会存入本机）。
@@ -882,6 +1056,11 @@ const SYNC_SLOT = 'default';
 const KDF_LABEL = 'PBKDF2-SHA256-200000';
 const PBKDF2_ROUNDS = 200000;
 const CLOUD_RECHECK_MS = 60000;
+/* 信箱请求的硬超时。这条链路每次整页打开都要走一次（boot 里 force），
+ * 而它排在首屏渲染之后、但排在「真正查询」之前 —— 一旦 KV 抖动或 4G 弱网，
+ * 用户就会看到界面已经在、但数据一直不刷新。
+ * 4 秒拿不到就当没有：本机已经有可用凭证的话，照常用本机的继续查，不能为了等信箱把人卡住。 */
+const BOX_TIMEOUT_MS = 4000;
 
 /**
  * 内置同步密钥：任何打开这个网址的设备都能直接解密云端凭证，无需扫码或输入。
@@ -1000,7 +1179,10 @@ const DEFAULT_DEVICES = [
   { id: 'XLA31980', code: 'E-23', name: '渭水校区 E-23 号桩', location: '渭水-20号楼' },
   { id: 'XLA35421', code: 'E-24', name: '渭水校区 E-24 号桩', location: '渭水-20号楼' },
 
-  /* 🔌 2026-10-21 新增「渭水-物流服务中心」W-01~W-12（产品方在图上圈的**竖**红线，从下到上排）。
+  /* 🔌 2026-10-21 新增「渭水-物业服务中心」W-01~W-12（产品方在图上圈的**竖**红线，从下到上排）。
+     ⚠️ 2026-10-24 产品方把它从「物流服务中心」**改名**为「物业服务中心」——
+       `id` / 桩号 / 坐标一个都没动，只有 `location` 变了；
+       旧名字的存量数据靠 `LOCATION_RENAMES` + schema 5 迁移自动改，别再手改数据文件。
      清单来自产品方给的 12 行，id **逐行照抄**。
      ✅ **产品方 2026-10-21 19:0x 已确认：`XLA29461` = `W-04`**（不再是我的推测）。
        他给的 12 行里第 3、4 台都写着 `W-03`（XLA28839 / XLA29461）、第 5 台直接跳 `W-05`；
@@ -1009,18 +1191,18 @@ const DEFAULT_DEVICES = [
           这里统一成普通连字符（`W-01`），与 `TY-01` / `E-01` 写法一致；地图上渲染成 `W01`。
           **而云端那份数据里 `W‑01` 的连字符仍是 U+2011** —— 靠 `normKey()` 在判据处归一化兜住
           （见 `normKey` 的说明；那是本轮查出的线上 P0）。 */
-  { id: 'XLA55127', code: 'W-01', name: '渭水校区 W-01 号桩', location: '渭水-物流服务中心' },
-  { id: 'XLA29284', code: 'W-02', name: '渭水校区 W-02 号桩', location: '渭水-物流服务中心' },
-  { id: 'XLA28839', code: 'W-03', name: '渭水校区 W-03 号桩', location: '渭水-物流服务中心' },
-  { id: 'XLA29461', code: 'W-04', name: '渭水校区 W-04 号桩', location: '渭水-物流服务中心' },
-  { id: 'XLB04073', code: 'W-05', name: '渭水校区 W-05 号桩', location: '渭水-物流服务中心' },
-  { id: 'XLA29263', code: 'W-06', name: '渭水校区 W-06 号桩', location: '渭水-物流服务中心' },
-  { id: 'XLA29408', code: 'W-07', name: '渭水校区 W-07 号桩', location: '渭水-物流服务中心' },
-  { id: 'XLA28996', code: 'W-08', name: '渭水校区 W-08 号桩', location: '渭水-物流服务中心' },
-  { id: 'XLA29457', code: 'W-09', name: '渭水校区 W-09 号桩', location: '渭水-物流服务中心' },
-  { id: 'XLA35412', code: 'W-10', name: '渭水校区 W-10 号桩', location: '渭水-物流服务中心' },
-  { id: 'XLA36111', code: 'W-11', name: '渭水校区 W-11 号桩', location: '渭水-物流服务中心' },
-  { id: 'XLB04070', code: 'W-12', name: '渭水校区 W-12 号桩', location: '渭水-物流服务中心' },
+  { id: 'XLA55127', code: 'W-01', name: '渭水校区 W-01 号桩', location: '渭水-物业服务中心' },
+  { id: 'XLA29284', code: 'W-02', name: '渭水校区 W-02 号桩', location: '渭水-物业服务中心' },
+  { id: 'XLA28839', code: 'W-03', name: '渭水校区 W-03 号桩', location: '渭水-物业服务中心' },
+  { id: 'XLA29461', code: 'W-04', name: '渭水校区 W-04 号桩', location: '渭水-物业服务中心' },
+  { id: 'XLB04073', code: 'W-05', name: '渭水校区 W-05 号桩', location: '渭水-物业服务中心' },
+  { id: 'XLA29263', code: 'W-06', name: '渭水校区 W-06 号桩', location: '渭水-物业服务中心' },
+  { id: 'XLA29408', code: 'W-07', name: '渭水校区 W-07 号桩', location: '渭水-物业服务中心' },
+  { id: 'XLA28996', code: 'W-08', name: '渭水校区 W-08 号桩', location: '渭水-物业服务中心' },
+  { id: 'XLA29457', code: 'W-09', name: '渭水校区 W-09 号桩', location: '渭水-物业服务中心' },
+  { id: 'XLA35412', code: 'W-10', name: '渭水校区 W-10 号桩', location: '渭水-物业服务中心' },
+  { id: 'XLA36111', code: 'W-11', name: '渭水校区 W-11 号桩', location: '渭水-物业服务中心' },
+  { id: 'XLB04070', code: 'W-12', name: '渭水校区 W-12 号桩', location: '渭水-物业服务中心' },
 ];
 
 const $ = (id) => document.getElementById(id);
@@ -1146,7 +1328,7 @@ function getDevices() {
   const schema = Number(store.get(KEY_DEVICES_SCHEMA, 0)) || 0;
 
   /* 已经是最新格式 → 原样返回本机清单。
-   * 这一步是"完全尊重你在设置里填的内容（包括 TZ-36 这类自定义编号）"的保证：
+   * 这一步是"完全尊重你在设置里填的内容（包括你自己起的编号，如 `TY-36`）"的保证：
    * 只要 schema 追平了，之后**再也不动**用户的清单。 */
   if (schema >= DEVICE_SCHEMA) return list;
 
@@ -1207,7 +1389,36 @@ function isFav(deviceId) {
 }
 
 function getFilter() {
-  return store.get(KEY_FILTER, '') || '';
+  const raw = store.get(KEY_FILTER, '') || '';
+  /* v2.23：存量筛选值可能是**旧分区名**（渭水-物流服务中心）或带 U+2011 变体。
+   * 这里统一过 `normKey()`，保证「下拉框显示的值 / 查询范围 / 列表过滤」是同一个字符串 ——
+   * 否则会出现「下拉框显示『全部地址』、列表其实只显示 12 台」这种自相矛盾的状态。
+   * 只在读的时候归一化、不写盘：用户下一次改筛选时才会写回新值。 */
+  return raw ? normKey(String(raw)) : '';
+}
+
+/** 这台桩是否落在「当前地址筛选」范围内 —— **筛选判定的唯一真源**。
+ *
+ *  v2.21：产品方要求「刷新只刷当前筛选的地址，其他地址保持原样」。
+ *  要做到这点，前提是**查询范围**和**列表过滤**用同一套判定 ——
+ *  原来 `refresh()` 只做 `String(location).trim() === filter`，
+ *  而 `applyFilterSort()` 走的却是「去前缀 + 核心词包含」的兼容匹配，两套规则。
+ *  后果很隐蔽：筛选值只要带一个变体连字符（U+2011）或者旧格式，
+ *  列表里明明看得到这批桩，刷新却一台都不去查 —— 用户看到的就是「点了没反应」。
+ *
+ *  规则：
+ *   · filter 为空 = 全部地址，不过滤；
+ *   · 两侧都过 normKey()（U+2010~U+2015、U+2212 → `-`，见 normKey 的说明）；
+ *   · 兼容旧版存下来的筛选值（如「朝晖体育场南充电桩」）：去「渭水-」前缀后做包含匹配。 */
+function inFilterScope(device, filter) {
+  const f = filter === undefined ? getFilter() : filter;
+  if (!f) return true;
+  const want = normKey(String(f).trim());
+  const loc = normKey(String((device && device.location) || '').trim());
+  if (!loc) return false;
+  const wantCore = want.replace(/^渭水-?/, '');
+  const locCore = loc.replace(/^渭水-?/, '');
+  return loc === want || (!!wantCore && loc.includes(wantCore)) || locCore === wantCore;
 }
 
 function getSort() {
@@ -1227,13 +1438,8 @@ function applyFilterSort(devices, results, cache) {
   let idx = devices.map((d, i) => ({ d, r: results[i] || c[d.id], i }));
 
   if (filter) {
-    // 筛选值「渭水-朝晖体育场南」与 location 现在完全一致，直接精确匹配；
-    // 同时兼容旧值「朝晖体育场南充电桩」（去前缀 + 核心词包含）。
-    const core = filter.replace(/^渭水[-—]?/, '');
-    idx = idx.filter((item) => {
-      const loc = String(item.d.location || '');
-      return loc === filter || loc.includes(core) || loc.replace(/^渭水[-—]?/, '') === core;
-    });
+    // 判定统一走 inFilterScope()：刷新范围与列表过滤必须是同一套规则（见该函数的说明）
+    idx = idx.filter((item) => inFilterScope(item.d, filter));
   }
 
   // 2. 排序
@@ -1304,7 +1510,9 @@ function parseDevices(text) {
     const name = tail || (meta && meta.name) || key;
 
     const entry = { id: key, name };
-    // 编号从名称里取「字母+数字」的组合，不锁死前缀：TY-36 / TZ-36 / AB12 都认
+    // 编号从名称里取「字母+数字」的组合，不锁死前缀：TY-36 / AB12 / D14 都认
+    // ⚠️ 别拿 `TZ-36` 当例子 —— 数据里根本没有 `TZ` 这一组（只有 `TY-01~36`），
+    //    这个不存在的例子以前误导过一轮排查，见 `pinCoordAt()` 上方的说明。
     const m = String(name).match(/[A-Za-z]{1,4}[-\s]?\d{1,4}/);
     if (m) entry.code = m[0].replace(/\s+/g, '').toUpperCase();
     else if (meta && meta.code) entry.code = meta.code;
@@ -1323,6 +1531,20 @@ function parseDevices(text) {
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const FETCH_TIMEOUT_MS = 8000;
+
+/* 连续这么多台都「平台没响应」，就认定是平台/网络侧的问题，提前结束这一轮查询。
+ * 单台失败要 8s + 800ms 退避 + 8s ≈ 17 秒，73 台全超时会转将近 200 秒。 */
+/* 2026-10-24：从 3 提到 5。一批 12 台里偶尔有 2~3 台撞上平台抖动是正常的，
+ * 阈值 3 会把「偶发抖动」误判成「整片被限流」，直接把整轮砍掉。 */
+const NET_FAIL_LIMIT = 5;
+
+/** 这条错误算不算「平台压根没回」（超时 / 连接断了 / 被网关截）。
+ *  readPorts() 两次都失败后会统一成「设备状态未知，请重新查询。」，第一次超时则是
+ *  「平台 8 秒没响应」，两句都要认。个别桩坏掉不会连续命中，所以不会误判。 */
+function isNoResponseError(message) {
+  const m = String(message || '');
+  return m.indexOf('没响应') >= 0 || m.indexOf('设备状态未知') >= 0;
+}
 
 async function fetchPortsOnce(deviceId, token) {
   // 并发之后，单台卡住不能把整批拖死：8 秒没响应就主动断掉
@@ -1381,6 +1603,215 @@ async function readPorts(deviceId) {
     } catch (err2) {
       if (err2 instanceof AuthError) throw err2;
       throw new Error('设备状态未知，请重新查询。');
+    }
+  }
+}
+
+/**
+ * 走 Worker 批量代打 + 边缘缓存（`/api/pile`）。
+ *
+ * 返回 `{ [id]: { at, ports } | { error, auth } }`；
+ * **一批都没拿到就返回 null**，调用方据此判断是否退回「浏览器直连」。
+ *
+ * v2.11 两个变化（都是为了「刷新一直转圈」）：
+ *   ① `onChunk` —— 每批回来立刻回调，界面边查边画，不再等全部批次；
+ *   ② **部分成功也保留** —— 老写法任何一批失败就整体返回 null，
+ *      于是已经查到的结果被丢掉、又整轮 109 台重来一遍。现在只让剩下的缺口去兜底。
+ */
+/**
+ * 走 Worker 批量代打 + 边缘缓存（`/api/pile`）。
+ *
+ * 返回 `{ [id]: { at, ports } | { error, auth } }`；
+ * **一批都没拿到就返回 null**，调用方据此判断是否退回「浏览器直连」。
+ *
+ * v2.11 三个变化（都是为了「刷新一直转圈」）：
+ *   ① `onChunk` —— 每批回来立刻回调，界面边查边画，不再等全部批次；
+ *   ② **部分成功也保留** —— 老写法任何一批失败就整体返回 null，
+ *      已经查到的结果被丢掉、又整轮 109 台重来一遍。现在只让缺口去兜底；
+ *   ③ **两条流水线并行** —— 平台限的是「同一出口的并发」，单请求已经把并发压到 6，
+ *      页面这边再开一路（合计 12）不碰平台红线，总时间直接砍一半。
+ */
+/** 最近一次批量代理的元信息（`fetched` = 真回源了几台，`hit` = 沿用了缓存几台，
+ *  `throttled` = 平台侧每分钟回源预算用完了、本轮部分被降级，
+ *  `oldestAge` = 沿用缓存里最旧的多少秒）。
+ *  页面用它决定收尾提示怎么写 —— 下面 `refresh()` 末尾读它。 */
+let lastPileMeta = { fetched: 0, hit: 0, throttled: false, batches: 0, oldestAge: 0 };
+
+async function pileProxyBatch(ids, onChunk, shouldStop, opts = {}) {
+  const token = getToken();
+  if (!token || !ids.length) return null;
+  /* `fresh` = 用户要「现在这一刻」。🔴 必须透传到 Worker ——
+   * 只改页面本地的 THROTTLE_MS 没用：真正持有 5 分钟缓存的是 Worker，
+   * 它返回的 `at` 就是缓存写入时刻。这正是「点了刷新还显示 3 分钟前」的根因。 */
+  const fresh = !!(opts && opts.fresh);
+  lastPileMeta = { fetched: 0, hit: 0, throttled: false, batches: 0, oldestAge: 0 };
+
+  /* 先把 id 切成批，再把批轮着分给两条流水线 —— 每条流水线内部仍然串行。 */
+  const chunks = [];
+  for (let k = 0; k < ids.length; k += PILE_PROXY_CHUNK) chunks.push(ids.slice(k, k + PILE_PROXY_CHUNK));
+
+  const out = {};
+  let gotAny = false;
+
+  const oneBatch = async (part) => {
+    const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), PILE_PROXY_TIMEOUT_MS) : null;
+    try {
+      const res = await fetch(PILE_PROXY_PATH, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(fresh ? { ids: part, token, fresh: true } : { ids: part, token }),
+        cache: 'no-store',
+        signal: ctrl ? ctrl.signal : undefined,
+      });
+      if (!res.ok) return false;
+      const data = await res.json();
+      if (!data || !data.ok || !data.results) return false;
+      lastPileMeta.batches += 1;
+      lastPileMeta.fetched += Number(data.fetched) || 0;
+      lastPileMeta.hit += Number(data.hit) || 0;
+      if (data.throttled) lastPileMeta.throttled = true;
+      const oa = Number(data.oldestAge) || 0;
+      if (oa > lastPileMeta.oldestAge) lastPileMeta.oldestAge = oa;
+      Object.assign(out, data.results);
+      gotAny = true;
+      if (onChunk) {
+        /* 回调里出异常不能把「已经查到的结果」一起废掉 */
+        try { onChunk(data.results); } catch (e) { console.error('[pile] onChunk 出错', e); }
+      }
+      return true;
+    } catch (e) {
+      return false;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  };
+
+  const lanes = Array.from({ length: Math.min(PILE_LANES, chunks.length) }, () => []);
+  chunks.forEach((c, i) => lanes[i % lanes.length].push(c));
+
+  await Promise.all(lanes.map(async (list) => {
+    for (const part of list) {
+      /* 已经判定「整片没响应」就别再打剩下的批 —— 请求越密封得越久，
+       * 而且用户此刻最需要的是「赶紧停下来告诉他怎么回事」。 */
+      if (shouldStop && shouldStop()) return;
+      const ok = await oneBatch(part);
+      if (!ok) return;          // 这条流水线断了，另一条照常跑完
+    }
+  }));
+
+  return gotAny ? out : null;
+}
+
+/* ---------------- 全站总览：自动刷新只打这一个请求 ----------------
+ *
+ * 2026-10-23 线上 P0 之后想明白的一件事：
+ * 「每台桩一个请求」这件事本身就不该高频做 —— 电动车一充就是几个小时，
+ * 空闲状态变化极慢，109 台 × 每分钟一轮除了把出口 IP 打进风控，没有别的作用。
+ *
+ * 平台自己有一个「站点汇总」接口：
+ *     POST /api/shop/info   {"shopId": "SDXA241610027"}
+ *   → data.available = 该站点**实时**空闲口数（2026-10-18 实测与逐台统计完全吻合）。
+ *   → data.total 恒为 "0"，**不可用**，分母只信本地设备数。
+ *
+ * 于是分成两层：
+ *   · 总览（自动，1 个请求，走 Worker + 边缘缓存 5 分钟，全校共享一份）
+ *   · 逐台明细（用户手点「刷新」、或换「地址筛选」时查当前分区）—— 原逻辑一个字没改
+ * 基准请求量：22 次/分钟（v2.08）→ 约 0.1 次/分钟。
+ */
+const SHOP_PROXY_PATH = '/api/shop';        // Worker 代打（换出口 + 边缘缓存）
+const SHOP_PATH = '/api/shop/info';         // 平台原接口，Worker 不可用时直连
+const SHOP_ID = 'SDXA241610027';            // 长安大学渭水校区
+const SHOP_TIMEOUT_MS = 12000;
+const KEY_OVERVIEW = 'cpk.overview';
+
+/** 读一次站点汇总。先走 Worker，失败退直连，都不行返回 null（调用方静默跳过）。
+ *
+ * `fresh` = 用户明确要「现在这一刻」，会透传给 Worker 让它跳过边缘缓存
+ * （Worker 侧只在缓存年龄 ≤ SHOP_FRESH_MIN 时才复用，兼顾风控）。
+ * 直连兜底本来就打到平台、没有中间缓存，不需要这个参数。 */
+async function shopOverviewOnce(token, { fresh = false } = {}) {
+  const post = async (url, headers, body) => {
+    const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), SHOP_TIMEOUT_MS) : null;
+    try {
+      return await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+        cache: 'no-store',
+        signal: ctrl ? ctrl.signal : undefined,
+      });
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  };
+
+  // ① Worker 代打：出口换 Cloudflare + 边缘缓存 5 分钟，多用户共享同一份结果
+  try {
+    const res = await post(SHOP_PROXY_PATH, { 'content-type': 'application/json' },
+      { shopId: SHOP_ID, token, ...(fresh ? { fresh: true } : {}) });
+    if (res.ok) {
+      const d = await res.json();
+      const n = d && d.ok ? Number(d.available) : NaN;
+      if (Number.isFinite(n)) return { available: n, at: Number(d.at) || Date.now() };
+    }
+  } catch (e) { /* 落到直连 */ }
+
+  // ② 直连兜底（Worker 没部署好 / 被限流时，功能不能跟着丢）
+  try {
+    const res = await post(API_BASE + SHOP_PATH,
+      { ...PLATFORM_HEADERS, Authorization: 'Bearer ' + token },
+      { shopId: SHOP_ID });
+    if (!res.ok) return null;
+    const d = await res.json();
+    if (!d || d.code !== 200 || !d.data) return null;
+    const n = Number(d.data.available);
+    if (!Number.isFinite(n)) return null;
+    return { available: n, at: Date.now() };
+  } catch (e) {
+    return null;
+  }
+}
+
+/* 🔴 2026-10-25：`paintOverview()` 随 `#live-line` 一起删除（已无落点）。
+   汇总结果仍写进 `KEY_OVERVIEW`，只为让 `refreshOverview()` 的去重逻辑有个锚点。 */
+
+let overviewBusy = false;
+let overviewPending = false;   // 忙时有人点了刷新 → 这一轮结束后补一次（不要直接丢掉他的意图）
+
+/** 取一次全站汇总。`force` 只在「手动点刷新」和「切回前台」用，其余按 AUTO_REFRESH_MS 去重。
+ *
+ * ⚠️ 2026-10-25：`force` 以前**只绕过了页面自己的去重**，请求打到 Worker 仍然吃
+ *    5 分钟边缘缓存、返回的 `at` 还是缓存写入时刻 —— 于是「点刷新」后照样显示
+ *    「更新于 3 分钟前」，看上去就是没刷新。现在 force 会带 `fresh: true` 让 Worker 真回源。
+ *
+ * 🔴 2026-10-25：`#live-line` 已删，本函数**不再写任何 DOM**。它存在的意义变成：
+ *    (a) 自动刷新那拍只出 1 个请求，不碰 109 台逐台（风控红线）；
+ *    (b) 把 `at` 落进 `KEY_OVERVIEW`，给下面的去重判断当锚点。 */
+async function refreshOverview({ force = false } = {}) {
+  if (tokenState().status === 'none') return;
+  const token = getToken();
+  if (!token) return;
+  const prev = store.get(KEY_OVERVIEW, null);
+  if (!force && prev && prev.at && Date.now() - prev.at < AUTO_REFRESH_MS / 2) {
+    return;
+  }
+  if (overviewBusy) {
+    if (force) overviewPending = true;   // 手动点的不能被静默吞掉
+    return;
+  }
+  overviewBusy = true;
+  try {
+    const ov = await shopOverviewOnce(token, { fresh: force });
+    if (ov) {
+      store.set(KEY_OVERVIEW, ov);
+    }
+  } finally {
+    overviewBusy = false;
+    if (overviewPending) {
+      overviewPending = false;
+      setTimeout(() => refreshOverview({ force: true }), 0);
     }
   }
 }
@@ -1486,9 +1917,19 @@ function paintCred() {
 
 function relTime(ms) {
   const diff = Math.max(0, (Date.now() - ms) / 1000);
+  /* 10 秒内统一说「刚刚」：直接显示「2 秒前」会让人以为页面在跳秒，
+   * 而且刚刷新完那几秒本来就没必要精确。 */
+  if (diff < 10) return '刚刚';
   if (diff < 60) return Math.round(diff) + ' 秒前';
   if (diff < 3600) return Math.round(diff / 60) + ' 分钟前';
   return Math.round(diff / 3600) + ' 小时前';
+}
+
+/** 「更新于 X」的整句。刚刷新完那几秒 relTime 会给「刚刚」，
+ *  直接拼成「更新于 刚刚」读起来别扭，所以这两档分开写。 */
+function stampText(ms) {
+  const rt = relTime(ms);
+  return rt === '刚刚' ? '刚刚更新' : '更新于 ' + rt;
 }
 
 function levelOf(record) {
@@ -1530,7 +1971,6 @@ function render(devices, results) {
 
   const cards = [];
   let free = 0;
-  let busy = 0;
   let fresh = 0;
   let newest = 0;
 
@@ -1544,7 +1984,6 @@ function render(devices, results) {
 
     if (ports.length) {
       free += freeCount;
-      busy += ports.length - freeCount;
       fresh += 1;
       newest = Math.max(newest, record.at || 0);
     }
@@ -1564,7 +2003,7 @@ function render(devices, results) {
 
     const stale = ports.length && Date.now() - record.at > 180000 ? ' · 旧记录' : '';
     const foot = ports.length
-      ? `更新于 ${relTime(record.at)}${stale}`
+      ? `${stampText(record.at)}${stale}`
       : unknown
         ? '状态未知，暂按占用处理'
         : '还没拿到数据';
@@ -1600,7 +2039,6 @@ function render(devices, results) {
 
   $('stats').hidden = false;
   $('s-free').textContent = String(free);
-  $('s-busy').textContent = String(busy);
   $('s-time').textContent = newest ? relTime(newest) : '–';
 
   // 工具栏：有数据才显示
@@ -1622,6 +2060,25 @@ function escapeHtml(text) {
   return String(text).replace(/[&<>"']/g, (ch) => (
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]
   ));
+}
+
+/** 首屏第一帧：**只用本机缓存**把卡片铺出来，一次网络请求都不发。
+ *  · 放在 boot() 最前面调用，让「有没有界面」不再取决于网络快慢；
+ *  · 数据来源与 refresh() 里那套完全一致（getDevices + readCache），
+ *    所以后面 refresh 覆盖时结构不会跳变，只是数字刷新；
+ *  · 没凭证时直接返回 —— 那种情况 paintCred() 已经画了引导页，不该铺一堆空卡片；
+ *  · 整体包 try：首帧渲染失败绝不能把后面的网络流程一起带崩。 */
+function seedFirstPaint() {
+  if (tokenState().status === 'none') return;
+  try {
+    const devices = getDevices();
+    if (!devices.length) return;
+    const cache = readCache();
+    const results = devices.map((d) => cache[d.id] || { at: 0, ports: [], error: '尚未查询' });
+    render(devices, results);
+  } catch (e) {
+    console.warn('[boot] 首屏预渲染失败，等网络那一轮再画', e);
+  }
 }
 
 /* ---------------- 地图（SVG viewBox 相机 + 原图底图） ---------------- */
@@ -1670,6 +2127,11 @@ const ADDRESS_MAPS = {
   '_default': {
     id: 'chaohui', label: '渭水 · 朝晖体育场南',
     img: 'map-clean.webp', w: 1024, h: 1536, layout: 'arc', name: '朝晖体育场南',
+    /* 🔴 2026-10-21 补：**这张图对应的分区键**（与 `WULIU_MAP.area` 同一套写法）。
+     * 原来这里没有 `area`，而 `buildScope()` 的 arc 分支只能靠"编号数字在 1~36 内"放行，
+     * 于是 `渭水-20号楼`(E) 和 `渭水-物业服务中心`(W) 的桩**全被画进朝晖弧** ✗
+     * （`mapAreaOf()` 未登记时的 fallback 也正是 `'渭水-朝晖体育场南'`，两边由构造保持一致 ✓）*/
+    area: '渭水-朝晖体育场南',
   },
   '渭水-北门': {
     id: 'beimen', label: '渭水 · 北门',
@@ -1696,20 +2158,20 @@ const CAMPUS_MAP = {
 const AMAP_MAP = {
   id: 'amap', label: '渭水校区', name: '渭水校区', layout: 'amap',
 };
-/* 「物流服务中心」分区页签（2026-10-21 产品方要求：这个新分区也要有自己的页签）。
+/* 「物业服务中心」分区页签（2026-10-21 产品方要求：这个新分区也要有自己的页签）。
  * ⚠️ 它和北门/朝晖**不一样** —— 那两张是**手绘静态图**（map-beimen.webp / map-clean.webp），
- *   而物流服务中心没有手绘图，所以它走**高德底图**这条路：
+ *   而物业服务中心没有手绘图，所以它走**高德底图**这条路：
  *   同一个引擎（`layout:'amap'`），只是打开时把镜头定到 `area` 指的那个分区。
  *   为此把 `switchMap()` / `openMap()` 里的判据从 `id === 'amap'` 泛化成了 `layout === 'amap'`，
  *   并给 `amapApplyView()` 加了 `view` 参数。地图 js 侧无需改动。 */
 const WULIU_MAP = {
-  id: 'wuliu', label: '渭水 · 物流服务中心', name: '物流服务中心',
-  layout: 'amap', area: '渭水-物流服务中心',
+  id: 'wuliu', label: '渭水 · 物业服务中心', name: '物业服务中心',
+  layout: 'amap', area: '渭水-物业服务中心',
 };
 // 筛选顺序：渭水校区（高德底图）→ 北门 → 朝晖
 // v1.97：CAMPUS_MAP（9600×3422 静态总览）已从页签和这里移除，底图不再下载；
 //        代码对象保留，恢复只需把 CAMPUS_MAP 加回本行 + 顶部补 data-map="overview" 按钮。
-// 筛选顺序：渭水校区（高德底图）→ 物流服务中心（高德底图·分区）→ 北门 → 朝晖
+// 筛选顺序：渭水校区（高德底图）→ 物业服务中心（高德底图·分区）→ 北门 → 朝晖
 const MAP_ORDER = [AMAP_MAP, WULIU_MAP, ADDRESS_MAPS['渭水-北门'], ADDRESS_MAPS['_default']];
 // 总览图上的分区锚点（底图像素坐标，底图 9600×3422）
 //   labelSide:'left' 把地址名排到点的左边 —— 北门这个点在图上紧挨着底图自己的红色「北门」二字，
@@ -1729,8 +2191,12 @@ function mapForAddress(addr) {
   if (/北门/.test(a) && !/朝晖/.test(a)) return ADDRESS_MAPS['渭水-北门'];
   return ADDRESS_MAPS['_default'];
 }
-// 当前展示的底图（打开地图时按地址设定；默认进朝晖主图）
-let curMap = ADDRESS_MAPS['_default'];
+// 当前展示的底图（打开地图时按地址设定）。
+// v2.23：产品方要求「地图按钮默认打开就是渭水校区」→ 默认值从朝晖静态图改成高德总览。
+//   只改默认值：同一次会话里看过别的分区后，再点「地图」仍停留在上次那张图（见 openMap）。
+//   ⚠️ AMAP_MAP 没有 w/h（静态引擎用不到），而静态渲染路径只会在
+//   `switchMap()` 把 curMap 换成静态图之后才跑 —— 所以这里不必补 w/h。
+let curMap = AMAP_MAP;
 function mapAspect() { return curMap.h / curMap.w; }
 
 // —— 椭圆弧布局（朝晖主图，编号 1~36）——
@@ -1777,7 +2243,15 @@ function pinCoord(i, total) {
   };
 }
 
-/** 按桩编号里的数字定位（TY-36 / TZ-36 都落在第 36 位）；不在 1~36 的返回 null（本图不显示） */
+/** 按桩编号里的数字定位（**任何编号，只要末尾数字相同就落在同一个槽位**）；
+ *  不在 1~ARC_TOTAL 的返回 null（本图不显示）。
+ *
+ * ⚠️ **"按数字"正是 2026-10-21 那个桩点归属 bug 的机制**：
+ *    以前 `buildScope()` 只用这一条判据筛朝晖的桩，于是 `E-01~E-24`（20号楼）
+ *    和 `W-01~W-12`（物流）因为编号也在 1~36 内，**全被画进了朝晖弧** ✗
+ *    现在那里已经补上 `mapAreaOf(d)` 的分区判据 —— 本函数只负责"这个数字有没有对应槽位" ✓
+ * ⚠️ 数据里**只有 `TY-01~36`**，不存在 `TZ` 这一组（旧注释里拿 `TZ-36` 举例是错的，
+ *    曾误导过一次排查）。 */
 function pinCoordAt(seq) {
   if (!Number.isFinite(seq) || seq < 1 || seq > ARC_TOTAL) return null;
   return pinCoord(seq - 1, ARC_TOTAL);
@@ -1896,8 +2370,27 @@ function buildScope() {
     if (curMap.layout === 'zone') { mapScope.push(i); return; }
     if (mapOfDevice(d) !== curMap) return;             // 不属于当前底图的桩不显示
     if (curMap.layout === 'arc') {
+      /* 🔴 2026-10-21 修：**闸门原来只按编号数字放行，把别区的桩也画进了朝晖弧**。
+       *
+       * 病灶：上面那句 `mapOfDevice(d) !== curMap` 看着像闸门，实际是坏的 ——
+       *   `mapOfDevice()` 走 `mapForAddress()`，而 `ADDRESS_MAPS` **只登记两张图**
+       *   （`_default` = 朝晖弧、`渭水-北门`），**认不出的地址一律 fallback 到 `_default`**
+       *   → `渭水-20号楼`（E-01~E-24）与 `渭水-物业服务中心`（W-01~W-12）**全被判成"朝晖"**
+       *   → 再被下面的 `pinCoordAt(1..36)` 放行 → **36 台别区的桩被画到朝晖弧上** ✗
+       *   实测后果：朝晖视图画出 72 个点（36 真桩 + 24 个 20号楼 + 12 个物流），
+       *   其中 12 个槽位 3 点完全重合、12 个槽位 2 点重合 → **2/3 的桩看不见也点不开** ✗
+       *   （这正是产品方要求的「点地点放大到能看清桩位布局」做不到的原因。）
+       *
+       * 修法：改用 `mapAreaOf(d)` 当判据 —— 它会查 `CHD_MAP.areas`（4 个分区都已登记），
+       *   能正确分出朝晖 / 北门 / 20号楼 / 物流，不再依赖那张"只认两张图"的旧表 ✓
+       *   分区键挂在图对象的 `area` 上（与 `WULIU_MAP.area` 同一套写法），这里不写死字面量。
+       *   `|| '渭水-朝晖体育场南'` 是兜底：万一某个图忘了配 `area`，也不能让整张弧变成空白 ✗
+       * ⚠️ 只影响 `layout === 'arc'` 这一条 —— 北门是 `layout:'park'`，走下面的 else 分支，行为不变 ✓
+       * ⚠️ `mapAreaOf()` 对**完全未登记**的分区仍会 fallback 到朝晖（既有语义），
+       *   那种自定义地址的桩仍会落到弧上；要用别的图得先在 `CHD_MAP.areas` 里登记 ✓ */
+      const arcArea = curMap.area || '渭水-朝晖体育场南';
       const num = Number(String(d.code || '').match(/\d+/)?.[0]);
-      if (pinCoordAt(num)) mapScope.push(i);
+      if (mapAreaOf(d) === arcArea && pinCoordAt(num)) mapScope.push(i);
     } else {
       mapScope.push(i);
     }
@@ -1927,6 +2420,42 @@ function warmBaseMaps() {
   const run = () => urls.forEach((u) => { const im = new Image(); im.src = u; });
   if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 3000 });
   else setTimeout(run, 1200);
+}
+
+/** 空闲时预热高德地图：**只拉脚本，不 mount**（mount 要求弹窗可见、容器有尺寸）。
+ *
+ * 为什么要它：如果等点「查找」才第一次加载，要串行等三样东西 ——
+ *   `map-key.local.js` → 高德 SDK（几百 KB）→ `map-amap-preview.js` → 才能 `new AMap.Map()`。
+ * 弱网下这段 1~3 秒，用户看到的就是「点了查找，地图半天不出来」。
+ * 提前在空闲时把这三样拉进缓存，点开时只剩 `new AMap.Map()` 与底图瓦片。
+ *
+ * · 省流模式 / 2G/3G 不预热（高德 SDK 不小，别替用户花流量）；
+ * · 没配 Key 不预热（引擎那边会走 onFail('nokey') 提示，不用抢请求）；
+ * · 预热失败无所谓 —— `loadScriptOnce` 失败会清缓存，点开时会真的重新拉。 */
+let amapWarmed = false;
+function warmAMap() {
+  if (amapWarmed) return;
+  amapWarmed = true;
+  try {
+    const c = navigator.connection || {};
+    if (c.saveData) return;
+    if (/2g|3g/.test(String(c.effectiveType || ''))) return;
+  } catch (e) { /* 不支持 Network Information API 就照常预热 */ }
+
+  const run = () => {
+    loadLocalKeyOnce()
+      .then(() => {
+        if (!window.CHD_AMAP_KEY || !window.CHD_AMAP_SCODE) return null;
+        if (window.AMap) return null;
+        window._AMapSecurityConfig = { securityJsCode: window.CHD_AMAP_SCODE };
+        return loadScriptOnce('https://webapi.amap.com/maps?v=2.0&key='
+          + encodeURIComponent(window.CHD_AMAP_KEY));
+      })
+      .then(() => loadScriptOnce('map-amap-preview.js?v=7'))
+      .catch(() => { /* 预热失败：点开时 ensureAMap() 会重新拉 */ });
+  };
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 4000 });
+  else setTimeout(run, 2000);
 }
 
 /** 切换底图图片与尺寸 */
@@ -2301,7 +2830,7 @@ function loadScriptOnce(src) {
  *    以后再加新分区，只要登记进 `areas`，这里自动生效，不用再来改一次。 */
 /* 🔴 2026-10-21 P0：**连字符归一化**。
  *
- * 产品方在 App 里手填的分区名用的是**不换行连字符 U+2011**（`渭水‑物流服务中心`），
+ * 产品方在 App 里手填的分区名用的是**不换行连字符 U+2011**（`渭水‑物业服务中心`），
  * 而仓库里的 `map-data.js` areas 键、`DEFAULT_DEVICES`、`LINE_AREAS` 用的都是普通 `-`（U+002D）。
  * **字符串不相等** → `areas[location]` 查不到 → `mapAreaOf()` 退回「非北门即朝晖」的二分类
  * → 12 台物流桩被贴成朝晖 → 朝晖弧只有 36 个弧位、48 台挤 → **被 `filter(pos)` 静默丢掉**
@@ -2316,9 +2845,19 @@ function loadScriptOnce(src) {
  *   **已经躺在产品方所有设备上了**，改仓库文件一点用都没有。
  *
  * 推荐方括号范围 `[\u2010-\u2015\u2212]` 覆盖：U+2010 连字符 / **U+2011 不换行连字符** /
- * U+2012 数字线 / U+2013 短破折 / U+2014 长破折 / U+2015 横线 / U+2212 减号。 */
+ * U+2012 数字线 / U+2013 短破折 / U+2014 长破折 / U+2015 横线 / U+2212 减号。
+ *
+ * 🔴 2026-10-24 追加：**分区改名也在这里套用**（见 `LOCATION_RENAMES`）。
+ *   `logistics` → `property` 这种改名如果只改仓库里的字符串，存量数据（云端清单、
+ *   本机 `cpk.devices`、`cpk.filter`）全是旧名字 → `areas[loc]` 查不到 → 又掉回二分类。
+ *   放在这里，所有键比对自动对新旧两个名字都成立；写回盘时也顺带写成新名字。 */
 function normKey(s) {
-  return String(s == null ? '' : s).replace(/[\u2010-\u2015\u2212]/g, '-');
+  let v = String(s == null ? '' : s).replace(/[\u2010-\u2015\u2212]/g, '-');
+  for (let i = 0; i < LOCATION_RENAMES.length; i++) {
+    const from = LOCATION_RENAMES[i][0];
+    if (v.indexOf(from) >= 0) v = v.split(from).join(LOCATION_RENAMES[i][1]);
+  }
+  return v;
 }
 
 function mapAreaOf(d) {
@@ -2399,7 +2938,7 @@ function ensureTMap() {
       });
     };
     if (window.CHD_TMAP && window.CHD_MAP) { boot(); return; }
-    loadScriptOnce('map-data.js?v=163')
+    loadScriptOnce('map-data.js?v=164')
       .then(() => loadScriptOnce('map-tmap.js?v=171'))
       .then(boot)
       .catch(() => done(false));
@@ -2478,8 +3017,14 @@ function ensureAMap() {
           $('map-dialog').setAttribute('data-engine', 'amap');
           const attrib = document.querySelector('.map-attrib');
           if (attrib) attrib.textContent = '底图 © 高德地图 · 桩位按分区排布示意';
-          window.CHD_AMAP.setPiles(amapDevices());
-          window.CHD_AMAP.setView('campus');
+          /* 🔴 2026-10-24：这里必须 keepCamera。
+           *
+           * 引擎在 mount 里已经取好第一帧，而且是**从默认位置飞过去**的动画
+           * （map-amap 的 firstCamera / FLY_MS）。下面这两句如果按默认走，
+           * 会各自触发一次 applyCamera → 相机被瞬间拽到终点 → 用户看到的还是瞬移，
+           * 飞入动画等于白做。keepCamera 只灌数据 / 切视图状态，不碰相机。 */
+          window.CHD_AMAP.setPiles(amapDevices(), { keepCamera: true });
+          window.CHD_AMAP.setView('campus', { keepCamera: true });
           done(true);
         },
         onFail: (reason) => {
@@ -2491,10 +3036,17 @@ function ensureAMap() {
           done(false);
         },
         onPileClick: onAMapPileClick,
+        /* 视图状态（总览 / 某分区）回传：表头文案 + 「← 总览」按钮都靠它。
+         * 点分区圈放大是引擎内部做的，页面只能靠这个回调知道镜头去了哪。 */
+        onViewChange: paintMapSub,
       });
     };
     if (window.CHD_AMAP && window.CHD_MAP) { boot(); return; }
-    loadScriptOnce('map-data.js?v=163')
+    /* 正常情况下 `map-data.js` 已由页面顶部的静态 `<script src="map-data.js?v=164">` 加载好
+       （见那里的长注释：冷启动没有它 → `mapAreaOf()` 的两个兜底同值 → 弧线判据恒真 ✗）。
+       所以这里先看 `window.CHD_MAP` 在不在，在就跳过，避免重复拉一次；
+       若那个静态标签**没加载成功**（例如断网中途失败），仍会走 `loadScriptOnce` 重试 ✓ */
+    (window.CHD_MAP ? Promise.resolve(true) : loadScriptOnce('map-data.js?v=164'))
       .then(loadLocalKeyOnce)
 // ⚠️ 2026-10-21 起内测版加载 **map-amap-preview.js**（不是 map-amap.js）：
 //    正式版仍引 map-amap.js。两版 js 本来是同一个文件，但 #44（GeoJSON 修复 + 楼名标签
@@ -2502,7 +3054,7 @@ function ensureAMap() {
 //    SW 的 stale-while-revalidate 会让正式版用户第二次打开就拿到它 → 等于偷偷上线。
 //    验收通过后：cp map-amap-preview.js map-amap.js，两版 ?v 同升，再删掉这个预览文件。
 //    改了 js 一定要同时改 ?v（SW 缓存优先）。
-      .then(() => loadScriptOnce('map-amap-preview.js?v=4'))
+      .then(() => loadScriptOnce('map-amap-preview.js?v=7'))
       .then(boot)
       .catch(() => done(false));
   });
@@ -2543,15 +3095,29 @@ function onAMapPileClick(ev) {
     : `${d.code || d.name} · 无数据`;
 }
 
+/** 把引擎回传的视图状态画到表头上，并显隐「← 总览」。
+ *  为什么由引擎回传：总览是默认第一屏以后，「点分区圈放大」是 map-amap 的**内部行为**
+ *  （zoomToArea），页面这边完全不知道镜头已经落到某个分区 —— 表头会一直写着
+ *  「109 个点位」而屏幕上只有 36 台，看着像数据错了；放大后也没有回总览的入口。
+ *  ⚠️ 别在别处再各拼一遍表头文案，否则两条路会不一致（`viewInfo()` 是唯一口径）。 */
+function paintMapSub(v) {
+  if (!v) return;
+  const nm = v.school ? '渭水校区' : (v.name || '');
+  $('map-sub').textContent = `${nm} · ${v.piles} 个点位 · ${v.free} 个有空位`;
+  const back = $('map-back');
+  if (back) back.hidden = !!v.school;
+}
+
 /** 高德地图套用总览视角 */
 /**
  * `view` = 打开后镜头对准哪个分区键；省略/`'campus'` = 渭水校区总览。
- * 2026-10-21：加了参数以支持「物流服务中心」页签（它和高德总览是同一个引擎、
+ * 2026-10-21：加了参数以支持「物业服务中心」页签（它和高德总览是同一个引擎、
  * 只是落点不同）。`CHD_AMAP.setView(areaKey)` + `applyCamera()` 本来就支持任意分区键
  * （`zoomToArea()` 走的同一条路），所以地图 js 那边一个字没改。
  */
-function amapApplyView(view) {
+function amapApplyView(view, opts) {
   if (!amapActive || !window.CHD_AMAP) return;
+  const keepCamera = !!(opts && opts.keepCamera);
   /* 🐛 修 bug：切回「高德地图」页签时地图显示不出来。
    *
    * 成因：`.amap-host` 默认 `display:none`，只有 `.map-dialog[data-engine="amap"]` 才显示
@@ -2572,15 +3138,18 @@ function amapApplyView(view) {
    */
   $('map-dialog').setAttribute('data-engine', 'amap');
   window.CHD_AMAP.resize();
-  /* 分区页签（view 非 campus）**只喂该分区的桩** —— 否则「物流服务中心」页签上
-   * 表头会写着「109 个点位」，而页签名字是物流，对不上。
+  /* 分区页签（view 非 campus）**只喂该分区的桩** —— 否则「物业服务中心」页签上
+   * 表头会写着「109 个点位」，而页签名字是物业服务中心，对不上。
    * 总览页签（campus）仍是全部桩。 */
   const areaKey = view && view !== 'campus' ? view : '';
   const inView = areaKey ? amapDevices().filter((d) => d.location === areaKey) : amapDevices();
-  window.CHD_AMAP.setPiles(inView);
-  window.CHD_AMAP.setView(view || 'campus');
-  const freeN = inView.filter((x) => x.free > 0).length;
-  $('map-sub').textContent = `${inView.length} 个点位 · ${freeN} 个有空位`;
+  /* keepCamera：刚 mount 完的第一帧不要重置相机 —— 引擎正在做「从默认位置飞过去」的动画
+   * （见 ensureAMap 的 onReady 与 map-amap 的 firstCamera）。其余场景照常取景。 */
+  window.CHD_AMAP.setPiles(inView, { keepCamera });
+  window.CHD_AMAP.setView(view || 'campus', { keepCamera });
+  /* 表头交给 paintMapSub（引擎回传的 viewInfo）统一画：这样「点分区圈放大」
+   * 这种引擎内部行为也能同步表头，不至于两处文案各写一套。 */
+  paintMapSub(window.CHD_AMAP.viewInfo ? window.CHD_AMAP.viewInfo() : null);
 }
 
 /** 同步顶部筛选按钮的选中态 */
@@ -2600,7 +3169,7 @@ function switchMap(mapId, focusDeviceId) {
   if (!next) return;
   curMap = next;
   syncMapTabs();
-  // 「高德底图」类页签（渭水校区总览 / 物流服务中心分区）→ 在线底图引擎
+  // 「高德底图」类页签（渭水校区总览 / 物业服务中心分区）→ 在线底图引擎
   // 2026-10-21：判据从 `id === 'amap'` 改成 `layout === 'amap'`，这样新分区页签
   //   只要 `layout:'amap'` + `area:'渭水-xx'` 就能复用同一套引擎，不必再抄一遍这段。
   if (next.layout === 'amap') {
@@ -2644,15 +3213,18 @@ function focusDevice(deviceId) {
 }
 
 function openMap() {
-  // 通用「看地图」按钮：停留在上次看的图，首次进朝晖主图
-  if (!MAP_ORDER.some((m) => m.id === curMap.id)) curMap = ADDRESS_MAPS['_default'];
+  // 通用「看地图」按钮：默认渭水校区，之后停留在上次看的图（v2.23 改默认值）
+  if (!MAP_ORDER.some((m) => m.id === curMap.id)) curMap = AMAP_MAP;
   syncMapTabs();
   const dlg = $('map-dialog');
   if (!dlg.open) dlg.showModal();
   // 「高德底图」类页签 → 在线底图；其余页签 → 腾讯地图（未启用则回落静态图）
   if (curMap.layout === 'amap') {
+    /* 首次打开时引擎正在做飞入动画：keepCamera 保住它，别一打开就瞬移到终点。
+     * `amapActive` 在 onReady 里才置 true，所以这里（await 之前）取到的就是「是否首帧」。 */
+    const firstFrame = !amapActive;
     ensureAMap().then((ok) => {
-      if (ok) { amapApplyView(curMap.area); return; }
+      if (ok) { amapApplyView(curMap.area, { keepCamera: firstFrame }); return; }
       $('map-dialog').removeAttribute('data-engine');
       switchMap('beimen');
     });
@@ -2711,9 +3283,16 @@ function openMapAt(deviceId) {
   const dlg = $('map-dialog');
   if (!dlg.open) dlg.showModal();
 
-  /** 高德可用时真正落地：套视角 + 副标题 + 镜头对到该桩 */
+  /** 高德可用时真正落地：套视角 + 副标题 + 镜头对到该桩。
+   *
+   *  🔴 这里**固定 keepCamera**（不区分首帧），两个理由：
+   *    · 首次打开时引擎的飞入动画正在进行，默认取景会把它拽到终点；
+   *    · 之后每次点「查找」，若先按默认取景跳回总览、再飞向该桩，
+   *      画面会「先跳一下再飞」—— 直接从当前位置飞过去更自然。
+   *  数据仍然照常灌（`amapApplyView` 里 setPiles 不受 keepCamera 影响），
+   *  `resize()` 也照跑（弹窗刚打开时容器尺寸可能刚变）。 */
   const useAmap = () => {
-    amapApplyView();                       // 内部已 setPiles(amapDevices()) + setView('campus')
+    amapApplyView(undefined, { keepCamera: true });   // 内部已 setPiles(amapDevices())
     if (dev) {
       // 副标题与「点桩」时同一口径，让用户确认识别到的是哪台
       const ports = (mapResults[di] || {}).ports || [];
@@ -2808,6 +3387,30 @@ function bindMapGestures() {
 /* ---------------- 刷新 ---------------- */
 
 let busyFlag = false;
+/* 查询进行中用户又点了「刷新」→ 记一笔，这一轮收尾时**只补查失败的那几台**。
+ *
+ * 🔴 v2.11 改掉了老写法（布尔 + 收尾时再跑一整轮 refresh）。原因就是本次线上投诉：
+ *   一轮要 20 多秒，用户等急了会连点几次，每次点击都把「下一整轮」排上，
+ *   于是「转完立刻又转、永远停不下来」——结果明明是好的，界面却在无限转圈。
+ *   现在补跑的范围只有 `failedIdx`（本轮超时/出错的桩，通常 0~4 台），一两秒就完。 */
+let pendingTargets = false;
+
+/** 查询中的视觉标记 —— **只改样式，不禁用**。
+ *  禁用会让「点不动」变成死路；而并发由 busyFlag 挡住，不需要靠 disabled 兜。
+ *
+ *  v2.11：多一个 `label`，用来在按钮里写「37/109」这种**带分母的进度**。
+ *  原来只转圈，转 20 多秒看不到尽头，用户的第一反应是「卡死了」然后再点一次 ——
+ *  而再点一次恰恰是「一直转圈停不下来」的成因（见下方 pendingTargets）。 */
+function setBusy(on, label) {
+  const btn = $('refresh');
+  if (!btn) return;
+  btn.classList.toggle('is-busy', !!on);
+  btn.setAttribute('aria-busy', on ? 'true' : 'false');
+  const text = on ? (label || '更新中') : '刷新';
+  if (btn.textContent !== text) btn.textContent = text;
+  if (on) btn.setAttribute('title', '正在更新 ' + (label || ''));
+  else btn.removeAttribute('title');
+}
 
 /** 「空闲插座」卡的状态：查询中灰、查完淡绿（产品方 2026-10-21 要求） */
 function setFreeCardState(state) {
@@ -2840,23 +3443,83 @@ function hideProgress() {
   setFreeCardState('done');
 }
 
-async function refresh({ force = false, retried = false } = {}) {
+async function refresh({ force = false, retried = false, only = null } = {}) {
   paintCred();
   const state = tokenState();
   if (state.status === 'none') return;
-  if (busyFlag) return;
+  if (busyFlag) {
+    /* 忙时点击：只记一笔，收尾时补查失败的几台（见 pendingTargets 上方注释） */
+    pendingTargets = true;
+    paintBanner('正在更新，这一轮马上就结束（不用重复点）。', false);
+    return;
+  }
 
   busyFlag = true;
-  $('refresh').disabled = true;
+  setBusy(true, '准备中');
   let needRecover = false;
+  let netAbort = false;          // 因「平台连续没响应」提前结束本轮
+  let aborted = false;
   let devices = [], results = [];
+  let targets = [];
+  let failedIdx = [];            // 本轮失败的桩索引 → 供收尾补查
+  let done = 0;
+  let toShare = [];
+  let netFailStreak = 0;
+  let pileMeta = null;           // 本轮代理的元信息快照（收尾提示用，见 lastPileMeta）
   try {
     devices = getDevices();
     lastError = null;
     const total = devices.length;
 
-    // ① 先取云端共享结果（一次请求）：其他设备 60 秒内查过的，直接复用不打平台
-    //    这里读的是全部桩的共享状态，不受地址筛选影响，云端复用照常生效
+    /* 全站汇总（/api/shop）以前在首屏有一条细条展示，现已随 `#live-line` 下线；
+     * 手动刷新仍顺手带一个 fresh 请求，让缓存锚点跟着一起前进 —— 否则自动刷新那拍
+     * 会被去重逻辑判成「还新鲜」而跳过。
+     * `only` 是收尾补查（一两秒内会再进来一次），不必重复打。 */
+    if (!only) refreshOverview({ force: true });
+
+    /* ① 先定「本轮查谁」：**只看当前地址筛选范围**。
+     *
+     * 🔴 2026-10-24 产品方要求：「刷新只刷当前筛选的地址，其他地址保持原样」。
+     *    所以范围外的桩：**一个平台请求都不发**，显示也一动不动
+     *    （连「更新于」的时间戳都不刷新）。
+     *    判定统一走 `inFilterScope()`，与列表过滤用同一套规则 ——
+     *    原来这里只做 `String(location).trim() === filter` 严格等值，
+     *    筛选值一旦带变体连字符（U+2011）或旧格式，就会「列表里看得到这批桩、
+     *    刷新却一台都不查」，用户看到的就是「点了没反应」。 */
+    const filter = getFilter();
+    /* 一次算好「哪些桩在范围内」：targets、滚动统计都要用。
+     * 不要在每次进度回调里重算 —— 那是 109 台 × 上百次 = 上万次字符串归一化。 */
+    const inScope = devices.map((d) => inFilterScope(d, filter));
+    devices.forEach((d, i) => { if (inScope[i]) targets.push(i); });
+
+    /* `only` = 收尾补查模式：范围压到本轮失败的那几台（见 pendingTargets） */
+    if (Array.isArray(only) && only.length) {
+      const allow = new Set(only);
+      targets = targets.filter((i) => allow.has(i));
+    }
+
+    /* ② 先把缓存铺到界面上 —— **必须排在等网络之前**（v2.11 调整）。
+     * 老代码是「await 完代理 → 才 render」，于是点刷新先干等二十秒才见到东西。
+     * 现在点下去立刻有画面，新数据再一批一批换上去。
+     * 范围外的桩照旧显示上次结果（产品方 2026-10-24 选择：保留结果 + 「旧记录」标记）。 */
+    const localCache = readCache();
+    results = devices.map((d) => localCache[d.id] || { at: 0, ports: [], error: null });
+
+    const idToIdx = new Map();
+    targets.forEach((i) => idToIdx.set(devices[i].id, i));
+
+    setProgress(0, targets.length);
+    setBusy(true, (only ? '补 ' : '') + '0/' + targets.length);
+    render(devices, results);
+    /* 筛选值对不上任何桩时给一句明确的话，否则「点刷新什么都没发生」会被当成卡死 */
+    if (filter && !targets.length) {
+      paintBanner('当前筛选「' + filter + '」下没有可查询的桩，换个地址试试。', true);
+    }
+
+    /* ③ 云端共享结果（别的设备 60 秒内查过的）：一次请求，能省掉大量平台请求。
+     * ⚠️ 只并进**本轮查询范围内**的桩。原来是无差别合并全部，
+     *    于是「刷了朝晖，北门那批的『更新于』也跟着变新」—— 看起来就像刷新了所有地址。
+     *    `cache` 里仍照常合并：等用户真切到那个地址时能省一次平台请求。 */
     const shared = await cloudReadShared();
     const sharedIds = Object.keys(shared);
     if (sharedIds.length) {
@@ -2866,25 +3529,12 @@ async function refresh({ force = false, retried = false } = {}) {
         const rec = shared[id];
         const prev = cache0[id];
         if (!prev || (rec.at || 0) >= (prev.at || 0)) { cache0[id] = rec; merged += 1; }
+        const i = idToIdx.get(id);
+        if (i !== undefined) results[i] = cache0[id];   // 范围外的桩：只落 cache，不动显示
       }
       if (merged) store.set(KEY_CACHE, cache0);
+      if (targets.length) render(devices, results);
     }
-
-    // ② 只查询「当前筛选地址」里的桩；其余保留已有状态，不打平台
-    const filter = getFilter();
-    const localCache = readCache();
-    // 先用缓存铺满 results（与 devices 索引对齐，未查的也照常显示上次状态）
-    results = devices.map((d) => localCache[d.id] || { at: 0, ports: [], error: null });
-
-    const targets = [];
-    devices.forEach((d, i) => {
-      if (!filter || String(d.location || '').trim() === filter) targets.push(i);
-    });
-
-    setProgress(0, targets.length);
-
-    // 不等第一个请求回来，先把上次的缓存铺到界面上：点刷新立刻有东西看
-    render(devices, results);
 
     /* 并发查询。
        浏览器的连接池对同一域名只放 6 条 HTTP/1.1 连接，再往上加也只是在浏览器里排队，
@@ -2893,10 +3543,10 @@ async function refresh({ force = false, retried = false } = {}) {
     const CONCURRENCY = 6;
     const RENDER_EVERY_MS = 120;
     let cursor = 0;
-    let done = 0;
-    let aborted = false;
     let lastPaint = 0;
-    const toShare = [];
+    /* `done` / `aborted` / `netFailStreak` / `toShare` 已提到函数开头 ——
+     * 下面的代理流式回填（④）也要累加它们，声明在这里就取不到了。
+     * 单台超时的代价是 8 秒 + 800ms + 8 秒 ≈ 17 秒，连续 NET_FAIL_LIMIT 台没响应就提前收摊。 */
 
     const paintThrottled = () => {
       const t = performance.now();
@@ -2917,10 +3567,17 @@ async function refresh({ force = false, retried = false } = {}) {
      *
      * ⚠️ 判据里带 `rec.at`：**还没查、也没缓存的桩先不计入**（`{at:0, ports:[], error:null}`），
      *   否则页面刚打开、一台都没查时就会报出一大堆「无效」，看着像坏了。
-     *   有缓存（`at>0`）但没数据的，说明这台确实拿不到 → 计入无效，这是对的。 */
+     *   有缓存（`at>0`）但没数据的，说明这台确实拿不到 → 计入无效，这是对的。
+     *
+     * ⚠️ v2.21：**只统计当前地址筛选范围内**的桩。
+     *   范围外的桩这一轮没查、`results` 里放的是上次缓存，
+     *   把它算进来会和 `render()` 里那个筛选后的 free 合计对不上
+     *   （一个含旧数据、一个不含），数字看着就像「越刷越多」。 */
     const paintRolling = () => {
       let free = 0, valid = 0, invalid = 0;
-      for (const rec of results) {
+      for (let i = 0; i < results.length; i++) {
+        if (!inScope[i]) continue;
+        const rec = results[i];
         const ports = rec && rec.ports;
         if (ports && ports.length) {
           valid += ports.length;
@@ -2932,16 +3589,119 @@ async function refresh({ force = false, retried = false } = {}) {
       setFreeRolling(free, valid, invalid);
     };
 
+    /* ④ 走 Worker 批量代打（出口换成 Cloudflare + 边缘缓存 5 分钟，多人共享）。
+     *
+     * 🔴 v2.11 的关键改动：**流式回填**。
+     *    老写法是「所有批次 await 完 → 才开始画」，109 台要 20 多秒，
+     *    这 20 多秒里界面全是旧数据、按钮一直在转 —— 用户看到的就是「刷新一直转圈」。
+     *    现在每批一回来立刻写缓存 + 重绘，第一批 2~5 秒就上屏。 */
+    let prefetched = null;
+    /* `PILE_DIRECT_ONLY` 为真时跳过整段代理取数 → 下面 `canDirect` 自动为真
+       → 全部交给 `loadDevice()` 逐台直连（并发 CONCURRENCY=6）。
+       注意**不要**顺手把 `credBoxAvailable()` 也改掉：它还管凭证同步。 */
+    if (!PILE_DIRECT_ONLY && credBoxAvailable() && targets.length) {
+      const applyChunk = (rows) => {
+        const cache1 = readCache();
+        let touched = 0;
+        for (const id of Object.keys(rows)) {
+          const i = idToIdx.get(id);
+          if (i === undefined) continue;      // 不是本轮目标（筛选范围外的桩）
+          const pre = rows[id];
+          /* `throttled`：平台侧每分钟的回源预算用完了（多半是别人也在刷），
+           * Worker 让我们这一轮降级成「用现有的」。**不能**当失败处理 ——
+           * 那会被计入 failedIdx、还可能触发 netFailStreak 整轮放弃。
+           * 直接跳过：results 里保留本轮开头铺的本地缓存，卡片显示不变。 */
+          if (pre && (pre.locked || pre.throttled)) continue;
+          let record;
+          if (pre && Array.isArray(pre.ports) && pre.ports.length) {
+            record = { at: Number(pre.at) || Date.now(), ports: pre.ports, error: null, cached: false };
+            const row = buildShareRow(id, record);
+            if (row) toShare.push(row);
+            netFailStreak = 0;
+          } else {
+            record = {
+              at: Date.now(),
+              ports: [],
+              error: (pre && pre.error) || '平台没响应（代理没返回这台）',
+              auth: !!(pre && pre.auth),
+            };
+            if (record.auth) { lastError = AUTH_ERROR; aborted = true; }
+            else {
+              if (!lastError) lastError = record.error;
+              netFailStreak = isNoResponseError(record.error) ? netFailStreak + 1 : 0;
+              if (netFailStreak >= NET_FAIL_LIMIT && !aborted) { aborted = true; netAbort = true; }
+            }
+            if (failedIdx.indexOf(i) < 0) failedIdx.push(i);
+          }
+          cache1[id] = record;
+          results[i] = record;
+          done += 1;
+          touched += 1;
+        }
+        if (!touched) return;
+        store.set(KEY_CACHE, cache1);
+        setProgress(done, targets.length);
+        setBusy(true, (only ? '补 ' : '') + done + '/' + targets.length);
+        paintRolling();
+        render(devices, results);
+      };
+
+      prefetched = await pileProxyBatch(
+        targets.map((i) => devices[i].id),
+        applyChunk,
+        () => aborted,
+        /* 🔴 一律 fresh：refresh() 的语义就是「现在要一份新的」。
+         * 平台侧不会被这行打爆 —— Worker 有「缓存年龄 90 秒内直接复用」+
+         * 「全站回源锁」两道闸（见 _worker.js 的 PILE_FRESH_MIN / PILE_LOCK_TTL）。 */
+        { fresh: true },
+      );
+      pileMeta = { ...lastPileMeta };
+    }
+
+    /* 代理覆盖率决定「缺口」怎么处理：
+     *  · 高覆盖（≥80%）→ 缺口逐台直连兜底，只剩几台，代价可接受；
+     *  · 拿不到 / 低覆盖 → **不**退回「109 台全直连」。那条路在本机出口被平台丢包时
+     *    就是每台 17 秒，正是「慢 + 一直转圈」的来源。改成给一条明确结果，让用户再点一次。 */
+    const gotN = prefetched ? Object.keys(prefetched).length : 0;
+    const canDirect = !prefetched || (targets.length > 0 && gotN / targets.length >= 0.8);
+
     const worker = async () => {
       while (!aborted) {
         const k = cursor++;
         if (k >= targets.length) return;
         const i = targets[k];
         const device = devices[i];
-        const record = await loadDevice(device, { force });
+        /* 代理给过结论的（成功或业务失败）已在 applyChunk 里写过一遍 —— 这里直接跳过，
+         * 既不重复计数，也不把省下来的请求原样打回平台。 */
+        if (prefetched && prefetched[device.id] !== undefined) continue;
+
+        let record = null;
+        if (canDirect) {
+          record = await loadDevice(device, { force: force || !!only });
+        } else {
+          record = {
+            at: Date.now(),
+            ports: [],
+            error: '平台没响应（本轮没覆盖到，再点一次刷新就重试）',
+            auth: false,
+          };
+        }
         if (record.error) {
+          if (failedIdx.indexOf(i) < 0) failedIdx.push(i);   // 收尾时只补这几台
           if (record.auth) { lastError = AUTH_ERROR; aborted = true; }
-          else if (!lastError) lastError = record.error;
+          else {
+            if (!lastError) lastError = record.error;
+            /* 平台侧不响应（超时/连接断）会连续命中同一种错误 —— 攒够 NET_FAIL_LIMIT
+             * 台就提前结束这一轮，别让用户对着转圈等两三分钟。查到一台好的就清零，
+             * 所以「个别桩坏掉」这种正常情况不会被误判。 */
+            netFailStreak = isNoResponseError(record.error) ? netFailStreak + 1 : 0;
+            if (netFailStreak >= NET_FAIL_LIMIT && !aborted) {
+              aborted = true;
+              netAbort = true;
+            }
+          }
+        } else {
+          netFailStreak = 0;
         }
         results[i] = record;
         // 真正从平台查到的新结果才回写云端（缓存命中/失败/格式异常的不写）
@@ -2951,6 +3711,7 @@ async function refresh({ force = false, retried = false } = {}) {
         }
         done += 1;
         setProgress(done, targets.length);
+        setBusy(true, (only ? '补 ' : '') + done + '/' + targets.length);
         paintRolling();          // 卡片上的空闲数/副标每次也刷新（73 台 × 73 次遍历，可忽略）
         paintThrottled();
       }
@@ -2962,17 +3723,20 @@ async function refresh({ force = false, retried = false } = {}) {
     render(devices, results);   // 收尾时补一次，把最后几台也画上
     // ③ 批量回写云端，供其他设备复用（不阻塞界面）
     if (toShare.length) cloudWriteShared(toShare);
-    // ④ 落历史快照（尽力而为，不阻塞）：把此刻「所有桩」的全景存一条，供使用率统计
-    const histRecords = devices.map((d, i) => {
+    /* ④ 落历史快照（尽力而为，不阻塞界面）。
+     * 🔴 只写**本轮查询范围内**的桩。原来是把整个 `results` 都写进去，
+     *    而范围外的 results 是上次缓存（可能是几小时前的），
+     *    被当成「此刻的全景」写进历史会把使用率统计整体带偏。 */
+    const histRecords = targets.map((i) => {
       const rec = results[i];
       if (!rec || !rec.ports || !rec.ports.length) return null;
-      return { deviceId: d.id, location: d.location || '', ports: rec.ports };
+      return { deviceId: devices[i].id, location: devices[i].location || '', ports: rec.ports };
     }).filter(Boolean);
     if (histRecords.length) writeHistory(histRecords);
     needRecover = lastError === AUTH_ERROR;
   } finally {
     busyFlag = false;
-    $('refresh').disabled = false;
+    setBusy(false);
     hideProgress();
   }
 
@@ -2983,14 +3747,52 @@ async function refresh({ force = false, retried = false } = {}) {
   if (amapActive && window.CHD_AMAP) window.CHD_AMAP.setPiles(amapDevices(), { keepCamera: true });
 
   // 凭证失效时先从云端换一次再重试 —— 这就是「手机不用管」的关键一环
-  if (needRecover && !retried && getSyncKey() && cloudSupport()) {
-    const pulled = await cloudAutoSync({ force: true });
+  if (needRecover && !retried && getSyncKey() && (cloudSupport() || credBoxAvailable())) {
+    const pulled = await remoteAutoSync({ force: true });
     if (pulled && pulled.applied) {
-      paintBanner('云端有新凭证，已自动换上，正在重查…', false);
+      paintBanner('收到新凭证，已自动换上，正在重查…', false);
       return refresh({ force: true, retried: true });
     }
   }
   if (needRecover) paintBanner(AUTH_ERROR, true);
+  else if (netAbort) {
+    /* 整片没响应 = 大概率是这个出口 IP 被平台风控了（换设备也一样，换网络才好）。
+     * 这时候最忌讳「继续打」：请求越密，封得越久。所以自动刷新直接静默 10 分钟，
+     * 只保留用户手点 —— 手点是他明确的意图，不该被系统拦住。 */
+    autoCooldownUntil = Date.now() + AUTO_COOLDOWN_MS;
+    paintBanner('平台连续 ' + NET_FAIL_LIMIT + ' 台都没响应，已提前结束本轮查询，'
+      + '并暂停自动刷新 10 分钟（手动点「刷新」不受影响）。'
+      + '多半是这个网络的出口 IP 被平台限流了：换手机流量试试，或者过一会儿再来。', true);
+  } else if (pileMeta && pileMeta.throttled && !failedIdx.length) {
+    /* 平台侧每分钟的回源预算用完了（自己连点，或同学同时在刷）。
+     * 说清楚「为什么这次没变新」，否则用户只会觉得又坏了。 */
+    paintBanner('这一分钟查得太多，平台那边让先缓一下 —— 这次先用已有的结果（'
+      + (pileMeta.oldestAge > 0 ? Math.round(pileMeta.oldestAge) + ' 秒前' : '刚查到')
+      + '）。过十几秒再点一次就是最新的。', false);
+  } else if (pileMeta && !pileMeta.fetched && pileMeta.hit > 0 && !failedIdx.length) {
+    /* 平台侧缓存还在有效期内（90 秒内刚有人查过），这一轮一台都没真回源。
+     * 这本来就是对的 —— 但得让用户知道时间戳为什么不是「刚刚」。 */
+    paintBanner('平台这边 ' + Math.max(1, Math.round(pileMeta.oldestAge)) + ' 秒前刚更新过，'
+      + '直接用了那份结果（再点也是它）。', false);
+  }
+
+  /* 这一轮期间用户又点过「刷新」→ **只补查本轮失败的那几台**（通常 0~4 台，一两秒）。
+   * 🔴 不再无条件再跑一整轮：一轮 20 多秒，用户等急了连点几次就会「转完立刻又转」，
+   *    永远停不下来 —— 这正是本次线上「一直转圈」的真因。 */
+  if (pendingTargets) {
+    pendingTargets = false;
+    /* 补查上限 24 台：超过这个数就又是一整轮全量了，等于没修掉「转完又转」。 */
+    const retryList = failedIdx.slice(0, 24);
+    if (retryList.length && !busyFlag && !netAbort && lastError !== AUTH_ERROR) {
+      const left = failedIdx.length - retryList.length;
+      if (left > 0) {
+        paintBanner('先补查这次没查通的 ' + retryList.length + ' 台，还剩 ' + left + ' 台，下次再点刷新', false);
+      }
+      setTimeout(() => refresh({ force: true, only: retryList }), 0);
+    } else if (!failedIdx.length && !netAbort && lastError !== AUTH_ERROR) {
+      paintBanner('已经是最新结果了（本轮 ' + done + ' 台全部查通）。', false);
+    }
+  }
 }
 
 /* ---------------- 交互 ---------------- */
@@ -3219,6 +4021,162 @@ async function cloudAutoSync({ force = false } = {}) {
   }
 }
 
+/* ---------------- 凭证信箱（Cloudflare KV，替代已停用的原云服务） ----------------
+ *
+ * 背景：2026-10-21 起原云端（WorkBuddy 云）到期/资源隔离，`cloudSupport()` 恒 false，
+ * 「7 天更新一次凭证、别人自动拿到」这条链断了。改造方案不依赖任何云数据库：
+ *
+ *   站长手机 → admin.html（输写口令）→ POST /api/cred → Cloudflare KV（只存密文）
+ *   同学打开 → GET /api/cred → 比本机新就解密 → applyToken() 覆盖 → 刷新
+ *
+ * 三条硬约束，改动时别破坏：
+ *   ① 只有 `/api/*` 进 Worker（见 tools/cloudflare/_routes.json），静态站不耗函数额度；
+ *   ② `/api/*` 必须排除出 Service Worker 缓存，否则手机永远读到第一份密文（见 sw.js）；
+ *   ③ 加解密沿用 `sealToken`/`unsealToken`（PBKDF2 20 万轮 + AES-GCM），与老云端同一格式，
+ *      密钥仍取 `getSyncKey()`（默认内置密钥 = 「任何人打开即用」模式）。
+ */
+const KEY_BOX_TS = 'cpk.boxTs';
+const BOX_PATH = '/api/cred';
+
+/* 平台查询代理（Worker 批量代打 + 边缘缓存，见 tools/cloudflare/_worker.js）。
+ * 存在的理由只有一个：平台对**出口 IP** 有风控 —— 浏览器直连要一口气打 109 个请求，
+ * 会被整片超时（2026-10-23 实测：换电脑换手机都一样，只有换网络才恢复）。
+ * 走 Worker 后出口换成 Cloudflare，且结果按台缓存 5 分钟，多人共享。 */
+const PILE_PROXY_PATH = '/api/pile';
+/* 🔴 一批 12 台，**不是** 40（2026-10-24 实测修正）。
+ * 平台对同一出口的并发有硬上限：20 并发 1.9 秒全成；30 并发约 1/3 超时；
+ * 40 并发只剩 3 台成功。原来一批 40 台 → Worker 内部 40 并发 → 整批超时 →
+ * 页面判定「连续 3 台没响应」→ 整轮放弃，表现就是「一直加载不出来」。
+ * 12 台一批 + Worker 内部 6 路并发 = 每批约 3~4 秒，稳。 */
+const PILE_PROXY_CHUNK = 12;
+/* 页面这边同时跑几条流水线（每条 = 一个 /api/pile 请求 = Worker 内 6 并发）。
+ * 6 × 2 = 12 个平台并发，仍在实测安全区（20 并发 1.9 秒全成）以下。
+ * 🔴 别再往上加到 3：3 条 = 18 并发，2026-10-24 深夜实测成功率掉到 35%
+ *    （那一轮也可能是平台自己在抖，但那已经是「没有余量」的位置，不值得赌）。 */
+const PILE_LANES = 2;
+const PILE_PROXY_TIMEOUT_MS = 25000;
+
+/* 🔴 2026-10-25（产品方要求）：**刷新取数退回浏览器直连平台**。
+ *
+ * 为什么不直接把 `credBoxAvailable()` 里那行 `if (cloudSupport()) return false;`
+ * 加回去：那个函数不只管取数，还管 ① 凭证信箱 `remoteAutoSync()` ② 凭证框 `#cred`
+ * ③ 凭证失效后的自动换新。整行退回去会把这些一起拖回「老云端」，而本站域名
+ * （workbuddy.host）下的老云端 `.cloud/**` 早就隔离了 —— 刷新是救回来了，
+ * 凭证链反而断了。产品方要的是「**只改刷新**」，所以这里只切取数路径：
+ *
+ *   走反代（false）：浏览器 → serve_gzip.py → pages.dev Worker → 平台
+ *                   （跨境两跳，实测首屏 10.1 秒）
+ *   走直连（true） ：浏览器 → union.zhuanggroup.com
+ *                   （国内直达，并发 6、单台 8 秒超时、失败自动重试一次）
+ *
+ * `credBoxAvailable()` 保持原样为真：凭证仍从信箱 / `/api/cred` 取，
+ * 只是不再拿它去打批量取数。
+ *
+ * 逃生口：URL 带 `?pileproxy=1` 可单次切回反代（出口打不通平台时救急用，
+ * 也是测试用的 —— 桩服务只实现了 `/api/pile`，数据类断言必须走反代才算得出数）。
+ */
+const PILE_DIRECT_ONLY = !/[?&]pileproxy=1(&|$)/.test(location.search || '');
+
+/** 信箱只在「老云端不可用」时启用：老站域名继续走原来的路，互不干扰。 */
+function credBoxAvailable() {
+  try {
+    /* 本地自测钩子：`?box=1` 让 127.0.0.1/localhost 也走信箱，
+       否则「本地预览一律没有接口」这条判断会把信箱一起挡掉，没法在本机验全链路。
+       线上域名不受影响（它不是 localhost，这个分支根本走不到）。 */
+    let forced = false;
+    try {
+      forced = /[?&]box=1(&|$)/.test(location.search || '');
+    } catch (e) {
+      forced = false;
+    }
+    if (isLocalPreview() && !forced) return false;
+    /* 🔴 2026-10-25 删掉了原来这一行 `if (cloudSupport()) return false;`
+     *    —— 它的语义是「老域名优先走原来的云同步，别碰信箱/代理」。
+     *
+     *    但 workbuddy.host 就是这个「老域名」（`cloudSupport()` 靠
+     *    `location.hostname === PUBLIC_CONFIG.endpoint 的主机名` 判定），于是
+     *    `refresh()` 里的 `if (credBoxAvailable() && targets.length)` 恒假 →
+     *    **退回 109 台直连平台** → 被平台按出口 IP 风控 → 连续 5 台没响应 →
+     *    整轮提前放弃，页面一台桩都查不到（线上实测过，banner 就是那句
+     *    「平台连续 5 台都没响应…」）。
+     *
+     *    而且这个域名下的云服务其实已经隔离，`.cloud/**` 那条路本身也不通。
+     *    现在它有了 `/api/*` 反代（serve_gzip.py → 主站 Worker），能力与
+     *    pages.dev 完全一致，所以判据改成「**有接口能力就用接口**」。
+     *    云同步并没有被关掉：`cloudReadShared()` / `cloudWriteShared()` 里各自
+     *    还有 `cloudSupport()` 判断，该用的时候照用；两条路都带时间戳防倒退。 */
+    if (!/^https?:$/.test(location.protocol)) return false;
+    return typeof fetch === 'function' && Boolean(crypto && crypto.subtle);
+  } catch (e) {
+    return false;
+  }
+}
+
+/** 拉信箱并把结果对齐到本机。比本机见过的旧就什么都不做，避免把刚导入的凭证冲掉。
+ *  `signal` 由 remoteAutoSync 传进来，用于 4 秒硬超时（见 BOX_TIMEOUT_MS）。 */
+async function credBoxPull(syncKey, opts) {
+  const signal = opts && opts.signal;
+  const res = await fetch(BOX_PATH, { cache: 'no-store', headers: { accept: 'application/json' }, signal });
+  if (!res.ok) throw new Error('信箱返回 ' + res.status);
+  const data = await res.json();
+  if (!data || !data.ok) throw new Error((data && data.error) || '信箱内容异常');
+  if (!data.exists) return { applied: false, empty: true, source: 'box' };
+
+  const stamp = Number(data.updatedAt) || 0;
+  const local = Number(store.get(KEY_BOX_TS, 0)) || 0;
+  if (stamp <= local) return { applied: false, source: 'box' };
+
+  let pack;
+  try {
+    pack = JSON.parse(data.data);
+  } catch (e) {
+    return { applied: false, message: '信箱内容损坏，等站长重新上传', source: 'box' };
+  }
+  if (!pack || !pack.salt || !pack.cipher) {
+    return { applied: false, message: '信箱内容格式不对，等站长重新上传', source: 'box' };
+  }
+  const token = await unsealToken(syncKey, pack.salt, pack.cipher);
+  const result = applyToken(token);
+  if (!result.ok) return { applied: false, message: result.message, source: 'box' };
+  store.set(KEY_BOX_TS, stamp);
+  return { applied: true, stamp, note: data.note || '', source: 'box' };
+}
+
+/**
+ * 统一入口：有信箱用信箱，否则回落老云端。
+ * 与 `cloudAutoSync` 同样的 60 秒节流 —— 来回切标签页不该反复打接口。
+ */
+async function remoteAutoSync({ force = false } = {}) {
+  const syncKey = getSyncKey();
+  if (!syncKey) return null;
+  if (!credBoxAvailable()) return cloudAutoSync({ force });
+
+  const lastCheck = Number(store.get(KEY_CLOUD_CHECK, 0)) || 0;
+  if (!force && Date.now() - lastCheck < CLOUD_RECHECK_MS) return null;
+  store.set(KEY_CLOUD_CHECK, Date.now());
+  /* 4 秒硬超时：拿不到就当没有，让 refresh 用本机凭证照常查。
+   * 超时是**静默**的（不弹横幅）—— 绝大多数时候本机凭证本来就是对的，
+   * 为一次没赶上的信箱请求在首屏挂个红条，比不提示更糟。 */
+  const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timer = ctl ? setTimeout(() => ctl.abort(), BOX_TIMEOUT_MS) : null;
+  try {
+    return await credBoxPull(syncKey, { signal: ctl ? ctl.signal : undefined });
+  } catch (e) {
+    if (e && (e.name === 'AbortError' || /abort/i.test(e.message || ''))) {
+      console.warn('[box] 信箱 4 秒未响应，本轮跳过，用本机凭证继续');
+      return { applied: false, source: 'box', timeout: true };
+    }
+    const wrongKey = e && (e.name === 'OperationError' || /decrypt|operation/i.test(e.message || ''));
+    return {
+      applied: false,
+      source: 'box',
+      message: wrongKey ? '信箱里的凭证解不开（密钥不一致），需要站长重新上传' : (e.message || '信箱连不上'),
+    };
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 /* ---------------- 多设备共享查询结果 ---------------- */
 
 const SHARE_TABLE = 'pile_state';
@@ -3296,7 +4254,10 @@ async function cloudPullDevices({ force = false } = {}) {
      *   真要长期删掉，得同时把它从 `SCHEMA_ADDED_LOCATIONS` 里摘掉）。
      * 云端那份本身会在**管理员点一次「保存」时**被推成 97 台，之后各机拉到的就是全量。 */
     const adopted = appendNewLocationDevices(data.devices, 0);
-    store.set(KEY_DEVICES, adopted.list);
+    /* v2.23：**采纳云端清单时也要过一遍改名/归一化**。
+     * 云端那份是别的设备按旧名字推上去的，原样存下来会让改名白做（本地又变回旧名字）。
+     * `normKey()` 同时做两件事：连字符归一化 + `LOCATION_RENAMES` 改名。 */
+    store.set(KEY_DEVICES, adopted.list.map((d) => ({ ...d, location: normKey(d.location) })));
     store.set(KEY_DEVICES_SCHEMA, DEVICE_SCHEMA);  // 云端清单都是新格式
     store.set(KEY_DEVICES_TS, remoteStamp);
     if (adopted.added.length) {
@@ -4026,12 +4987,24 @@ function paintCloudState() {
 
   const syncKey = getSyncKey();
   const supported = cloudSupport();
+  const box = credBoxAvailable();
 
-  if (!supported) {
+  if (!supported && !box) {
     state.textContent = isLocalPreview()
       ? '本地预览没有云端：同步、凭证共享这些接口只认线上域名，不是被删了。'
       : '当前域名不在云端白名单里，同步与凭证共享不生效。';
     actions.hidden = true;
+    return;
+  }
+
+  // 凭证信箱：站长每周更新一次，这里只说「本机什么时候取到的」
+  if (box) {
+    const stamp = Number(store.get(KEY_BOX_TS, 0)) || 0;
+    state.textContent = stamp
+      ? `已接入凭证信箱。本机凭证取于 ${fmtTime(new Date(stamp))}`
+      : '已接入凭证信箱，正在取第一份凭证。';
+    actions.hidden = !syncKey;
+    if (note) note.textContent = '';
     return;
   }
 
@@ -4164,17 +5137,20 @@ $('cloud-now').addEventListener('click', async () => {
   if (!syncKey) return;
   cloudNote('正在取…', true);
   try {
-    const pulled = await cloudPull(syncKey);
-    store.set(KEY_CLOUD_CHECK, Date.now());
+    const pulled = await remoteAutoSync({ force: true });
     paintCloudState();
-    if (pulled.applied) {
-      cloudNote('云端有更新的凭证，已换上。', true);
+    if (pulled && pulled.applied) {
+      cloudNote('拿到更新的凭证，已换上。', true);
       $('settings-dialog').close();
       await refresh({ force: true });
       return;
     }
-    if (pulled.empty) {
-      cloudNote('云端还没有凭证。电脑看板开着的话，它会自己传上来。', false);
+    if (pulled && pulled.empty) {
+      cloudNote('信箱还是空的，等站长更新。', false);
+      return;
+    }
+    if (pulled && pulled.message) {
+      cloudNote(pulled.message, false);
       return;
     }
     cloudNote('已是最新的凭证，不需要换。', true);
@@ -4220,13 +5196,18 @@ $('cards').addEventListener('click', (event) => {
  * 没有才真正请求平台；查到新结果后照常回写云端，让其他设备也能复用。
  */
 async function retryDevice(deviceId) {
-  if (busyFlag) return;
+  if (busyFlag) {
+    /* 忙时提示一句就走。老代码会把「下一整轮全量刷新」排上，结果这一台没查、
+     * 反而多转 20 多秒 —— 单台重查没必要为了排队把整轮重跑一遍。 */
+    paintBanner('正在更新中，等这一轮结束再点这一台就行（不用重复点）。', false);
+    return;
+  }
   const devices = getDevices();
   const device = devices.find((d) => d.id === deviceId);
   if (!device) return;
 
   busyFlag = true;
-  $('refresh').disabled = true;
+  setBusy(true);
   try {
     let record = null;
 
@@ -4257,7 +5238,7 @@ async function retryDevice(deviceId) {
     }
   } finally {
     busyFlag = false;
-    $('refresh').disabled = false;
+    setBusy(false);
   }
 }
 
@@ -4376,8 +5357,10 @@ function tryOpenSettings() {
   setTimeout(() => $('password-input').focus(), 60);
 }
 
-/** 打开「设备与设置」：先显示云端同步界面（管理员入口在弹窗右下角） */
+/** 打开「云端设备同步」弹窗（设置按钮直接进这里；管理员入口在弹窗右下角） */
 function openSyncDialog() {
+  // v2.23：凭证框搬进这个弹窗了 → 每次打开都刷一遍状态（可能刚过期、或别的设备续上了）
+  paintCred();
   $('sync-note').className = 'note';
   $('sync-note').textContent = '';
   $('sync-password-input').value = '';
@@ -4517,6 +5500,10 @@ $('map-zones').addEventListener('click', (event) => {
 $('map-zoom-in').addEventListener('click', () => zoomAt(1.3));
 $('map-zoom-out').addEventListener('click', () => zoomAt(1 / 1.3));
 $('map-overview').addEventListener('click', fitOverview);
+/* 「← 总览」：走 switchMap('amap') 而不是直接 CHD_AMAP.setView('campus') ——
+ * 如果当前停在「物业服务中心」页签，引擎里只有那 12 台，直接 setView 会得到
+ * 「总览视角 + 只有 12 个点」的假象；switchMap 会把全量 109 台重新灌一遍。 */
+$('map-back').addEventListener('click', () => switchMap('amap'));
 bindMapGestures();
 
 $('devices-reset').addEventListener('click', () => {
@@ -4547,6 +5534,20 @@ $('devices-save').addEventListener('click', async () => {
 document.querySelectorAll('[data-close]').forEach((btn) => {
   btn.addEventListener('click', () => btn.closest('dialog').close());
 });
+
+/* 致谢 & 贡献名单：副标题里那个下划线链接。
+   用 `showModal()` 而不是 `setAttribute('open')` —— 只有 showModal 才给
+   点击遮罩关闭 / ESC 关闭 / 焦点锁在弹窗内（无障碍）。极老的 WebView
+   没有 showModal 时退回 open 属性，至少点得开。 */
+(function bindThanks() {
+  const trigger = $('thanks-open');
+  const dlg = $('thanks-dialog');
+  if (!trigger || !dlg) return;
+  trigger.addEventListener('click', () => {
+    if (typeof dlg.showModal === 'function') dlg.showModal();
+    else dlg.setAttribute('open', '');
+  });
+})();
 
 /* ---------------- 页脚 QQ 群号：唤起 QQ，失败给兜底 ---------------- */
 
@@ -4607,15 +5608,37 @@ document.querySelectorAll('[data-close]').forEach((btn) => {
 /* ---------------- 自动刷新 ---------------- */
 
 let autoTimer = null;
+/* 平台风控静默期截止时间（见 AUTO_COOLDOWN_MS） */
+let autoCooldownUntil = 0;
 
 function applyAutoRefresh() {
-  if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+  if (autoTimer) { clearTimeout(autoTimer); clearInterval(autoTimer); autoTimer = null; }
   applyHourlyHistory();
   if (store.get(KEY_AUTO, true) === false) return;
-  autoTimer = setInterval(() => {
+  /* 🔴 链式 setTimeout，**不是**固定节拍的 setInterval。
+   *
+   * 差别就在「一个间隔从哪一刻开始算」：
+   *   · setInterval：从**上一轮开始**算。单轮一旦超过间隔（平台上 73 台里有几台超时
+   *     就到了），下一拍永远在忙 → 背靠背一轮接一轮，中间没有一刻空闲。
+   *   · 链式：从**上一轮结束**算。跑完先歇满一个间隔再开下一轮，界面一定有时间停下来。
+   *
+   * 2026-10-23 线上 v2.06 的「刷新图标一直转、数据也不更新」就是这么来的：
+   * 慢查询 + 固定节拍 + 忙时排队补跑，三者叠成永久自锁。
+   *
+   * ⚠️ 顺序不能调：先把下一拍排上，再去跑本轮。这样 refresh() 里万一抛异常，
+   *    自动刷新的链条也不会断掉。 */
+  const nextDelay = () => AUTO_REFRESH_MS + (Math.random() * 2 - 1) * AUTO_JITTER_MS;
+  const tick = () => {
+    autoTimer = setTimeout(tick, nextDelay());
     if (document.hidden) return;
-    refresh();
-  }, THROTTLE_MS);
+    if (busyFlag) return;                  // 用户正在手动刷新 → 这一拍让路，不排队、不叠加
+    if (Date.now() < autoCooldownUntil) return;   // 刚被平台风控过 → 静默一阵再试
+    /* 🟢 2026-10-23 v2.09：自动刷新**只打 1 个「站点汇总」请求**，不再逐台查。
+     * 逐台明细只交给两个真人动作：手点「刷新」、换「地址筛选」下拉。
+     * 理由见 `refreshOverview()` 上方那段 —— 逐台 × 高频 = 把出口 IP 打进风控。 */
+    refreshOverview();
+  };
+  autoTimer = setTimeout(tick, nextDelay());
 }
 
 /* ---------------- 历史快照：每小时保底采集 ----------------
@@ -4655,6 +5678,8 @@ function applyAutoRefresh() {
  * 第一版我让它调 `refresh({ force: true })`，结果发现那会**当着用户的面**跑一整套 UI 流程：
  *   · `setProgress()` 弹出「正在查询 x/73 个位置」进度条
  *   · `$('refresh').disabled = true` 把刷新按钮锁灰
+ *     （⚠️ 2026-10-23 起按钮**不再禁用**，只加 `is-busy` 转圈标记、点击改为排队；
+ *      但下面那几条「惊动用户」的问题依旧成立，采集仍然不该复用 refresh()）
  *   · 每查完几台就 `render()` 重绘一次卡片
  *   · 73 台 ÷ 并发 6 ≈ 13 轮，每轮 `sleep(800)` ≈ 10.4 秒 + 网络往返 → **共 14~16 秒**
  * 也就是说：用户打开页面 20 秒后，会突然看到一次持续十几秒的全量刷新，
@@ -4801,14 +5826,17 @@ document.addEventListener('visibilitychange', async () => {
   const stamps = Object.values(cache).map((r) => r.at || 0);
   const newest = stamps.length ? Math.max(...stamps) : 0;
   // 从后台切回来先去云端对一次：电脑那边可能已经换了新凭证
-  const merged = await cloudAutoSync();
+  const merged = await remoteAutoSync();
   // 注意：切回前台也不自动同步清单 —— 必须输密码才同步
   if (merged && merged.applied) {
-    paintBanner('已自动换上云端的新凭证。', false);
+    paintBanner('已自动换上最新的凭证。', false);
     await refresh({ force: true });
     return;
   }
-  if (Date.now() - newest > THROTTLE_MS) refresh();
+  /* 切回前台：先拿一个实时总数（1 个请求，代价可以忽略）；
+     逐台明细只在「确实放旧了」的时候补一次 —— 别一回来就 109 个请求砸过去。 */
+  refreshOverview({ force: true });
+  if (Date.now() - newest > AUTO_REFRESH_MS) refresh();
   else paintCred();
 });
 
@@ -4862,8 +5890,27 @@ async function boot() {
    * 把页脚和下方内容整体推下去，实测 CLS 0.32（Google 阈值 0.1 才算「良好」）。
    * 提前调用后首屏布局就是最终布局，位移消失；云端回来后 L3989 仍会再调一次刷新状态。 */
   paintCred();
+  /* ⚡ 2026-10-23 首屏提速：本地缓存先把界面铺满，**不等任何网络**。
+   * 原来第一帧卡片要等 consumeSyncHash → remoteAutoSync → refresh 三个网络往返，
+   * 期间 #cards 是空的、#toolbar 还是 hidden，用户看到的就是「打开后要等一会儿才出界面」。
+   * 这里先用本机缓存同步 render 一次，卡片/统计/工具栏立刻出现；
+   * 后面的 refresh 会用平台新数据再覆盖一遍，视觉上只是数字刷新，不会闪空。
+   * 纯本地操作（localStorage + 一次字符串拼接），实测 < 20ms。 */
+  seedFirstPaint();
+  /* 这三个都是纯同步的 DOM 绑定，没有理由排在网络后面：
+   * 一旦信箱请求慢，工具栏下拉和「前台自动更新」会跟着一起失效，用户点了没反应。 */
+  bindToolbar();
+  bindAutoToggle();
+  applyAutoRefresh();
+
+  /* 全站汇总只要 1 个请求、几百毫秒，和下面那条「查明细」的长链路并行跑。
+     （`#live-line` 已删，它现在只负责把 `at` 落进缓存做去重锚点。）不 await，不挡路。 */
+  refreshOverview();
+
   const sync = await consumeSyncHash();
-  const merged = await cloudAutoSync({ force: Boolean(sync && sync.syncKey) });
+  /* 每次整页打开都强制对一次信箱：KV 读一次很便宜，而且「站长刚换完、同学正好刷新」
+     这种情况必须立刻拿到新凭证。切标签页那条路仍走 60 秒节流（remoteAutoSync 内部）。 */
+  const merged = await remoteAutoSync({ force: credBoxAvailable() || Boolean(sync && sync.syncKey) });
   // 注意：这里不再自动同步设备清单 —— 清单同步必须输密码（在同步弹窗里手动触发）
 
   let text = '';
@@ -4886,12 +5933,17 @@ async function boot() {
   if (text) paintBanner(text, bad);
 
   paintCred();
-  bindToolbar();
-  bindAutoToggle();
-  applyAutoRefresh();
   // 首屏不用等：把两张小底图丢到空闲时段预热，之后点「地图」就是秒开
   warmBaseMaps();
-  await refresh({ force: Boolean((sync && sync.ok) || (merged && merged.applied)) });
+  refresh({ force: Boolean((sync && sync.ok) || (merged && merged.applied)) });
+  /* 高德脚本也放到首屏之后再预热 —— 放在 refresh 之前会跟首屏那一轮查询抢带宽。
+   * 只拉脚本不 mount，等用户真点「查找」时才建地图（那时脚本已在 HTTP 缓存里）。
+   *
+   * 🔴 2026-10-25 去掉 `await`：原来是「本轮刷新跑完 → 才预热」，
+   * 而线上走 Cloudflare + 109 台，一轮要 20~30 秒 → **预热永远来不及**，
+   * 用户点「地图」时脚本还没下载完，白占带宽还看不出效果。
+   * 现在刷新照常在后台跑，6 秒后再预热（那时首屏前几批已上屏，不抢带宽）。 */
+  setTimeout(() => warmAMap(), 6000);
 }
 
 /* ---- 内测版门禁：未解锁就不 boot，避免替没权限的人发请求 ---- */

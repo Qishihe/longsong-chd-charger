@@ -122,6 +122,7 @@
   <div class="toc">
     <a href="#what">这是什么</a>
     <a href="#pc">电脑微信</a>
+    <a href="#fiddler">Fiddler</a>
     <a href="#ios">iPhone</a>
     <a href="#android">安卓</a>
     <a href="#after">粘回去之后</a>
@@ -146,12 +147,50 @@
       <li>按提示 <b>安装根证书</b>：Windows 弹窗里选「将所有的证书都放入下列存储」→ 浏览 → <b>受信任的根证书颁发机构</b> → 完成 → 安全警告点「是」。Mac 则在钥匙串里把它设为「始终信任」。</li>
       <li><b>完全退出微信</b>（托盘图标右键退出，不是关窗口），再重新打开，让它走新代理。</li>
       <li>在微信里打开小程序「街电」，随便点一个柜机，让它发一次查询。</li>
-      <li>回到 Reqable，请求列表里筛 <code>zhumanggroup</code>，找到 <code>POST /api/rent/scan-code</code>。</li>
+      <li>回到 Reqable，请求列表里筛 <code>zhuanggroup</code>，找到 <code>POST /api/rent/scan-code</code>。</li>
       <li>点开它 → <b>请求</b> 标签 → <b>请求头</b> → 找 <code>authorization</code>，复制 <code>Bearer</code> 后面那一整串（<b>不要带 Bearer 和空格</b>）。</li>
       <li>回看板，点「更新」→ 粘贴 → <b>校验并保存</b>。看到「已通过校验」就成了。</li>
     </ol>
     <div class="note warn">第 4 步别漏。微信在启动时就把代理读进去了，不重启的话列表里永远是空的。</div>
+    <div class="note warn"><b>电脑上别扫柜机上的二维码</b> —— 那多半是「小程序码」，电脑微信打不开，
+      会提示「请在手机上打开」。这不是故障，也用不着修：改用小程序里的
+      <b>附近列表 / 地图 / 搜索店名</b> 点进柜机详情就行。
+      连柜机都不用点也行 —— 小程序首页加载时的鉴权请求就带着同一串 <code>authorization</code>。</div>
     <div class="note">抓完把系统代理关掉、证书留着也无所谓（留着下次还能用）。</div>
+    <div class="note">只是想自己用：粘进看板就行，只影响你这台设备。<b>想让所有人都换上</b>：
+      打开 <code>/admin.html</code>，填写口令后粘贴上传 —— 别人下次打开就会自动取到新的。</div>
+  </div>
+
+  <div class="card" id="fiddler">
+    <h2>方法一·备选：Fiddler <span class="tag">Windows 老手</span></h2>
+    <p class="lead">本来就装着 Fiddler Classic 的话不用换工具，只是它跟 Reqable 有三处不一样</p>
+    <ol>
+      <li><b>必须开 HTTPS 解密</b>：Tools → Options → HTTPS →
+        勾上 <code>Capture HTTPS CONNECTs</code> 和 <code>Decrypt HTTPS traffic</code>
+        → 点 Actions → <b>Trust Root Certificate</b>，弹窗一路点「是」。
+        <br>这一步不做，列表里全是 <code>Tunnel to …:443</code>，看不到任何请求头。</li>
+      <li><b>确认端口</b>：Tools → Options → Connections，默认 <code>8888</code>。
+        只抓电脑就不用勾 <code>Allow remote computers to connect</code>。</li>
+      <li><b>完全退出微信再重开</b>（托盘图标右键退出，不是关窗口）。
+        Fiddler 的「系统代理」是改注册表实现的，微信只在启动那一刻读一次，不重启永远是空的。</li>
+      <li>小程序「街电」里点一台柜机，让那一次查询发出去。
+        <br><b>别扫柜机二维码</b>（小程序码在电脑微信里打不开），走「附近」列表点进去。</li>
+      <li><b>挑出目标请求</b>，两种都行：
+        <br>· 左下角黑色命令行敲 <code>?zhuanggroup</code> —— 匹配的行会高亮，其余灰掉；
+        <br>· 或者敲 <code>bpu https://union.zhumanggroup.com/api/rent/scan-code</code> 直接下断点，
+        请求一发出就停住。<code>bpu</code> 用完记得敲 <code>bpu</code> 再回车取消，不然会一直断。</li>
+      <li>选中那条 <code>POST /api/rent/scan-code</code> → 右侧 <b>Inspectors</b> →
+        上方 <b>Request Headers</b>（注意是上半区，下半区是响应）→ 找 <code>authorization</code>，
+        复制 <code>Bearer</code> 后面那一整串。</li>
+      <li>回 <code>/admin.html</code> 粘贴上传（或只看自己用就粘进看板）。整行带着 <code>authorization:</code>
+        一起复制也没关系，它会自己挑出 <code>eyJ</code> 那串。</li>
+    </ol>
+    <div class="note warn">看到 <code>Tunnel to union.zhumanggroup.com:443</code> 且响应为空，
+      两种可能：<b>证书没信任</b>（回第 1 步重装）；或者这条请求走的是 <b>HTTP/2</b>，
+      Fiddler Classic 对 h2 的解析支持有限。看 <code>Protocol</code> 列，显示 <code>HTTP/2</code>
+      就别在 Fiddler 上耗了，换 Reqable 更快。</div>
+    <div class="note">Fiddler Everywhere 是收费的，<b>Classic 免费</b>够用；两者菜单位置不同，
+      上面写的都是 Classic（老版界面）。</div>
   </div>
 
   <div class="card" id="ios">

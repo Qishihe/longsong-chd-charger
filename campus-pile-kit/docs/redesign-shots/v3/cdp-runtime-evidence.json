@@ -1,0 +1,1005 @@
+{
+ "round1_initial_probe": {
+  "meta": {
+   "frames": [
+    {
+     "id": "EF40051ADCD916537862B007978A88BE",
+     "url": "file:///C:/Users/Administrator/WorkBuddy/2026-10-18-12-23-42/campus-pile-kit/chd-charge/_host-v3.html"
+    },
+    {
+     "id": "0FA259B358F354CCF2137F615E50E1C1",
+     "url": "file:///C:/Users/Administrator/WorkBuddy/2026-10-18-12-23-42/campus-pile-kit/chd-charge/preview-v3.html"
+    }
+   ],
+   "iframeCtx": 2,
+   "hostUrl": "edge://sync-confirmation-dialog/",
+   "targetUrl": "file:///C:/Users/Administrator/WorkBuddy/2026-10-18-12-23-42/campus-pile-kit/chd-charge/_host-v3.html",
+   "waitedMs": 10014
+  },
+  "geometry": {
+   "hostInner": [
+    492,
+    320
+   ],
+   "dpr": 2,
+   "iframeRect": [
+    0,
+    0,
+    390,
+    844
+   ]
+  },
+  "frameGeometry": {
+   "innerWidth": 390,
+   "innerHeight": 844,
+   "dpr": 2,
+   "docH": 1330,
+   "docW": 390
+  },
+  "shot1raw": "C:\\Users\\Administrator\\WorkBuddy\\2026-10-18-12-23-42\\campus-pile-kit\\docs\\redesign-shots\\v3\\_raw-host-01.png",
+  "B": {
+   "amapHostCount": 1,
+   "amapHostParentId": "map-stage",
+   "amapHostChildren": 0,
+   "hasCHD_AMAP": false,
+   "amapCanvasCount": 0,
+   "inMainPage": true
+  },
+  "B_extra": {
+   "mapTabsParent": "cp-mapslot",
+   "mapStageParent": "cp-mapslot",
+   "slotChildIds": [
+    "map-tabs",
+    "map-stage"
+   ],
+   "mapDialogOpen": false,
+   "mapDialogChildCount": 2,
+   "cardDataEngine": null,
+   "dialogDataEngine": null,
+   "amapHostDisplay": "none",
+   "mapStageDisplay": "block",
+   "mapStageRect": [
+    360,
+    360
+   ],
+   "amapHostRect": [
+    0,
+    0
+   ]
+  },
+  "C": {
+   "wrapDisplay": "block",
+   "wrapVisible": "visible",
+   "wrapHeight": 1211.15625,
+   "cpPageMapDisplay": "block",
+   "cpPageDevDisplay": "none"
+  },
+  "D": {
+   "s_free": "–",
+   "s_busy": "–",
+   "s_time": "–",
+   "app_ver": "版本 v2.12 · 内测",
+   "cardsChildCount": 0,
+   "cpDevCards": 0,
+   "emptyHidden": true
+  },
+  "D_extra": {
+   "stats": {
+    "hidden": true,
+    "text": "–空闲插座共统计 –/（–）插座\n    –正在充电\n    –更新时间"
+   },
+   "toolbar": {
+    "hidden": true,
+    "text": "全部地址\n      渭水-朝晖体育场南\n    \n    \n      按编号\n      目前空闲\n      收藏"
+   },
+   "empty": {
+    "hidden": true,
+    "text": ""
+   },
+   "cards": {
+    "hidden": false,
+    "text": ""
+   },
+   "banner": {
+    "hidden": true,
+    "text": ""
+   },
+   "guide": {
+    "hidden": false,
+    "text": "先接上一次\n    空位要凭小程序里的登录态才能查。随便谁抓一串粘进来就行 —— 粘完所有人都能用，7 天后谁再抓一次都"
+   },
+   "cred": {
+    "hidden": true,
+    "text": "凭证状态\n          \n        \n      \n      更新"
+   },
+   "sFreeSub": {
+    "hidden": false,
+    "text": "共统计 –/（–）插座"
+   },
+   "cpTabCount": {
+    "hidden": false,
+    "text": "–"
+   },
+   "cpDevnote": {
+    "hidden": false,
+    "text": "按地点分组，设备名与归属来自本地清单"
+   },
+   "cardCount": 0,
+   "cardSample": null,
+   "hasToken": false,
+   "lastError": null,
+   "busyFlag": false,
+   "topText": "测试预览版\n当前是待确认的测试版本，确认无误后才会更新到正式版\n返回正式版\n长安大学充电桩查询（测试中）\nby长歌 · 手机直连，不需要电脑\n刷新\n地图\n使用情况\n设置\n先接上一次\n\n空位要凭小程序里的登录态才能查。随便谁抓一串粘进来就行 —— 粘完所有人都能用，7 天后谁再抓一次都算续上，不用固定等某一个人。\n\n电脑微信打开小程序「街电」，随便点一个柜机\n用 Reqable 抓 union.zhumanggroup.com 的 authorization\n粘到下面，校验通过就自动共享给所有人\n从剪贴板导入\n手动粘贴\n不会抓？看这篇三分钟教程 →\n地图找桩\n全部设备\n–\n校园充电地图\n四张底图 · 方位示意\n渭水校区\n渭水-物流服务中心\n渭水-北门\n渭水-朝晖体育场南\n＋\n−\n全景\n有空位\n已满\n无数据\n▤\n地图\n▦\n设备\n有任何问题，欢迎联系 2742973313@qq.com\n或加入反"
+  },
+  "E_selectors": {
+   "usage-open": "id✓",
+   "open-settings": "id✓",
+   "refresh": "id✓",
+   "map-open": "id✓",
+   "cp-nav": "id✓",
+   "cp-tabs": "id✓",
+   "filter-location": "id✓",
+   "sort-by": "id✓"
+  },
+  "E_usage": {
+   "before": false,
+   "afterClick": true,
+   "modal": true,
+   "loadingHidden": false,
+   "bodyHidden": true,
+   "emptyHidden": true,
+   "noteText": ""
+  },
+  "E_usage_late": {
+   "open": true,
+   "loadingHidden": true,
+   "bodyHidden": true,
+   "emptyHidden": false,
+   "hourHTMLlen": 0,
+   "filterChildren": 0,
+   "noteText": ""
+  },
+  "E_usage_close": {
+   "open": false
+  },
+  "E_settings": {
+   "before": false,
+   "afterClick": false,
+   "modal": false
+  },
+  "E_settings_state": {
+   "open": false,
+   "bodyTextLen": 491,
+   "bodyHead": "设备与设置\n      关闭\n    \n\n    \n    \n      \n        \n        \n          凭证状态\n          \n        \n      \n      更新\n    \n\n    要看的设备，每行一个：桩号 名称 @地址（地址可省略，新地址会自动加进筛选列表）\n    \n    \n      恢复默认\n      保存\n    \n    \n  ",
+   "credInDialog": true,
+   "credCount": 1,
+   "credHidden": true,
+   "syncDialogOpen": true,
+   "outerTextLen": 495
+  },
+  "E_settings_close": {
+   "open": false
+  },
+  "G": {
+   "footerTop": 1084,
+   "footerBottom": 1224,
+   "docScrollHeight": 1330,
+   "bodyScrollHeight": 1330,
+   "innerHeight": 844,
+   "cardsHeight": 0,
+   "cardsComputedMinHeight": "0px",
+   "emptyMinHeight": "0px",
+   "scrollY": 0,
+   "footerInFirstScreen": false
+  },
+  "F_capsules": {
+   "countSel1": 4,
+   "countSel2": 4,
+   "texts": [
+    "渭水校区",
+    "渭水-物流服务中心",
+    "渭水-北门",
+    "渭水-朝晖体育场南"
+   ],
+   "dataMap": [
+    "amap",
+    "wuliu",
+    "beimen",
+    "chaohui"
+   ],
+   "onIdx": [
+    false,
+    false,
+    false,
+    true
+   ],
+   "parentId": "map-tabs",
+   "visible": "block",
+   "parentRect": [
+    360,
+    97,
+    604
+   ]
+  },
+  "F_amapBefore": {
+   "hasCHD_AMAP": false,
+   "children": 0,
+   "canvas": 0,
+   "engine": null
+  },
+  "F_clickCampus": {
+   "clicked": "渭水校区",
+   "beforeChildren": 0,
+   "afterChildren": 0,
+   "on": true
+  },
+  "F_afterCampus": {
+   "B": {
+    "amapHostCount": 1,
+    "amapHostParentId": "map-stage",
+    "amapHostChildren": 0,
+    "hasCHD_AMAP": true,
+    "amapCanvasCount": 0,
+    "inMainPage": true
+   },
+   "engine": {
+    "card": null,
+    "dialog": null,
+    "note": "37 个充电车位",
+    "sub": "37 个充电车位"
+   },
+   "newErrors": 0,
+   "canvas": 0,
+   "hostHTMLlen": 0
+  },
+  "shot1braw": "C:\\Users\\Administrator\\WorkBuddy\\2026-10-18-12-23-42\\campus-pile-kit\\docs\\redesign-shots\\v3\\_raw-host-01b-aftercampus.png",
+  "F_clickBeimen": {
+   "clicked": "渭水-北门",
+   "beforeChildren": 0,
+   "afterChildren": 0,
+   "on": true
+  },
+  "F_afterBeimen": {
+   "engine": {
+    "card": null,
+    "dialog": null,
+    "canvas": 0,
+    "amapHostChildren": 0,
+    "svgDisplay": "block",
+    "stageDisplay": "block"
+   },
+   "errorsSinceMark2": 0
+  },
+  "shot1craw": "C:\\Users\\Administrator\\WorkBuddy\\2026-10-18-12-23-42\\campus-pile-kit\\docs\\redesign-shots\\v3\\_raw-host-01c-afterbeimen.png",
+  "switchDev": {
+   "cpPageMap": "none",
+   "cpPageDev": "block",
+   "tabOn": true,
+   "navOn": true
+  },
+  "afterDev": {
+   "cpPageMap": "none",
+   "cpPageDev": "block",
+   "cardsChildren": 0,
+   "cardsRect": [
+    362,
+    0,
+    740
+   ],
+   "footerTop": 748,
+   "docH": 993,
+   "searchVisible": "inline-block",
+   "chips": [
+    [
+     "全部",
+     true
+    ],
+    [
+     "我的收藏",
+     false
+    ],
+    [
+     "当前有空位",
+     false
+    ]
+   ],
+   "visibleCards": 0
+  },
+  "shot2raw": "C:\\Users\\Administrator\\WorkBuddy\\2026-10-18-12-23-42\\campus-pile-kit\\docs\\redesign-shots\\v3\\_raw-host-02.png",
+  "chipFav": {
+   "on": true,
+   "visible": 0
+  },
+  "chipFree": {
+   "on": true,
+   "visible": 0
+  },
+  "searchTest": {
+   "visibleAfterNoMatch": 0
+  },
+  "chipAllBack": {
+   "visible": 0
+  },
+  "mapOpenClick": {
+   "mapPage": "block",
+   "navOn": true,
+   "scrollY": 0,
+   "dialogOpen": false
+  },
+  "afterMapOpen": {
+   "engine": {
+    "card": null,
+    "dialog": null,
+    "sub": "37 个充电车位",
+    "note": "37 个充电车位",
+    "canvas": 0,
+    "hostChildren": 0,
+    "dialogOpen": false
+   },
+   "errorsSinceMark3": 0
+  },
+  "A": {
+   "consoleAPICalled": 2,
+   "exceptionThrown": 0,
+   "logEntryAdded": 0,
+   "jsDialogs": 0,
+   "netFailed": 1,
+   "consoleAPI": [
+    {
+     "type": "warning",
+     "text": "[history] 跳过采集：云端不可用",
+     "ctx": 2,
+     "ts": 1792589167302.527
+    },
+    {
+     "type": "warning",
+     "text": "[map] 高德地图加载失败：load:error",
+     "ctx": 2,
+     "ts": 1792589171351.225
+    }
+   ],
+   "exceptions": [],
+   "logEntries": [],
+   "dialogs": [],
+   "netFailedSample": [
+    {
+     "err": "net::ERR_BLOCKED_BY_ORB",
+     "type": "Script"
+    }
+   ],
+   "contexts": [
+    {
+     "id": 1,
+     "origin": "edge://sync-confirmation-dialog",
+     "name": "",
+     "frame": "EF40051ADCD916537862B007978A88BE",
+     "isDefault": true
+    },
+    {
+     "id": 1,
+     "origin": "file://",
+     "name": "",
+     "frame": "EF40051ADCD916537862B007978A88BE",
+     "isDefault": true
+    },
+    {
+     "id": 2,
+     "origin": "file://",
+     "name": "",
+     "frame": "0FA259B358F354CCF2137F615E50E1C1",
+     "isDefault": true
+    }
+   ]
+  },
+  "loadEvents": 1
+ },
+ "round2_viewport_probes_and_baseline": {
+  "v3": {
+   "geometry": {
+    "hostInner": [
+     390,
+     1200
+    ],
+    "dpr": 2,
+    "iframeRect": [
+     0,
+     0,
+     390,
+     844
+    ]
+   },
+   "frameGeometry": {
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "dpr": 2,
+    "docH": 1330
+   },
+   "shotDefault": "C:\\Users\\Administrator\\WorkBuddy\\2026-10-18-12-23-42\\campus-pile-kit\\docs\\redesign-shots\\v3\\_r2-01-default.png",
+   "B_load": {
+    "amapHostCount": 1,
+    "amapHostParentId": "map-stage",
+    "amapHostChildren": 0,
+    "hasCHD_AMAP": false,
+    "amapCanvasCount": 0,
+    "inMainPage": true
+   },
+   "staticMapState": {
+    "imgHref": "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALA",
+    "stageRect": [
+     360,
+     360,
+     701
+    ],
+    "svgRect": [
+     360,
+     360
+    ],
+    "markers": 0,
+    "campusMapDisplay": "block"
+   },
+   "G_mapPage": {
+    "footerTop": 1084,
+    "footerBottom": 1224,
+    "docH": 1330,
+    "innerH": 844,
+    "cardsMinHeight": "0px",
+    "cardsH": 0,
+    "guideH": 306,
+    "guideHidden": false,
+    "firstScreenHasFooter": false
+   },
+   "switchDev": {
+    "map": "none",
+    "dev": "block"
+   },
+   "devPage": {
+    "docH": 993,
+    "footerTop": 748,
+    "footerInFirstScreen": true,
+    "cardsChildren": 0,
+    "emptyHidden": true,
+    "emptyText": "",
+    "tabCount": "–",
+    "scrollY": 0
+   },
+   "shotDevices": "C:\\Users\\Administrator\\WorkBuddy\\2026-10-18-12-23-42\\campus-pile-kit\\docs\\redesign-shots\\v3\\_r2-02-devices.png",
+   "inject": {
+    "ok": true,
+    "cards": 109
+   },
+   "D_afterRender": {
+    "s_free": "0",
+    "s_busy": "0",
+    "s_time": "–",
+    "s_free_sub": "共统计 –/（–）插座",
+    "app_ver": "版本 v2.12 · 内测",
+    "cardsChildCount": 109,
+    "cpDevCards": 109,
+    "tabCount": "109",
+    "statsHidden": false,
+    "toolbarHidden": false,
+    "emptyHidden": true,
+    "locOptions": 5,
+    "cardEls": 109,
+    "firstCard": {
+     "free": "0",
+     "loc": "渭水-20号楼",
+     "code": "E-01",
+     "display": ""
+    }
+   },
+   "filter": {
+    "all": {
+     "visible": 109,
+     "tabCount": "109"
+    },
+    "free": {
+     "visible": 0
+    },
+    "fav": {
+     "visible": 0
+    },
+    "allBack": {
+     "visible": 109
+    },
+    "search": {
+     "visible": 37,
+     "matchedLoc": [
+      "渭水-20号楼",
+      "渭水-北门",
+      "渭水-朝晖体育场南",
+      "渭水-物流服务中心"
+     ]
+    },
+    "searchClear": {
+     "visible": 109
+    },
+    "rerender": {
+     "beforeRerender": 37
+    },
+    "afterRerender": {
+     "visible": 37,
+     "searchValue": "北门",
+     "tabCount": "109"
+    }
+   },
+   "shotDevicesFull": "C:\\Users\\Administrator\\WorkBuddy\\2026-10-18-12-23-42\\campus-pile-kit\\docs\\redesign-shots\\v3\\_r2-03-devices-rendered.png",
+   "emptyState": {
+    "cards": 0,
+    "emptyHidden": false,
+    "emptyText": "还没有设备。点下面的「设备与设置」添加桩号。",
+    "tabCount": "109",
+    "toolbarHidden": true,
+    "statsHidden": false
+   },
+   "shotEmpty": "C:\\Users\\Administrator\\WorkBuddy\\2026-10-18-12-23-42\\campus-pile-kit\\docs\\redesign-shots\\v3\\_r2-04-devices-empty.png",
+   "mirror": {
+    "before": {
+     "card": null,
+     "amapDisplay": "none",
+     "svgDisplay": "block"
+    },
+    "after": {
+     "card": null,
+     "amapDisplay": "none",
+     "svgDisplay": "block",
+     "controlsDisplay": "flex",
+     "attribDisplay": "none"
+    },
+    "prep": {
+     "card": null,
+     "amapDisplay": "none"
+    },
+    "removed": {
+     "card": null,
+     "amapDisplay": "none",
+     "svgDisplay": "block"
+    }
+   },
+   "capsules": {
+    "count": 4,
+    "texts": [
+     "渭水校区",
+     "渭水-物流服务中心",
+     "渭水-北门",
+     "渭水-朝晖体育场南"
+    ],
+    "dataMap": [
+     "amap",
+     "wuliu",
+     "beimen",
+     "chaohui"
+    ],
+    "onIdx": [
+     false,
+     false,
+     false,
+     true
+    ],
+    "parent": "map-tabs",
+    "parentDisplay": "flex",
+    "parentRect": [
+     360,
+     97
+    ]
+   },
+   "clickCampus": {
+    "hasCHD_AMAP": false,
+    "hostChildren": 0,
+    "dialogEngine": null
+   },
+   "afterCampus": {
+    "hasCHD_AMAP": true,
+    "hostChildren": 0,
+    "canvas": 0,
+    "hostHTMLlen": 0,
+    "cardEngine": null,
+    "dialogEngine": null,
+    "sub": "37 个充电车位",
+    "note": "37 个充电车位",
+    "onIdx": [
+     [
+      "amap",
+      false
+     ],
+     [
+      "wuliu",
+      false
+     ],
+     [
+      "beimen",
+      true
+     ],
+     [
+      "chaohui",
+      false
+     ]
+    ],
+    "svgDisplay": "block",
+    "imgHref": "map-beimen.webp",
+    "markers": 37,
+    "keybarHidden": true,
+    "amapHostDisplay": "none"
+   },
+   "errAfterCampus": 0,
+   "shotAfterCampus": "C:\\Users\\Administrator\\WorkBuddy\\2026-10-18-12-23-42\\campus-pile-kit\\docs\\redesign-shots\\v3\\_r2-05-aftercampus.png",
+   "clickBeimen": {
+    "onIdx": [
+     [
+      "amap",
+      false
+     ],
+     [
+      "wuliu",
+      false
+     ],
+     [
+      "beimen",
+      true
+     ],
+     [
+      "chaohui",
+      false
+     ]
+    ]
+   },
+   "afterBeimen": {
+    "sub": "37 个充电车位",
+    "note": "37 个充电车位",
+    "svgDisplay": "block",
+    "imgHref": "map-beimen.webp",
+    "markers": 37,
+    "stageDisplay": "block",
+    "cardEngine": null
+   },
+   "errAfterBeimen": 0,
+   "shotAfterBeimen": "C:\\Users\\Administrator\\WorkBuddy\\2026-10-18-12-23-42\\campus-pile-kit\\docs\\redesign-shots\\v3\\_r2-06-afterbeimen.png",
+   "mapOpen": {
+    "mapPage": "block",
+    "dialogOpen": false,
+    "scrollY": 0
+   },
+   "afterMapOpen": {
+    "sub": "37 个充电车位",
+    "note": "37 个充电车位",
+    "canvas": 0,
+    "cardEngine": null,
+    "dialogOpen": false
+   },
+   "errAfterMapOpen": 0,
+   "refreshClick": {
+    "guideHidden": false,
+    "bannerHidden": true,
+    "bannerText": ""
+   },
+   "afterRefresh": {
+    "bannerHidden": true,
+    "bannerText": "",
+    "bannerClass": "banner",
+    "cards": 0,
+    "statsHidden": true
+   },
+   "usage": {
+    "open": true,
+    "modal": true
+   },
+   "usageLate": {
+    "open": true,
+    "loadingHidden": true,
+    "emptyHidden": false,
+    "bodyHidden": true,
+    "note": ""
+   },
+   "usageClose": {
+    "open": false
+   },
+   "settings": {
+    "before": {
+     "settings": false,
+     "sync": false
+    },
+    "settingsOpen": false,
+    "syncOpen": true,
+    "syncModal": true,
+    "settingsModal": false
+   },
+   "settingsState": {
+    "settingsOpen": false,
+    "syncOpen": true,
+    "syncHead": "云端设备同步",
+    "credCount": 1,
+    "credParentId": "settings-dialog",
+    "credHidden": true,
+    "syncInputVisible": "inline-block"
+   },
+   "syncClose": {
+    "open": false
+   },
+   "errAfterDialogs": 0,
+   "A": {
+    "consoleAPI": [
+     {
+      "type": "warning",
+      "text": "[history] 跳过采集：云端不可用",
+      "ctx": 2
+     },
+     {
+      "type": "warning",
+      "text": "[map] 高德地图加载失败：load:error",
+      "ctx": 2
+     },
+     {
+      "type": "warning",
+      "text": "[history] 跳过采集：云端不可用",
+      "ctx": 4
+     },
+     {
+      "type": "warning",
+      "text": "[map] 高德地图加载失败：load:error",
+      "ctx": 4
+     }
+    ],
+    "exceptions": [],
+    "log": [],
+    "netFailed": [
+     {
+      "url": "https://webapi.amap.com/maps?v=2.0&key=amap-key-placeholder",
+      "err": "net::ERR_BLOCKED_BY_ORB",
+      "type": "Script",
+      "blocked": null
+     }
+    ],
+    "amapResponses": [
+     {
+      "url": "file:///C:/Users/Administrator/WorkBuddy/2026-10-18-12-23-42/campus-pile-kit/chd-charge/map-amap-preview.js?v=4",
+      "status": 200,
+      "mime": "text/javascript"
+     }
+    ],
+    "ctxs": [
+     {
+      "id": 2,
+      "origin": "file://",
+      "frame": "0FA259B358F354CCF2137F615E50E1C1",
+      "isDefault": true
+     },
+     {
+      "id": 1,
+      "origin": "file://",
+      "frame": "EF40051ADCD916537862B007978A88BE",
+      "isDefault": true
+     },
+     {
+      "id": 3,
+      "origin": "file://",
+      "frame": "EF40051ADCD916537862B007978A88BE",
+      "isDefault": true
+     },
+     {
+      "id": 4,
+      "origin": "file://",
+      "frame": "71ECD623CC49F27EC3E87A25A809C111",
+      "isDefault": true
+     }
+    ]
+   }
+  },
+  "baseline": {
+   "geometry": {
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "dpr": 2,
+    "hasCpCss": false
+   },
+   "D": {
+    "s_free": "–",
+    "s_busy": "–",
+    "s_time": "–",
+    "cardsChildCount": 0,
+    "emptyHidden": true,
+    "statsHidden": true,
+    "guideHidden": false,
+    "hasToken": false
+   },
+   "G": {
+    "footerTop": 1365,
+    "footerBottom": 1504,
+    "docH": 1544,
+    "innerH": 844,
+    "cardsMinHeight": "844px",
+    "cardsH": 844,
+    "footerInFirstScreen": false,
+    "hasCpNav": false,
+    "wrapDisplay": "block"
+   },
+   "A": {
+    "consoleAPI": [
+     {
+      "type": "warning",
+      "text": "[history] 跳过采集：云端不可用",
+      "ctx": 5
+     }
+    ],
+    "exceptions": [],
+    "log": [],
+    "netFailed": []
+   }
+  }
+ },
+ "round3_clean_load_and_mirror": {
+  "ctxUsed": 7,
+  "frames": [
+   {
+    "id": "EF40051ADCD916537862B007978A88BE",
+    "url": "file:///C:/Users/Administrator/WorkBuddy/2026-10-18-12-23-42/campus-pile-kit/chd-charge/_host-v3.html"
+   },
+   {
+    "id": "F97863B39C450818B7EF24B97DF37C3C",
+    "url": "file:///C:/Users/Administrator/WorkBuddy/2026-10-18-12-23-42/campus-pile-kit/chd-charge/preview-v3.html"
+   }
+  ],
+  "cleanLoad": {
+   "hasCHD_AMAP": false,
+   "hasAMap": false,
+   "amapHostChildren": 0,
+   "imgHref": "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP/",
+   "markers": 0,
+   "docH": 1330,
+   "innerH": 844,
+   "cardEngine": null,
+   "dialogEngine": null,
+   "sub": "",
+   "note": "四张底图 · 方位示意",
+   "amapHostDisplay": "none",
+   "stageRect": [
+    360,
+    360
+   ],
+   "mapCardRect": [
+    362,
+    502
+   ],
+   "badgeLegendDisplay": "none",
+   "legendParent": "map-dialog",
+   "navRect": [
+    778,
+    66,
+    390
+   ],
+   "navPosition": "fixed",
+   "bodyPaddingBottom": "66px",
+   "cardVisibleTop": 561
+  },
+  "A_cleanLoad": {
+   "consoleAPI": [
+    {
+     "type": "warning",
+     "text": "[history] 跳过采集：云端不可用",
+     "ctx": 7,
+     "stack": [
+      "preview-v3.html:4828",
+      "preview-v3.html:4905",
+      "preview-v3.html:4940"
+     ]
+    }
+   ],
+   "exceptions": [],
+   "log": [],
+   "netFailed": [],
+   "requestsTouchingAmap": [],
+   "requestCount": 7
+  },
+  "shotClean": "C:\\Users\\Administrator\\WorkBuddy\\2026-10-18-12-23-42\\campus-pile-kit\\docs\\redesign-shots\\v3\\_r3-clean.png",
+  "mirrorSteps": [
+   {
+    "step": "initial",
+    "v": {
+     "card": null,
+     "amap": "none",
+     "svg": "block",
+     "controls": "flex",
+     "attrib": "none"
+    }
+   },
+   {
+    "step": "dialog=amap",
+    "v": {
+     "card": "amap",
+     "amap": "block",
+     "svg": "none",
+     "controls": "none",
+     "attrib": "block"
+    }
+   },
+   {
+    "step": "dialog=prep",
+    "v": {
+     "card": "prep",
+     "amap": "block"
+    }
+   },
+   {
+    "step": "dialog=none",
+    "v": {
+     "card": null,
+     "amap": "none",
+     "svg": "block",
+     "controls": "flex"
+    }
+   }
+  ],
+  "tabCount": {
+   "immediate": "–",
+   "afterTick": "109",
+   "empty": {},
+   "afterEmptyTick": {
+    "tabCount": "–",
+    "emptyHidden": false,
+    "emptyText": "还没有设备。点下面的「设备与设置」添加桩号。"
+   }
+  },
+  "shotDevRendered": "C:\\Users\\Administrator\\WorkBuddy\\2026-10-18-12-23-42\\campus-pile-kit\\docs\\redesign-shots\\v3\\_r3-dev-rendered.png",
+  "devPageRendered": {
+   "scrollHeight": 20587,
+   "footerTop": 20342,
+   "cards": 109,
+   "firstCardHTML": "<div class=\"card err\" data-free=\"0\" data-loc=\"渭水-20号楼\" data-code=\"E-01\">\n      <div class=\"card-head\">\n        <div>\n          <h2>渭水校区 E-01 号桩</h2>\n          <div class=\"loc\">渭水-20号楼</div>\n        </div>\n        <div style=\"display:flex;al"
+  }
+ },
+ "round4_mapcard_in_view": {
+  "ctx": 11,
+  "clickBeimen": 1,
+  "scroll": {
+   "scrollY": 486,
+   "cardTop": 75
+  },
+  "state": {
+   "scrollY": 486,
+   "cardRect": [
+    75,
+    502
+   ],
+   "stageRect": [
+    215,
+    360
+   ],
+   "imgHref": "map-beimen.webp",
+   "imgNatural": [
+    null,
+    null
+   ],
+   "svgRect": [
+    215,
+    360
+   ],
+   "markers": 37,
+   "legendRect": {
+    "display": "flex",
+    "top": 530,
+    "h": 32
+   },
+   "controlsRect": {
+    "display": "flex",
+    "top": 367,
+    "h": 138,
+    "text": "＋|−|全景"
+   },
+   "tabOrderInsideSlot": [
+    "map-tabs",
+    "map-stage"
+   ],
+   "tabsRect": [
+    118,
+    97
+   ],
+   "zoneText": "",
+   "attrib": "底图 © 腾讯地图 · 校园图层 © OSM 贡献者"
+  },
+  "shot": "C:\\Users\\Administrator\\WorkBuddy\\2026-10-18-12-23-42\\campus-pile-kit\\docs\\redesign-shots\\v3\\_r4-mapcard.png",
+  "errs": {
+   "consoleAPI": [],
+   "exceptions": [],
+   "log": []
+  }
+ }
+}

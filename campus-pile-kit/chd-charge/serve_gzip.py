@@ -37,13 +37,45 @@ Accept-Encoding 收到的 Content-Length 一模一样，响应里没有 Content-
 * 启动时把全部文件读进内存并预算 gzip（本站 16 个文件 / 2.4 MB，毫秒级），
   之后每个请求零 CPU 开销。
 * 本文件自己不对外提供（见 SELF_BLOCK），免得被人下载去看实现。
+
+
+/api/* 反代（2026-10-25 新增）
+----------------------------
+页面所有数据接口都是**相对路径**（`/api/pile`、`/api/shop`、`/api/cred`），由
+Cloudflare Worker 提供。这个站只有静态服务时，实测 `POST /api/pile` 一律 **501**
+（`http.server` 不收 POST）→ 页面「一直转圈、一个桩都查不到」。
+
+所以本文件现在兼两个角色：静态托管 + `/api/*` 原样反代到主站 Worker
+（`UPSTREAM`，默认 pages.dev）。**不复制 Worker 的业务逻辑** —— 缓存预算、fresh 语义、
+上游协议都只有 `_worker.js` 一份，避免两份实现慢慢漂移。
+
+反代层多做两件 Worker 自己做不到的事：
+
+1. **`/api/pile` 全站共享缓存**（按桩位 id 存，300s / fresh 90s，与 Worker 的
+   PILE_TTL / PILE_FRESH_MIN 对齐）。Worker 那边是按「调用方 IP」分桶的，反代出去
+   全站共用一个出口 IP，很容易撞上它 30 次/分钟的限流（撞了就是 429 → 页面表现成
+   「刚才查询的人太多了」）。本地缓存 + 在途合并后，多人同时首屏只回源一轮。
+
+2. **上游降级兜底**：上游 429/超时/坏 JSON 时，用本地旧缓存顶上并返回 `ok: true`，
+   页面继续显示上一次的数据，而不是整轮放弃。
+
+⚠️ 两个必须记住的细节（都踩过）：
+  * 转发必须改 `Origin` 成上游域 —— Worker 里有 `origin !== url.origin → 403`。
+  * 转发必须伪装浏览器 UA —— Cloudflare 按签名拦 `Python-urllib/3.x`，
+    返回 **Error 1010**（一个 HTML 错误页），表现成「上游全挂」。
 """
 
 import argparse
 import gzip
+import json
 import os
+import socket
 import sys
 import threading
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import unquote, urlparse
 
@@ -78,8 +110,218 @@ EXT_TYPES = {
 CACHE = {}          # 相对路径 -> (body_bytes, gz_bytes_or_None, etag, ctype)
 CACHE_LOCK = threading.Lock()
 
-# 这几个文件不对外提供，免得被人下载去看实现
-SELF_BLOCK = {"/serve_gzip.py"}
+# 不对外提供的路径（请求一律落到 404）
+#
+# 两类东西进这里：
+#  1) 本文件自己 —— 免得被人下载去看实现；
+#  2) **本地已删除、但云端还留着的残留文件** —— 见下面那条注释，这个坑很反直觉。
+SELF_BLOCK = {
+    "/serve_gzip.py",
+
+    # 🔴 平台发布是**增量覆盖**：本地把文件删了，云端的旧文件**不会跟着消失**。
+    #    2026-10-25 实测：本地删掉 preview-v3.html 后重新发布，
+    #    线上 `GET /preview-v3.html` 仍然 200 返回那份 260KB 的 v3 原型。
+    #    平台没有提供「删除云端文件」的接口，所以只能在服务层挡住 ——
+    #    `load()` 不加载它们，请求就落到 404。文件本体还占着磁盘，但对外不可见。
+    #    ⚠️ 以后在本地删任何站点文件，都要同步加到这里，否则线上照样能访问。
+    "/preview-v3.html",
+    "/redesign-v2.html",
+    "/redesign-mockup.html",
+    "/map.html",              # 高德骨架调试页
+    "/map-key.example.js",    # 自部署模板（运行时不用）
+    "/map-beimen.svg",        # 点位参考图（底图用 .webp）
+}
+
+# 目录级屏蔽（这些目录整个都是内部产物）
+SELF_BLOCK_PREFIX = ("/redesign/",)
+
+
+def _blocked(rel):
+    return rel in SELF_BLOCK or rel.startswith(SELF_BLOCK_PREFIX)
+
+# ---------------- /api 反代 ----------------
+UPSTREAM = (os.environ.get("UPSTREAM") or "https://chd-charge.pages.dev").rstrip("/")
+_u = urllib.parse.urlsplit(UPSTREAM)
+UPSTREAM_ORIGIN = "%s://%s" % (_u.scheme, _u.netloc)
+UPSTREAM_TIMEOUT = float(os.environ.get("UPSTREAM_TIMEOUT") or 25)
+
+# 🔴 必须伪装浏览器 UA：Cloudflare 会按签名拦 `Python-urllib/3.x`，返回 **Error 1010**
+#    （一个 HTML 错误页，不是 JSON），表现成「上游全挂、每台桩都查不到」。
+#    实测 curl 默认 UA 能过、Python 默认 UA 不能。
+UPSTREAM_UA = os.environ.get("UPSTREAM_UA") or (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+)
+
+# 与 _worker.js 对齐
+PILE_TTL = 300          # 普通请求：缓存多少秒内直接用
+PILE_FRESH_MIN = 90     # fresh 请求：缓存比这新才复用
+PILE_MAX_IDS = 40
+
+PILE_CACHE = {}         # id -> {"at": 毫秒, "ports": [...]}；全站共享
+PILE_INFLIGHT = {}      # id -> threading.Event（同一台正在查，别让十个队列一起冲）
+PILE_LOCK = threading.Lock()
+
+
+def _log(msg):
+    sys.stderr.write("[api] " + msg + "\n")
+    sys.stderr.flush()
+
+
+def _post_upstream(path, payload):
+    """POST JSON 到上游 Worker，返回 (status, body_dict)。异常时抛。"""
+    body = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(UPSTREAM + path, data=body, method="POST")
+    req.add_header("content-type", "application/json")
+    req.add_header("accept", "application/json")
+    req.add_header("origin", UPSTREAM_ORIGIN)   # Worker 校验 Origin，必须写成它自己的域
+    req.add_header("user-agent", UPSTREAM_UA)
+    req.add_header("accept-encoding", "identity")   # 不要压缩，省得自己解
+    try:
+        with urllib.request.urlopen(req, timeout=UPSTREAM_TIMEOUT) as r:
+            return r.status, _parse_json(r.read())
+    except urllib.error.HTTPError as e:
+        return e.code, _parse_json(e.read())
+
+
+def _parse_json(raw):
+    try:
+        return json.loads(raw.decode("utf-8")) if raw else {}
+    except Exception:
+        return {}
+
+
+def _cache_get(pid, want_fresh):
+    with PILE_LOCK:
+        rec = PILE_CACHE.get(pid)
+    if not rec:
+        return None
+    age = (time.time() * 1000 - rec.get("at", 0)) / 1000.0
+    if age > (PILE_FRESH_MIN if want_fresh else PILE_TTL):
+        return None
+    return rec, age
+
+
+def _cache_put(pid, rec):
+    with PILE_LOCK:
+        PILE_CACHE[pid] = rec
+
+
+def _plan(ids, want_fresh):
+    """分出「本地够新」和「需要回源」的 id；回源那部分顺手占住 in-flight 位。"""
+    hit, mine, waits = {}, [], []
+    now = time.time() * 1000
+    with PILE_LOCK:
+        for pid in ids:
+            rec = PILE_CACHE.get(pid)
+            if rec:
+                age = (now - rec.get("at", 0)) / 1000.0
+                if age <= (PILE_FRESH_MIN if want_fresh else PILE_TTL):
+                    hit[pid] = (rec, age)
+                    continue
+            ev = PILE_INFLIGHT.get(pid)
+            if ev is not None:
+                waits.append((pid, ev))
+            else:
+                ev = threading.Event()
+                PILE_INFLIGHT[pid] = ev
+                mine.append((pid, ev))
+    return hit, mine, waits
+
+
+def _release(pairs):
+    with PILE_LOCK:
+        for pid, _ev in pairs:
+            PILE_INFLIGHT.pop(pid, None)
+    for _pid, ev in pairs:
+        ev.set()
+
+
+def handle_pile(body):
+    """本地共享缓存 + 只把过期的那几台发给上游。返回 (status, payload_dict)。"""
+    token = body.get("token") if isinstance(body, dict) else None
+    ids = body.get("ids") if isinstance(body, dict) else None
+    want_fresh = bool(isinstance(body, dict) and body.get("fresh") is True)
+
+    if not isinstance(token, str) or not token:
+        return 400, {"ok": False, "error": "no_token"}
+    if not isinstance(ids, list) or not ids:
+        return 400, {"ok": False, "error": "no_ids"}
+    ids = [i for i in ids if isinstance(i, str) and 4 <= len(i) <= 32][:PILE_MAX_IDS]
+    if not ids:
+        return 400, {"ok": False, "error": "no_ids"}
+
+    hit, mine, waits = _plan(ids, want_fresh)
+
+    # 有人在查同一批 id → 等它（最多等一个上游超时）。没有这一步，几个访客同时
+    # 首屏会排出十几条一模一样的上游请求，直接把 Worker 的每分钟限流撞满。
+    if waits:
+        deadline = time.time() + UPSTREAM_TIMEOUT
+        for pid, ev in waits:
+            ev.wait(max(0.0, deadline - time.time()))
+            got = _cache_get(pid, want_fresh) or _cache_get(pid, False)
+            if got:
+                hit[pid] = got
+
+    results, fetched, throttled = {}, 0, False
+
+    if mine:
+        miss_ids = [pid for pid, _ in mine]
+        try:
+            status, data = _post_upstream("/api/pile",
+                                          {"ids": miss_ids, "token": token, "fresh": want_fresh})
+        except Exception as e:                       # 网络 / 超时
+            _log("upstream pile failed: %s %s" % (type(e).__name__, e))
+            status, data = 0, {}
+
+        up = (data or {}).get("results") or {}
+        if data and data.get("ok") and up:
+            throttled = bool(data.get("throttled"))
+            for pid in miss_ids:
+                rec = up.get(pid)
+                if not isinstance(rec, dict):
+                    continue
+                if rec.get("ports"):
+                    _cache_put(pid, {"at": int(rec.get("at") or time.time() * 1000),
+                                     "ports": rec["ports"]})
+                    results[pid] = rec
+                    fetched += 1
+                elif rec.get("error"):
+                    # 透传平台原话，但**不写缓存** —— 失败不能钉死 5 分钟，
+                    # 那会把一次抖动变成一整轮全错。
+                    results[pid] = rec
+        else:
+            # 上游挂了 / 429 / 限流：能拿旧缓存就先用旧数据顶上，别让页面整轮放弃
+            _log("pile upstream degraded: status=%s body=%s"
+                 % (status, json.dumps(data, ensure_ascii=False)[:200]))
+            throttled = True
+            for pid in miss_ids:
+                old = _cache_get(pid, False)
+                results[pid] = old[0] if old else {
+                    "at": 0, "error": "平台暂时没响应，稍后再点一次刷新"}
+        _release(mine)
+
+    oldest = 0
+    for pid in ids:
+        if pid in results:
+            continue
+        got = hit.get(pid) or _cache_get(pid, want_fresh) or _cache_get(pid, False)
+        if got:
+            results[pid] = got[0]
+            oldest = max(oldest, int(got[1]))
+        else:
+            results[pid] = {"at": 0, "error": "还没查到，稍后再点一次刷新"}
+
+    return 200, {
+        "ok": True,
+        "results": results,
+        "hit": len([p for p in ids if results.get(p, {}).get("ports")]) - fetched,
+        "fetched": fetched,
+        "throttled": throttled,
+        "fresh": want_fresh,
+        "oldestAge": oldest,
+    }
+
 
 
 def guess_type(path):
@@ -99,7 +341,7 @@ def load(root):
         for name in filenames:
             full = os.path.join(dirpath, name)
             rel = "/" + os.path.relpath(full, root).replace(os.sep, "/")
-            if rel in SELF_BLOCK:          # 本文件不对外（请求会落到 404）
+            if _blocked(rel):              # 本文件 + 云端残留：一律不加载（请求落到 404）
                 continue
             try:
                 with open(full, "rb") as f:
@@ -184,13 +426,116 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(body)
 
     def do_GET(self):
+        if self._is_api():
+            return self._proxy_api()
         self._respond(True)
 
     def do_HEAD(self):
+        if self._is_api():
+            return self._proxy_api()
         self._respond(False)
 
+    def do_POST(self):
+        if self._is_api():
+            return self._proxy_api()
+        self.send_error(405)
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.send_header("Allow", "GET,HEAD,POST,OPTIONS")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    # ---- /api/* ----
+    def _is_api(self):
+        return urlparse(self.path).path.startswith("/api/")
+
+    def _proxy_api(self):
+        """`/api/pile` 走本地共享缓存；其余接口原样反代（凭证仍在 CF KV，零迁移）。"""
+        path = urlparse(self.path).path
+        head = self.command == "HEAD"
+
+        raw = b""
+        n = self.headers.get("content-length")
+        if n:
+            try:
+                raw = self.rfile.read(int(n))
+            except ValueError:
+                raw = b""
+
+        if path.rstrip("/") == "/api/pile":
+            try:
+                body = json.loads(raw.decode("utf-8")) if raw else {}
+            except Exception:
+                body = {}
+            status, payload = handle_pile(body)
+            data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            if not head:
+                self.wfile.write(data)
+            return
+
+        req = urllib.request.Request(
+            UPSTREAM + self.path,
+            data=raw if self.command in ("POST", "PUT", "PATCH") else None,
+            method=self.command,
+        )
+        for h in ("content-type", "accept"):
+            v = self.headers.get(h)
+            if v:
+                req.add_header(h, v)
+        req.add_header("origin", UPSTREAM_ORIGIN)
+        req.add_header("user-agent", UPSTREAM_UA)
+        req.add_header("accept-encoding", "identity")
+        try:
+            with urllib.request.urlopen(req, timeout=UPSTREAM_TIMEOUT) as r:
+                status, ctype, data = r.status, r.headers.get("content-type"), r.read()
+        except urllib.error.HTTPError as e:
+            status, ctype, data = e.code, (e.headers or {}).get("content-type"), (e.read() or b"")
+        except Exception as e:
+            _log("upstream %s failed: %s %s" % (path, type(e).__name__, e))
+            data = json.dumps({"ok": False, "error": "upstream_unreachable"}).encode("utf-8")
+            status, ctype = 502, "application/json; charset=utf-8"
+
+        self.send_response(status)
+        self.send_header("Content-Type", ctype or "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")   # 接口绝不能进静态缓存
+        self.end_headers()
+        if not head:
+            self.wfile.write(data)
+
     def log_message(self, fmt, *args):
+        """静态资源不记（一屏十几个，接口日志会被淹掉）；只记接口和错误。"""
+        try:
+            path = urlparse(self.path).path
+            if not path.startswith("/api/") and not str(args[1] if len(args) > 1 else "").startswith("4"):
+                return
+        except Exception:
+            pass
         sys.stderr.write("%s %s\n" % (self.address_string(), fmt % args))
+
+
+class Server(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def handle_error(self, request, client_address):
+        """浏览器提前断连是常态（切页、abort、SPA 跳转），不要刷整屏 traceback。
+
+        ⚠️ 必须盖在 **server** 上：断连是 `ThreadingMixIn.process_request_thread`
+        捕获后调 server 的 `handle_error` 抛出来的，盖在 Handler 上不生效
+        （第一版就是这么写错的，一轮本地测试刷出 5 万字符 traceback，
+        真正的接口日志全被埋掉）。
+        """
+        exc = sys.exc_info()[1]
+        if isinstance(exc, (ConnectionResetError, ConnectionAbortedError,
+                            BrokenPipeError, socket.timeout)):
+            return
+        super().handle_error(request, client_address)
 
 
 def main():
@@ -207,8 +552,8 @@ def main():
     with CACHE_LOCK:
         load(root)
 
-    srv = ThreadingHTTPServer(("0.0.0.0", args.port), Handler)
-    print("serving %s on 0.0.0.0:%d" % (root, args.port), file=sys.stderr)
+    srv = Server(("0.0.0.0", args.port), Handler)
+    print("serving %s on 0.0.0.0:%d（上游 %s）" % (root, args.port, UPSTREAM), file=sys.stderr)
     try:
         srv.serve_forever()
     except KeyboardInterrupt:

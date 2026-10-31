@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 与网站的语义绿、页面底色一致，保证「点图标到首屏」之间不闪色。
+         注意：XML 注释里不能写连续两个减号，否则直接解析失败。 -->
+    <color name="ic_launcher_background">#1D9E75</color>
+    <color name="window_bg">#F7F6F2</color>
+</resources>

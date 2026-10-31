@@ -7,3 +7,8 @@
 *.saz binary
 *.apk binary
 *.jar binary
+# 批处理必须是 CRLF：LF-only 的 .bat 在 cmd 里 goto :label 会失败，
+# 而且 UTF-8 中文注释会被解析器拆坏（保持纯 ASCII，见 token-autorenew.bat）
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 自适应图标前景：白色闪电，与网站 favicon 的路径完全一致。
+     108dp 画布 + 0.8125 缩放 + 28 偏移 = 内容 52dp 居中，落在 66dp 安全区内，
+     所以圆形、方形、水滴形等各种启动器裁切都不会切到闪电。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.8125"
+        android:scaleY="0.8125"
+        android:translateX="28"
+        android:translateY="28">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M36,10 L20,34 h10 l-2,20 l18,-26 h-11 z" />
+    </group>
+</vector>

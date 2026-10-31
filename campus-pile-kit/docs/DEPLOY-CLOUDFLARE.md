@@ -84,7 +84,7 @@ python tools/make_cloudflare.py     # 重建 dist-cloudflare.zip
 
 然后回 Cloudflare → 你的项目 → **Create new deployment** → 拖新的 zip。
 
-> 改动了 js 文件时，记得同步升 `?v=` 和 `sw.js` 的 `CACHE` 名（项目里的 `check_dual_track.py` 会帮你查）。
+> 改动了 js 文件时，记得同步升 `?v=` 和 `sw.js` 的 `CACHE` 名（项目里的 `check_release.py` 会帮你查）。
 
 ---
 

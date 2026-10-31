@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 系统深色模式下窗口底色跟着网站走（网站的暗色底是 #171917），
+         否则冷启动会先闪一下浅色再变深。 -->
+    <color name="window_bg">#171917</color>
+</resources>

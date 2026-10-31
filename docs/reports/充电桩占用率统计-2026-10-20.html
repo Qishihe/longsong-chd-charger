@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>充电桩区域·时段占用率统计</title>
+<style>
+  :root {
+    --bg:#f7f8fa; --card:#ffffff; --line:#e3e6ea; --ink:#1f2328; --muted:#5c6470;
+    --accent:#1565c0;
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; padding:32px 20px 60px; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    line-height:1.6;
+  }
+  .wrap { max-width:1080px; margin:0 auto; }
+  h1 { font-size:24px; margin:0 0 6px; letter-spacing:.02em; }
+  .sub { color:var(--muted); font-size:14px; margin-bottom:24px; }
+  .warn {
+    background:#fff8e1; border:1px solid #f0d68a; border-left:4px solid #f2a600;
+    border-radius:8px; padding:14px 18px; margin:0 0 24px; font-size:14px;
+  }
+  .warn b { color:#8a6100; }
+  .cards { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:26px; }
+  .card {
+    flex:1 1 200px; background:var(--card); border:1px solid var(--line);
+    border-radius:10px; padding:16px 18px;
+  }
+  .card .k { font-size:12px; color:var(--muted); letter-spacing:.04em; }
+  .card .v { font-size:26px; font-weight:650; margin-top:4px; font-variant-numeric:tabular-nums; }
+  .card .n { font-size:12px; color:var(--muted); }
+  section { background:var(--card); border:1px solid var(--line); border-radius:10px;
+             padding:20px 22px; margin-bottom:22px; }
+  h2 { font-size:16px; margin:0 0 4px; }
+  h2 .t { color:var(--muted); font-weight:400; font-size:13px; }
+  table { border-collapse:collapse; width:100%; margin-top:14px; font-size:13px; }
+  th, td { padding:7px 10px; border:1px solid var(--line); }
+  thead th { background:#eef1f4; font-weight:600; font-size:12.5px; text-align:center; }
+  th.tm { background:#eef1f4; text-align:left; font-weight:600; white-space:nowrap;
+           font-variant-numeric:tabular-nums; }
+  td.num { text-align:center; font-variant-numeric:tabular-nums; font-weight:550; }
+  td.na { text-align:center; color:#aab; background:#fafbfc; }
+  tbody tr:hover td { outline:1px solid #9db8d8; }
+  .legend { font-size:12px; color:var(--muted); margin-top:10px; }
+  .legend .bar {
+    display:inline-block; width:130px; height:10px; border-radius:5px; vertical-align:middle;
+    background:linear-gradient(90deg,#2e7d32,#7a522d,#c62828);
+    margin:0 6px;
+  }
+  ul.finds { padding-left:20px; margin:10px 0 0; font-size:14px; }
+  ul.finds li { margin-bottom:8px; }
+  code { background:#eef1f4; padding:1px 5px; border-radius:4px; font-size:12.5px; }
+  footer { color:var(--muted); font-size:12.5px; margin-top:26px; text-align:center; }
+  details { margin-top:14px; }
+  summary { cursor:pointer; font-size:13.5px; color:var(--accent); }
+  .small { font-size:12.5px; color:var(--muted); }
+</style>
+</head>
+<body><div class="wrap">
+
+<h1>充电桩「区域 × 时段」占用率统计</h1>
+<div class="sub">数据源：云端 <code>pile_history</code> 全量备份 · 131,000 条设备级采样 · 生成于 2026-10-28</div>
+
+<div class="warn">
+  <b>⚠️ 先说清楚数据边界 —— 这不是「过去七天」，只有一天。</b><br>
+  云端表从 <code>2026-10-20 14:28</code> 才开始写首行，我这份本地备份在当天 <code>23:18</code> 截止，
+  满打满算 <b>8 小时 50 分钟</b>。所谓「近七天」从未攒齐过 —— 项目 <code>HANDOFF.md</code> 第 437 行
+  当时就记着这句话。而现在云服务已经返回 <b>402 Payment Required</b>（停服/限额），
+  想再拉新数据也拉不到了。所以下表是<b>单日快照</b>，不代表一周的规律。
+</div>
+
+<div class="cards">
+  <div class="card"><div class="k">全日平均占用率</div><div class="v">98.4%</div>
+    <div class="n">两区加权 · 130,967 次采样</div></div>
+  <div class="card"><div class="k">「一台都不空」的采样占比</div><div class="v">94.2%</div>
+    <div class="n">即 free=0 的比例</div></div>
+  <div class="card"><div class="k">最挤时段</div><div class="v">23:00</div>
+    <div class="n">平均空闲插口 0.01 个/台</div></div>
+  <div class="card"><div class="k">最松时段</div><div class="v">15:00</div>
+    <div class="n">平均空闲插口 0.18 个/台</div></div>
+</div>
+
+<section>
+  <h2>一、区域 × 小时占用率 <span class="t">插口级口径 · 剔除了只闪现一次的幽灵设备</span></h2>
+  <table>
+    <thead>
+      <tr>
+        <th rowspan="2">时段</th>
+        <th colspan="2">占用率（占满＝100%）</th>
+        <th colspan="2">平均空闲插口（每台4口桩）</th>
+      </tr>
+      <tr><th>渭水-北门</th><th>渭水-朝晖体育场南</th><th>渭水-北门</th><th>渭水-朝晖体育场南</th></tr>
+    </thead>
+    <tbody>
+      <tr><th class="tm">14:00</th><td class="num" style="background:#9e3e2b;color:#ffffff" title="设备级 98.4% · 空闲均值 0.063 口 · 采样 1080">98.4%</td><td class="num" style="background:#6b5b2e;color:#ffffff" title="设备级 96.4% · 空闲均值 0.144 口 · 采样 1080">96.4%</td><td class="num" style="background:#bfd7b3;color:#1a1a1a">0.063</td><td class="num" style="background:#74a870;color:#1a1a1a">0.144</td></tr><tr><th class="tm">15:00</th><td class="num" style="background:#486f30;color:#ffffff" title="设备级 95.0% · 空闲均值 0.200 口 · 采样 6408">95.0%</td><td class="num" style="background:#645f2e;color:#ffffff" title="设备级 96.1% · 空闲均值 0.155 口 · 采样 6552">96.1%</td><td class="num" style="background:#418943;color:#1a1a1a">0.200</td><td class="num" style="background:#6aa267;color:#1a1a1a">0.155</td></tr><tr><th class="tm">16:00</th><td class="num" style="background:#7a532d;color:#ffffff" title="设备级 97.0% · 空闲均值 0.120 口 · 采样 9138">97.0%</td><td class="num" style="background:#93442b;color:#ffffff" title="设备级 98.0% · 空闲均值 0.080 口 · 采样 9179">98.0%</td><td class="num" style="background:#8ab684;color:#1a1a1a">0.120</td><td class="num" style="background:#afcda5;color:#1a1a1a">0.080</td></tr><tr><th class="tm">17:00</th><td class="num" style="background:#9e3e2b;color:#ffffff" title="设备级 98.4% · 空闲均值 0.063 口 · 采样 5919">98.4%</td><td class="num" style="background:#9e3e2b;color:#ffffff" title="设备级 98.4% · 空闲均值 0.063 口 · 采样 5937">98.4%</td><td class="num" style="background:#bfd7b3;color:#1a1a1a">0.063</td><td class="num" style="background:#bfd7b3;color:#1a1a1a">0.063</td></tr><tr><th class="tm">18:00</th><td class="num" style="background:#9b402b;color:#ffffff" title="设备级 98.1% · 空闲均值 0.069 口 · 采样 4903">98.3%</td><td class="num" style="background:#98422b;color:#ffffff" title="设备级 98.2% · 空闲均值 0.073 口 · 采样 5040">98.2%</td><td class="num" style="background:#bad4af;color:#1a1a1a">0.069</td><td class="num" style="background:#b5d1ab;color:#1a1a1a">0.073</td></tr><tr><th class="tm">19:00</th><td class="num" style="background:#ab372a;color:#ffffff" title="设备级 99.0% · 空闲均值 0.042 口 · 采样 5248">98.9%</td><td class="num" style="background:#b13429;color:#ffffff" title="设备级 99.2% · 空闲均值 0.033 口 · 采样 5396">99.2%</td><td class="num" style="background:#d2e3c4;color:#1a1a1a">0.042</td><td class="num" style="background:#dae8cc;color:#1a1a1a">0.033</td></tr><tr><th class="tm">20:00</th><td class="num" style="background:#aa382a;color:#ffffff" title="设备级 98.9% · 空闲均值 0.045 口 · 采样 7562">98.9%</td><td class="num" style="background:#a33b2a;color:#ffffff" title="设备级 98.6% · 空闲均值 0.055 口 · 采样 7776">98.6%</td><td class="num" style="background:#d0e1c2;color:#1a1a1a">0.045</td><td class="num" style="background:#c6dcba;color:#1a1a1a">0.055</td></tr><tr><th class="tm">21:00</th><td class="num" style="background:#b83029;color:#ffffff" title="设备级 99.4% · 空闲均值 0.021 口 · 采样 16802">99.5%</td><td class="num" style="background:#b53229;color:#ffffff" title="设备级 99.3% · 空闲均值 0.027 口 · 采样 17244">99.3%</td><td class="num" style="background:#e5efd5;color:#1a1a1a">0.021</td><td class="num" style="background:#e0ebd1;color:#1a1a1a">0.027</td></tr><tr><th class="tm">22:00</th><td class="num" style="background:#ae352a;color:#ffffff" title="设备级 99.1% · 空闲均值 0.037 口 · 采样 5396">99.1%</td><td class="num" style="background:#b23329;color:#ffffff" title="设备级 99.2% · 空闲均值 0.032 口 · 采样 5550">99.2%</td><td class="num" style="background:#d7e6c8;color:#1a1a1a">0.037</td><td class="num" style="background:#dbe9cc;color:#1a1a1a">0.032</td></tr><tr><th class="tm">23:00</th><td class="num" style="background:#be2d29;color:#ffffff" title="设备级 99.7% · 空闲均值 0.013 口 · 采样 2313">99.7%</td><td class="num" style="background:#bf2c28;color:#ffffff" title="设备级 99.7% · 空闲均值 0.011 口 · 采样 2444">99.7%</td><td class="num" style="background:#edf3dc;color:#1a1a1a">0.013</td><td class="num" style="background:#eff5de;color:#1a1a1a">0.011</td></tr>
+    </tbody>
+  </table>
+  <div class="legend">
+    占用率色阶钉在 94%–100%（不是 0–100%）：<span class="bar"></span>94% → 100%
+    &nbsp;·&nbsp; 鼠标悬停看该格的设备级口径、空闲均值与采样数。
+    空闲插口越大越绿。
+  </div>
+</section>
+
+<section>
+  <h2>二、怎么读这张表</h2>
+  <ul class="finds">
+    <li><b>两个区全天都几乎满载，95% 起步。</b>最低的是北门 15:00 的 95.0%，
+        最高是两区 23:00 的 99.7%。换句话说：<b>想在渭水校区找到空桩，几乎只能靠运气等别人拔枪</b>，
+        不存在「某个时段一定有位子」。</li>
+    <li><b>唯一相对松的窗口是 15:00 前后</b>（北门 95.0% / 朝晖 96.1%，空闲 0.16–0.20 口/台）。
+        这可能对应下午上课时段——大家把车留在桩上但没在充，或者刚有人离开。
+        但注意这是<b>单日观察</b>，一天说明不了规律。</li>
+    <li><b>19:00 之后一路走高到 23:00 封顶。</b>从 98.9% 爬到 99.7%，
+        「全满」采样占比也从 96% 涨到 98.8%。夜间 dormitory 回来充电的高峰被这张表坐实了。</li>
+    <li><b>数据和体感一致的关键是「插口数太少」。</b>两区各只有 36 台 × 4 口 = <b>144 个插口</b>，
+        服务整个渭水校区。再低的占用率也变不出空位——这是容量问题，不是调度问题。</li>
+  </ul>
+</section>
+
+<section>
+  <h2>三、数据里踩到的两个坑（已在表中修掉，留个记录）</h2>
+  <ul class="finds">
+    <li><b>幽灵设备：北门 19:00 混进 29 台只采样 1 次的空桩。</b>
+        它们 <code>free=3~4</code>（几乎全空），却只出现一次。若不做处理，
+        北门 19 时的设备级均值会被拉到 <b>58.3%</b>，看起来像「突然空了一半」——
+        实际是把一堆转瞬即逝的脏数据算进去了。剔除后回到 <b>98.9%</b>。
+        本表口径：<b>只统计出现在 ≥8 个小时的 72 台核心设备</b>，
+        剔掉了 30 台边缘设备。</li>
+    <li><b>所有设备 <code>total</code> 恒为 4</b>，<code>free</code> 只有 0/1/2/3/4 五种取值，
+        其中 <b>free=0 占 94.2%</b>。一开始我以为是自己解析错了，
+        核对过原始 CSV 后确认这就是数据本貌——桩确实全满，
+        不是口径问题。（顺带：<code>campus-pile-kit/data/history/</code> 下 10-18 那批
+        <code>total=20</code> 的行是另一套旧格式，无法与这批混算，已弃用。）</li>
+  </ul>
+</section>
+
+<section>
+  <details>
+    <summary>展开：15 分钟粒度明细（37 个时段桶，看短时波动）</summary>
+    <table>
+      <thead><tr><th>时段</th><th>渭水-北门</th><th>渭水-朝晖体育场南</th></tr></thead>
+      <tbody><tr><th class="tm">14:15</th><td class="num" style="background:#b73029;color:#ffffff" title="采样 180">99.3%</td><td class="num" style="background:#c62828;color:#ffffff" title="采样 180">100.0%</td></tr><tr><th class="tm">14:30</th><td class="num" style="background:#a53b2a;color:#ffffff" title="采样 180">98.5%</td><td class="num" style="background:#8d482c;color:#ffffff" title="采样 180">97.4%</td></tr><tr><th class="tm">14:45</th><td class="num" style="background:#9f3e2b;color:#ffffff" title="采样 720">98.2%</td><td class="num" style="background:#5f622f;color:#ffffff" title="采样 720">95.2%</td></tr><tr><th class="tm">15:00</th><td class="num" style="background:#695c2e;color:#ffffff" title="采样 720">95.7%</td><td class="num" style="background:#685d2e;color:#ffffff" title="采样 864">95.7%</td></tr><tr><th class="tm">15:15</th><td class="num" style="background:#8b492c;color:#ffffff" title="采样 2592">97.3%</td><td class="num" style="background:#59652f;color:#ffffff" title="采样 2592">95.0%</td></tr><tr><th class="tm">15:30</th><td class="num" style="background:#2e7d32;color:#ffffff" title="采样 1764">92.9%</td><td class="num" style="background:#6e592e;color:#ffffff" title="采样 1764">95.9%</td></tr><tr><th class="tm">15:45</th><td class="num" style="background:#2f7d32;color:#ffffff" title="采样 1332">93.0%</td><td class="num" style="background:#ad362a;color:#ffffff" title="采样 1332">98.9%</td></tr><tr><th class="tm">16:00</th><td class="num" style="background:#834e2c;color:#ffffff" title="采样 2226">96.9%</td><td class="num" style="background:#a9382a;color:#ffffff" title="采样 2267">98.7%</td></tr><tr><th class="tm">16:15</th><td class="num" style="background:#695c2e;color:#ffffff" title="采样 2376">95.7%</td><td class="num" style="background:#ac362a;color:#ffffff" title="采样 2376">98.8%</td></tr><tr><th class="tm">16:30</th><td class="num" style="background:#99412b;color:#ffffff" title="采样 2196">97.9%</td><td class="num" style="background:#99412b;color:#ffffff" title="采样 2196">97.9%</td></tr><tr><th class="tm">16:45</th><td class="num" style="background:#8f462c;color:#ffffff" title="采样 2340">97.5%</td><td class="num" style="background:#7d512d;color:#ffffff" title="采样 2340">96.6%</td></tr><tr><th class="tm">17:00</th><td class="num" style="background:#95432b;color:#ffffff" title="采样 720">97.7%</td><td class="num" style="background:#804f2d;color:#ffffff" title="采样 720">96.8%</td></tr><tr><th class="tm">17:15</th><td class="num" style="background:#844d2c;color:#ffffff" title="采样 1620">97.0%</td><td class="num" style="background:#bb2e29;color:#ffffff" title="采样 1599">99.5%</td></tr><tr><th class="tm">17:30</th><td class="num" style="background:#a9382a;color:#ffffff" title="采样 1136">98.7%</td><td class="num" style="background:#8d482c;color:#ffffff" title="采样 1146">97.4%</td></tr><tr><th class="tm">17:45</th><td class="num" style="background:#bb2e29;color:#ffffff" title="采样 2443">99.5%</td><td class="num" style="background:#aa382a;color:#ffffff" title="采样 2472">98.7%</td></tr><tr><th class="tm">18:00</th><td class="num" style="background:#a23c2a;color:#ffffff" title="采样 2591">98.3%</td><td class="num" style="background:#a8392a;color:#ffffff" title="采样 2664">98.6%</td></tr><tr><th class="tm">18:15</th><td class="num" style="background:#a43b2a;color:#ffffff" title="采样 772">98.4%</td><td class="num" style="background:#b13329;color:#ffffff" title="采样 792">99.1%</td></tr><tr><th class="tm">18:30</th><td class="num" style="background:#8e472c;color:#ffffff" title="采样 735">97.4%</td><td class="num" style="background:#8d482c;color:#ffffff" title="采样 756">97.4%</td></tr><tr><th class="tm">18:45</th><td class="num" style="background:#ac372a;color:#ffffff" title="采样 805">98.8%</td><td class="num" style="background:#7e502d;color:#ffffff" title="采样 828">96.7%</td></tr><tr><th class="tm">19:00</th><td class="num" style="background:#bc2d29;color:#ffffff" title="采样 1923">99.6%</td><td class="num" style="background:#b33329;color:#ffffff" title="采样 1976">99.1%</td></tr><tr><th class="tm">19:15</th><td class="num" style="background:#9d3f2b;color:#ffffff" title="采样 490">98.1%</td><td class="num" style="background:#b43229;color:#ffffff" title="采样 504">99.2%</td></tr><tr><th class="tm">19:30</th><td class="num" style="background:#b13329;color:#ffffff" title="采样 1400">99.1%</td><td class="num" style="background:#b92f29;color:#ffffff" title="采样 1440">99.4%</td></tr><tr><th class="tm">19:45</th><td class="num" style="background:#a13d2a;color:#ffffff" title="采样 1435">98.3%</td><td class="num" style="background:#b13429;color:#ffffff" title="采样 1476">99.0%</td></tr><tr><th class="tm">20:00</th><td class="num" style="background:#ba2f29;color:#ffffff" title="采样 1366">99.4%</td><td class="num" style="background:#a13d2a;color:#ffffff" title="采样 1404">98.3%</td></tr><tr><th class="tm">20:15</th><td class="num" style="background:#af352a;color:#ffffff" title="采样 1855">98.9%</td><td class="num" style="background:#95432b;color:#ffffff" title="采样 1908">97.7%</td></tr><tr><th class="tm">20:30</th><td class="num" style="background:#a8392a;color:#ffffff" title="采样 1996">98.6%</td><td class="num" style="background:#b13429;color:#ffffff" title="采样 2052">99.0%</td></tr><tr><th class="tm">20:45</th><td class="num" style="background:#ab372a;color:#ffffff" title="采样 2345">98.8%</td><td class="num" style="background:#b43229;color:#ffffff" title="采样 2412">99.2%</td></tr><tr><th class="tm">21:00</th><td class="num" style="background:#a8392a;color:#ffffff" title="采样 1542">98.6%</td><td class="num" style="background:#b23329;color:#ffffff" title="采样 1584">99.1%</td></tr><tr><th class="tm">21:15</th><td class="num" style="background:#c22a28;color:#ffffff" title="采样 5110">99.8%</td><td class="num" style="background:#ab372a;color:#ffffff" title="采样 5220">98.8%</td></tr><tr><th class="tm">21:30</th><td class="num" style="background:#b73029;color:#ffffff" title="采样 5705">99.3%</td><td class="num" style="background:#bc2e29;color:#ffffff" title="采样 5868">99.5%</td></tr><tr><th class="tm">21:45</th><td class="num" style="background:#bd2d29;color:#ffffff" title="采样 4445">99.6%</td><td class="num" style="background:#c12b28;color:#ffffff" title="采样 4572">99.8%</td></tr><tr><th class="tm">22:00</th><td class="num" style="background:#c12b28;color:#ffffff" title="采样 1751">99.8%</td><td class="num" style="background:#be2c28;color:#ffffff" title="采样 1800">99.7%</td></tr><tr><th class="tm">22:15</th><td class="num" style="background:#b33329;color:#ffffff" title="采样 1365">99.1%</td><td class="num" style="background:#ae362a;color:#ffffff" title="采样 1404">98.9%</td></tr><tr><th class="tm">22:30</th><td class="num" style="background:#a7392a;color:#ffffff" title="采样 1719">98.6%</td><td class="num" style="background:#b23329;color:#ffffff" title="采样 1770">99.1%</td></tr><tr><th class="tm">22:45</th><td class="num" style="background:#a13d2a;color:#ffffff" title="采样 561">98.3%</td><td class="num" style="background:#ae352a;color:#ffffff" title="采样 576">98.9%</td></tr><tr><th class="tm">23:00</th><td class="num" style="background:#c22a28;color:#ffffff" title="采样 1647">99.8%</td><td class="num" style="background:#c32a28;color:#ffffff" title="采样 1724">99.9%</td></tr><tr><th class="tm">23:15</th><td class="num" style="background:#b73029;color:#ffffff" title="采样 666">99.3%</td><td class="num" style="background:#b92f29;color:#ffffff" title="采样 720">99.4%</td></tr></tbody>
+    </table>
+  </details>
+</section>
+
+<footer>
+  口径：占用率 = (total − free) / total　·　插口级 = Σ占用口 ÷ Σ总口　·　设备级 = 每台占用率先算再平均<br>
+  原始清查 interrogate 自 <code>scratch/pile-history-backup/pile_history-backup.jsonl</code>（131,000 行）
+</footer>
+
+</div></body></html>

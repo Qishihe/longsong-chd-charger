@@ -1,86 +1,47 @@
-# 实验 / 截图 / 浏览器配置目录：体量大且含明文凭证（scratch 里有 real_token.txt），一律不入库
-scratch/
-
-# Python 缓存
-__pycache__/
-*.pyc
-*.pyo
-
-# 运行时数据：历史快照按天增长，属于本机运行产物
-campus-pile-kit/data/history/
-
-# 日志
-*.log
-
-# 本地密钥：高德 Key / 安全密钥（模板见 map-key.example.js）
-# 本仓库公开，Key 进来就等于送人用，配额算在你头上
-map-key.local.js
-*-key.local.js
-*.local.js
-
-# 系统垃圾
+# ── 系统与编辑器垃圾 ──
 Thumbs.db
 desktop.ini
 .DS_Store
 
-# 第三方参考仓库：独立克隆（自带 .git），且其 LICENSE-CHOICES.md 自述
-# 「尚未写入覆盖全部文件的 LICENSE」= 保留所有权利，不该随本仓库分发。
-# ⚠️ 2026-10-25 发现它此前以 gitlink（mode 160000）形式混进了索引，却没有 .gitmodules ——
-#    别人 clone 下来只会得到一个空目录，点也点不开。已 git rm --cached，本地保留。
-stu-charge-watch/
+# ── 依赖与缓存 ──
+__pycache__/
+*.py[cod]
+node_modules/
+.wrangler/
 
-# 独立部署包：是由 chd-charge/ 复制出来的构建产物（tools/make_dist.py 生成），
-# 内容与 chd-charge/ 重复，且会随时间过时 —— 不入库，需要时重新生成
-campus-pile-kit/dist-chd-charge/
-campus-pile-kit/dist-chd-charge.zip
+# ── 密钥：一律不入库 ──
+# 高德 Key 与安全密钥（模板见 campus-pile-kit/chd-charge/map-key.example.js）
+*.local.js
+*.local.json
+.env
+.env.*
+*.key
+*.pem
+# Fiddler 抓包存档：内含 Authorization: Bearer <token> 明文。
+# ⚠️ 必须写成不带目录前缀的 `*.saz`，gitignore 的 `*` 不跨目录。
+*.saz
 
-# ---------------------------------------------------------------
-# 构建产物 / 归档 / 抓包（2026-10-25 整理时补上）
-# ---------------------------------------------------------------
-# 所有 dist-* 目录与 zip：dist-cloudflare、dist-chd-charge-min[-*]、*.full-bak 等，
-# 全部由 campus-pile-kit/tools/ 里的脚本从 chd-charge/ 重新生成。
-# 历史上曾手工攒了 7 个版本的 dist 目录，占 ~18MB，纯粹是同一份源码的重复副本。
+# ── 构建产物：由 tools/ 里的脚本从 chd-charge/ 重新生成 ──
 campus-pile-kit/dist-*/
 campus-pile-kit/*.zip
 
-# 旧站清理时移出的文件留档（preview-v3 原型 / redesign 样张 / map.html 等）
-campus-pile-kit/_archive-site-*/
+# ── 本机运行数据 ──
+campus-pile-kit/data/history/
+*.log
 
-# 🔴 Fiddler 抓包存档 41.9MB，内含真实请求头 —— Authorization: Bearer <token> 明文。
-# 这是全仓库最危险的一个文件：一旦入库等于把平台凭证公开挂在 GitHub 上。
-# ⚠️ 必须写成不带目录前缀的 `*.saz`：gitignore 的 `*` 不跨目录，
-#    写成 `campus-pile-kit/*.saz` 只能盖住一级，`campus-pile-kit/tools/saz.saz` 照样溜进来（已实测）。
-*.saz
-campus-pile-kit/saz.saz
-
-# 发布指令 / 交接类文档：会贴 Key、凭证原文，一律不入库
-# （HANDOFF.md 例外 —— 它只写「Key 在哪、怎么轮换」，已核对不含明文）
+# ── 发布记录类文档：会贴 Key 与凭证原文 ──
 发布指令*.md
 
-# ---------------------------------------------------------------
-# 宣传片（promo/）的中间产物与第三方音频
-# ---------------------------------------------------------------
-# 逐帧 PNG：两个画幅各 ~1008 张、合计约 290MB，纯粹是渲染中间产物。
-# 需要时用 capture.mjs 重抓即可（--resume 可续跑），不要入库。
-promo/frames-*/
-# 抽查 / 审图用的截图目录（_spot* / _chk* / _v2chk* 等，一律以下划线开头）
-promo/_*/
-# ⚠️ 背景音乐：《We Never（开智小曲）》是**商业版权曲**，
-#    产品方自己提供的音频文件绝不要入库、更不要随仓库分发。
-#    （合成的 mp4 一旦混入该曲，同样不建议入库 —— 见 promo/README.md 第二节）
-promo/bgm.*
-promo/*.m4a
-promo/*.flac
-promo/*.wav
-# 测速脚本用的合成点击轨（882KB）是无版权测试信号，但没必要入库 ——
-# 用 _mkclick.py 几秒就能重新生成
-promo/click*.wav
-# 临时转码产物
-promo/_sync_tmp.wav
-# 验证「短音乐混流」时产生的测试成片（5.3MB，非交付物）
-promo/_muxtest.mp4
+# ── 本地快照与过程材料：只留本地，不上仓库 ──
+# versions-chd/ 是逐版 HTML 快照，回滚用；体积 20MB+ 且全是重复源码
+campus-pile-kit/versions-chd/
+# scratch/ 是一次性探测脚本与验收脚本
+scratch/
+campus-pile-kit/scratch/
 
-# ⚠️ 已混入《We Never》的成片：含**商业版权曲**，默认不入库。
-# 自己留着发群/发朋友圈没问题；要入库或传公开仓库请三思（等于随仓库分发该曲）。
-# 如果你确认这个私有仓库可以放，把下面两行删掉即可。
-promo/*-配乐.mp4
+# ── AI 协作者的工作目录 ──
+.workbuddy/
+.wbapp_*.genie
+
+# ── 第三方参考仓库：独立克隆，自带 .git，且其许可为「保留所有权利」，不随本仓库分发 ──
+stu-charge-watch/

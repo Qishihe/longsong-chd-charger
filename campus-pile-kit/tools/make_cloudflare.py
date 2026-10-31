@@ -39,6 +39,11 @@ EXCLUDE_FILES = {
     "redesign-mockup.html", # 改版样张
     "redesign-v2.html",     # 改版样张
     "preview-v3.html",      # v3 原型（266KB，未定稿，不该公网暴露）
+    # 2026-10-29 v2.38：内测版退役，文件已删。留在这里是**防复活**——
+    # 万一从 git 里 checkout 回来（回退老快照会带回来），打包这一层就挡住，不再往公网发。
+    "preview.html",
+    "preview-banner.js",
+    "map-amap-preview.js",
 }
 EXCLUDE_DIRS = {"redesign"}
 
@@ -54,8 +59,6 @@ HEADERS = """\
 /
   Cache-Control: no-cache
 /index.html
-  Cache-Control: no-cache
-/preview.html
   Cache-Control: no-cache
 
 # 凭证上传页（站长手机用），必须 no-cache：改了立刻生效
@@ -109,7 +112,7 @@ def main():
             # JS 用 LF；JSON 也统一 LF
             dst.write_bytes(src.read_text(encoding="utf-8").replace("\r\n", "\n").encode("utf-8"))
             worker_files.append(name)
-        print(f"Worker：{' + '.join(worker_files)} +（只有 /api/* 进 Worker）")
+        print(f"Worker：{' + '.join(worker_files)} +（路由：/api/* + 已退役的内测版路径）")
 
     raw = sum(f.stat().st_size for f in DIST.rglob("*") if f.is_file())
     print(f"目录：{len(kept)} 个站点文件 + _headers → {DIST}（{raw:,} B）")
@@ -117,7 +120,7 @@ def main():
         print(f"  剔除 {s}")
 
     # 自检：少一个就跑不起来的东西
-    must = ["index.html", "preview.html", "map-amap.js", "map-data.js",
+    must = ["index.html", "map-amap.js", "map-data.js",
             "map-key.local.js", "sw.js", "_headers"] + worker_files
     missing = [m for m in must if not (DIST / m).exists()]
     if missing:

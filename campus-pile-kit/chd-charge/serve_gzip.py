@@ -130,6 +130,13 @@ SELF_BLOCK = {
     "/map.html",              # 高德骨架调试页
     "/map-key.example.js",    # 自部署模板（运行时不用）
     "/map-beimen.svg",        # 点位参考图（底图用 .webp）
+
+    # 2026-10-29 v2.38：内测版整体退役（preview.html / preview-banner.js /
+    # map-amap-preview.js 已从站点目录删除）。平台只做增量覆盖，云端那份删不掉，
+    # 所以本地开发和线上都要显式挡住 —— 一个带密码门禁的半成品页不该对外可达。
+    "/preview.html",
+    "/preview-banner.js",
+    "/map-amap-preview.js",
 }
 
 # 目录级屏蔽（这些目录整个都是内部产物）

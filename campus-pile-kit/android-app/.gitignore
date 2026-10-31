@@ -1,0 +1,14 @@
+# Gradle / Android 构建产物
+.gradle/
+build/
+local.properties
+*.iml
+.idea/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# 签名文件绝对不进仓库：泄露等于别人能给你的用户发"官方更新"
+*.jks
+*.keystore
+keystore.properties

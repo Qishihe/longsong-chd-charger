@@ -42,6 +42,7 @@
   var failReason = '', mountCount = 0;
   var onFailCb = null, onPileCb = null, onViewCb = null;
   var PIN_POS = {};             // id -> [lng, lat]（供 focusPile 用）
+  var PIN_MARK = {};            // id -> { m: Marker, p: pile, on: bool }（供 highlightPile 用）
   var BADGE_POS = {};           // 分区 -> [lng, lat]（取景要把徽章也算进去，否则会被裁掉）
   var CLUSTER_POS = {};         // 分区 -> [lng, lat]（缩小时的聚合圈位置）
   var syncTimer = null, syncPending = false;
@@ -336,11 +337,12 @@
    * 2026-10-20 用户指定：点内标注序号；绿=还有空位，红=全部占用，灰=设备离线。
    * 离线判断沿用页面里 levelOf() 的口径：拿不到端口数据（total 为 0）就算离线。
    */
-  function pileContent(code, free, total) {
+  function pileContent(code, free, total, hl) {
     var off = !total;
     var ok = total > 0 && free > 0;
     var cls = off ? 'off' : (ok ? 'free' : 'busy');
-    return '<div class="pile ' + cls + '">' + shortCode(code) + '</div>';
+    // hl：被「定位图标」点中的那台（.hl 是一圈描边 + 扩散动画，见 index.html 的 .pile.hl）
+    return '<div class="pile ' + cls + (hl ? ' hl' : '') + '">' + shortCode(code) + '</div>';
   }
 
   /* ---------- 底图图层（只建一次） ---------- */
@@ -501,7 +503,7 @@
    *
    * 🔴 2026-10-21 二次修正 —— 上一版这里改错了，产品方回复「更新结果不理想」。
    *
-   * 产品方的**原始要求**（见沟通记录 02:09 转述，原话）：
+   * 产品方的**原始要求**（原话）：
    *   「**缩小到标点重叠后分区聚合成圈**、点圈放大到分区全景」
    * 也就是说：**一旦标点开始重叠，就该换成「一个分区 = 一个圈」**，
    * 圈里写可用数（绿）或 × （红），点圈放大到该分区全景。
@@ -528,13 +530,16 @@
    * 于是 `onZoomTier` 里 `applyZoomTier()` 不传 z 时会读到动画中间值 → 假聚合态
    * → 把刚进的分区视图强退回总览。见 applyZoomTier 里那段视频式时序记录。 */
   var progZoomAt = 0;
-  /* 首帧「飞入」动画（2026-10-24 产品方要求：打开地图时**从默认位置平移到目标位置**，不要瞬移到位）。
+  /* 首帧「飞入」动画 —— **2026-10-29 v2.44 起已停用**。
    *
-   * 做法：mount 时相机停在 zoom 15.2 / campusCenter（默认位置），
-   * 第一次取景走 `setZoomAndCenter(z, center, false, FLY_MS)` 让高德补间过去；
-   * 之后（切页签、换筛选、刷新数据）一律直接到位 —— 每次都飞一遍既慢又烦，
-   * 还会把用户自己拖到的视角拽走。
-   * mount() 里会重置 firstCamera，所以「关掉再打开」会再飞一次，这正是要的效果。 */
+   * 历史：2026-10-24 产品方曾要求「打开地图时从默认位置平移到目标位置，不要瞬移」，
+   *   于是 mount 时相机停在 zoom 15.2 / campusCenter，第一次取景走
+   *   `setZoomAndCenter(z, center, false, FLY_MS)` 让高德补间 700ms 过去。
+   * 现状：产品方改主意了 ——「打开时直接展示当前分布，不要放大或平移」。
+   *   打开地图本来是为了**看分布**，结果先飞 700ms、飞完还常停在「总览」，
+   *   而用户想知道的（这块还剩几个位）在动画中间是抖的。现在一律 immediate，
+   *   一帧到位（见 applyCamera）。`firstCamera` 只留给 debug() 输出，不再参与取景；
+   *   `fitBBox(..., animate)` 的分支留着没删，但当前没有任何调用点传 true。 */
   var FLY_MS = 700;
   var firstCamera = true;
   function applyZoomTier(z, allowViewReset) {
@@ -680,7 +685,7 @@
     curView = id;
     /* 留白换算：单边像素 = cw×p/(2(1+p))。窄屏 cw≈390、p=0.08 → 约 14px，
      * 标点徽章半宽 10px → 留出 4px 余量，「贴边但不裁切」。
-     * （DeepSeek 原方案 p=0.05 → 9px，只够盖住半宽，遇上子像素取整就会切掉 1px。）
+     * （最初方案 p=0.05 → 9px，只够盖住半宽，遇上子像素取整就会切掉 1px。）
      * 原值是 北门 0.09 / 朝晖 0.22（朝晖留白尤其大），产品方反映「区域还是有点小」。
      *
      * 🔴 minZ 必须给到**徽章档**（gap≥13），否则会出现「点完还是圈」的死循环 ——
@@ -825,6 +830,7 @@
   function rebuildPins() {
     clearLayer(pinLayer); pinLayer = null;
     PIN_POS = {};
+    PIN_MARK = {};   // 每次重建都清空：marker 是新对象，旧的拿在手里也没用
 
     var pinMarkers = [];
 
@@ -835,12 +841,14 @@
       layoutPiles(list, area).forEach(function (o) {
         var p = o.p, pos = o.pos;
         PIN_POS[p.id] = pos;
-        pinMarkers.push(new AMap.Marker({
+        var mk = new AMap.Marker({
           position: pos, anchor: 'center',
           content: pileContent(p.code, p.free, p.total),
           extData: { id: p.id },
           title: p.code + ' · ' + (p.total ? p.free + '/' + p.total + ' 空闲' : '无数据'),
-        }));
+        });
+        PIN_MARK[p.id] = { m: mk, p: p, on: false };
+        pinMarkers.push(mk);
       });
     });
 
@@ -1019,19 +1027,22 @@
   }
 
   function applyCamera() {
-    /* 只有「打开地图后的第一帧」做飞入动画（见 firstCamera 的说明）。
-     * 注意这个判断必须在最前面取一次就置 false：同一次 applyCamera 里
-     * fitCampus / fitBBox 可能被调用多次，不能都当成首帧。 */
-    var fly = firstCamera;
+    /* 2026-10-29 v2.44：**一律 immediate，不做镜头过渡**（见上面 firstCamera 那段）。
+     *
+     * 视野本身仍然按当前视图重算：总览铺全校、分区铺该区。
+     * 「不要放大或平移」指的是不要那个 700ms 的过渡动画，
+     * 不是「把上一张图的视野硬套到新分区上」——
+     * 真那么做的话，缩在总览级别看北门 37 台会挤成几个像素，等于没切。
+     */
     firstCamera = false;
     if (curView === 'campus') {
-      fitCampus(fly);
+      fitCampus(false);
     } else {
       var b = areaBBox(curView);
       // 北门桩阵只占一块 137m×58m 的地块，留白 9%（窄屏单边约 15px，扣掉徽章半宽 8px 还剩 7px，
       // 最东头的 D14 不会被容器切掉），缩放托底 18.05 级 —— 低于这个级别桩距不够 13px，桩号就降级成圆点
-      if (b) fitBBox(b, curView === '渭水-北门' ? 0.09 : 0.22, curView === '渭水-北门' ? 18.05 : 0, fly);
-      else fitCampus(fly);
+      if (b) fitBBox(b, curView === '渭水-北门' ? 0.09 : 0.22, curView === '渭水-北门' ? 18.05 : 0, false);
+      else fitCampus(false);
     }
     try { map.resize(); } catch (e) {}
     // 档位已经在 fitBBox 里按目标 zoom 设过了，这里再读 map.getZoom() 反而会拿旧值覆盖
@@ -1185,18 +1196,38 @@
        *   ② 直接用**目标 zoom** 定档，不等滞后的 getZoom()
        */
       progZoomAt = Date.now();
-      /* 2026-10-24：显式给「动画 + 时长」，让「查找」是**飞过去**而不是瞬移。
-       * 终点照样补一次精确落位 —— 高德在同时改 center + zoom 的动画里会把 zoom
-       * 停在中间值（见 fitBBox 那段实测），读 getZoom 又不可靠，所以直接等值重设。 */
-      map.setZoomAndCenter(19.2, PIN_POS[id], false, FLY_MS);
+      /* 2026-10-29 v2.44：不再「飞过去」，immediately=true 一帧到位。
+       * （原来走 setZoomAndCenter(..., false, FLY_MS) 再补一次精确落位，是因为高德在
+       *   同时改 center + zoom 的动画里会把 zoom 停在中间值 —— 现在不做动画，那套补偿
+       *   连带一起不需要了。）
+       * ⚠️ 页面侧的「定位图标」已经不走这里了：产品方要求「打开就停在整块分布上，
+       *   不凑近某台桩」，所以 openMapAt() 改成「切分区 + 取分区全景 + 高亮该桩」。
+       *   这个 API 留着给「点桩看详情」之类需要真凑近的场景。 */
+      map.setZoomAndCenter(19.2, PIN_POS[id], true);
       applyZoomTier(19.2);                                   // 用目标值定档（19.2 → gap≈30.8，必进徽章档）
-      setTimeout(function () {                               // 动画收尾后再钉一次
-        if (!map) return;
-        progZoomAt = Date.now();
-        map.setZoomAndCenter(19.2, PIN_POS[id], true);
-        applyZoomTier(19.2);
-      }, FLY_MS + 90);
       notifyView();          // 「查找」也是切了视图（curView 已变成该桩所属分区）
+      return true;
+    },
+
+    /* 把某一台桩「标出来」——卡片右上角定位图标进来时用。
+     *
+     * 2026-10-29 v2.44 起「定位」的语义变了：不再把镜头凑到那台桩的特写
+     * （产品方：打开就停在整块分布上，不放大不平移），改成在整块分布里把它标出来。
+     * 所以这里**只动那一颗 marker 的内容**（加 `.hl` 类：描边 + 扩散圈），
+     * 相机、图层显隐、聚合态一概不碰。
+     * 返回 false = 这台桩不在这张图里 / 引擎还没 ready，调用方自己决定要不要提示。 */
+    highlightPile: function (id) {
+      if (!ready) return false;
+      var hit = PIN_MARK[id];
+      if (!hit) return false;
+      Object.keys(PIN_MARK).forEach(function (k) {
+        var it = PIN_MARK[k];
+        if (k === id || !it.on) return;
+        it.m.setContent(pileContent(it.p.code, it.p.free, it.p.total, false));
+        it.on = false;
+      });
+      hit.m.setContent(pileContent(hit.p.code, hit.p.free, hit.p.total, true));
+      hit.on = true;
       return true;
     },
 

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- DayNight：跟随系统深浅色，网站的 prefers-color-scheme 才会正确切换。
+         状态栏/导航栏透明 + 内容铺到系统栏下方，具体留边由 MainActivity 计算 insets。
+         状态栏图标黑白（windowLightStatusBar）在代码里按深浅色设，避免 API 版本资源碎片。 -->
+    <style name="Theme.ChdCharge" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/window_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+    </style>
+</resources>

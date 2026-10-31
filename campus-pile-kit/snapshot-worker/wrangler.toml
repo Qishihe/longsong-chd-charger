@@ -1,0 +1,55 @@
+# 快照站 · 调度 Worker 的部署配置
+#
+# 部署前要改两处：
+#   1. account_id —— 在 CF Dashboard 右下角 / `npx wrangler whoami` 里拿
+#   2. database_id —— `npx wrangler d1 create chd-snap` 输出的 id（见下方注释）
+#
+# 命令：
+#   npx wrangler d1 create chd-snap        # 建库，拿到 database_id 填到下面
+#   npx wrangler d1 execute chd-snap --remote --file=migrations/0001_init.sql  # 建表
+#   npx wrangler deploy                    # 首次部署
+#   npx wrangler tail                      # 看 cron 日志
+#   npx wrangler secret put SNAP_KEY       # 与站点 Worker 共享的内部密钥
+
+name = "chd-snap"
+main = "worker.mjs"
+compatibility_date = "2026-10-01"
+
+# account_id —— 本地部署前填回你自己的值（`npx wrangler whoami` 里能查到）。
+# 仓库里刻意只留注释示例：这一串能唯一定位到 CF 账号，开源出去等于把门口牌号挂出去。
+# account_id = "your-cloudflare-account-id"
+
+# 🔴 D1 不需要支付方式，这是换掉 R2 的原因之一（R2 必须绑卡才能激活）。
+#   建库命令 `npx wrangler d1 create chd-snap` 会输出：
+#     database_id = "xxxx-xxxx-xxxx-xxxx"
+#   把它填到下面，同时把 database_name 保持 chd-snap。
+[[d1_databases]]
+binding = "SNAP"
+database_name = "chd-snap"
+database_id = "your-d1-database-id"
+
+[vars]
+# 扫桩走站点现有的 /api/pile（凭证只有一份）
+PILE_ORIGIN = "https://chd-charge.pages.dev"
+
+[triggers]
+# 免费版上限 5 条，这里正好用满：
+#   前 4 条 = 四个分区各一跳，错开 1 分钟 → 每分钟最多只有一个区在跑
+#   第 5 条 = 每小时 :05 采一个占有率点 + 顺带清过期锁
+#
+# 🔴 统计那条**不能写 :00/:01/:02/:03** —— 那四分钟正好是四个分区在跑，
+#    而统计第一件事就是读它们的快照。撞在同一分钟的话，谁先谁后不确定，
+#    统计点里四个区会来自两个不同时刻（静默的数据错误，不报错）。
+#    :05 = 最慢的那跳（:03 起跑，18 秒超时）早已结束，留 100 秒余量。
+#
+# 时段表在 config.mjs 里，cron 只是「每 5 分钟敲门一次」，跑不跑由表决定。
+crons = [
+  "0-59/5 * * * *",
+  "1-59/5 * * * *",
+  "2-59/5 * * * *",
+  "3-59/5 * * * *",
+  "5 * * * *",
+]
+
+[observability]
+enabled = true

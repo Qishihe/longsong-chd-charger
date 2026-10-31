@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">长歌充电桩</string>
+    <string name="exit_hint">再按一次退出</string>
+    <string name="choose_file">选择文件</string>
+    <string name="no_file_picker">这台设备没有可用的文件选择器</string>
+    <string name="link_error">打不开这个链接</string>
+</resources>

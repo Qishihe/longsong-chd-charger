@@ -11,12 +11,22 @@
  *   Bindings    → KV namespace，变量名 CHD_CRED
  *   Variables   → ADMIN_TOKEN（类型选 Secret/加密）
  *
- * 约定：KV 里只存**密文**。加密/解密都在浏览器端（AES-GCM + PBKDF2 20 万轮），
- * 所以即便有人把 /api/cred 直接拉走，没有共享口令也解不开。
- * 本 Worker 只是一个「带写口令的公共信箱」，不做任何加解密。
+ * 🔴 2026-10-27 改版：**凭证不再下发给浏览器**。
+ *
+ *    改之前：KV 存密文 → `/api/cred` 把密文给浏览器 → 浏览器用自己的 key 解 → 直连平台。
+ *            问题在于解密 key 是硬编码在 index.html 里的，等于公开；加上浏览器必须
+ *            把 `Authorization: Bearer <token>` 发出去，F12 一眼就能抄走。
+ *
+ *    改之后：KV 里多存一份**明文**（独立键 `cred_tok`，只有本文件读，任何路由都不返回）；
+ *            `/api/pile` 缺 `body.token` 时自己取、自己转发 → 凭证一次都不进浏览器。
+ *            `/api/cred` 只回 `{updatedAt, expiresAt}` 这类元数据。
+ *
+ *    密文那份（`cred`）继续双写：留给旧页面做回退，也留一条「浏览器端解密」的后路。
+ *    两份的键分开存是有意的 —— 万一同一个值里塞字段，哪天改返回体就会顺手带出去。
  */
 
-const KEY = 'cred';           // KV 里的键名
+const KEY = 'cred';           // KV 里的键名（元数据 + 密文，可公开读）
+const KEY_TOK = 'cred_tok';   // 明文凭证，**只在 Worker 内部读**，绝不出现在任何响应里
 const MAX_BODY = 64 * 1024;   // 密文上限 64 KB，够放巨长的凭证串
 const MAX_FAILS = 10;         // 每窗口最多失败次数
 const FAIL_WINDOW_MS = 10 * 60 * 1000;
@@ -32,14 +42,35 @@ const FAIL_WINDOW_MS = 10 * 60 * 1000;
  *   · 出口换成 Cloudflare 边缘节点，不再消耗用户自己的 IP 信誉；
  *   · 结果按单台缓存 5 分钟（与页面自动刷新间隔对齐），同一时间多人看同一个桩，
  *     只有一个请求真正回源平台；
- *   · 浏览器只发 3 个批量请求（109 台 ÷ 40），而不是 109 个。
+ *   · 浏览器只发 9~10 个批量请求（109 台 ÷ 12），而不是 109 个。
  *
- * ⚠️ 免费版单次调用子请求上限 50，所以 PILE_MAX_IDS 卡在 40（留余量）。
+ * 🔴 单次调用的「子请求」怎么记账（2026-10-29 实测纠正，之前算错过一次）：
+ *
+ *    免费版上限 50 个。以前只把「每台一次 fetch」算进去，于是 PILE_MAX_IDS
+ *    定成 40 —— 漏了 **Cache API 的每一次 match/put 也各算 1 个**。
+ *
+ *    一次 fresh 批量请求的真实开销（N = 本批台数）：
+ *        N    次 cache.match  ← 逐台查「这份缓存还新吗」
+ *      + 2    次预算桶读写    ← 读已用量 + 写回已用量
+ *      + N    次 fetch        ← 真打平台
+ *      + N    次 cache.put    ← 写回结果
+ *    = 3N + 2
+ *
+ *    （撞预算被降级时不会 fetch/put，但那几台在「降级时读一次」和「跑完再读
+ *     一次」各多出 1 次 match，加起来仍然是 3N + 2 —— 这个式子没有分支。）
+ *
+ * 事故现场（就是算错这个数导致的）：北门 37 台 → 37 + 2 = 39 个子请求，
+ * 只剩 11 个 fetch 名额，**前 11 台成功、第 12 台起全部拿「8 秒超时」**；
+ * 30 台一批则恰好 18 台成功（50 − 32），两次都精确对上。
+ * 页面一直没事，是因为它本来就按 12 台一批发（38 < 50）。
+ *
+ * 所以上限取 **14**（3×14+2 = 44，留 6 个余量）。超了直接 400 报错，
+ * 别让调用方拿到一份「缺一半且看起来正常」的结果 —— 静默残缺比报错难查得多。
  */
 const PILE_API = 'https://union.zhumanggroup.com';
 const PILE_SCAN = '/api/rent/scan-code';
 const PILE_TTL = 300;            // 边缘缓存秒数（普通请求的上界）
-const PILE_MAX_IDS = 40;
+const PILE_MAX_IDS = 14;         // = 3N+2 ≤ 50 解出来的安全上界（见上），别再按「台数」放宽
 const PILE_RATE = 30;            // 单 IP 每分钟最多几次批量请求
 
 /* ---------------- 「用户点了刷新」时怎么兼顾实时性与风控 ----------------
@@ -57,12 +88,17 @@ const PILE_RATE = 30;            // 单 IP 每分钟最多几次批量请求
  *     没必要再打平台；
  *   · 超过门槛才回源，拿到的新结果照旧写缓存（别人还能受益）。
  *
- * 🔴 门槛为什么是 90 秒（不是 0，也不是 300）：
+ * 🔴 门槛 2026-10-29 从 90 秒降到 60 秒（产品要求：「数据满 1 分钟就允许手动刷」）。
  *    平台对**同一出口 IP 的请求量**有硬上限，实测 109 台/分钟就会整片 TCP 超时。
  *    一轮全量 = 109 台 ÷ PILE_CONCURRENCY 6 ≈ 18 秒。
  *    · 门槛 0    → 每次打开/手点都全量回源，多人同时用就是 200+ 台/分钟 → 必被限流；
- *    · 门槛 90 秒 → 最坏 109 台/90 秒 ≈ 72 台/分钟，安全区；
- *      而且用户看到的最差时间就是「1 分钟前」（真有人在 90 秒内刚查过，数据确实新）。
+ *    · 门槛 90 秒 → 最坏 109 台/90 秒 ≈ 72 台/分钟，很安全，但用户要等 1 分半；
+ *    · 门槛 60 秒 → 单用户最坏 109 台/分钟，**正好压在那条限流线上**。
+ *      所以必须三个改动一起上，少一个都不安全：
+ *        ① 预算从 240 收紧到 160（1.5 轮全量）→ 第二个人同时刷会被 throttled；
+ *        ② 页面侧加 60 秒手动刷新间隔（MIN_MANUAL_GAP_MS）→ 挡住连点；
+ *        ③ 门槛本身只作用于 `fresh:true`，自动刷新/补查走的还是老路径。
+ *    只降门槛、不动预算，等于把风控口子敞开 —— 别拆开单独改。
  *
  * 🔴 再加一道「全站回源预算」防雪崩，但**不能用锁**：
  *    页面把 109 台切成 12 台一批、两条流水线，一轮会发 9~10 个批次到同一个 Worker。
@@ -76,8 +112,8 @@ const PILE_RATE = 30;            // 单 IP 每分钟最多几次批量请求
  *    读-改-写有极小竞态，但这里要的是「总量别失控」，不是精确配额。
  *    预算被用完时**不返回 error**：给 `throttled: true` 让页面沿用本地缓存并说明原因，
  *    返回 error 会被页面当成「平台没响应」，连续几台就整轮放弃。 */
-const PILE_FRESH_MIN = 90;       // fresh 请求：缓存比这新就直接用（秒）
-const PILE_FRESH_BUDGET = 240;   // 全站每分钟最多回源多少台（一轮全量 109 台 ≈ 2.2 轮）
+const PILE_FRESH_MIN = 60;       // fresh 请求：缓存比这新就直接用（秒）
+const PILE_FRESH_BUDGET = 160;   // 全站每分钟最多回源多少台（一轮全量 109 台 ≈ 1.5 轮）
 
 /* 🔴 平台对**同一出口 IP 的并发**有硬上限，实测（2026-10-24）：
  *     单批 20 台并发 → 1857ms，20/20 成功
@@ -120,6 +156,30 @@ async function mapLimit(items, limit, fn) {
 }
 
 /** 单台真打平台。只返回结构化结果，不抛异常。 */
+/* ---------------- 服务端凭证读取 ----------------
+ *
+ * 只给 `/api/pile` 和 `/api/shop` 用。**不存在任何把它吐出去的路由** —— 这是本轮改版的
+ * 全部意义所在，以后加路由时不要读 KEY_TOK。
+ *
+ * 过期就当作没有：宁可让页面拿到 `no_token` 去提示站长换证，也别拿一串死 token 打平台 ——
+ * 那会把「凭证过期」伪装成「平台抽风」，排查起来要多绕好几圈。
+ */
+async function serverToken(env) {
+  if (!env || !env.CHD_CRED) return '';
+  try {
+    const raw = await env.CHD_CRED.get(KEY_TOK);
+    if (!raw) return '';
+    const rec = JSON.parse(raw);
+    const tok = typeof rec.token === 'string' ? rec.token.trim() : '';
+    if (!tok) return '';
+    const exp = Number(rec.exp) || 0;
+    if (exp && Date.now() / 1000 > exp) return '';
+    return tok;
+  } catch (e) {
+    return '';
+  }
+}
+
 async function pileScan(id, token) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 8000);
@@ -155,25 +215,80 @@ function pileCacheKey(origin, id) {
   return origin + '/__pile/' + encodeURIComponent(id);
 }
 
-async function handlePile(request, url) {
+/* ---------------- 来源校验 ----------------
+ * 只接受本站页面发来的请求。挡掉「拿这个端点当免费代理刷平台」的用法 ——
+ * 那种用法会把 Cloudflare 出口也搞进风控，把所有人一起拖下水。
+ *
+ * 🔴 2026-10-27 晚收紧：以前写的是 `if (origin && origin !== url.origin) 拒`，
+ * 等于**没带 Origin 的一律放行** —— curl、Python、任何脚本都能直接 POST。
+ * 后果不是凭证泄漏（凭证在服务端），是平台对**同一个出口 IP** 的风控被刷爆：
+ * 实测每分钟 109 台就会整片 TCP 超时，全站一起挂，页面只表现为「一直转」。
+ *
+ * 现在的判定：Origin 优先；缺了退到 Referer 的 origin 部分；两者都没有 = 不是浏览器，拒。
+ * 同源 POST 一定带 Origin（我们的请求是 JSON body，属非简单请求），所以站点自身不受影响。
+ *
+ * 放行 localhost：本地预览要经 `serve_gzip.py` 反代到这里，origin 是 127.0.0.1，
+ * 与线上同源检查天然不符；这个口子只对站长本机有效，不构成外泄面。
+ */
+const LOCAL_ORIGIN_RE = /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/;
+
+function requestOrigin(request) {
+  const direct = request.headers.get('origin') || '';
+  if (direct) return direct;
+  const ref = request.headers.get('referer') || request.headers.get('referrer') || '';
+  if (!ref) return '';
+  try { return new URL(ref).origin; } catch (e) { return ''; }
+}
+
+function sameSiteRequest(request, url) {
+  const origin = requestOrigin(request);
+  if (!origin) return false;                 // 非浏览器调用（curl / 脚本 / 服务端对服务端）
+  if (LOCAL_ORIGIN_RE.test(origin)) return true;
+  return origin === url.origin;
+}
+
+async function handlePile(request, url, env) {
   if (request.method !== 'POST') return json({ ok: false, error: 'method_not_allowed' }, 405);
 
-  /* 只接受本站页面发来的请求。挡掉「拿这个端点当免费代理刷平台」的用法 ——
-   * 那种用法会把 Cloudflare 出口也搞进风控，把所有人一起拖下水。 */
-  const origin = request.headers.get('origin') || '';
-  if (origin && origin !== url.origin) return json({ ok: false, error: 'bad_origin' }, 403);
+  /* 内部调度器（chd-snap Worker）：带对了密钥就放行，绕过同源检查。
+   * 服务器到服务器没有 Origin/Referer，而 Workers 的 fetch 里这两个头属于
+   * 受限头，设了也可能被剥掉 —— 所以走显式密钥通道。
+   * 没设 SNAP_KEY 时这段等于不存在，行为与之前完全一致。 */
+  const snapKey = request.headers.get('x-snap-key') || '';
+  const internal = !!(env && env.SNAP_KEY && snapKey && snapKey === env.SNAP_KEY);
+  if (!internal && !sameSiteRequest(request, url)) return json({ ok: false, error: 'bad_origin' }, 403);
 
   let body;
   try { body = await request.json(); } catch (e) { return json({ ok: false, error: 'bad_json' }, 400); }
 
-  const token = body && typeof body.token === 'string' ? body.token : '';
-  if (!token || token.length < 20 || token.length > 4096) return json({ ok: false, error: 'no_token' }, 400);
+  /* 优先用请求里带的（站长粘贴 / 本机覆盖），没带就取服务端的。
+   * 访客走的永远是后一条 —— 浏览器从头到尾不知道 token 长什么样。 */
+  let token = body && typeof body.token === 'string' ? body.token.trim() : '';
+  let fromServer = false;
+  if (!token) { token = await serverToken(env); fromServer = true; }
+  if (!token || token.length < 20 || token.length > 4096) {
+    return json({
+      ok: false,
+      error: 'no_token',
+      hint: fromServer ? 'server_token_missing' : 'bad_client_token',
+    }, 400);
+  }
 
   const ids = Array.isArray(body.ids)
     ? body.ids.filter((x) => typeof x === 'string' && /^[A-Za-z0-9_-]{4,32}$/.test(x))
     : [];
   if (!ids.length) return json({ ok: false, error: 'no_ids' }, 400);
-  if (ids.length > PILE_MAX_IDS) return json({ ok: false, error: 'too_many_ids', max: PILE_MAX_IDS }, 400);
+  /* 超上限就当场拒绝，**绝不悄悄截断**：截断后的结果看起来完全正常，
+   * 调用方会把「只拿到一半」当成「另一半的平台挂了」，然后写进统计里。
+   * 2026-10-29 之前上限是 40，北门 37 台就是被子请求额度悄悄截掉的。 */
+  if (ids.length > PILE_MAX_IDS) {
+    return json({
+      ok: false,
+      error: 'too_many_ids',
+      max: PILE_MAX_IDS,
+      hint: 'free plan allows 50 subrequests per invocation; each id costs 3 (cache.match + fetch + cache.put) plus 2 for the budget bucket — split into batches of <= ' + PILE_MAX_IDS,
+    }, 400);
+  }
 
   const ip = clientIp(request);
   if (pileTooMany(ip)) return json({ ok: false, error: 'rate_limited' }, 429);
@@ -211,6 +326,9 @@ async function handlePile(request, url) {
   /* 全站回源预算：每分钟一个桶，跨 isolate 用 Cache API 计数。
    * 预算够 → 正常回源；不够 → 只回源补得上的那几台，其余沿用现有结果。 */
   let throttled = false;
+  /* 因预算不足被降级的台（2026-10-29 加）。这些 id 在本轮回源跑完之后要**再读一次
+   * 缓存**，原因见下面 `recovered` 那段。 */
+  const demotedIds = [];
   if (wantFresh && missIds.length) {
     const bucket = Math.floor(Date.now() / 60000);
     const bkey = new Request(url.origin + '/__pile_budget/' + bucket);
@@ -225,6 +343,7 @@ async function handlePile(request, url) {
       /* 前 allow 台照常回源，剩下的降级（splice 返回被切掉的尾部） */
       const demoted = missIds.splice(allow);
       for (const id of demoted) {
+        demotedIds.push(id);
         let keep = null;
         try {
           const h = await cache.match(new Request(pileCacheKey(url.origin, id)));
@@ -245,6 +364,34 @@ async function handlePile(request, url) {
   const rows = await mapLimit(missIds, PILE_CONCURRENCY, async (id) => [id, await pileScan(id, token)]);
   let fetched = 0;
   let authFail = 0;
+
+  /* 被降级的那几台再读一次缓存（2026-10-29 加）。
+   *
+   * 为什么值得单独做一次：撞预算的**典型场面是「同一分钟里另一个人也点了刷新」**。
+   * 他那一轮正在把结果陆续写进 Cache API，而我们刚刚花掉的那 ~18 秒（跑自己那份
+   * 份额）正好给了他时间写完。所以跑完回头看，被降级的那几台多半已经是**几秒前
+   * 的新数据**了 —— 只是我们进入函数时读到的是旧的。
+   *
+   * 这一步是纯本地操作：一次 `cache.match`，**零上游请求、零风控风险、不占预算**。
+   * 效果就是把「只能退回旧数据」变成「直接引用同一分钟内别人刚查到的结果」。
+   *
+   * 判据用 `at` 戳的先后（缓存里那份比手上这份新），**不比 ports 内容** ——
+   * 两台都满、或两台都空是很合法的相同内容，比内容会白替换一遍还漏计 recovered。
+   */
+  let recovered = 0;
+  for (const id of demotedIds) {
+    const prevAt = Number(results[id] && results[id].at) || 0;
+    let rec = null;
+    try {
+      const h = await cache.match(new Request(pileCacheKey(url.origin, id)));
+      if (h) rec = await h.json();
+    } catch (e) { rec = null; }
+    const at = Number(rec && rec.at) || 0;
+    if (rec && Array.isArray(rec.ports) && rec.ports.length && at > prevAt) {
+      results[id] = rec;
+      recovered += 1;
+    }
+  }
 
   for (const [id, rec] of rows) {
     if (rec && rec.ports) {
@@ -271,6 +418,7 @@ async function handlePile(request, url) {
     results,
     hit: usedCache,
     fetched,
+    recovered,
     authFail,
     fresh: wantFresh,
     throttled,
@@ -335,17 +483,25 @@ async function shopFetch(shopId, token) {
   }
 }
 
-async function handleShop(request, url) {
+async function handleShop(request, url, env) {
   if (request.method !== 'POST') return json({ ok: false, error: 'method_not_allowed' }, 405);
 
-  const origin = request.headers.get('origin') || '';
-  if (origin && origin !== url.origin) return json({ ok: false, error: 'bad_origin' }, 403);
+  if (!sameSiteRequest(request, url)) return json({ ok: false, error: 'bad_origin' }, 403);
 
   let body;
   try { body = await request.json(); } catch (e) { return json({ ok: false, error: 'bad_json' }, 400); }
 
-  const token = body && typeof body.token === 'string' ? body.token : '';
-  if (!token || token.length < 20 || token.length > 4096) return json({ ok: false, error: 'no_token' }, 400);
+  /* 与 handlePile 同一套：客户端带了就用客户端的，没带用服务端的。 */
+  let token = body && typeof body.token === 'string' ? body.token.trim() : '';
+  let fromServer = false;
+  if (!token) { token = await serverToken(env); fromServer = true; }
+  if (!token || token.length < 20 || token.length > 4096) {
+    return json({
+      ok: false,
+      error: 'no_token',
+      hint: fromServer ? 'server_token_missing' : 'bad_client_token',
+    }, 400);
+  }
 
   const shopId = body && typeof body.shopId === 'string' ? body.shopId : '';
   if (!/^[A-Za-z0-9_-]{4,32}$/.test(shopId)) return json({ ok: false, error: 'bad_shop' }, 400);
@@ -402,6 +558,70 @@ function json(obj, status = 200) {
   });
 }
 
+/* ---------------- 快照数据反代（/api/stats、/api/snap） ----------------
+ *
+ * 一周回顾的数据在快照 Worker（chd-snap）里，而它挂在 *.workers.dev。
+ * 不在前端直连的原因有两条：
+ *   1. 跨域。要多一轮 preflight，还要给对方 Worker 加 CORS 头。
+ *   2. 实测本机走代理时 workers.dev 直接 502、直连 21 秒超时 ——
+ *      用户的网络环境（校园网 / 公司代理）未必都能到 workers.dev。
+ * 站点 Worker 转发是「边缘到边缘」，不受用户侧网络策略影响，还天然同源。
+ *
+ * 转发两类：
+ *   /api/stats —— 七天统计（每小时一个点，只读）
+ *   /api/snap  —— 单区快照（读；带 `?refresh=1` 时可触发一次补刷）
+ *
+ * ⚠️ 反代 `/api/snap` 等于把它对公网开放（原先 workers.dev 基本没人到得了）。
+ *    滥用上限仍受快照站自己的两道锁约束：分区锁 + 全站分钟锁，
+ *    最坏是「每 120 秒一个区 37 台」—— 正是它本来就按此设计的量级。
+ *
+ * 🔴 快照站没部署、或 D1 还没攒到数据时必须**软失败**：
+ *    回 200 + 空 points + degraded 标记。前端据此画「数据还在攒」，
+ *    而不是弹红框 —— 「还没攒够七天」和「坏了」是两件完全不同的事。
+ */
+const SNAP_ORIGIN = 'https://chd-snap.203147001.workers.dev';
+
+async function proxySnap(path, url, env) {
+  const base = String(env.SNAP_ORIGIN || SNAP_ORIGIN).replace(/\/+$/, '');
+  /* 统计点每小时才一个，5 分钟缓存足够新；快照是分钟级，60 秒。 */
+  const ttl = path === '/api/stats' ? 300 : 60;
+  const headers = (cache) => ({
+    'content-type': 'application/json; charset=utf-8',
+    'cache-control': cache,
+    'x-content-type-options': 'nosniff',
+  });
+
+  try {
+    /* 🔴 `refresh=1` 的请求要**真的扫上游**（5–18 秒），8 秒会把一次正常刷新
+       掐断在半路：反代超时返回了，Worker 那边也随之中止，快照写不进去。
+       只读请求 8 秒足够（读 1 行 D1）。22 秒 = SCAN_TIMEOUT_MS(18) + 余量。 */
+    const timeoutMs =
+      path === '/api/snap' && url.searchParams.get('refresh') === '1' ? 22000 : 8000;
+    const res = await fetch(base + path + url.search, {
+      headers: { accept: 'application/json' },
+      signal:
+        typeof AbortSignal !== 'undefined' && AbortSignal.timeout
+          ? AbortSignal.timeout(timeoutMs)
+          : undefined,
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const body = await res.text();
+    /* 透传上游的 JSON，但缓存策略由这里定。 */
+    return new Response(body, { status: 200, headers: headers(`public, max-age=${ttl}`) });
+  } catch (err) {
+    console.error(`[stats] 反代快照失败 ${path}：${String((err && err.message) || err)}`);
+    /* 形状对齐上游，少一个字段前端就得多写一个分支。 */
+    const fallback =
+      path === '/api/stats'
+        ? { ok: true, v: 1, points: [], degraded: 'snapshot_unavailable' }
+        : { ok: false, error: 'snapshot_unavailable', degraded: 'snapshot_unavailable' };
+    return new Response(JSON.stringify(fallback), {
+      status: 200,
+      headers: headers('public, max-age=60'),
+    });
+  }
+}
+
 /** 定长比较：先各自 SHA-256，再逐字节异或，避免长度/前缀泄漏 */
 async function safeEqual(a, b) {
   if (typeof a !== 'string' || typeof b !== 'string' || !a || !b) return false;
@@ -437,10 +657,66 @@ function bumpFail(ip) {
   else rec.n += 1;
 }
 
+/* ---------------- /api/cred 的**读**频控 ----------------
+ *
+ * 读接口原来完全不限流：写个循环就能把密文拉走存档，慢慢猜。
+ * 密文本身解不开（PBKDF2 20 万轮 + AES-GCM），所以这不是「防解密」，
+ * 只是把「随便拿」抬成「要费点劲拿」。
+ *
+ * ⚠️ 两条局限必须说清楚：
+ *   1. Map 只在**单个 isolate** 的内存里，换边缘节点就是新的一份 —— 这是抬高门槛，不是硬闸门。
+ *      要真闸门得上 Durable Object 或 KV 计数，但 KV 免费额度 1000 写/天，一开就爆。
+ *   2. 阈值不能太低：校园网是 NAT，一大片学生共用一个出口 IP。设 20/分钟会误伤
+ *      「下课时几十个人同时刷新」。60 够个人用，也够挡住无脑循环。
+ */
+const CRED_HITS = new Map();
+const CRED_RATE = 60;              // 单 IP 每分钟最多读几次
+const CRED_WINDOW_MS = 60000;
+
+function credTooMany(ip) {
+  const now = Date.now();
+  const rec = CRED_HITS.get(ip) || { n: 0, t: now };
+  if (now - rec.t > CRED_WINDOW_MS) { rec.n = 0; rec.t = now; }
+  rec.n += 1;
+  CRED_HITS.set(ip, rec);
+  /* isolate 活得很久时 Map 会一直长，顺手把过期窗口清掉 */
+  if (CRED_HITS.size > 4000) {
+    for (const [key, val] of CRED_HITS) {
+      if (now - val.t > CRED_WINDOW_MS) CRED_HITS.delete(key);
+    }
+  }
+  return rec.n > CRED_RATE;
+}
+
+/* ---- 已退役的内测版（2026-10-29 v2.38）----
+ *
+ * `preview.html` / `preview-banner.js` / `map-amap-preview.js` 已从站点目录删除，
+ * 但 Cloudflare Pages 是**增量覆盖**：本地删了，云端旧文件还在，直链照样 200
+ * （2026-10-25 在 preview-v3.html 上实测过，平台没有「删除远端文件」的接口）。
+ * 一个带密码门禁的半成品页对外可达，比删不掉更难看，所以在这层挡死。
+ *
+ * 🔴 为什么 `preview` 不带 `.html` 也要挡：Pages 的 Pretty URLs 会把
+ *    `/preview.html` 308 到 `/preview`，只挡 `.html` 的话请求换个 URL 照样访问得到。
+ * 🔴 这几个路径必须同时写进 `_routes.json` 的 `include` —— 不进去的话
+ *    请求根本到不了 Worker，会被静态层直接发出去。
+ */
+const RETIRED = new Set(['/preview', '/preview.html', '/preview-banner.js', '/map-amap-preview.js']);
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, '') || '/';
+
+    if (RETIRED.has(path)) {
+      return new Response('410 Gone —— 内测版已下线，请回到首页。', {
+        status: 410,
+        headers: {
+          'content-type': 'text/plain; charset=utf-8',
+          'cache-control': 'no-store',
+          'x-robots-tag': 'noindex',
+        },
+      });
+    }
 
     // ---- 自检端点：配完绑定后打开这个 URL 就能确认通没通 ----
     if (path === '/api/ping') {
@@ -456,15 +732,21 @@ export default {
     }
 
     // ---- 平台查询代理：批量代打 + 边缘缓存（见文件上方注释） ----
-    if (path === '/api/pile') return handlePile(request, url);
-    if (path === '/api/shop') return handleShop(request, url);
+    if (path === '/api/pile') return handlePile(request, url, env);
+    if (path === '/api/shop') return handleShop(request, url, env);
+
+    // ---- 一周回顾 / 快照：反代快照 Worker ----
+    if (path === '/api/stats' || path === '/api/snap') return proxySnap(path, url, env);
 
     if (path !== '/api/cred') return json({ ok: false, error: 'not_found' }, 404);
 
     if (!env.CHD_CRED) return json({ ok: false, error: 'kv_not_bound' }, 501);
 
-    // ---- 读：任何人都能读，但读到的是密文 ----
+    // ---- 读：任何人都能读，但**只读到元数据**（密文自 2026-10-27 起不再下发） ----
     if (request.method === 'GET' || request.method === 'HEAD') {
+      if (credTooMany(clientIp(request))) {
+        return json({ ok: false, error: 'rate_limited' }, 429);
+      }
       const raw = await env.CHD_CRED.get(KEY);
       if (!raw) return json({ ok: true, exists: false });
       let parsed;
@@ -473,12 +755,15 @@ export default {
       } catch (e) {
         return json({ ok: false, error: 'corrupt' }, 500);
       }
+      /* ⚠️ 这里**不要**加回 `data`。浏览器已经不需要密文了（解密和转发都在服务端），
+       * 而只要它出现在响应里，硬编码在前端的 key 就又能把它解开，等于白改一轮。
+       * expiresAt 是秒级时间戳，0 表示这份记录没带过期信息。 */
       return json({
         ok: true,
         exists: true,
         updatedAt: parsed.updatedAt || 0,
+        expiresAt: Number(parsed.exp) || 0,
         note: parsed.note || '',
-        data: parsed.data,
       });
     }
 
@@ -508,14 +793,54 @@ export default {
       }
       if (data.length > MAX_BODY) return json({ ok: false, error: 'too_large' }, 413);
 
+      /* 明文凭证是可选的第二份。带上它，`/api/pile` 才能自己取、自己发，
+       * 浏览器也就永远不用再看见 token；不带也照常写（老客户端兼容），
+       * 只是那种情况下只能靠浏览器端解密。
+       * 校验上限与 handlePile 对齐，避免这里收下一个根本发不出去的串。 */
+      const plain = typeof body.token === 'string' ? body.token.trim() : '';
+      if (plain && (plain.length < 20 || plain.length > 4096)) {
+        return json({ ok: false, error: 'bad_plain_token' }, 400);
+      }
+      const exp = Number(body.exp) || 0;
+
       const payload = {
         v: 1,
         updatedAt: Date.now(),
         note: typeof body.note === 'string' ? body.note.slice(0, 200) : '',
+        exp: exp > 0 ? Math.floor(exp) : 0,
         data,
       };
       await env.CHD_CRED.put(KEY, JSON.stringify(payload));
-      return json({ ok: true, updatedAt: payload.updatedAt });
+      /* 写两份是两份额度（免费版 1000 写/天），但一天最多换一次凭证，可以忽略。
+       * 明文键**不**参与任何读路由，只在 serverToken() 里出现。 */
+      let tokenKept = false;
+      if (plain) {
+        await env.CHD_CRED.put(KEY_TOK, JSON.stringify({
+          token: plain,
+          updatedAt: payload.updatedAt,
+          exp: payload.exp,
+        }));
+      } else if (body.clearToken === true) {
+        /* 真的要清就显式说。给运维留一条「这张凭证作废了」的手动通道。 */
+        await env.CHD_CRED.delete(KEY_TOK);
+      } else {
+        /* 🔴 2026-10-27 晚改：**不再因为「没带明文」就删 cred_tok**。
+         *
+         * 旧逻辑的动机是「宁报 no_token 也别用旧证」，但代价太大：写口令一泄漏，
+         * 攻击者推一个只带密文的包就能让全站查不出数据 —— 变成一条零成本的 DoS。
+         * （现实中还真踩过：旧的 admin.html 只推密文，用它上传一次就把全站打空。）
+         *
+         * 而它想防的问题本来就有人兜：`serverToken()` 取出来会先看 exp，
+         * 过期的串等同于没有；没过期的话，新旧两串对平台而言完全等价。
+         * 所以这里保留旧值，只在响应里带一个标记，让调用方知道自己没更新明文。 */
+        tokenKept = true;
+      }
+      return json({
+        ok: true,
+        updatedAt: payload.updatedAt,
+        expiresAt: payload.exp,
+        ...(tokenKept ? { tokenKept: true } : {}),
+      });
     }
 
     return json({ ok: false, error: 'method_not_allowed' }, 405);

@@ -26,6 +26,7 @@ import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
+import androidx.core.view.OnApplyWindowInsetsListener;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -245,7 +246,7 @@ public class MainActivity extends AppCompatActivity {
      * 键盘弹出时把底部换成 ime 高度，输入框才不会被挡。
      */
     private void applyInsets() {
-        ViewCompat.setOnApplyWindowInsetsListener(web, new ViewCompat.OnApplyWindowInsetsListener() {
+        ViewCompat.setOnApplyWindowInsetsListener(web, new OnApplyWindowInsetsListener() {
             @Override
             public WindowInsetsCompat onApplyWindowInsets(View v, WindowInsetsCompat insets) {
                 Insets bars = insets.getInsets(

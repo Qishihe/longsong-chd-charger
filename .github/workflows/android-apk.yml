@@ -48,6 +48,11 @@ jobs:
 
       - name: 装 Android 命令行工具
         uses: android-actions/setup-android@v3
+        with:
+          # 🔴 这个 action 的默认值是 `tools platform-tools`，而 `tools` 包早已从
+          # Google 的 SDK 仓库下架 → sdkmanager 直接 exit 1（2026-11 的 runner 镜像上必然红）。
+          # 只留 platform-tools，命令行工具本身 runner 已预装。
+          packages: 'platform-tools'
 
       - name: 补装 SDK 平台与构建工具
         run: sdkmanager --install "platforms;android-35" "build-tools;35.0.0" | tail -3

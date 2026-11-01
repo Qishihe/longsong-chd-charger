@@ -17,6 +17,7 @@ import {
   SCHEDULE,
   MIN_INTERVAL_MIN,
   AREA_CRON_MINUTES,
+  AREA_CRON_GROUPS,
   STATS_CRON_MINUTE,
 } from './config.mjs';
 import { KEYS, refreshArea, snapFor, appendStats, sliceOf, WriteGuard, inflightRecently } from './core.mjs';
@@ -54,14 +55,26 @@ function eq(name, actual, expected) {
 
 /* ── 1. 分区表 ─────────────────────────────────────────────────── */
 console.log('\n1. 分区表');
-ok('总量 109 台', PARTITIONS.total === 109, PARTITIONS.total);
-ok('4 个分区', AREAS.length === 4, AREAS.length);
+ok('总量 117 台', PARTITIONS.total === 117, PARTITIONS.total);
+ok('5 个分区', AREAS.length === 5, AREAS.length);
 ok(
   '每区台数都能被 SCAN_CHUNK 拆成 ≤ 4 批',
   AREAS.every((a) => a.count >= 1 && Math.ceil(a.count / TUNING.SCAN_CHUNK) <= 4),
   AREAS.map((a) => `${a.key}:${a.count}→${Math.ceil(a.count / TUNING.SCAN_CHUNK)}批`),
 );
-ok('分区台数之和 = 总量', AREAS.reduce((s, a) => s + a.count, 0) === 109);
+ok('分区台数之和 = 总量', AREAS.reduce((s, a) => s + a.count, 0) === 117);
+/* 一个分区的设备必须同源：/api/pile 一次只认一个 src，混着放会让一半 id
+   打到错的平台、整批报错（2026-10-31 v2.63 加第二个平台时的红线）。 */
+ok(
+  '每个分区的数据源都是 zm 或 lvcc',
+  AREAS.every((a) => (a.src || 'zm') === 'zm' || a.src === 'lvcc'),
+  AREAS.map((a) => `${a.key}:${a.src || 'zm'}`),
+);
+ok(
+  '住宅那 8 台走 lvcc（驴充充，无鉴权）',
+  (AREAS.find((a) => a.key === 'zhu') || {}).src === 'lvcc',
+  (AREAS.find((a) => a.key === 'zhu') || {}).src,
+);
 
 /* ── 2. 时段表 ─────────────────────────────────────────────────── */
 console.log('\n2. 时段表');
@@ -112,6 +125,22 @@ console.log('\n2b. 配置一致性');
     !AREA_CRON_MINUTES.includes(STATS_CRON_MINUTE),
     `stats=:${STATS_CRON_MINUTE} 分区=${AREA_CRON_MINUTES.join('/')}`,
   );
+  /* 🔴 分区组（v2.65）：一跳可以刷多个区，但每个区**必须刚好被排到一次**。
+     漏一个 = 那个区的快照永远不刷新（一周回顾里那条线永远是空的，不报错）；
+     重一个 = 同一分钟两个区抢同一份资源，白白多一轮上游请求。 */
+  const grouped = AREA_CRON_GROUPS.flat();
+  eq('每个分区都排进了某一跳（不多不少）', [...grouped].sort(), AREAS.map((a) => a.key).sort());
+  eq('分区组数与分区 cron 数一致', AREA_CRON_GROUPS.length, AREA_CRON_MINUTES.length);
+  eq(
+    '一跳最多两个区',
+    Math.max(...AREA_CRON_GROUPS.map((g) => g.length)),
+    2,
+  );
+  eq(
+    '住宅与物业同一跳（免费版只有 5 条 cron，没地方再开一跳）',
+    AREA_CRON_GROUPS.find((g) => g.includes('zhu')),
+    ['wuye', 'zhu'],
+  );
 
   /* 在飞判定窗口必须盖得住最坏的一轮扫描，否则自己就会叠。 */
   ok(
@@ -133,12 +162,7 @@ console.log('\n3. 一轮全量');
     await refreshArea({ bucket, area, now: clock.now, scanBatch: asBatch(scanner), useGlobalLock: false });
   }
 
-  eq('4 个分区快照（固定 key）', bucket.businessKeys(), [
-    'snap/b20.json',
-    'snap/beimen.json',
-    'snap/chaohui.json',
-    'snap/wuye.json',
-  ]);
+  eq('每个分区一个快照（固定 key）', bucket.businessKeys(), AREAS.map((a) => `snap/${a.key}.json`).sort());
 
   const snap = await readJson(bucket, KEYS.snap('beimen'));
   eq('北门台数 = 37', snap.piles, 37);
@@ -148,7 +172,7 @@ console.log('\n3. 一轮全量');
   eq('北门 next = at + 300', snap.next, snap.at + 300);
   eq('北门 error = null', snap.error, null);
   ok('北门 used_pct 在 0–100 之间', snap.used_pct >= 0 && snap.used_pct <= 100, snap.used_pct);
-  ok('每区扫描次数 = 该区台数', scanner.count === 109, scanner.count);
+  ok('每区扫描次数 = 该区台数', scanner.count === AREAS.reduce((s, a) => s + a.count, 0), scanner.count);
 
   /* 再跑一轮（120 秒后，新时间片）不应该新增业务对象 —— 只覆盖 */
   clock.tick(120);
@@ -157,8 +181,8 @@ console.log('\n3. 一轮全量');
     // 这一节在造数据：四个区同一瞬间刷，等价于 cron 的 0/1/2/3 错峰，故关掉全站锁
     await refreshArea({ bucket, area, now: clock.now, scanBatch: asBatch(scanner), useGlobalLock: false });
   }
-  eq('第二轮后业务对象仍是 4 个快照', bucket.businessKeys().length, 4);
-  eq('锁对象随时间片累积（每个区一片）', bucket.lockKeys().length, 8);
+  eq('第二轮后业务对象仍是每区一个', bucket.businessKeys().length, AREAS.length);
+  eq('锁对象随时间片累积（每个区一片）', bucket.lockKeys().length, AREAS.length * 2);
 }
 
 /* ── 4. 锁的原子性 ─────────────────────────────────────────────── */
@@ -246,7 +270,7 @@ console.log('\n6b. 全站锁');
     AREAS.map((area) => refreshArea({ bucket, area, now: clock.now, scanBatch: asBatch(scanner) })),
   );
   eq('同一分钟只放行一个区', rs.filter((r) => r.locked).length, 1);
-  eq('其余三个区标记为 global', rs.filter((r) => r.reason === 'global').length, 3);
+  eq('其余分区标记为 global', rs.filter((r) => r.reason === 'global').length, AREAS.length - 1);
   eq('这一分钟的上游量 = 单个分区（不是 109）', scanner.count, AREAS[0].count);
   eq('只有被放行的区写了快照', bucket.businessKeys().length, 1);
 
@@ -588,7 +612,7 @@ console.log('\n9. 窗口对齐');
     await refreshArea({ bucket: b2, area, now: c2.now, scanBatch: asBatch(sc2), useGlobalLock: false });
   }
   const r2 = await appendStats({ bucket: b2, areas: AREAS, now: c2.now });
-  eq('四区都新鲜 → coverage 4', r2.point.coverage, 4);
+  eq('五区都新鲜 → coverage 5', r2.point.coverage, AREAS.length);
 }
 
 /* ── 9b. 漏采不滑窗 ─────────────────────────────────────────────── */
@@ -669,9 +693,14 @@ console.log('\n11. Worker 入口');
   const at = (T0 + 60) * 1000;
   Date.now = () => at;
   const batchSizes = [];
+  /* 每一批发出去的 src（缺省 zm）。住宅那 8 台必须带 lvcc ——
+     站点 `/api/pile` 就是靠这个开关走无鉴权分支的，漏了会一路
+     `no_token`，而快照会把它记成「平台挂了」。 */
+  const batchSrcs = [];
   globalThis.fetch = async (url, opts) => {
     const body = JSON.parse(opts.body);
     batchSizes.push(body.ids.length);
+    batchSrcs.push(body.src || 'zm');
     const results = {};
     for (const id of body.ids) {
       const r = await scanner.scanOne(id);
@@ -714,8 +743,28 @@ console.log('\n11. Worker 入口');
     await mod.default.scheduled({ cron: '2-59/5 * * * *' }, env, ctx);
     eq('偏移 2 → 刷 20号楼', bucket.businessKeys(), ['snap/b20.json', 'snap/beimen.json']);
 
+    /* 🔴 偏移 3 那一跳带两个区（物业 + 住宅，v2.65）：免费版只有 5 条 cron，
+       4 跳分区 + 1 跳统计已经用满，住宅只能并进这一跳。这里验三件事：
+       两个区都真的刷了、住宅那批带了 src=lvcc、而且台数是对的。 */
+    Date.now = () => (T0 + 180) * 1000; // 北京 08:03
+    batchSrcs.length = 0;
+    await mod.default.scheduled({ cron: '3-59/5 * * * *' }, env, ctx);
+    const wuye = await readJson(bucket, KEYS.snap('wuye'));
+    const zhu = await readJson(bucket, KEYS.snap('zhu'));
+    ok('偏移 3 一跳刷两个区：物业', wuye && wuye.piles === 12, wuye && wuye.piles);
+    ok('偏移 3 一跳刷两个区：住宅', zhu && zhu.piles === 8, zhu && zhu.piles);
+    ok('住宅那 8 台是带 src=lvcc 发出去的', batchSrcs.includes('lvcc'), batchSrcs);
+    ok(
+      '物业那批仍走住芒（没被住宅的数据源带偏）',
+      batchSrcs.filter((s) => s === 'zm').length >= 1,
+      batchSrcs,
+    );
+    /* mock 每台固定 4 个插座 —— 这条只是确认「8 台的数据真的摊进了快照」，
+       真实口数（2/10/20 口混装）在线上验收里看。 */
+    eq('住宅快照的插座总数 = 8 台 × 4 口', zhu && zhu.total, 32);
+
     await mod.default.scheduled({ cron: '9-59/5 * * * *' }, env, ctx);
-    eq('未知偏移不刷任何区', bucket.businessKeys().length, 2);
+    eq('未知偏移不刷任何区', bucket.businessKeys().length, 4);
 
     await mod.default.scheduled({ cron: '2 * * * *' }, env, ctx);
     ok('统计 cron 落点', (await readJson(bucket, KEYS.stats())) !== null);
@@ -740,7 +789,7 @@ console.log('\n11. Worker 入口');
 
     const r3 = await mod.default.fetch(new Request('https://x/api/snap?area=all', { headers }), env);
     const b3 = await r3.json();
-    eq('/api/snap?area=all 汇总', b3.summary.areas, 2);
+    eq('/api/snap?area=all 汇总', b3.summary.areas, 4);
     eq('总览不传 refresh 时没有提示', b3.refresh_ignored, null);
     ok('总览会指认最旧的那个区', typeof b3.oldest_key === 'string', b3.oldest_key);
 

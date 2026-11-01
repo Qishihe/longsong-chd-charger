@@ -121,6 +121,27 @@ const PILE_FRESH_BUDGET = 160;   // 全站每分钟最多回源多少台（一�
  *     40 并发       → 只有 3 台成功，37 台超时
  * 所以下面**不能**用 Promise.all 一把梭：那等于把「出口 IP 被限流」原封不动
  * 搬到 Cloudflare 出口上重演一遍 —— 页面会看到「连续 3 台没响应」然后整轮放弃。 */
+/* ---------------- 第二个数据源：驴充充（渭水校区住宅区 8 台） ----------------
+ *
+ * 2026-10-31 v2.63 新增。住宅区那 8 台桩**不在住芒平台上**，是「驴充充」自己的机器，
+ * 接口完全两套：
+ *     POST https://appapi.lvcchong.com/portDetail?channelMessage=LVCC-WP-PH_15.0.1_Tencent-G9
+ *     body: simId=<15 位 simId>&mapType=2&chargeTypeTag=0&appEntrance=2&entrance=2&version=new
+ *     → data.device：portNumber / freePortCount / lat / lng / address / online …
+ *     → data.ports：**下标 0 是占位符**，真实插座从下标 1 开始；
+ *                    0 = 空闲，1 = 占用，-1 = 异常
+ *
+ * 为什么也走这个 Worker、而不是让浏览器直连：
+ *   · 它的响应确实带 `Access-Control-Allow-Origin: *`（浏览器能直连），
+ *     但那样每个访客都得自己打一次平台 —— 吃各自出口 IP 的信誉，也没有共享缓存；
+ *   · 走这里 = 出口换成 Cloudflare 边缘 + 5 分钟缓存，全校共享同一份结果。
+ *
+ * 🔴 **它不需要任何凭证**（接口本身无鉴权），所以 `src === 'lvcc'` 的请求要跳过
+ *    `serverToken()` 那一段 —— 否则「凭证没接上」会被误栽到这批桩身上：
+ *    那时候页面会把 8 台住宅区桩全部标红，看着像桩坏了，其实跟凭证毫无关系。
+ */
+const LVCC_API = 'https://appapi.lvcchong.com/portDetail?channelMessage=LVCC-WP-PH_15.0.1_Tencent-G9';
+
 const PILE_CONCURRENCY = 6;
 const PILE_HEADERS = {
   'content-type': 'application/json',
@@ -211,8 +232,60 @@ async function pileScan(id, token) {
   }
 }
 
-function pileCacheKey(origin, id) {
-  return origin + '/__pile/' + encodeURIComponent(id);
+function pileCacheKey(origin, id, src) {
+  /* 两个源的 id 空间不重叠（住芒是 XLA… / 驴充充是 15 位数字），但仍然分键存 ——
+     万一同一个 id 将来两边都有，共用一条缓存会互相覆盖，而且 `at` 戳一混就查不出来。 */
+  return origin + (src === 'lvcc' ? '/__pile_lvcc/' : '/__pile/') + encodeURIComponent(id);
+}
+
+/** 单台驴充充设备。返回结构与 `pileScan()` 完全一致（失败也不抛异常）。
+ *
+ *  口径转换（页面只认 `{num, state}`，`state === 0` 才算空闲）：
+ *     驴充充 0  → 0（空闲）
+ *     驴充充 1  → 1（占用）
+ *     驴充充 -1 → 2（异常）：**不原样透传 -1** —— 负值在下游看起来像「未知状态」，
+ *                而这里的事实是「这口坏了/被禁用」，按占用处理才对（不能让人以为能充）。 */
+async function lvccScan(simId) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    const body = new URLSearchParams({
+      simId,
+      mapType: '2',
+      chargeTypeTag: '0',
+      appEntrance: '2',
+      entrance: '2',
+      version: 'new',
+    }).toString();
+    const res = await fetch(LVCC_API, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body,
+      signal: ctrl.signal,
+    });
+    if (!res.ok) return { error: '平台没响应（HTTP ' + res.status + '）' };
+    let data;
+    try { data = await res.json(); } catch (e) { return { error: '平台没响应（返回格式异常）' }; }
+    if (Number(data.code) !== 200) return { error: data.message || ('平台返回 ' + data.code) };
+    const d = data.data || {};
+    const dev = d.device || {};
+    const raw = Array.isArray(d.ports) ? d.ports : [];
+    if (!raw.length) return { error: '平台没返回插座数据' };
+    const declare = Number(dev.portNumber) || 0;
+    /* 取两者较大值：`ports` 是实际下发的（20 口机就是 21 个元素），
+       `portNumber` 是平台登记的口数。任一缺失都不该让格子凭空少一行。 */
+    const total = Math.max(declare, raw.length - 1);
+    const ports = [];
+    for (let n = 1; n <= total; n++) {
+      const v = Number(raw[n]);
+      ports.push({ num: n, state: v === 0 ? 0 : (v === 1 ? 1 : 2) });
+    }
+    return { ports };
+  } catch (e) {
+    return { error: '平台没响应（8 秒超时）' };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /* ---------------- 来源校验 ----------------
@@ -261,17 +334,26 @@ async function handlePile(request, url, env) {
   let body;
   try { body = await request.json(); } catch (e) { return json({ ok: false, error: 'bad_json' }, 400); }
 
+  /* 数据源（v2.63）：`zm` = 住芒（默认，要凭证）/ `lvcc` = 驴充充（无鉴权）。
+     页面按设备所属平台**分会话**发送，一批里不会混两个源，
+     所以这里只要一个开关，不用逐个 id 判。 */
+  const src = body && body.src === 'lvcc' ? 'lvcc' : 'zm';
+
   /* 优先用请求里带的（站长粘贴 / 本机覆盖），没带就取服务端的。
-   * 访客走的永远是后一条 —— 浏览器从头到尾不知道 token 长什么样。 */
+   * 访客走的永远是后一条 —— 浏览器从头到尾不知道 token 长什么样。
+   * 🔴 驴充充那条路直接跳过整段：它没有鉴权，拿「凭证没接上」拦它只会
+   *    让住宅区 8 台全变红，而原因完全无关。 */
   let token = body && typeof body.token === 'string' ? body.token.trim() : '';
   let fromServer = false;
-  if (!token) { token = await serverToken(env); fromServer = true; }
-  if (!token || token.length < 20 || token.length > 4096) {
-    return json({
-      ok: false,
-      error: 'no_token',
-      hint: fromServer ? 'server_token_missing' : 'bad_client_token',
-    }, 400);
+  if (src !== 'lvcc') {
+    if (!token) { token = await serverToken(env); fromServer = true; }
+    if (!token || token.length < 20 || token.length > 4096) {
+      return json({
+        ok: false,
+        error: 'no_token',
+        hint: fromServer ? 'server_token_missing' : 'bad_client_token',
+      }, 400);
+    }
   }
 
   const ids = Array.isArray(body.ids)
@@ -304,7 +386,7 @@ async function handlePile(request, url, env) {
 
   for (const id of ids) {
     let hit = null;
-    try { hit = await cache.match(new Request(pileCacheKey(url.origin, id))); } catch (e) { hit = null; }
+    try { hit = await cache.match(new Request(pileCacheKey(url.origin, id, src))); } catch (e) { hit = null; }
     if (hit) {
       try {
         const rec = await hit.json();
@@ -324,12 +406,14 @@ async function handlePile(request, url, env) {
   }
 
   /* 全站回源预算：每分钟一个桶，跨 isolate 用 Cache API 计数。
-   * 预算够 → 正常回源；不够 → 只回源补得上的那几台，其余沿用现有结果。 */
+   * 预算够 → 正常回源；不够 → 只回源补得上的那几台，其余沿用现有结果。
+   * 🔴 只有住芒要走这道闸（v2.63）：预算是为「住芒对同一出口 IP 的请求量有硬上限」设的，
+   *    驴充充没有这层约束，把它的台数也算进去只会白白占掉住芒的额度。 */
   let throttled = false;
   /* 因预算不足被降级的台（2026-10-29 加）。这些 id 在本轮回源跑完之后要**再读一次
    * 缓存**，原因见下面 `recovered` 那段。 */
   const demotedIds = [];
-  if (wantFresh && missIds.length) {
+  if (wantFresh && missIds.length && src !== 'lvcc') {
     const bucket = Math.floor(Date.now() / 60000);
     const bkey = new Request(url.origin + '/__pile_budget/' + bucket);
     let used = 0;
@@ -346,7 +430,7 @@ async function handlePile(request, url, env) {
         demotedIds.push(id);
         let keep = null;
         try {
-          const h = await cache.match(new Request(pileCacheKey(url.origin, id)));
+          const h = await cache.match(new Request(pileCacheKey(url.origin, id, src)));
           if (h) keep = await h.json();
         } catch (e) { keep = null; }
         if (keep) { results[id] = keep; usedCache += 1; }
@@ -361,7 +445,9 @@ async function handlePile(request, url, env) {
     } catch (e) { /* 预算写失败不影响本次请求 */ }
   }
 
-  const rows = await mapLimit(missIds, PILE_CONCURRENCY, async (id) => [id, await pileScan(id, token)]);
+  /* 按数据源派发（v2.63）。两个扫描器返回结构一致，下游一行都不用改。 */
+  const scanOne = src === 'lvcc' ? (id) => lvccScan(id) : (id) => pileScan(id, token);
+  const rows = await mapLimit(missIds, PILE_CONCURRENCY, async (id) => [id, await scanOne(id)]);
   let fetched = 0;
   let authFail = 0;
 
@@ -383,7 +469,7 @@ async function handlePile(request, url, env) {
     const prevAt = Number(results[id] && results[id].at) || 0;
     let rec = null;
     try {
-      const h = await cache.match(new Request(pileCacheKey(url.origin, id)));
+      const h = await cache.match(new Request(pileCacheKey(url.origin, id, src)));
       if (h) rec = await h.json();
     } catch (e) { rec = null; }
     const at = Number(rec && rec.at) || 0;
@@ -400,7 +486,7 @@ async function handlePile(request, url, env) {
       results[id] = payload;
       try {
         await cache.put(
-          new Request(pileCacheKey(url.origin, id)),
+          new Request(pileCacheKey(url.origin, id, src)),
           new Response(JSON.stringify(payload), {
             headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=' + PILE_TTL },
           }),

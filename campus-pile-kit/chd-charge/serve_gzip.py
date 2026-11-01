@@ -249,8 +249,15 @@ def handle_pile(body):
     token = body.get("token") if isinstance(body, dict) else None
     ids = body.get("ids") if isinstance(body, dict) else None
     want_fresh = bool(isinstance(body, dict) and body.get("fresh") is True)
+    # 🔴 2026-10-31 v2.64：`src` 必须透传（v2.63 引入驴充充时这里漏了）。
+    #   页面按源分组切批后，驴充充那批带 `src: 'lvcc'`、**不需要凭证**；
+    #   反代如果把 src 丢掉，这批就会被当成住芒去查 → 一律 400 no_token，
+    #   表现是「住宅那 8 台在本地起的站点上永远查不到，线上却正常」。
+    src = body.get("src") if isinstance(body, dict) else None
+    lvcc = src == "lvcc"
 
-    if not isinstance(token, str) or not token:
+    # 只有住芒要凭证；驴充充的接口本来就是匿名的
+    if not lvcc and (not isinstance(token, str) or not token):
         return 400, {"ok": False, "error": "no_token"}
     if not isinstance(ids, list) or not ids:
         return 400, {"ok": False, "error": "no_ids"}
@@ -258,7 +265,11 @@ def handle_pile(body):
     if not ids:
         return 400, {"ok": False, "error": "no_ids"}
 
-    hit, mine, waits = _plan(ids, want_fresh)
+    # 缓存键按**源**分开：两个平台的 id 命名规则不同，分开存省得将来撞车串数据。
+    keys = [("lvcc:" + i) if lvcc else i for i in ids]
+    rev = dict(zip(keys, ids))
+
+    hit, mine, waits = _plan(keys, want_fresh)
 
     # 有人在查同一批 id → 等它（最多等一个上游超时）。没有这一步，几个访客同时
     # 首屏会排出十几条一模一样的上游请求，直接把 Worker 的每分钟限流撞满。
@@ -274,9 +285,13 @@ def handle_pile(body):
 
     if mine:
         miss_ids = [pid for pid, _ in mine]
+        payload = {"ids": [rev[k] for k in miss_ids], "fresh": want_fresh}
+        if lvcc:
+            payload["src"] = "lvcc"
+        else:
+            payload["token"] = token
         try:
-            status, data = _post_upstream("/api/pile",
-                                          {"ids": miss_ids, "token": token, "fresh": want_fresh})
+            status, data = _post_upstream("/api/pile", payload)
         except Exception as e:                       # 网络 / 超时
             _log("upstream pile failed: %s %s" % (type(e).__name__, e))
             status, data = 0, {}
@@ -285,18 +300,18 @@ def handle_pile(body):
         if data and data.get("ok") and up:
             throttled = bool(data.get("throttled"))
             for pid in miss_ids:
-                rec = up.get(pid)
+                rec = up.get(rev[pid])
                 if not isinstance(rec, dict):
                     continue
                 if rec.get("ports"):
                     _cache_put(pid, {"at": int(rec.get("at") or time.time() * 1000),
                                      "ports": rec["ports"]})
-                    results[pid] = rec
+                    results[rev[pid]] = rec
                     fetched += 1
                 elif rec.get("error"):
                     # 透传平台原话，但**不写缓存** —— 失败不能钉死 5 分钟，
                     # 那会把一次抖动变成一整轮全错。
-                    results[pid] = rec
+                    results[rev[pid]] = rec
         else:
             # 上游挂了 / 429 / 限流：能拿旧缓存就先用旧数据顶上，别让页面整轮放弃
             _log("pile upstream degraded: status=%s body=%s"
@@ -304,20 +319,20 @@ def handle_pile(body):
             throttled = True
             for pid in miss_ids:
                 old = _cache_get(pid, False)
-                results[pid] = old[0] if old else {
+                results[rev[pid]] = old[0] if old else {
                     "at": 0, "error": "平台暂时没响应，稍后再点一次刷新"}
         _release(mine)
 
     oldest = 0
-    for pid in ids:
-        if pid in results:
+    for pid in keys:
+        if rev[pid] in results:
             continue
         got = hit.get(pid) or _cache_get(pid, want_fresh) or _cache_get(pid, False)
         if got:
-            results[pid] = got[0]
+            results[rev[pid]] = got[0]
             oldest = max(oldest, int(got[1]))
         else:
-            results[pid] = {"at": 0, "error": "还没查到，稍后再点一次刷新"}
+            results[rev[pid]] = {"at": 0, "error": "还没查到，稍后再点一次刷新"}
 
     return 200, {
         "ok": True,

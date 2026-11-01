@@ -180,6 +180,27 @@
     [108.895971, 34.369924], [108.895964, 34.369958], [108.895957, 34.369991], [108.895950, 34.370025],
     [108.895943, 34.370058], [108.895935, 34.370092], [108.895928, 34.370125], [108.895921, 34.370159],
   ];
+  /* 2026-10-31 v2.63 新增「渭水-住宅」—— 8 台驴充充的机器（Z-01~Z-08）。
+   *
+   * 🔴 v2.64 产品方定稿：8 台**全在校内**，一排在**尚苑路南侧**（西区住宅小区北沿），
+   *   平行于路、贴着路边。原来的 R_GEO 是「8 个点里空着第 4、7 个」——
+   *   那是 v2.63「校内 6 + 校外 2」的产物（4 号机 / 7 号机平台坐标在凤城三路，
+   *   离校园 5.9 km，当时排除出地图）；现在全部上图，改成干净的 8 个等距点。
+   *
+   * 📐 这条线是**算出来的**，不是手拖的：
+   *   · 方向 = 校区北边界那条边 (108.896374,34.371923)→(108.890099,34.370381)，
+   *     也就是尚苑路，方位角约 73.5°（东偏北）；
+   *   · 位置 = 该边往里（南）法向偏 23m —— 正好压在住宅小区临街那一侧；
+   *   · 间距 16m，8 个点共跨 112m，中点落在 8 台真实坐标的形心在该线上的投影处
+   *     （形心 ≈ 108.89266, 34.37031，在路边以南约 75m，所以整排往路边提了一截）。
+   *   ⚠️ 平台坐标本身很粗（1 / 5 / 6 号机三个点完全重合、8 号机贴着边界），
+   *      照原样铺会让几个点叠成一个，所以按「一排」等距摆开 —— 和 E/W 两条线一个做法。
+   *   ⚠️ 4 号机 / 7 号机平台里填的还是「凤城三路 50 号」，产品方确认机器就在本小区，
+   *      故不采信它们的坐标；将来若真搬走，改这里 + 恢复 OFF_MAP_LOCATIONS 即可。 */
+  var Z_GEO = [
+    [108.891915, 34.370621], [108.892082, 34.370662], [108.892249, 34.370703], [108.892416, 34.370744],
+    [108.892583, 34.370785], [108.892750, 34.370826], [108.892917, 34.370867], [108.893084, 34.370908],
+  ];
   var LINE_AREAS = [
     { loc: '渭水-20号楼',       prefix: 'E', geo: E_GEO },
     { loc: '渭水-物业服务中心', prefix: 'W', geo: W_GEO },
@@ -187,6 +208,17 @@
      * 它传给引擎的 loc 仍是「渭水-物流服务中心」。引擎按 loc 精确查表，多一行不干扰新名字；
      * `shortCode()` 按 prefix 试探，两者同为 'W'，结果一致。 */
     { loc: '渭水-物流服务中心', prefix: 'W', geo: W_GEO },
+    /* 🔴 `altPrefixes` 是给「桩号还停在旧前缀」的脏数据兜底（2026-10-31 v2.64）：
+     *   住宅这批 v2.63 叫 R-01~R-08，v2.64 改成 Z-01~Z-08。正常情况由 index 的
+     *   `SCHEMA_CODE_RENAMES[7]` 迁移改好，但万一浏览器里的清单没迁移到
+     *   （比如手改过 `cpk.devices`），`lineSeq(code,'Z')` 会返回 0，接着掉进
+     *   `arcSeq()`（"末尾数字 1~36 就算朝晖"）→ 8 台全被摆到体育场两条弧上。
+     *   多认一个 'R' 前缀，最坏情况只是落点按旧编号排，不会整批消失。 */
+    { loc: '渭水-住宅',         prefix: 'Z', altPrefixes: ['R'], geo: Z_GEO },
+    /* v2.63 的旧分区名（含校外那个）也留一行：浏览器里可能缓存着旧页面，
+     * 它传上来的 loc 还是这两个名字。geo 用同一串 —— 反正真实落点就是这一排。 */
+    { loc: '渭水-住宅区',       prefix: 'Z', altPrefixes: ['R'], geo: Z_GEO },
+    { loc: '渭水-住宅区(校外)', prefix: 'Z', altPrefixes: ['R'], geo: Z_GEO },
   ];
   function lineAreaOf(loc) {
     for (var i = 0; i < LINE_AREAS.length; i++) {
@@ -207,15 +239,32 @@
     var m = s.match(new RegExp('(?:^|[^A-Z])' + prefix + '[\\-\\u2011\\u2013\\u2014\\u2212]?(\\d{1,2})(?!\\d)'));
     return m ? Number(m[1]) : 0;
   }
+  /** 按 `prefix` 试，认不出再试 `altPrefixes` 里的旧前缀（2026-10-31 v2.64）。
+   *
+   *  为什么需要：住宅那批 v2.63 叫 `R-01~R-08`、v2.64 改成 `Z-01~Z-08`。
+   *  正常情况下 index 的 `SCHEMA_CODE_RENAMES[7]` 会在迁移时把 code 改掉，
+   *  但浏览器里的清单是**用户本地**的，任何一次手改 / 云端旧清单回灌都可能留下旧前缀。
+   *  认不出就会掉进 `arcSeq()`（"末尾数字 1~36 就算朝晖"）→ 整批摆到体育场弧上消失。
+   *  多试一个前缀的代价只是几个字符，换掉的是「静默丢桩」这一整类事故。 */
+  function lineSeqAny(code, la) {
+    var n = lineSeq(code, la.prefix);
+    if (n) return n;
+    var alt = la.altPrefixes || [];
+    for (var i = 0; i < alt.length; i++) {
+      n = lineSeq(code, alt[i]);
+      if (n) return n;
+    }
+    return 0;
+  }
   /** 桩号 → 点位里那两个字符：'北-A01 号桩' → 'A1'，'C11' → 'C11'，'TY-07' → 'T07' */
   function shortCode(code) {
     var k = bmKey(code);
     if (k) return k.charAt(0) + String(Number(k.slice(1)));
-    /* 线段型分区（E / W）要在 arcSeq **之前**判 —— 见 lineSeq 的注释。
+    /* 线段型分区（E / W / Z）要在 arcSeq **之前**判 —— 见 lineSeq 的注释。
      * 这里按前缀逐个试：E 前缀的正则不会误吞 'W-01'，反之亦然（正则要求前缀字母本身）。 */
     for (var li = 0; li < LINE_AREAS.length; li++) {
       var la = LINE_AREAS[li];
-      var n = lineSeq(code, la.prefix);
+      var n = lineSeqAny(code, la);
       if (n >= 1 && n <= la.geo.length) return la.prefix + String(n).padStart(2, '0');
     }
     // 2026-10-21 修：朝晖要显示 `T01~T36`（产品方明确要求）。
@@ -249,7 +298,7 @@
     var lineArea = lineAreaOf(areaKey);
     if (lineArea) {
       list.forEach(function (p) {
-        var seq = lineSeq(p.code, lineArea.prefix);
+        var seq = lineSeqAny(p.code, lineArea);
         // 带 `!used[seq]` 去重：同一编号出现两次时，后一台走下面的补位分支，不会两点重叠
         if (seq >= 1 && seq <= lineArea.geo.length && !used[seq]) {
           used[seq] = 1;

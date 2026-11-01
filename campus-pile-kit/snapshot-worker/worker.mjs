@@ -12,6 +12,7 @@
 import {
   TUNING,
   AREA_CRON_MINUTES,
+  AREA_CRON_GROUPS,
   shouldRunAt,
   beijingHour,
   intervalFor,
@@ -109,8 +110,12 @@ function makeScanBatch(env) {
      一起丢掉，白扫一遍还占着平台额度。 */
   const BUDGET_MS = Math.max(2000, TUNING.SCAN_TIMEOUT_MS - 1500);
 
-  /** 打一批。抛错 = 这一批整体失败，由调用方摊到这一批的每台身上。 */
-  async function callChunk(ids, deadline) {
+  /** 打一批。抛错 = 这一批整体失败，由调用方摊到这一批的每台身上。
+   *
+   * `src` 是数据源（v2.65）：`zm` = 住芒（默认，站点 Worker 用服务端凭证去查），
+   * `lvcc` = 驴充充（住宅区那 8 台，无鉴权）。一个批次只能有一个源 ——
+   * 站点 `/api/pile` 就是按这个开关分流的，混着发会把一半 id 打到错的平台。 */
+  async function callChunk(ids, deadline, src = 'zm') {
     const headers = { 'content-type': 'application/json' };
     if (key) headers['x-snap-key'] = key;
 
@@ -126,7 +131,7 @@ function makeScanBatch(env) {
     const res = await fetch(base + '/api/pile', {
       method: 'POST',
       headers,
-      body: JSON.stringify({ ids, fresh: true }),
+      body: JSON.stringify(src === 'lvcc' ? { ids, fresh: true, src } : { ids, fresh: true }),
       signal,
     });
     if (!res.ok) throw new Error('站点扫描接口 HTTP ' + res.status);
@@ -162,7 +167,10 @@ function makeScanBatch(env) {
     });
   }
 
-  return async (ids) => {
+  return async (ids, _concurrency, opts) => {
+    /* 数据源由调用方（core.refreshArea）按分区带进来。缺省住芒 ——
+       所有既有分区都不写 src，行为与加这个参数之前完全一致。 */
+    const src = (opts && opts.src) || 'zm';
     const deadline = Date.now() + BUDGET_MS;
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const STAGGER = Math.max(0, Number(TUNING.SCAN_STAGGER_MS) || 0);
@@ -171,7 +179,7 @@ function makeScanBatch(env) {
     /** 打一批并兜住异常：抛错只代表这一批整体失败，摊到这批每台身上。 */
     const one = async (chunk) => {
       try {
-        return await callChunk(chunk, deadline);
+        return await callChunk(chunk, deadline, src);
       } catch (err) {
         const msg = String((err && err.name === 'TimeoutError') ? '站点扫描接口 超时' : (err && err.message) || err);
         return chunk.map((id) => ({ id, error: msg }));
@@ -192,7 +200,7 @@ function makeScanBatch(env) {
       for (let i = 0; i < bad.length; i += CHUNK) {
         if (deadline - Date.now() < 1500) break;
         try {
-          const res = await callChunk(bad.slice(i, i + CHUNK), deadline);
+          const res = await callChunk(bad.slice(i, i + CHUNK), deadline, src);
           for (const r of res) if (r && r.id) got.set(r.id, r);
         } catch {
           /* 这一批补扫失败 → 保持原结果，别把成功台弄丢 */
@@ -585,11 +593,26 @@ export default {
       }
 
       const offset = Number(m[1]);
-      const area = AREA_BY_KEY.get(AREA_KEYS[AREA_CRON_MINUTES.indexOf(offset)]);
-      if (!area) {
+      /* 一跳可以带多个分区（v2.65 起「住宅」并进 :03 和物业一起刷）。
+         按 key 取，不按下标 —— 见 config.mjs 的 AREA_CRON_GROUPS。 */
+      const group = AREA_CRON_GROUPS[AREA_CRON_MINUTES.indexOf(offset)] || [];
+      const areas = group.map((k) => AREA_BY_KEY.get(k)).filter(Boolean);
+      if (!areas.length) {
         console.warn(`[snap] cron 偏移 ${offset} 没有对应的分区（wrangler.toml 与 config.mjs 不一致？）`);
         return;
       }
+      if (areas.length < group.length) {
+        /* 只警告不中断：剩下的区照常刷，缺的那个由 selftest / /api/health 抓 */
+        console.warn(
+          `[snap] 分区组里有 key 在 partitions.mjs 里不存在：` +
+            group.filter((k) => !AREA_BY_KEY.get(k)).join('、'),
+        );
+      }
+
+      /* ⚠️ 下面这段原本是「一个区走完」，现在包在循环里 ——
+         原来那些 `return` 表示「这一跳不跑这个区」，进循环后必须改成
+         `continue`，否则住宅会被物业的跳过顺带吞掉。 */
+      for (const area of areas) {
 
       /* 🔴 判定用「计划时刻」而不是「实际醒来的时刻」。
        *
@@ -617,14 +640,14 @@ export default {
       if (!shouldRunAt(scheduledSec, offset)) {
         if (!TUNING.CRON_CATCHUP_ENABLED) {
           console.log(`[snap] skip area=${area.key} hour=${beijingHour(scheduledSec)}`);
-          return;
+          continue;
         }
         const prev = await readSnap(bucket, area.key).catch(() => null);
         const age = prev && Number.isFinite(prev.at) ? Math.max(0, scheduledSec - prev.at) : Infinity;
         const interval = intervalFor(scheduledSec);
         if (!catchupNeeded(age, interval)) {
           console.log(`[snap] skip area=${area.key} hour=${beijingHour(scheduledSec)}`);
-          return;
+          continue;
         }
         /* 补跑强制占全站锁：outage 之后四区会同时超龄，不占锁就是
            四区同分钟一起跑 = 109 台/分，正是历史事故那个量级。 */
@@ -661,11 +684,11 @@ export default {
         /* reason=global 说明同一分钟别的区正在跑（全站分钟锁生效），
            reason=area 说明本区上一轮还没跑完。两者都不是故障，下一跳再来。 */
         console.log(`[snap] skip area=${area.key} reason=${r.reason}`);
-        return;
+        continue;
       }
       if (r.skipped === 'backoff') {
         console.log(`[snap] skip area=${area.key} backoff until ${r.snap.retryAfter}`);
-        return;
+        continue;
       }
       /* 数据够新（用户刚补刷过），这一跳是多余的。
          这类跳过说明节流在起作用，不是故障 —— 但它值得记下来：
@@ -673,13 +696,14 @@ export default {
          可以把时段表的间隔调大，省上游额度。 */
       if (r.skipped === 'fresh') {
         console.log(`[snap] skip area=${area.key} fresh age=${Math.round(r.prevAge)}s`);
-        return;
+        continue;
       }
       console.log(
         `[snap] area=${area.key} piles=${r.snap.piles} free=${r.snap.free} ` +
           `used=${r.snap.used_pct}% failed=${r.failed} elapsed=${r.snap.elapsed}s ` +
           `err=${r.snap.error ? r.snap.error.code : '-'}`,
       );
+      }
     } catch (err) {
       console.error(
         `[snap] cron 未捕获异常 cron=${event && event.cron}：` +

@@ -430,7 +430,10 @@ export async function refreshArea({
   let raw = [];
   try {
     raw = await withTimeout(
-      scanBatch(area.ids, tuning.SCAN_CONCURRENCY),
+      /* 第三个参数带数据源（v2.65）：住宅区那 8 台在驴充充平台，站点
+         `/api/pile` 要看到 `src: 'lvcc'` 才走那条无鉴权分支。其余分区
+         不写 src，等价于原来的两参调用。 */
+      scanBatch(area.ids, tuning.SCAN_CONCURRENCY, { src: area.src || 'zm' }),
       tuning.SCAN_TIMEOUT_MS,
       '站点扫描接口',
     );

@@ -1,14 +1,18 @@
 /**
  * 自动生成，请勿手改。
- * 真源：campus-pile-kit/dist-cloudflare/preview.html 的 DEFAULT_DEVICES
+ * 真源：campus-pile-kit/chd-charge/index.html 的 DEFAULT_DEVICES
  * 重新生成：python tools/gen_snapshot_partitions.py
  * 一致性校验：python tools/gen_snapshot_partitions.py --check
+ *
+ * ⚠️ `areas` 的顺序 = cron 分钟的偏移顺序（见 config.mjs 的 AREA_CRON_MINUTES）。
+ * ⚠️ 分区里的 `src` 缺省表示住芒；写了 `lvcc` 表示这批桩在驴充充平台，
+ *    扫它们时 /api/pile 要带 `src: 'lvcc'`（不需要凭证）。
  */
 export const PARTITIONS = {
   "schema": 1,
-  "source": "chd-charge/preview.html#DEFAULT_DEVICES",
+  "source": "chd-charge/index.html#DEFAULT_DEVICES",
   "generator": "tools/gen_snapshot_partitions.py",
-  "total": 109,
+  "total": 117,
   "subrequestLimit": 50,
   "areas": [
     {
@@ -151,6 +155,23 @@ export const PARTITIONS = {
         "XLB04070"
       ],
       "count": 12
+    },
+    {
+      "key": "zhu",
+      "name": "住宅",
+      "location": "渭水-住宅",
+      "src": "lvcc",
+      "ids": [
+        "865777078529432",
+        "866907053459649",
+        "863069059213877",
+        "866907052208807",
+        "860048071208423",
+        "860048071219040",
+        "862289058733268",
+        "862289058759602"
+      ],
+      "count": 8
     }
   ]
 };

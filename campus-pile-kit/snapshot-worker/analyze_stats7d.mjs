@@ -14,7 +14,7 @@
  * 跑法：node campus-pile-kit/snapshot-worker/analyze_stats7d.mjs
  */
 
-import { SCHEDULE, TUNING, intervalFor, shouldRunAt, AREA_CRON_MINUTES, STATS_CRON_MINUTE } from './config.mjs';
+import { SCHEDULE, TUNING, intervalFor, shouldRunAt, AREA_CRON_MINUTES, AREA_CRON_GROUPS, STATS_CRON_MINUTE } from './config.mjs';
 import { PARTITIONS } from './partitions.mjs';
 
 const AREAS = PARTITIONS.areas;
@@ -40,11 +40,18 @@ const pct = (v, cap) => ((v / cap) * 100).toFixed(2) + '%';
 function roundsPerDay(dayOffset, label) {
   // 2026-11-02 是周一（dayOffset=0），往后推得周二…周日
   const base = Date.UTC(2026, 10, 2, 0, 0, 0) / 1000 + dayOffset * 86400;
+  /* 每个区先查到「自己属于第几跳」，再按那一跳的分钟偏移算轮数。
+     直接用下标当偏移，在第 5 个区（住宅）上会拿到 undefined、静默算成 0 轮。 */
+  const offsetOf = (key) => {
+    const gi = AREA_CRON_GROUPS.findIndex((g) => g.includes(key));
+    return gi < 0 ? null : AREA_CRON_MINUTES[gi];
+  };
   const perArea = AREAS.map(() => 0);
   for (let m = 0; m < 1440; m += 1) {
     const ts = base + m * 60;
-    AREAS.forEach((_, i) => {
-      if (shouldRunAt(ts, AREA_CRON_MINUTES[i], SCHEDULE)) perArea[i] += 1;
+    AREAS.forEach((a, i) => {
+      const off = offsetOf(a.key);
+      if (off !== null && shouldRunAt(ts, off, SCHEDULE)) perArea[i] += 1;
     });
   }
   const total = perArea.reduce((a, b) => a + b, 0);
@@ -69,13 +76,13 @@ const weekTotal = days.reduce((a, d) => a + d.total, 0);
 
 console.log('══ 1. 现有调度：每区每天跑几轮 ══');
 console.log('  单区：工作日 ' + weekdayPerArea + ' 轮 / 周末 ' + weekendPerArea + ' 轮');
-console.log('  四区合计：工作日 ' + weekdayTotal + ' 轮 / 周末 ' + weekendTotal + ' 轮');
-console.log('  全周：' + weekTotal + ' 轮（四区合计）');
+console.log('  分区合计：工作日 ' + weekdayTotal + ' 轮 / 周末 ' + weekendTotal + ' 轮');
+console.log('  全周：' + weekTotal + ' 轮（分区合计）');
 console.log('  单区明细：' + days[0].perArea.map((n, i) => AREAS[i].key + '=' + n).join(' '));
 /* 🔴 这两个数别混：单区轮数（114）用于算「每台桩一天扫几次」，
-   四区合计（456）用于算「一天总共几次扫描」。混用会差 4 倍。 */
+   分区合计（456）用于算「一天总共几次扫描」。混用会差 N 倍。 */
 console.log('  由此：一天全站扫 ' + (DEVICES * weekdayPerArea).toLocaleString() +
-  ' 台次（109 台 × 114 轮）');
+  ' 台次（' + DEVICES + ' 台 × 114 轮）');
 
 /* ── 2. 七天统计行的真实字节数 ─────────────────────────────────── */
 

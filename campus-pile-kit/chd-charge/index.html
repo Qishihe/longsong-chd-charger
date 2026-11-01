@@ -516,13 +516,13 @@
   .map-dialog[open]{display:flex; flex-direction:column}
   /* 同一块顶栏的第二行：当前校区的地址胶囊 */
   .map-tabs{
-    display:flex; gap:7px; padding:8px 12px; flex:none;
+    display:flex; gap:6px; padding:8px 12px; flex:none;
     background:var(--card); border-bottom:1px solid var(--line);
     overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;
   }
   .map-tabs::-webkit-scrollbar{display:none}
   .map-tab{
-    font:inherit; font-size:12.5px; white-space:nowrap; padding:6px 12px; border-radius:999px;
+    font:inherit; font-size:12.5px; white-space:nowrap; padding:6px 10px; border-radius:999px;
     border:1px solid var(--line-strong); background:var(--bg); color:var(--muted);
     cursor:pointer; flex:none; min-height:30px;
   }
@@ -791,8 +791,9 @@
   .note code{background:var(--code-bg); border:1px solid var(--line); border-radius:5px; padding:1px 4px; font-size:11.5px}
 
   /* ---- 一周回顾（数据来自 /api/stats，与上面那套「本地历史」无关） ----
-     刻意复用 .usage-chip / .usage-sec / .usage-chart —— 那几组已经带了暗色适配，
-     新加一套 .rv-* 就要再写一遍 @media，早晚两边不一致。 */
+     刻意复用已有组件 —— .loc-pill（地址档）/ .usage-sec / .usage-chart ——
+     那几组已经带了暗色与像素皮肤的适配，新加一套 .rv-* 就要再写一遍 @media，
+     早晚两边不一致。 */
   .rv-legend{display:flex; align-items:center; gap:5px; font-size:11px; color:var(--hint);
     margin:8px 0 0; flex-wrap:wrap}
   .rv-legend b{font-weight:600; color:var(--muted)}
@@ -853,6 +854,33 @@
   .usage-filter{display:flex; flex-wrap:nowrap; gap:8px; margin-bottom:10px;
     overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:4px; scrollbar-width:none}
   .usage-filter::-webkit-scrollbar{display:none}
+  /* 一周回顾的地址档（2026-10-31 v2.66）：**左右滑动的胶囊**，直接复用设备列表那套
+     `.loc-pills / .loc-pill`（同一套皮肤、同一套像素风覆盖），只是容器改成独占一行。
+     v2.65 曾把这里改成「换行」，是因为横滑时第 6 档（住宅）整颗在视口外、看着像没有；
+     换行又太占高度（长文案时两行 76px，把图往下顶）。现在两件事一起做：
+       · 仍是横滑（省高度、和列表同一手势）；
+       · `.more` → 右端渐隐，明确告诉用户「右边还有」；
+       · 重画后把选中那颗自动滚进可视区（`rvScrollLocIntoView`）——
+         这样即使选了被藏在右边的那颗，也不会出现「选中了却看不见」。
+     ⚠️ 别再改回 `.usage-filter`：那是「使用情况统计」旧弹窗的 chip 条，样式不同。 */
+  .rv-locs{ margin:0 0 10px; }
+  /* 横滑容器两端渐隐：`.more` = 右边还有、`.back` = 左边还有（两边都有就同时挂）。
+     只靠「被切掉半颗胶囊」当提示不够 —— 切在字中间时更像排版坏了。 */
+  .rv-locs.more,
+  .map-tabs.more{
+    -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 18px),transparent);
+            mask-image:linear-gradient(90deg,#000 calc(100% - 18px),transparent);
+  }
+  .rv-locs.back,
+  .map-tabs.back{
+    -webkit-mask-image:linear-gradient(90deg,transparent,#000 18px);
+            mask-image:linear-gradient(90deg,transparent,#000 18px);
+  }
+  .rv-locs.more.back,
+  .map-tabs.more.back{
+    -webkit-mask-image:linear-gradient(90deg,transparent,#000 18px,#000 calc(100% - 18px),transparent);
+            mask-image:linear-gradient(90deg,transparent,#000 18px,#000 calc(100% - 18px),transparent);
+  }
   .usage-chip{font:inherit; font-size:12.5px; padding:6px 12px; border-radius:16px; cursor:pointer;
     border:1px solid var(--line-strong); background:var(--card); color:var(--muted); flex:none; white-space:nowrap}
   .usage-chip.on{background:var(--free-soft); border-color:var(--free-line); color:var(--free-deep); font-weight:600}
@@ -1361,7 +1389,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.62</div>
+    <div id="app-ver" class="foot-ver">版本 v2.66</div>
   </footer>
 </div>
 
@@ -1386,16 +1414,22 @@
     <span class="map-sub" id="map-sub"></span>
     <button class="x-btn" id="map-close" aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
   </div>
-  <!-- 当前校区的地址胶囊。点哪一颗就跳到那一块的分布（四个都走在线地图的分区视图，
+  <!-- 当前校区的地址胶囊。点哪一颗就跳到那一块的分布（全部走在线地图的分区视图，
        看 `switchMap()` —— 手绘静态图只在高德加载不出来时兜底，不在这里出现）。
        ⚠️ 文案不带「渭水-」前缀：上面那颗校区胶囊已经写了校区，重复一遍只会让
-          胶囊变宽、窄屏要横向滑。`MAP_ORDER` 里的 label 仍保留全名（给 aria-label 用）。 -->
+          胶囊变宽、窄屏要横向滑。`MAP_ORDER` 里的 label 仍保留全名。
+       ⚠️ v2.66 把「物业服务中心」「朝晖体育场南」收成「物业」「朝晖」：加第 6 颗之后
+          6 颗在 390px 上放不下，朝晖会被**整颗**推出可视区 —— 而且渐隐提示也一起消失
+          （提示是画在内容上的遮罩，内容不在可视区时没有东西可淡）。收短文案 + 收紧内距后
+          一屏放得下；全名仍在表头（`map-sub`）里出现，不丢信息。
+       ⚠️ 按钮顺序必须与 `MAP_ORDER` 一致，且新分区别往队尾塞（横滑，队尾默认看不见）。 -->
   <div class="map-tabs" id="map-tabs" role="tablist" aria-label="选择地址">
     <button class="map-tab on" data-map="amap" role="tab">校区全图</button>
-    <button class="map-tab" data-map="wuliu" role="tab">物业服务中心</button>
+    <button class="map-tab" data-map="zhuzhai" role="tab">住宅</button>
+    <button class="map-tab" data-map="wuliu" role="tab">物业</button>
     <button class="map-tab" data-map="lou20" role="tab">20 号楼</button>
     <button class="map-tab" data-map="beimen" role="tab">北门</button>
-    <button class="map-tab" data-map="chaohui" role="tab">朝晖体育场南</button>
+    <button class="map-tab" data-map="chaohui" role="tab">朝晖</button>
   </div>
   <!-- 2026-10-30 v2.46：这里原来有一条“空闲数 / 已满 / 离线 / 点分区圈放大”图例，已删。
        圆点的颜色本身就把这套语义讲完了（绿=有空位、红=占满、灰=无数据），
@@ -1480,7 +1514,8 @@
     <div id="rv-loading" class="note">正在读取云端统计…</div>
     <div id="rv-error" class="note" hidden></div>
     <div id="rv-body" hidden>
-      <div class="usage-filter" id="rv-loc"></div>
+      <!-- 地址档（v2.66）：左右滑动的胶囊，和列表顶部那排同一套 `.loc-pill` 外观。 -->
+      <div class="loc-pills rv-locs" id="rv-loc" role="group" aria-label="选择地址"></div>
       <h3 class="usage-sec" id="rv-bars-title">各时段占用率</h3>
       <div class="usage-chart" id="rv-bars"></div>
       <div class="rv-note" id="rv-note"></div>
@@ -1989,14 +2024,14 @@
         于是"其实没有数据"这件事被掩盖了 —— 判据两边都由同一个常量兜底时，
         它**永远不会为假**，也就等于没有判据。
      所以让数据**先于主脚本就位** ✓
-     `?v=164` 与下面 `loadScriptOnce('map-data.js?v=164')` **保持同一个 URL**，
+     `?v=165` 与下面 `loadScriptOnce('map-data.js?v=166')` **保持同一个 URL**，
      免得缓存出两份；那条懒加载链保留，作为"这个静态标签没加载成功"时的兜底
      （`ensureAMap()` 里已有 `window.CHD_MAP` 守卫，不会重复拉）。 -->
 <!-- 🔴 2026-10-25 加 `defer`：这个文件 39KB（gzip 10KB），走 Cloudflare 时单次
      跨境往返就要 1 秒左右 —— 不带 defer 会**阻塞 HTML 解析**，首屏白屏多等一秒。
      安全前提（已核对）：页面只在函数里读 `window.CHD_MAP`（mapAreaOf / buildScope /
      ensureAMap），没有任何顶层同步读；defer 在 DOMContentLoaded 之前执行完，赶得上 boot()。 -->
-<script src="map-data.js?v=164" defer fetchpriority="low"></script>
+<script src="map-data.js?v=166" defer fetchpriority="low"></script>
 <script>
 'use strict';
 
@@ -2012,8 +2047,83 @@ const PLATFORM_HEADERS = {
   'zm-origin': '1',
 };
 const SLOT_FREE = 0;
-const PORTS_PER_DEVICE = 4;   // 每台充电桩固定 4 个插座口
+const PORTS_PER_DEVICE = 4;   // 住芒那批桩固定 4 个插座口（驴充充的不一样，见下）
 const THROTTLE_MS = 60000;
+
+/* ---------------- 第二个数据源：驴充充（2026-10-31 v2.63） ----------------
+ *
+ * 渭水校区住宅区那 8 台桩**不在住芒平台上**，是「驴充充」的机器，接口完全是另一套：
+ *     POST https://appapi.lvcchong.com/portDetail?channelMessage=LVCC-WP-PH_15.0.1_Tencent-G9
+ *     body: simId=<15 位 simId>&mapType=2&chargeTypeTag=0&appEntrance=2&entrance=2&version=new
+ *     → data.device.portNumber / freePortCount / lat / lng / address
+ *     → data.ports：**下标 0 是占位符**，插座从下标 1 开始；0 空闲 / 1 占用 / -1 异常
+ *
+ * 三条要点：
+ *   ① **它不需要凭证**（接口无鉴权），所以 `refresh()` 那道「凭证还没有就别查」的闸
+ *      不能套在它们身上 —— 否则凭证一过期，住宅区 8 台会跟着全变红，看着像桩坏了；
+ *   ② 常规取数照样走 Worker（`src:'lvcc'` → `/api/pile` 换源），下面的直连只用于
+ *      「站长本机粘了凭证」时那点缺口兜底。它的响应带 `Access-Control-Allow-Origin: *`，
+ *      浏览器能直接打，所以兜底不需要凭证也不需要代理；
+ *   ③ 它的 id 是设备机身上的 15 位 simId（IMEI），**直接当设备 id 用**，前后端都不转换。
+ */
+const LVCC_API = 'https://appapi.lvcchong.com/portDetail?channelMessage=LVCC-WP-PH_15.0.1_Tencent-G9';
+const LVCC_SIM_RE = /^\d{15}$/;   // 只在「手上只有一个 id 字符串」时用来认源，权威判据是 device.src
+
+/** 这台是不是驴充充的机器。传 device 对象时看 `src`（权威）；只传 id 串时看 15 位数字形状。 */
+function isLvccDevice(d) {
+  if (d && typeof d === 'object') {
+    if (d.src) return d.src === 'lvcc';
+    return LVCC_SIM_RE.test(String(d.id || ''));
+  }
+  return LVCC_SIM_RE.test(String(d || ''));
+}
+
+/** 驴充充单台直连（仅在 `canDirect` 那条兜底路径上用到，即站长本机有凭证时）。 */
+async function fetchLvccPortsOnce(simId) {
+  const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS) : null;
+  let response;
+  try {
+    response = await fetch(LVCC_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        simId,
+        mapType: '2',
+        chargeTypeTag: '0',
+        appEntrance: '2',
+        entrance: '2',
+        version: 'new',
+      }).toString(),
+      signal: ctrl ? ctrl.signal : undefined,
+    });
+  } catch (err) {
+    if (ctrl && ctrl.signal.aborted) throw new Error('平台 8 秒没响应');
+    throw err;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+  let data = null;
+  try {
+    data = await response.json();
+  } catch (e) {
+    throw new Error('平台返回格式异常（HTTP ' + response.status + '）');
+  }
+  if (Number(data.code) !== 200) throw new Error(data.message || ('平台返回 ' + data.code));
+  const d = data.data || {};
+  const dev = d.device || {};
+  const raw = Array.isArray(d.ports) ? d.ports : [];
+  if (!raw.length) throw new Error('平台没返回插座数据');
+  const total = Math.max(Number(dev.portNumber) || 0, raw.length - 1);
+  const ports = [];
+  for (let n = 1; n <= total; n++) {
+    const v = Number(raw[n]);
+    /* 与 Worker 同一套口径：0 空闲 / 1 占用 / 其他（含 -1 异常）一律按占用处理，
+       不下发负值 —— 下游只认 `state === SLOT_FREE`，负值会被当成「未知状态」。 */
+    ports.push({ num: n, state: v === 0 ? 0 : (v === 1 ? 1 : 2) });
+  }
+  return ports;
+}
 
 /* 🔴 2026-10-29：手动刷新最小间隔。需求是「数据满 1 分钟就允许手动刷」。
  *
@@ -2112,7 +2222,7 @@ let CRED_MISSING = false;   // 已确认「这一轮拿不到凭证」（见 pai
 const KEY_DEVICES = 'cpk.devices';
 const KEY_DEVICES_SCHEMA = 'cpk.devices.schema';
 const KEY_DEVICES_TS = 'cpk.devices.ts';
-const DEVICE_SCHEMA = 5;   // 清单格式版本：2 = 支持「桩号 名称 @地址」+ 任意编号前缀
+const DEVICE_SCHEMA = 7;   // 清单格式版本：2 = 支持「桩号 名称 @地址」+ 任意编号前缀
 /* schema 3（2026-10-21）= 「**新增分区要能自动补进老浏览器**」。
  * schema 4（2026-10-21）= 再加一个分区（当时的名字是「物流服务中心」）。
  * schema 5（2026-10-24）= 该分区**改名**「物流服务中心」→「物业服务中心」。
@@ -2140,6 +2250,42 @@ const SCHEMA_ADDED_LOCATIONS = {
   3: ['渭水-20号楼'],            // E-01~E-24（公路学院 20 号楼，横红线段）
   4: ['渭水-物业服务中心'],      // W-01~W-12（图上竖红线段，从下到上）
   5: ['渭水-物业服务中心'],      // 同 4（改名版）：覆盖「已经迁到 schema 4」的浏览器
+  /* 6（2026-10-31 v2.63）= 「渭水-住宅区」8 台（驴充充平台）。
+     v2.64 起这 8 台统一并进 `渭水-住宅`（不再分校内/校外），所以这条里的名字
+     在 DEFAULT_DEVICES 中已经不存在了 —— 留着是为了「从 schema 5 及以前跳上来」
+     的浏览器：它们会依次走 6、7 两版，真正补设备的是 7 这一条。 */
+  6: ['渭水-住宅区', '渭水-住宅区(校外)'],
+  /* 7（2026-10-31 v2.64）= 住宅那 8 台**换地址 + 改桩号**（不新增设备）。
+     8 台全在校内（尚苑路南侧的西区住宅小区），桩号按机号重排成 Z-01~Z-08。 */
+  7: ['渭水-住宅'],
+};
+
+/* 桩号**改名**表：{ schema 版本: { 设备 id(大写): 新桩号 } }。
+ *
+ * 🔴 2026-10-31 v2.64 新增此表的原因：`getDevices()` 的迁移分支里 `code` 是
+ *   `d.code || meta.code` —— **本机已存过就不覆盖**（这是为了尊重用户自己改的编号，
+ *   比如北门有人把桩号写成 `北-A01`）。但住宅这 8 台的桩号是**系统给的**
+ *   （v2.63 上线时叫 R-01~R-08，v2.64 按产品方口径重排成 Z-01~Z-08），
+ *   必须强制换掉，否则会出两个问题：
+ *     ① 卡片标题跟着 `name` 变了、地图却按 `code` 找点 → 桩号显示 Z-03、地图上没它；
+ *     ② `map-amap.js` 的 `lineSeq()` 按前缀 `Z` 认编号，认不出 `R-03` 就掉进
+ *        `arcSeq()`（"末尾数字 1~36 就算朝晖"）→ 整批被摆到体育场那两条弧上。
+ *         （同一个坑 2026-10-21 在 E、W 上各踩过一次，见 map-amap.js 的注释。）
+ *
+ * ⚠️ 只按 **id 精确匹配**，不碰用户自己编辑的其他桩；id 换了就自动失效（安全）。
+ * ⚠️ 版本号是**单调**的：本表要能表达「第 N 版把谁改成什么」，所以 `getDevices()`
+ *    会把 `fromSchema+1 .. DEVICE_SCHEMA` 这几版的改名**依次叠加**再一次性套用。 */
+const SCHEMA_CODE_RENAMES = {
+  7: {
+    '865777078529432': 'Z-01',   // 1 号机
+    '866907053459649': 'Z-02',   // 2 号机
+    '863069059213877': 'Z-03',   // 3 号机
+    '866907052208807': 'Z-04',   // 4 号机
+    '860048071208423': 'Z-05',   // 5 号机
+    '860048071219040': 'Z-06',   // 6 号机
+    '862289058733268': 'Z-07',   // 7 号机
+    '862289058759602': 'Z-08',   // 8 号机
+  },
 };
 
 /* 分区**改名**表：[旧名片段, 新名片段]。由 `normKey()` 统一套用。
@@ -2335,6 +2481,36 @@ const DEFAULT_DEVICES = [
   { id: 'XLA35412', code: 'W-10', name: '渭水校区 W-10 号桩', location: '渭水-物业服务中心' },
   { id: 'XLA36111', code: 'W-11', name: '渭水校区 W-11 号桩', location: '渭水-物业服务中心' },
   { id: 'XLB04070', code: 'W-12', name: '渭水校区 W-12 号桩', location: '渭水-物业服务中心' },
+
+  /* 🔌 2026-10-31 v2.63 新增「渭水-住宅」8 台 —— **另一个平台（驴充充）的机器**。
+   *   · `src: 'lvcc'` 是给 `/api/pile` 选数据源的；缺省（不写）= 住芒，所以上面 109 台一行都不用改。
+   *   · `id` 是设备机身上的 15 位 simId（IMEI），**直接当设备 id 用**，前后端都不做转换。
+   *   · `portCount` 只是给「查询失败时按应有口数计入无效」用的（见 paintRolling），
+   *     真实口数以平台返回的为准。
+   *
+   * 🔴 2026-10-31 v2.64 产品方定稿（**推翻了 v2.63 的「校内 6 + 校外 2」拆法**）：
+   *   · 8 台**全算校内**，统一挂 `渭水-住宅` 一个分区；
+   *   · 桩号按**机号**重排：1 号机 = Z-01 … 8 号机 = Z-08（v2.63 曾叫 R-01~R-08）；
+   *   · 地址胶囊显示「住宅」（= 分区名去掉「渭水-」前缀，`shortAddrLabel` 自动算出来的，
+   *     这里不用写死），卡片地址行显示完整「西区住宅小区」（见 `ADDR_FULL_LABEL`）。
+   *
+   * ⚠️ 平台登记的坐标对不上：1/5/6 号机与 8 号机在**尚苑路南侧的西区住宅小区**
+   *   （108.8922~108.8930 / 34.3697~34.3710，校园北边界以内），
+   *   而 4 号机和 7 号机平台里填的还是「凤城三路 50 号」（108.9243 / 34.3240，
+   *   离校园 5.9 km）。产品方确认这 8 台都在住宅小区，所以**落点按住宅小区那一排排**
+   *   （见 map-amap.js 的 Z_GEO），不采信 4/7 号机的平台坐标。
+   *
+   * ⚠️ `code` / `name` / `location` 三样在存量浏览器里都是**存在本地**的，
+   *    改这里对老用户不生效 —— 必须同时升 `DEVICE_SCHEMA` 并登记 `SCHEMA_CODE_RENAMES[7]`
+   *    （见那张表的说明；`code` 是地图落点用的，不跟着改会让 8 台掉进朝晖弧）。 */
+  { id: '865777078529432', src: 'lvcc', portCount: 20, code: 'Z-01', name: '渭水校区 Z-01 号桩', location: '渭水-住宅' },
+  { id: '866907053459649', src: 'lvcc', portCount: 20, code: 'Z-02', name: '渭水校区 Z-02 号桩', location: '渭水-住宅' },
+  { id: '863069059213877', src: 'lvcc', portCount: 20, code: 'Z-03', name: '渭水校区 Z-03 号桩', location: '渭水-住宅' },
+  { id: '866907052208807', src: 'lvcc', portCount: 20, code: 'Z-04', name: '渭水校区 Z-04 号桩', location: '渭水-住宅' },
+  { id: '860048071208423', src: 'lvcc', portCount: 2,  code: 'Z-05', name: '渭水校区 Z-05 号桩', location: '渭水-住宅' },
+  { id: '860048071219040', src: 'lvcc', portCount: 2,  code: 'Z-06', name: '渭水校区 Z-06 号桩', location: '渭水-住宅' },
+  { id: '862289058733268', src: 'lvcc', portCount: 10, code: 'Z-07', name: '渭水校区 Z-07 号桩', location: '渭水-住宅' },
+  { id: '862289058759602', src: 'lvcc', portCount: 10, code: 'Z-08', name: '渭水校区 Z-08 号桩', location: '渭水-住宅' },
 ];
 
 const $ = (id) => document.getElementById(id);
@@ -2503,6 +2679,49 @@ function appendNewLocationDevices(list, fromSchema) {
   return { list: added.length ? list.concat(added) : list, added, locations };
 }
 
+/** 把 `SCHEMA_CODE_RENAMES` 里登记过的桩强制对齐成新的 code / name / location（幂等）。
+ *
+ * @param list       待处理的清单
+ * @param fromSchema 这份清单被认为的格式版本；传 0 = 「把所有历来的改名都套一遍」
+ *                   （云端清单用这个 —— 那份可能来自很久以前的另一台设备）
+ *
+ * 为什么三样都要覆盖、而不只是 code：
+ *   · `code`   —— 地图落点（`lineSeq` 按前缀认编号），不改会掉进朝晖弧；
+ *   · `name`   —— 卡片标题（`shortPileLabel`），不改会显示「R-04 号桩」；
+ *   · `location` —— 地址胶囊 / 卡片地址行 / 是否上图（`isOffMapLocation`）。
+ *   这三样是「同一次改名」的一部分，拆开处理只会漏。
+ *
+ * ⚠️ 只按 **id 精确匹配**，不碰用户自己编辑的其他桩；id 换了就自动失效（安全）。
+ * ⚠️ 云端清单那条路（`cloudPullDevices`）也要走这里 —— 云端存的是**别的设备**上次
+ *    推上去的旧清单，不改的话管理员一同步，旧桩号又回来了。 */
+function applySchemaIdentityFixes(list, fromSchema) {
+  const fixes = {};
+  let any = false;
+  for (let v = Number(fromSchema || 0) + 1; v <= DEVICE_SCHEMA; v++) {
+    const one = SCHEMA_CODE_RENAMES[v];
+    if (!one) continue;
+    /* 键统一大写：设备 id 有的是全大写（XLA36125）、有的是纯数字，比对时不能区分大小写 */
+    for (const k of Object.keys(one)) { fixes[k.toUpperCase()] = one[k]; any = true; }
+  }
+  if (!any || !Array.isArray(list)) return list;
+
+  const metaBy = {};
+  for (const d of DEFAULT_DEVICES) metaBy[String(d.id).toUpperCase()] = d;
+
+  return list.map((d) => {
+    const key = String((d && d.id) || '').toUpperCase();
+    const code = fixes[key];
+    if (!code) return d;
+    const meta = metaBy[key] || {};
+    return {
+      ...d,
+      code,
+      name: meta.name || d.name,
+      location: normKey(meta.location || d.location),
+    };
+  });
+}
+
 function getDevices() {
   const list = store.get(KEY_DEVICES, null);
   if (!Array.isArray(list) || !list.length) return DEFAULT_DEVICES.slice();
@@ -2544,6 +2763,11 @@ function getDevices() {
   if (grown.added.length) {
     console.log(`[devices] schema ${schema}→${DEVICE_SCHEMA}：补入 ${grown.added.length} 台（${grown.locations.join('、')}）`);
   }
+
+  /* ③ 强制换掉登记过的桩号（见 SCHEMA_CODE_RENAMES）。
+   * ⚠️ 必须放在 ① 之后：① 只会在本机**没有** code 时才填 `meta.code`，
+   *    而这一段是要**覆盖**已有的旧 code（R-01 → Z-01）。 */
+  next = applySchemaIdentityFixes(next, schema);
 
   store.set(KEY_DEVICES, next);
   store.set(KEY_DEVICES_SCHEMA, DEVICE_SCHEMA);
@@ -2598,9 +2822,20 @@ function inFilterScope(device, filter) {
   const want = normKey(String(f).trim());
   const loc = normKey(String((device && device.location) || '').trim());
   if (!loc) return false;
+  if (loc === want) return true;
+  /* 🔴 2026-10-31 v2.63：**登记过的分区名只认精确相等**，不再走下面的「包含」兼容。
+     起因：当时把住宅那 8 台拆成「住宅区」和「住宅区(校外)」两个分区，名字互相包含 ——
+     选了「住宅区」，包含匹配会把校外那 2 台也算进来（列表显示 8 张卡、
+     而胶囊上明明还有独立的一项），看着就像筛选坏了。
+     v2.64 虽然又并回单个「住宅」分区，但这条规则要留着：
+     以后任何两个分区名只要互为前缀/子串（「住宅」⊂「住宅二期」这种），包含匹配就会串味。
+     下面那两条包含匹配只为兼容**旧版存下来的非标准筛选值**
+     （如「朝晖体育场南充电桩」），本来就不该作用在确切的分区名上。 */
+  const areas = (window.CHD_MAP && window.CHD_MAP.areas) || {};
+  if (areas[want]) return false;
   const wantCore = want.replace(/^渭水-?/, '');
   const locCore = loc.replace(/^渭水-?/, '');
-  return loc === want || (!!wantCore && loc.includes(wantCore)) || locCore === wantCore;
+  return (!!wantCore && loc.includes(wantCore)) || locCore === wantCore;
 }
 
 function getSort() {
@@ -2706,6 +2941,12 @@ function parseDevices(text) {
     if (location) entry.location = location;
     else if (meta && meta.location) entry.location = meta.location;
 
+    /* v2.63：`src` / `portCount` 不在「桩号 名称 @地址」这行文本里，
+       所以要按 id 从默认清单回填 —— 否则在「设置 › 设备清单」里点一次保存，
+       住宅区那 8 台的 `src` 就丢了，下次查询会被当成住芒的桩去打错的平台。 */
+    if (meta && meta.src) entry.src = meta.src;
+    if (meta && meta.portCount) entry.portCount = meta.portCount;
+
     out.push(entry);
   }
   return out;
@@ -2787,7 +3028,15 @@ async function fetchPortsOnce(deviceId, token) {
     .sort((a, b) => a.num - b.num);
 }
 
-async function readPorts(deviceId) {
+async function readPorts(device) {
+  /* v2.63：两个平台分开走。驴充充无鉴权 → 直连它自己的接口，**不需要 token**；
+     住芒仍然要 token。参数从 id 串改成 device —— 但传字符串也照旧兼容
+     （`isLvccDevice` 会按 15 位数字判源）。 */
+  if (isLvccDevice(device)) {
+    const simId = typeof device === 'string' ? device : String(device.id || '');
+    return await fetchLvccPortsOnce(simId);
+  }
+  const deviceId = typeof device === 'string' ? device : String(device.id || '');
   const token = getToken();
   if (!token) throw new AuthError('还没有凭证');
 
@@ -2836,21 +3085,38 @@ async function readPorts(deviceId) {
  *  页面用它决定收尾提示怎么写 —— 下面 `refresh()` 末尾读它。 */
 let lastPileMeta = { fetched: 0, hit: 0, throttled: false, batches: 0, oldestAge: 0 };
 
-async function pileProxyBatch(ids, onChunk, shouldStop, opts = {}) {
+async function pileProxyBatch(items, onChunk, shouldStop, opts = {}) {
   /* 🔴 2026-10-27：不再要求本机有凭证 —— 访客本来就没有。
    * 凭证在 Worker 里，`/api/pile` 缺 `token` 时自己取、自己带 Authorization 上平台。
    * 本机有（站长粘贴的、且还没过期）才带上，让它压过服务端那份。 */
   const token = tokenState().status === 'expired' ? '' : getToken();
-  if (!ids.length) return null;
+  if (!items.length) return null;
   /* `fresh` = 用户要「现在这一刻」。🔴 必须透传到 Worker ——
    * 只改页面本地的 THROTTLE_MS 没用：真正持有 5 分钟缓存的是 Worker，
    * 它返回的 `at` 就是缓存写入时刻。这正是「点了刷新还显示 3 分钟前」的根因。 */
   const fresh = !!(opts && opts.fresh);
   lastPileMeta = { fetched: 0, hit: 0, throttled: false, batches: 0, oldestAge: 0 };
 
-  /* 先把 id 切成批，再把批轮着分给两条流水线 —— 每条流水线内部仍然串行。 */
+  /* ① 先按**数据源**分组，再在组内切批（v2.63）。
+   * 一个批次只能带一个 `src` —— 混在一起的话 Worker 只能用其中一个，
+   * 另一半会打到错的平台上（住芒 id 打驴充充接口 = 统统「平台返回 404」）。
+   * 参数兼容：传 device 对象或裸 id 串都行，`isLvccDevice()` 负责判源。 */
+  const groups = new Map();
+  for (const it of items) {
+    const id = typeof it === 'string' ? it : String((it && it.id) || '');
+    if (!id) continue;
+    const src = isLvccDevice(it) ? 'lvcc' : 'zm';
+    if (!groups.has(src)) groups.set(src, []);
+    groups.get(src).push(id);
+  }
+
+  /* ② 组内切批，再把批轮着分给两条流水线 —— 每条流水线内部仍然串行。 */
   const chunks = [];
-  for (let k = 0; k < ids.length; k += PILE_PROXY_CHUNK) chunks.push(ids.slice(k, k + PILE_PROXY_CHUNK));
+  groups.forEach((ids, src) => {
+    for (let k = 0; k < ids.length; k += PILE_PROXY_CHUNK) {
+      chunks.push({ src, ids: ids.slice(k, k + PILE_PROXY_CHUNK) });
+    }
+  });
 
   const out = {};
   let gotAny = false;
@@ -2860,9 +3126,11 @@ async function pileProxyBatch(ids, onChunk, shouldStop, opts = {}) {
     const timer = ctrl ? setTimeout(() => ctrl.abort(), PILE_PROXY_TIMEOUT_MS) : null;
     try {
       /* 没 token 就不带这个字段（而不是发一个空串）——
-       * 让「服务端决定用哪份凭证」这件事只有一个明确入口。 */
-      const payload = fresh ? { ids: part, fresh: true } : { ids: part };
-      if (token) payload.token = token;
+       * 让「服务端决定用哪份凭证」这件事只有一个明确入口。
+       * 驴充充的批次显式带 `src`；住芒不带（= 默认值），老版本 Worker 也能照常认。 */
+      const payload = fresh ? { ids: part.ids, fresh: true } : { ids: part.ids };
+      if (part.src === 'lvcc') payload.src = 'lvcc';
+      if (token && part.src !== 'lvcc') payload.token = token;
       const res = await fetch(PILE_PROXY_PATH, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -3118,7 +3386,7 @@ async function loadDevice(device, { force = false } = {}) {
   }
 
   try {
-    const ports = await readPorts(device.id);
+    const ports = await readPorts(device);
     const record = { at: now, ports, error: null };
     cache[device.id] = record;
     store.set(KEY_CACHE, cache);
@@ -3378,6 +3646,25 @@ function shortAddrLabel(loc) {
   return raw.replace(/^渭水[-—－‐‑‒–]?/, '') || raw;
 }
 
+/** 卡片地址行的**完整名**：有的分区要写全称（2026-10-31 v2.64 产品方口径）。
+ *
+ * 住宅那 8 台就是典型：
+ *   · **地址胶囊**要短（一行塞得下 7 个），显示「住宅」；
+ *   · **卡片地址行**写全称「西区住宅小区」。
+ * 两者不是同一个字符串，也不该同源 —— 胶囊从分区名去掉「渭水-」得来（`shortAddrLabel`），
+ * 卡片走这张表，表里没有的就退回 `shortAddrLabel`。
+ *
+ * ⚠️ 按**分区**登记，不按设备 —— 以后同一个小区再加机器，写进这张表就自动生效。
+ * ⚠️ 键要过 `normKey()`（U+2011 等变体连字符，见 normKey 的说明）。 */
+const ADDR_FULL_LABEL = {
+  '渭水-住宅': '西区住宅小区',
+};
+
+function cardAddrLabel(loc) {
+  const k = normKey(String(loc || '').trim());
+  return ADDR_FULL_LABEL[k] || shortAddrLabel(loc);
+}
+
 function render(devices, results) {
   // 查询进行中，未查到的设备回退到上次缓存，避免刷新时清空显示
   const cache = readCache();
@@ -3465,15 +3752,19 @@ function render(devices, results) {
           ? ''
           : '还没拿到数据';
 
-    /* 列数跟着插座数走：2 口桩用 4 列会把两块撑成巨无霸。
-       pending 时还不知道有几口，按 4 画 —— 全网都是 4 口桩，这是最小惊奇的默认。 */
-    const cols = Math.max(ports.length, 4);
+    /* 列数别跟着插座数一路加倍（2026-10-31 v2.63）：
+       原来写 `Math.max(ports.length, 4)`，在「全是 4 口桩」的年代等价于恒 4 列，
+       但住宅区那批驴充充机器有 10 口和 20 口的 —— 20 口会把 20 格塞进**一行**，
+       每格宽 ~15px，「空闲 / 占用」四个字直接挤成竖条。
+       现在固定 4 列（与老卡片同宽），只有「10 / 20 口」这种 5 的倍数换成 5 列，
+       让它们正好铺满整行（10 口 = 2 行、20 口 = 4 行），不留半行豁口。 */
+    const cols = (ports.length >= 10 && ports.length % 5 === 0) ? 5 : 4;
 
     cards.push(`<div class="card${unknown ? ' err' : ''}">
       <div class="card-head">
         <div>
           <h2>${escapeHtml(shortPileLabel(device.name || device.code || device.id))}</h2>
-          ${device.location ? `<div class="loc" title="${escapeHtml(device.location)}">${escapeHtml(shortAddrLabel(device.location))}</div>` : ''}
+          ${device.location ? `<div class="loc" title="${escapeHtml(device.location)}">${escapeHtml(cardAddrLabel(device.location))}</div>` : ''}
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex:none">
           ${findIco}
@@ -3679,6 +3970,20 @@ const CHAOHUI_AMAP = {
   fallbackStaticId: 'chaohui-static',
 };
 
+/* 「住宅」分区（2026-10-31 v2.66 产品方要求：住宅也要进地图的地址气泡）。
+ * 和物业 / 20 号楼完全同构 —— 同一台高德引擎取这一块的景，本对象只需 `area` 指对：
+ *   · 落点由 `map-amap.js` 的 `LINE_AREAS['渭水-住宅']` 决定（Z_GEO 8 个点，沿尚苑路排一排）；
+ *   · 取景框由 `map-data.js` 的 `areas['渭水-住宅'].line` 决定（与 Z_GEO 首尾逐字一致）；
+ *   · 没有手绘图 → 高德拉不出来时退回静态总览（和其它无手绘图的区一样）。
+ * ⚠️ id 用 `zhuzhai` 而不是 `zhu`：`zhu` 是快照站的统计分区键（`/api/stats` 的 areas 键），
+ *    两者不是一回事，混用会让以后「从统计键反查地图页签」这类代码互相踩。 */
+const ZHU_AMAP = {
+  id: 'zhuzhai', label: '渭水 · 住宅', name: '住宅',
+  layout: 'amap', area: '渭水-住宅',
+  campus: 'weishui',
+  fallbackStaticId: 'overview',
+};
+
 /** 校区清单。目前只有渭水 —— 这一层是给「将来要加别的校区」留的，
  *  真正用的地方是头部那颗胶囊的下拉项（见 `renderCampusBubble()`）。 */
 const CAMPUSES = [
@@ -3691,9 +3996,8 @@ const STATIC_MAPS = [
   ADDRESS_MAPS['_default'],
   CAMPUS_MAP,
 ];
-// 筛选顺序（头部那排地址胶囊的顺序）：校区全图 → 物业服务中心 → 20 号楼 → 北门 → 朝晖体育场南
-// v1.97：CAMPUS_MAP（9600×3422 静态总览）已从胶囊行移除，底图不再下载；四个位置
-//        现在都是在线地图（v2.45），静态图降级成「拉不到在线地图时的兜底」（STATIC_MAPS）。
+/* v1.97：CAMPUS_MAP（9600×3422 静态总览）已从胶囊行移除，底图不再下载；这几个位置
+          现在都是在线地图（v2.45），静态图降级成「拉不到在线地图时的兜底」（STATIC_MAPS）。 */
 /* 「20 号楼」分区（2026-10-30 v2.46 补 —— 这一块是**漏掉的**）。
  * `map-data.js` 的 areas 里一直挂着 '渭水-20号楼'，设备表里也有 24 台桩属于它
  * （占全校 109 台的 22%），但从头到尾没给它做胶囊：这 24 台只能混在「校区全图」
@@ -3705,7 +4009,12 @@ const LOU20_AMAP = {
   // 20 号楼没有手绘图 → 兜底落到静态总览
   fallbackStaticId: 'overview',
 };
-const MAP_ORDER = [AMAP_MAP, WULIU_MAP, LOU20_AMAP, BEIMEN_AMAP, CHAOHUI_AMAP];
+/* 地址气泡的顺序（HTML 里 `#map-tabs` 那排按钮要跟这里一一对应）：
+   校区全图 → 住宅 → 物业服务中心 → 20 号楼 → 北门 → 朝晖体育场南。
+   🔴 新分区**别往队尾塞**：那排是横滑的，390px 下第 6 颗已经贴着右边缘，
+      再往后加就等于「加了但看不见」（v2.65 在回顾的筛选条上刚踩过一次）。
+   住宅放第二颗是因为它紧挨校区北沿、又是独立车棚，值得一进来就能点到。 */
+const MAP_ORDER = [AMAP_MAP, ZHU_AMAP, WULIU_MAP, LOU20_AMAP, BEIMEN_AMAP, CHAOHUI_AMAP];
 // 总览图上的分区锚点（底图像素坐标，底图 9600×3422）
 //   labelSide:'left' 把地址名排到点的左边 —— 北门这个点在图上紧挨着底图自己的红色「北门」二字，
 //   标签往右会压住它，往左才读得清。锚点 x=7920 是量的：红字在 4800 图上 bbox x 4032~4196、
@@ -3936,6 +4245,8 @@ function buildScope() {
       const num = Number(String(d.code || '').match(/\d+/)?.[0]);
       if (mapAreaOf(d) === arcArea && pinCoordAt(num)) mapScope.push(i);
     } else {
+      /* 公园式（北门）那张图是按车位号落的，校外那几台没有车位号，别让它们挤进来 */
+      if (isOffMapLocation(d.location)) return;
       mapScope.push(i);
     }
   });
@@ -3995,7 +4306,7 @@ function warmAMap() {
         return loadScriptOnce('https://webapi.amap.com/maps?v=2.0&key='
           + encodeURIComponent(window.CHD_AMAP_KEY));
       })
-      .then(() => loadScriptOnce('map-amap.js?v=142'))
+      .then(() => loadScriptOnce('map-amap.js?v=144'))
       .catch(() => { /* 预热失败：点开时 ensureAMap() 会重新拉 */ });
   };
   if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 4000 });
@@ -4404,8 +4715,35 @@ function normKey(s) {
   return v;
 }
 
+/* ---------------- 「只进列表、不上地图」的分区（2026-10-31 v2.63） ----------------
+ *
+ * **目前是空的**（v2.64 起），但这个阀门保留 —— 它解决的是一个会**静默丢桩**的坑：
+ * 校区地图是 `map-amap.js` 画的，还加了 `limitBounds`，镜头根本拖不到校外。
+ * 真有校外分区时，把它们画进去只能有两种结果，而且都不对：
+ *   · 按真坐标画 → 在可视范围外，等于没画，但徽章/聚合圈会跑到看不见的地方；
+ *   · 按「就近找一块地」画 → 凭空摆进宿舍区，位置是假的。
+ * 所以遇到校外分区要**明确排除**：地图上不出现，列表/筛选/刷新照常。
+ *
+ * ⚠️ 为什么不干脆不给它登记分区：`mapAreaOf()` 对**未登记**的分区会 fallback 到
+ *    「非北门即朝晖」，那些桩会被塞进朝晖那 36 个弧位里、跟真桩重叠 ——
+ *    这正是 2026-10-21 踩过的坑。所以判据必须是「先认出它、再主动排除」。
+ *
+ * 📌 历史：v2.63 这 8 台曾按坐标拆成「校内 6 + 校外 2」，校外那两台（凤城三路 50 号，
+ *    离校园 5.9 km）就登记在这里。v2.64 产品方改口径 —— 8 台全算校内、统一挂
+ *    `渭水-住宅`，于是这张表清空；存量浏览器里的旧地址由 `DEVICE_SCHEMA` 7 的迁移
+ *    覆写掉（见 `SCHEMA_CODE_RENAMES`）。 */
+const OFF_MAP_LOCATIONS = [];
+
+function isOffMapLocation(loc) {
+  const v = normKey(String(loc || '').trim());
+  return !!v && OFF_MAP_LOCATIONS.some((x) => normKey(x) === v);
+}
+
 function mapAreaOf(d) {
   const real = normKey(String((d && d.location) || '').trim());
+  /* 校外那两台直接给空串 —— 调用方（tmapDevices / amapDevices / buildScope）
+   * 见到空串就跳过，不会再落到下面那条「非北门即朝晖」的兜底上。 */
+  if (isOffMapLocation(real)) return '';
   const areas = (window.CHD_MAP && window.CHD_MAP.areas) || {};
   if (real && areas[real]) return real;
   const target = mapForAddress([d.location, d.name].filter(Boolean).join(' '));
@@ -4426,7 +4764,7 @@ function tmapDevices() {
       free: ports.length ? free : 0,
       total: ports.length,
     };
-  });
+  }).filter((x) => !!x.location);   // v2.63：校外那几台不上地图
 }
 
 function onTMapPileClick(ev) {
@@ -4484,7 +4822,7 @@ function ensureTMap() {
       });
     };
     if (window.CHD_TMAP && window.CHD_MAP) { boot(); return; }
-    loadScriptOnce('map-data.js?v=164')
+    loadScriptOnce('map-data.js?v=166')
       .then(() => loadScriptOnce('map-tmap.js?v=171'))
       .then(boot)
       .catch(() => done(false));
@@ -4589,17 +4927,17 @@ function ensureAMap() {
       });
     };
     if (window.CHD_AMAP && window.CHD_MAP) { boot(); return; }
-    /* 正常情况下 `map-data.js` 已由页面顶部的静态 `<script src="map-data.js?v=164">` 加载好
+    /* 正常情况下 `map-data.js` 已由页面顶部的静态 `<script src="map-data.js?v=166">` 加载好
        （见那里的长注释：冷启动没有它 → `mapAreaOf()` 的两个兜底同值 → 弧线判据恒真 ✗）。
        所以这里先看 `window.CHD_MAP` 在不在，在就跳过，避免重复拉一次；
        若那个静态标签**没加载成功**（例如断网中途失败），仍会走 `loadScriptOnce` 重试 ✓ */
-    (window.CHD_MAP ? Promise.resolve(true) : loadScriptOnce('map-data.js?v=164'))
+    (window.CHD_MAP ? Promise.resolve(true) : loadScriptOnce('map-data.js?v=166'))
       .then(loadLocalKeyOnce)
 // 2026-10-25：v2.22/v2.23 的地图改版（飞入动画 + keepCamera + 首帧标志 + 预热）已随 v2.14
 //    并入本站唯一那份 map-amap.js。改了 js 一定要同时改 ?v（SW 缓存优先）。
 //    2026-10-29 v2.38：内测版退役 —— `map-amap-preview.js` 已删，以后只有一份引擎、一份 HTML，
 //    不再存在「改了 js 要两边同步」这件事。
-      .then(() => loadScriptOnce('map-amap.js?v=142'))
+      .then(() => loadScriptOnce('map-amap.js?v=144'))
       .then(boot)
       .catch(() => done(false));
   });
@@ -4618,7 +4956,7 @@ function amapDevices() {
       free: ports.length ? free : 0,
       total: ports.length,
     };
-  });
+  }).filter((x) => !!x.location);   // v2.63：校外那几台不上地图（同 tmapDevices）
 }
 
 function onAMapPileClick(ev) {
@@ -4721,6 +5059,27 @@ function syncMapTabs() {
     btn.hidden = !!(m && m.campus && curMap.campus && m.campus !== curMap.campus);
     btn.classList.toggle('on', id === curMap.id);
   });
+  /* 选中的那颗可能藏在右边（这排是横滑的，第 6 颗贴着右边缘）——
+     让它自己滚进来，否则「切过去了但看不出来切到哪」。
+     用 rAF：`openMap()` 是先 syncMapTabs 再 showModal，同步时刻还没有布局宽度。 */
+  const on = bar.querySelector('.map-tab.on');
+  const scrollToOn = () => {
+    if (!bar.clientWidth) return;
+    if (on) {
+      const l = on.offsetLeft - bar.offsetLeft;
+      const r = l + on.offsetWidth;
+      if (l < bar.scrollLeft) bar.scrollLeft = Math.max(0, l - 8);
+      else if (r > bar.scrollLeft + bar.clientWidth) bar.scrollLeft = r - bar.clientWidth + 8;
+    }
+    /* 两端渐隐提示：这排 6 颗在 390px 下必然溢出，不给提示就只剩「半颗被切掉的胶囊」。 */
+    paintScrollHint(bar);
+  };
+  requestAnimationFrame(scrollToOn);
+  /* 滚动监听绑一次（容器不变，只有 `.on` 在换）。 */
+  if (!bar.dataset.scrollBound) {
+    bar.dataset.scrollBound = '1';
+    bar.addEventListener('scroll', () => paintScrollHint(bar), { passive: true });
+  }
 }
 
 /** 切换底图（分区筛选）：只换图 + 重算点位 + 回到全景 */
@@ -4872,6 +5231,15 @@ function highlightPin(deviceId) {
 function openMapAt(deviceId) {
   const di = mapDevices.findIndex((d) => String(d.id).toUpperCase() === String(deviceId).toUpperCase());
   const dev = di >= 0 ? mapDevices[di] : null;
+  /* v2.63：不在校区地图上的桩**没有位置**（见 OFF_MAP_LOCATIONS）。
+     以前会一路落到「朝晖总览」——用户点的是住宅，却看到体育场，比什么都不做更费解。
+     这里直接说清楚为什么点不动，也不打开一张空地图。
+     ⚠️ v2.64 起 OFF_MAP_LOCATIONS 是空的（8 台全并进校内），这段平时不会触发；
+        留着是因为它守的是「别把人甩到一张空地图上」这条产品规则，不是某一台桩。 */
+  if (dev && isOffMapLocation(dev.location)) {
+    showToast('这台不在校区地图上');
+    return;
+  }
   // 地址线索优先用 location，缺失时退回到名称里的关键字（兼容没写 @地址 的设备）
   const hint = dev ? [dev.location, dev.name].filter(Boolean).join(' ') : '';
 
@@ -4890,7 +5258,11 @@ function openMapAt(deviceId) {
     });
   };
 
-  curMap = AMAP_MAP;
+  /* v2.66：这台桩所属的分区如果自己就有一颗地址胶囊（住宅 / 北门 / 物业 …），
+     那颗胶囊就该是选中态 —— 否则用户点的是住宅，顶栏还亮着「校区全图」，对不上。
+     找不到对应胶囊（比如分区没有独立页签）就老实停在校区全图，和以前一样。 */
+  const tabOfArea = dev && MAP_ORDER.find((m) => m.area && normKey(m.area) === normKey(dev.location));
+  curMap = tabOfArea || AMAP_MAP;
   syncMapTabs();
   const dlg = $('map-dialog');
   if (!dlg.open) dlg.showModal();
@@ -5061,9 +5433,16 @@ async function refresh({ force = false, retried = false, only = null } = {}) {
   paintCred();
   /* 🔴 2026-10-27：改看 `credState()`。访客手上没有 token，但服务端有 ——
    * 以前这里判 `tokenState()` 就会直接 return，表现是「已取到凭证，正在查询…」
-   * 之后永远不出卡片，而网络面板里一个 /api/pile 都没有。 */
+   * 之后永远不出卡片，而网络面板里一个 /api/pile 都没有。
+   *
+   * 🔴 v2.63 补一个例外：凭证只管**住芒**那批桩。住宅区 8 台是驴充充的机器、
+   * 接口无鉴权，所以「没有凭证」不该等于「全校一台都查不了」：
+   *   · 当前范围里一台驴充充都没有 → 维持原样直接返回（顶部已有凭证提示）；
+   *   · 有 → 继续往下走，但下面会把查询目标压到驴充充那几台，
+   *     住芒的桩照旧显示上次结果 + 那句「凭证还没接上」。 */
   const state = credState();
-  if (state.status === 'none') return;
+  const credMissing = state.status === 'none';
+  if (credMissing && !getDevices().some((d) => isLvccDevice(d) && inFilterScope(d))) return;
   if (busyFlag) {
     /* 忙时点击：只记一笔，收尾时补查失败的几台（见 pendingTargets 上方注释） */
     pendingTargets = true;
@@ -5164,6 +5543,10 @@ async function refresh({ force = false, retried = false, only = null } = {}) {
       targets = targets.filter((i) => allow.has(i));
     }
 
+    /* 没有凭证时（v2.63）：只查驴充充那几台 —— 住芒的桩拿不到数据，
+       逐个打过去只会每台等到超时、还把「凭证没接上」伪装成「平台抽风」。 */
+    if (credMissing) targets = targets.filter((i) => isLvccDevice(devices[i]));
+
     /* ② 先把缓存铺到界面上 —— **必须排在等网络之前**（v2.11 调整）。
      * 老代码是「await 完代理 → 才 render」，于是点刷新先干等二十秒才见到东西。
      * 现在点下去立刻有画面，新数据再一批一批换上去。
@@ -5250,7 +5633,9 @@ async function refresh({ force = false, retried = false, only = null } = {}) {
           valid += ports.length;
           free += ports.filter((p) => p.state === SLOT_FREE).length;
         } else if (rec && (rec.error || rec.at)) {
-          invalid += PORTS_PER_DEVICE;
+          /* v2.63：按这台**实际有几个口**计入无效（住宅区那 8 台是 2/10/20 口的机器，
+             一律按 4 算会把「无效」统计得偏小）。没有 portCount 的（住芒 109 台）仍按 4。 */
+          invalid += Number((devices[i] || {}).portCount) || PORTS_PER_DEVICE;
         }
       }
       setFreeRolling(free, valid, invalid);
@@ -5322,7 +5707,9 @@ async function refresh({ force = false, retried = false, only = null } = {}) {
       };
 
       prefetched = await pileProxyBatch(
-        targets.map((i) => devices[i].id),
+        /* 传 device 而不是 id 串（v2.63）：代理要按 `src` 把两个平台的桩分开批次，
+           只给 id 就只能靠 15 位数字去猜源。 */
+        targets.map((i) => devices[i]),
         applyChunk,
         () => aborted,
         /* 🔴 一律 fresh：refresh() 的语义就是「现在要一份新的」。
@@ -5944,7 +6331,10 @@ async function cloudPullDevices({ force = false } = {}) {
     /* v2.23：**采纳云端清单时也要过一遍改名/归一化**。
      * 云端那份是别的设备按旧名字推上去的，原样存下来会让改名白做（本地又变回旧名字）。
      * `normKey()` 同时做两件事：连字符归一化 + `LOCATION_RENAMES` 改名。 */
-    store.set(KEY_DEVICES, adopted.list.map((d) => ({ ...d, location: normKey(d.location) })));
+    /* v2.64：云端那份可能存着住宅区改名前的桩号（R-01~R-08）与旧地址，
+     * 原样落盘会让本机的改名白做 —— 再套一遍强制对齐（fromSchema 传 0 = 全部改名）。 */
+    const renamed = adopted.list.map((d) => ({ ...d, location: normKey(d.location) }));
+    store.set(KEY_DEVICES, applySchemaIdentityFixes(renamed, 0));
     store.set(KEY_DEVICES_SCHEMA, DEVICE_SCHEMA);  // 云端清单都是新格式
     store.set(KEY_DEVICES_TS, remoteStamp);
     if (adopted.added.length) {
@@ -6687,16 +7077,37 @@ const RV_AREAS = [
   { key: 'beimen', name: '北门' },
   { key: 'b20', name: '20号楼' },
   { key: 'wuye', name: '物业' },
+  /* 2026-10-31 v2.65：住宅区那 8 台（驴充充平台）也纳入统计。
+     键名必须和快照站 partitions.mjs 里那一条的 `key` 逐字一致 ——
+     `/api/stats` 的 `areas` 就是按这个键存每个区每小时占用率的。 */
+  { key: 'zhu', name: '住宅' },
 ];
 /* 与站点 Worker 反代的边缘缓存 300 秒对齐：同一个页面反复开关弹窗不该反复打请求。 */
 const RV_TTL_MS = 5 * 60 * 1000;
-/* 全部地址那一格要几个区都在才算数；数字只用于文案提示，不参与计算。 */
+/* 「全部地址」那一格要几个区都在才算数。⚠️ 只用于文案，**不再参与判断** ——
+   判断走 rvExpectedAreas()，见那里的注释。 */
 const RV_AREA_TOTAL = RV_AREAS.length;
+
+/** 某个统计点「本该有几个区」。
+ *
+ * 2026-10-31 v2.65 加「住宅」时发现的问题：`coverage` 是「这一小时有几个区
+ * 真的采到了」，而分区**是会长出来的**。如果拿今天的 5 去卡昨天那些只有 4 个
+ * 区的点，过去一整周全会被标成「没凑齐」，提示语变成天天都在缺数据 ——
+ * 明明那几天一切正常，只是那时候还没这个区。
+ *
+ * 服务端的每个点都**必然会写满当时的全部区**（缺的写 `pct: null` + reason），
+ * 所以「这个点里有几个区的键」就是那天的分区总数，用它当分母才对。
+ * 拿不到 `areas` 的异常点退回 RV_AREA_TOTAL。
+ */
+function rvExpectedAreas(p) {
+  const n = p && p.areas ? Object.keys(p.areas).length : 0;
+  return n || RV_AREA_TOTAL;
+}
 
 let rvCache = null;      // 最近一次 /api/stats 的原始响应
 let rvCacheAt = 0;
 let rvModel = null;      // 由原始响应算出的「按天 × 24 小时」模型
-let rvLoc = 'all';       // 当前地址：all / chaohui / beimen / b20 / wuye
+let rvLoc = 'all';       // 当前地址：all / chaohui / beimen / b20 / wuye / zhu
 let rvDay = 'avg';       // 当前日期：avg（七天平均）或 'YYYY-MM-DD'
 let rvSel = null;        // 柱状图上被点中的小时（0~23），null = 未选中
 
@@ -6727,7 +7138,7 @@ function buildReviewModel(raw) {
     daySet[dk] = true;
     if (oldest === null || p.h < oldest) oldest = p.h;
     if (newest === null || p.h > newest) newest = p.h;
-    if (!(p.coverage >= RV_AREA_TOTAL)) partial += 1;
+    if (!(p.coverage >= rvExpectedAreas(p))) partial += 1;
 
     for (const k of keys) {
       let v = null, cov = null;
@@ -6895,6 +7306,37 @@ function rvMarkNums(text) {
   );
 }
 
+/** 横滑容器：按「左/右还有没有内容」挂 `.back` / `.more`，两端做渐隐提示。
+ *  纯几何判断，不碰内容；滚到头就自然撤掉，不会让最后一颗永远发虚。 */
+function paintScrollHint(el) {
+  if (!el) return;
+  const rest = el.scrollWidth - el.scrollLeft - el.clientWidth;
+  el.classList.toggle('more', rest > 2);
+  el.classList.toggle('back', el.scrollLeft > 2);
+}
+
+/** 地址档重画后：选中那颗滚进可视区 + 顺手更新两端渐隐提示。
+ *
+ *  🔴 别用 `scrollIntoView()`：它会连带滚动整份弹窗（回顾内容很长，
+ *     一跳就跳到看不见标题和图，用户以为界面抽了）。这里只改 `scrollLeft`，纯横向。
+ *  🔴 `offsetLeft` 是相对 offsetParent 的，容器和按钮的 offsetParent 通常是同一个
+ *     对话框，相减即得按钮在**容器内容坐标**里的位置（不受 scrollLeft 影响）。 */
+function rvScrollLocIntoView() {
+  const box = $('rv-loc');
+  if (!box) return;
+  const on = box.querySelector('.loc-pill.on');
+  if (on && box.clientWidth) {
+    const pad = 8;
+    const l = on.offsetLeft - box.offsetLeft;
+    const r = l + on.offsetWidth;
+    if (l < box.scrollLeft + pad) box.scrollLeft = Math.max(0, l - pad);
+    else if (r > box.scrollLeft + box.clientWidth - pad) {
+      box.scrollLeft = r - box.clientWidth + pad;
+    }
+  }
+  paintScrollHint(box);
+}
+
 /** 画筛选条 + 两张图 + 口径说明。所有交互都从这里重画，没有局部更新。 */
 function renderReview() {
   const model = rvModel;
@@ -6902,9 +7344,17 @@ function renderReview() {
 
   const locs = [{ key: 'all', name: '全部地址' }, ...RV_AREAS];
   if (!locs.some((l) => l.key === rvLoc)) rvLoc = 'all';
-  $('rv-loc').innerHTML = locs.map((l) =>
-    '<button class="usage-chip' + (l.key === rvLoc ? ' on' : '') + '" data-loc="' + l.key + '">' + l.name + '</button>'
+  const locBox = $('rv-loc');
+  locBox.innerHTML = locs.map((l) =>
+    '<button type="button" class="loc-pill' + (l.key === rvLoc ? ' on' : '')
+    + '" data-loc="' + l.key + '">' + escapeHtml(l.name) + '</button>'
   ).join('');
+  /* 滚动监听只绑一次：innerHTML 换了按钮，容器本身没换，绑在容器上不会丢。 */
+  if (!locBox.dataset.scrollBound) {
+    locBox.dataset.scrollBound = '1';
+    locBox.addEventListener('scroll', () => paintScrollHint(locBox), { passive: true });
+  }
+  rvScrollLocIntoView();
 
   const days = model.days.slice(-7);
   if (rvDay !== 'avg' && days.indexOf(rvDay) < 0) rvDay = 'avg';
@@ -6943,6 +7393,11 @@ function renderReview() {
   if (avgAll !== null) {
     lines.push('当前视图共 ' + filled.length + '/24 个时段有数据，整体平均 '
       + avgAll.toFixed(1) + '%（' + nSum + ' 次采样）。');
+  } else {
+    /* 整档一个点都没有时（v2.65 加「住宅」的第一小时就是这种），
+       原来这里一声不响 —— 用户只看到一排灰桩，不知道是坏了还是没数据。 */
+    lines.push('这一档还没有数据。新接进来的地址要等整点采到第一个点才会出曲线；'
+      + '如果一直是空的，多半是那几天这个区没采到。');
   }
   if (rvSel !== null && slots[rvSel]) {
     const s = slots[rvSel];
@@ -6959,8 +7414,10 @@ function renderReview() {
   let hnote = '纵轴是日期（' + (safeDays ? days[0].slice(5) + ' → ' + days[safeDays - 1].slice(5) : '—')
     + '，共 ' + safeDays + ' 天），横轴是 0–23 时。';
   if (model.partial) {
-    hnote += ' 其中 ' + model.partial + ' 个统计点没凑齐 ' + RV_AREA_TOTAL
-      + ' 个区（那天某个区没采到），「全部地址」在这些小时里只代表部分区。';
+    /* 不再写死「N 个区」：分区会长出来（2026-10-31 加了住宅），
+       不同日子的分母本来就不同。见 rvExpectedAreas 的说明。 */
+    hnote += ' 其中 ' + model.partial + ' 个统计点有分区缺数据'
+      + '（那天某个区没采到），「全部地址」在这些小时里只代表部分区。';
   }
   hnote += ' 点格子可切到那一天。';
   $('rv-heat-note').textContent = hnote;
@@ -7475,7 +7932,13 @@ const CHANGELOG = [
         「刷新」散在三条，这次压回一句话 —— 用户要看到的是「这块变了」，
         不是同一件事在四个版本里各说一遍。新加条目也照这个来。
      只写用户看得见的变化：测试版入口、赞赏码措辞、密钥放哪、Worker/接口这类一律不进。 */
-  { from: 'v2.60', d: '2026-10-30', items: [
+  { from: 'v2.60', d: '2026-10-30 ~ 10-31', items: [
+    '新增「住宅」8 台充电桩（Z-01~Z-08）：都在校园北侧尚苑路边的西区住宅小区，地图上沿路边排成一排；这批机器有 2 口、10 口、20 口的，卡片按实际口数铺格子'
+      + '；地图弹窗的地址气泡里也多了「住宅」这一颗，点开直接看这 8 台的分布'
+      + '（为了让 6 颗气泡在手机上一屏排得下，「物业服务中心」「朝晖体育场南」在气泡上简写成「物业」「朝晖」，点进去表头仍是全名）',
+    '「一周回顾」里多了「住宅」这一路：从这一小时起，住宅区那 8 台也会每小时记一个占用率，可以和朝晖、北门、20号楼、物业横向对比；'
+      + '之前的小时里没有它（那时候还没接进来），曲线会从有数据的那一刻才开始'
+      + '；地址那一排改成左右滑动的胶囊，六个区一划就到',
     '所有弹窗右上角的「关闭」文字换成圆圈里一个叉的图标 —— 不再跟着字体档位变宽，标题行也不会被它挤得换行',
     '「一周回顾」的标题缩短成「各时段占用率」，和日期下拉、关闭图标排在同一行',
     '设置 › 偏好设置里多了「字体」：默认（黑体）/ 书卷·宋体 / 等宽·数据感 / 圆润·柔和，随时切，只改字体、不动颜色和排版',
@@ -7774,8 +8237,11 @@ $('usage-day').addEventListener('click', (event) => {
         return;
       }
       if (!(t.closest && t.closest('#rv-daypick'))) setRvPicker(false);
-      /* 筛选 chip 优先判定：按钮上也有 data-day，不能让它落到下面「点格子」的分支。 */
-      if (t.classList && t.classList.contains('usage-chip')) {
+      /* 筛选胶囊优先判定：按钮上也可能带 data-day（热力图就用这个属性），
+         不能让它落到下面「点格子」的分支。
+         ⚠️ 地址档 v2.66 起是 `.loc-pill`（和列表顶部同一套外观），不再是 `.usage-chip`；
+            两个类都认，是因为这枚弹窗里还留着 `.usage-chip` 的历史样式与潜在复用点。 */
+      if (t.classList && (t.classList.contains('loc-pill') || t.classList.contains('usage-chip'))) {
         if (t.dataset.loc) { rvLoc = t.dataset.loc; rvSel = null; renderReview(); return; }
         if (t.dataset.day) { rvDay = t.dataset.day; renderReview(); return; }
       }

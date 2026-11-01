@@ -18,7 +18,7 @@ import {
   MIN_INTERVAL_MIN,
   AREA_CRON_MINUTES,
   AREA_CRON_GROUPS,
-  STATS_CRON_MINUTE,
+  STATS_CRON_MINUTES,
 } from './config.mjs';
 import { KEYS, refreshArea, snapFor, appendStats, sliceOf, WriteGuard, inflightRecently } from './core.mjs';
 import { PARTITIONS } from './partitions.mjs';
@@ -119,11 +119,24 @@ console.log('\n2b. 配置一致性');
     AREA_CRON_MINUTES.map((m) => `${m}-59/5 * * * *`),
     tomlCrons.slice(0, AREA_CRON_MINUTES.length),
   );
-  eq('统计 cron 与 STATS_CRON_MINUTE 对齐', tomlCrons[4], `${STATS_CRON_MINUTE} * * * *`);
+  eq(
+    '统计 cron 与 STATS_CRON_MINUTES 对齐',
+    tomlCrons[4],
+    `${STATS_CRON_MINUTES.join(',')} * * * *`,
+  );
+  /* 🔴 统计那几跳不能和分区 cron 撞分钟：每分钟只允许一个 cron 在跑，
+     而统计第一件事就是读各区的快照。分区 cron 是 `N-59/5`，也就是
+     「分钟 % 5 ∈ {0,1,2,3}」；统计只能取 % 5 === 4 那一档。 */
+  eq('统计 cron 每小时三跳', STATS_CRON_MINUTES.length, 3);
+  eq(
+    '统计的分钟数取「% 5 === 4」那一档',
+    STATS_CRON_MINUTES.filter((m) => m % 5 !== 4),
+    [],
+  );
   ok(
-    '统计 cron 不落在任何一个分区的那一分钟',
-    !AREA_CRON_MINUTES.includes(STATS_CRON_MINUTE),
-    `stats=:${STATS_CRON_MINUTE} 分区=${AREA_CRON_MINUTES.join('/')}`,
+    '统计 cron 与分区 cron 不共用任何一分钟',
+    STATS_CRON_MINUTES.every((m) => !AREA_CRON_MINUTES.some((o) => o % 5 === m % 5)),
+    `stats=:${STATS_CRON_MINUTES.join('/')} 分区=${AREA_CRON_MINUTES.join('/')}`,
   );
   /* 🔴 分区组（v2.65）：一跳可以刷多个区，但每个区**必须刚好被排到一次**。
      漏一个 = 那个区的快照永远不刷新（一周回顾里那条线永远是空的，不报错）；
@@ -550,12 +563,11 @@ console.log('\n8. 每小时统计');
   eq('统计对象只有 1 个点', stats.points.length, 1);
 }
 
-/* ── 8b. partial 不混进 all ─────────────────────────────────────── */
-/* appendStats 里「有 error 就不参与 all」的关键回归：partial（部分台失败）
-   时快照的 used_pct 是按「成功那批桩」算的残缺口径，不代表全区。若把它
-   当有效数据记进 all，coverage 还显示满格，用户会看到一个口径错乱的
-   「所有地址」点。 */
-console.log('\n8b. partial 不混进 all');
+/* ── 8b. partial 且接不齐 → 仍然不入账 ───────────────────────────── */
+/* 没有上一份快照可接（新桩一次都没成功过）时，partial 快照的
+   used_pct/total/free 仍是「只含成功那批桩」的残缺口径。这种时候宁可空着，
+   也不拿半区的数冒充全区 —— 前端会画成灰桩，用户知道这一格没采到。 */
+console.log('\n8b. partial 接不齐 → 不入账');
 {
   const bucket = createBucket();
   const clock = createClock(T0);
@@ -565,10 +577,92 @@ console.log('\n8b. partial 不混进 all');
   const res = await appendStats({ bucket, areas: AREAS, now: clock.now });
 
   const c = res.point.areas.chaohui;
-  eq('partial 区 pct 置 null', c.pct, null);
-  eq('partial 区 reason = partial', c.reason, 'partial');
-  eq('partial 区不计入 coverage', res.point.coverage, 0);
+  eq('无上一份可接 → pct 置 null', c.pct, null);
+  eq('无上一份可接 → reason = partial', c.reason, 'partial');
+  eq('无上一份可接 → 不计入 coverage', res.point.coverage, 0);
   eq('只有 partial 区时 all = null', res.point.all, null);
+}
+
+/* ── 8c. partial 但能接上上一份 → 全区口径，正常入账 ──────────────── */
+/* 2026-11-01 修的就是这一条：用户看到「某个地址某个时段没记录」，74 个点里
+   5 个全是 partial —— 分区 cron 5 分钟就自愈的抖动，把整小时判死了。
+   现在 refreshArea 会把失败那几台接上上一份数据，total/free 重新是全区口径，
+   于是这一格有数可记（`est` 记下接了几台）。 */
+console.log('\n8c. partial 接齐 → 入账');
+{
+  const bucket = createBucket();
+  const clock = createClock(T0);
+  const scanner = createScanner(); // 先来一轮正常的，攒出 prev
+
+  await refreshArea({ bucket, area: AREAS[0], now: clock.now, scanBatch: asBatch(scanner), useGlobalLock: false });
+  const full = await readJson(bucket, KEYS.snap(AREAS[0].key));
+  const fullTotal = full.total;
+
+  clock.set(T0 + 600); // 10 分钟后：超 THROTTLE_S，且「每 3 台挂 1 台」从第 1 台重新数
+  scanner.setMode('some-fail');
+  const r = await refreshArea({
+    bucket, area: AREAS[0], now: clock.now, scanBatch: asBatch(scanner), useGlobalLock: false,
+  });
+
+  ok('这一轮确实是 partial', r.snap.error && r.snap.error.code === 'partial', r.snap.error);
+  ok('失败台全部接上了上一份', r.snap.carried === r.snap.failed && r.snap.failed > 0, {
+    carried: r.snap.carried, failed: r.snap.failed,
+  });
+  eq('total 仍是全区口径（不是只剩成功那批）', r.snap.total, fullTotal);
+  eq('piles 覆盖全区', r.snap.piles, AREAS[0].ids.length);
+
+  const res = await appendStats({ bucket, areas: AREAS, now: clock.now });
+  const c = res.point.areas.chaohui;
+  ok('partial 区 pct 有值（不再是灰桩）', typeof c.pct === 'number', c);
+  eq('reason 不再是 partial', c.reason, undefined);
+  eq('est 记下接了几台', c.est, r.snap.failed);
+  eq('计入 coverage', res.point.coverage, 1);
+  ok('all 用全区口径算出来', typeof res.point.all === 'number', res.point.all);
+}
+
+/* ── 8d. 同一小时多次采样 → 按区择优合并 ────────────────────────── */
+/* 每小时三跳之后，「覆盖」就不能用了：第二跳若正好抖一下，会把第一跳采到的
+   好读数擦成 null —— 多采样反而制造灰桩。规则改成「新区有数用新的，新区没数
+   保留旧的」，并且 all/coverage 用合并后的各区重算。 */
+console.log('\n8d. 同小时合并');
+{
+  /* ① 好的读数不被后来的空值擦掉 */
+  const b1 = createBucket();
+  const c1 = createClock(T0);
+  const s1 = createScanner();
+  for (const area of AREAS) {
+    await refreshArea({ bucket: b1, area, now: c1.now, scanBatch: asBatch(s1), useGlobalLock: false });
+  }
+  const first = await appendStats({ bucket: b1, areas: AREAS, now: c1.now });
+  eq('首跳采满 5 区', first.point.coverage, AREAS.length);
+
+  /* 同一个小时内（< 3600 秒），但快照已超过 maxAge(1800) → 这一跳若按老逻辑
+     覆盖写，各区分量就会全变 null。这里断言它们**与首跳逐区相同**。 */
+  c1.set(T0 + 1900);
+  const second = await appendStats({ bucket: b1, areas: AREAS, now: c1.now });
+  const sameAsFirst = AREAS.every(
+    (a) => second.point.areas[a.key].pct === first.point.areas[a.key].pct,
+  );
+  ok('第二跳全是空值，但各区分量仍是首跳的数（没被擦掉）', sameAsFirst, second.point.areas);
+  eq('首跳的好读数被保留（不被空值擦掉）', second.point.coverage, AREAS.length);
+  eq('仍是同一个点（不新增）', second.kept, 1);
+  eq('samples 记下采了几次', second.point.samples, 2);
+
+  /* ② 后来的好读数能把先前空着的那格补上 */
+  const b2 = createBucket();
+  const c2 = createClock(T0);
+  const s2 = createScanner();
+  const empty = await appendStats({ bucket: b2, areas: AREAS, now: c2.now });
+  eq('先采一次：全空', empty.point.coverage, 0);
+
+  c2.set(T0 + 600);
+  for (const area of AREAS) {
+    await refreshArea({ bucket: b2, area, now: c2.now, scanBatch: asBatch(s2), useGlobalLock: false });
+  }
+  const healed = await appendStats({ bucket: b2, areas: AREAS, now: c2.now });
+  eq('补采后 5 区都填上了', healed.point.coverage, AREAS.length);
+  eq('仍是一个点', healed.kept, 1);
+  ok('all 有值', typeof healed.point.all === 'number', healed.point.all);
 }
 
 /* ── 9. 窗口按北京自然日对齐 ───────────────────────────────────── */

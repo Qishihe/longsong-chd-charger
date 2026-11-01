@@ -29,7 +29,16 @@ GUIDE = KIT / "docs" / "DEPLOY-GUIDE.md"
 GUIDE_NAME = "_README-部署说明.md"
 
 # 不该进部署包的东西（样张、原型可以留，占不了多少；这些是纯垃圾）
-SKIP = {"_host-v3b.html"}
+SKIP = {"_host-v3b.html", "catalog.json"}   # catalog.json 是构建产物，打包时现生成
+
+
+def write_catalog(dest):
+    """对外设备目录：打包时由 gen_catalog.py 生成，不进版本库。"""
+    sys.path.insert(0, str(KIT / "tools"))
+    import gen_catalog
+    data, text = gen_catalog.generate(dest)
+    print("目录：catalog.json %d 个分区 / %d 台 / %d B"
+          % (len(data["areas"]), data["total"], len(text.encode("utf-8"))))
 
 
 def main():
@@ -58,6 +67,7 @@ def main():
         shutil.copy2(f, dst)
         n += 1
 
+    write_catalog(DIST / "catalog.json")
     shutil.copy2(GUIDE, DIST / GUIDE_NAME)
 
     raw = sum(f.stat().st_size for f in DIST.rglob("*") if f.is_file())
@@ -65,7 +75,7 @@ def main():
 
     # 自检：几个「少了就跑不起来」的文件
     must = ["index.html", "map-amap.js", "map-data.js", "map-key.local.js",
-            "sw.js", "serve_gzip.py", GUIDE_NAME]
+            "sw.js", "serve_gzip.py", "catalog.json", GUIDE_NAME]
     missing = [m for m in must if not (DIST / m).exists()]
     if missing:
         print(f"✗ 缺关键文件：{missing}", file=sys.stderr)

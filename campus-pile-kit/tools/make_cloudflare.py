@@ -44,6 +44,8 @@ EXCLUDE_FILES = {
     "preview.html",
     "preview-banner.js",
     "map-amap-preview.js",
+    # 对外设备目录是构建产物（不进版本库），打包时现生成，见 _write_catalog
+    "catalog.json",
 }
 EXCLUDE_DIRS = {"redesign"}
 
@@ -69,10 +71,28 @@ HEADERS = """\
 /map-key.local.js
   Cache-Control: max-age=300
 
+# 对外设备目录（第三方应用接入用，见 docs/API.md）
+# 内容只在站点改版时变，5 分钟缓存足够；ACAO 放开是为了让网页类应用也能直接 fetch
+/catalog.json
+  Cache-Control: public, max-age=300
+  Access-Control-Allow-Origin: *
+
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer-when-downgrade
 """
+
+
+def _write_catalog(dest):
+    """对外设备目录是构建产物：打包时由 gen_catalog.py 生成。
+
+    目录只存在于产物里，改完 DEFAULT_DEVICES 直接打包即可。
+    """
+    sys.path.insert(0, str(KIT / "tools"))
+    import gen_catalog
+    data, text = gen_catalog.generate(dest)
+    print("目录：catalog.json %d 个分区 / %d 台 / %d B"
+          % (len(data["areas"]), data["total"], len(text.encode("utf-8"))))
 
 
 def main():
@@ -96,6 +116,9 @@ def main():
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(f, dst)
         kept.append(rel.as_posix())
+
+    # 对外设备目录（构建产物，打包时现生成，不从站点目录复制）
+    _write_catalog(DIST / "catalog.json")
 
     # _headers 用 LF 写入（Windows 默认 CRLF 会让 CF 解析异常）
     (DIST / "_headers").write_text(HEADERS, encoding="utf-8", newline="\n")
@@ -121,7 +144,7 @@ def main():
 
     # 自检：少一个就跑不起来的东西
     must = ["index.html", "map-amap.js", "map-data.js",
-            "map-key.local.js", "sw.js", "_headers"] + worker_files
+            "map-key.local.js", "sw.js", "catalog.json", "_headers"] + worker_files
     missing = [m for m in must if not (DIST / m).exists()]
     if missing:
         print(f"x 缺关键文件：{missing}", file=sys.stderr)

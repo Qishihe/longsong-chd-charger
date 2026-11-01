@@ -76,6 +76,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import zlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import unquote, urlparse
 
@@ -387,6 +388,35 @@ def load(root):
           file=sys.stderr)
 
 
+def add_catalog(root):
+    """把对外设备目录补进内存缓存。
+
+    `catalog.json` 是构建产物，站点目录里**不一定有**它：
+    打包器（make_cloudflare.py / make_dist.py）会写进各自的 dist，
+    而这里是「源码树直接跑 serve_gzip.py」的场景，现场调 ../tools/gen_catalog.py 生成。
+    生成不出来不影响页面 —— 只是第三方接入端点 404。
+    """
+    if "/catalog.json" in CACHE:
+        return
+    tools = os.path.join(os.path.dirname(os.path.abspath(root)), "tools")
+    try:
+        if tools not in sys.path:
+            sys.path.insert(0, tools)
+        import gen_catalog
+        data, text = gen_catalog.build_text()
+    except Exception as e:  # noqa: BLE001
+        print("catalog.json 未生成（%s）：/catalog.json 会 404" % e, file=sys.stderr)
+        return
+    body = text.encode("utf-8")
+    gz = gzip.compress(body, 6) if len(body) > 512 else None
+    if gz is not None and len(gz) >= len(body):
+        gz = None
+    etag = '"%x-%x"' % (len(body), zlib.crc32(body))
+    CACHE["/catalog.json"] = (body, gz, etag, "application/json; charset=utf-8")
+    print("catalog.json（内存生成）：%d 个分区 / %d 台"
+          % (len(data["areas"]), data["total"]), file=sys.stderr)
+
+
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
     server_version = "chd-charge-static"
@@ -419,11 +449,17 @@ class Handler(BaseHTTPRequestHandler):
 
         raw, gz, etag, ctype = CACHE[key]
 
+        # 对外目录要给网页类第三方应用直接 fetch 的能力（Cloudflare Pages 那边
+        # 由 _headers 配同一条规则，自建部署也要一致，否则换部署方式就断）。
+        cors = {"Access-Control-Allow-Origin": "*"} if key == "/catalog.json" else {}
+
         if self.headers.get("If-None-Match") == etag:
             self.send_response(304)
             self.send_header("ETag", etag)
             self.send_header("Vary", "Accept-Encoding")
             self.send_header("Content-Length", "0")
+            for name, value in cors.items():
+                self.send_header(name, value)
             self.end_headers()
             return
 
@@ -436,6 +472,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Vary", "Accept-Encoding")
         self.send_header("ETag", etag)
+        for name, value in cors.items():
+            self.send_header(name, value)
         if use_gz:
             self.send_header("Content-Encoding", "gzip")
         # HTML 不缓存（每次回源验证），静态资源给长缓存 + ETag 协商
@@ -573,6 +611,7 @@ def main():
         return 2
     with CACHE_LOCK:
         load(root)
+        add_catalog(root)
 
     srv = Server(("0.0.0.0", args.port), Handler)
     print("serving %s on 0.0.0.0:%d（上游 %s）" % (root, args.port, UPSTREAM), file=sys.stderr)

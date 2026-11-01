@@ -36,7 +36,8 @@
 | **离线可用** | Service Worker 预缓存外壳与底图，断网仍能看列表结构和上次的结果 |
 | **并发受控** | 逐台查询并发 6、单批 12 台、双泳道，避开平台按出口 IP 的风控 |
 | **皮肤与字体** | 4 种风格 × 4 种材质 × 3 档字体，全部走 CSS 变量，可自由组合 |
-| **守门检查** | 35 项静态断言守着版本号同升、缓存一致性、服务端 gzip/反代配置正确 |
+| **守门检查** | 静态断言守着版本号同升、缓存一致性、服务端 gzip/反代配置、对外目录由真源生成 |
+| **对外目录** | `catalog.json` 把设备清单、分区与 GCJ-02 坐标摊平成静态 JSON，第三方应用不必解析页面 |
 
 ## 它是怎么工作的
 
@@ -67,6 +68,30 @@ flowchart TB
 默认由浏览器逐台直连平台（省掉中间跳数，也把风控压力分散到每个真实用户）；
 URL 加 `?pileproxy=1` 切到服务端代查 —— 既是出口网络打不通平台时的救急手段，也是自动化测试必需的通道。
 两种路径共用同一套并发上限，避免「自己把自己打挂」。
+
+## 第三方应用接入
+
+设备清单和桩位坐标**本来就是公开数据**，只是过去只以「页面」的形态存在：清单内联在
+`index.html`，坐标由 `map-amap.js` 在浏览器里现算。别的应用想接进来，只能去抠 500 KB 的 HTML、
+再把三套落点算法重写一遍 —— 而且站点一改版，它们就静默错位。
+
+所以额外产出一份静态目录：
+
+```
+GET https://chd-charge.pages.dev/catalog.json    # 全部设备 + 分区 + GCJ-02 坐标
+```
+
+它是静态文件：不走 Worker、不消耗 Functions 额度、无鉴权，带 `Access-Control-Allow-Origin: *`，
+网页应用也能直接 `fetch`。
+
+**它是构建产物，不进入版本库**：`make_cloudflare.py` / `make_dist.py` 打包时调
+`tools/gen_catalog.py` 生成，`serve_gzip.py` 启动时也会在内存里生成一份。
+所以改了 `DEFAULT_DEVICES` 之后不需要任何手工步骤。
+
+实时状态、全校快照、一周统计的接口形状、缓存与限额见 **[docs/API.md](docs/API.md)**。
+
+一句话原则：**首屏用 `/api/snap?area=all` 一次铺满，用户点刷新才用 `/api/pile` 打当前分区**。
+一进来就全量扫，正是当年把出口 IP 打进平台风控、整片 TCP 超时的那种打法。
 
 ## 快速开始
 
@@ -121,6 +146,7 @@ campus-pile-kit/
 │   ├── help.html        取凭证的图文教程
 │   ├── map-amap.js      地图引擎
 │   ├── map-data.js      分区登记 + 底图坐标
+│   ├── catalog.json     对外设备目录（构建产物，打包时自动生成）
 │   ├── map-*.webp       底图
 │   ├── sw.js            Service Worker
 │   ├── serve_gzip.py    发布用服务器（静态 + gzip + /api 反代）
@@ -136,16 +162,24 @@ campus-pile-kit/
 改动完发布前跑一遍守门：
 
 ```bash
-python campus-pile-kit/tools/check_release.py     # 35 项静态断言
+python campus-pile-kit/tools/gen_snapshot_partitions.py --check   # 分区表与 DEFAULT_DEVICES 一致
+python campus-pile-kit/tools/gen_catalog.py --check               # 对外目录生成器自检
+python campus-pile-kit/tools/check_release.py                     # 发布体检（含上面两条的等价断言）
 ```
 
-它检查的是「最容易静默出错」的那几类东西：版本号三处是否同升、Service Worker 缓存名是否跟着换、
-预缓存清单与页面引用是否逐字一致、`serve_gzip.py` 的反代与 gzip 配置是否正确、注释里有没有会提前闭合的 `*/`。
+`check_release.py` 检查的是「最容易静默出错」的那几类东西：版本号三处是否同升、
+Service Worker 缓存名是否跟着换、预缓存清单与页面引用是否逐字一致、
+`serve_gzip.py` 的反代与 gzip 配置是否正确、注释里有没有会提前闭合的 `*/`。
+
+改了 `DEFAULT_DEVICES`（加桩、改桩号、加分区）之后：`partitions.mjs` 是 wrangler 的部署输入、
+必须提交，所以那条 `--check` 会先红，重跑生成器再提交；`catalog.json` 是构建产物、不进版本库，
+打包时自动生成，**不需要任何手工步骤**。
 
 ## 文档
 
 | 文档 | 内容 |
 |---|---|
+| [docs/API.md](docs/API.md) | **对外接口契约**：设备目录、实时状态、快照、统计、限额与接入建议 |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | 从零开始的完整开发历程：技术路线怎么定的、哪一步走错了、哪些坑必然踩 |
 | [campus-pile-kit/docs/DEPLOY-CLOUDFLARE.md](campus-pile-kit/docs/DEPLOY-CLOUDFLARE.md) | Cloudflare Pages 部署步骤与高德白名单 |
 | [campus-pile-kit/docs/DEPLOY-GUIDE.md](campus-pile-kit/docs/DEPLOY-GUIDE.md) | 自建服务器部署（systemd / nginx） |

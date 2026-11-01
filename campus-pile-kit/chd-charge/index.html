@@ -1389,7 +1389,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.66</div>
+    <div id="app-ver" class="foot-ver">版本 v2.67</div>
   </footer>
 </div>
 
@@ -1920,13 +1920,22 @@
     </div>
     <p class="note" style="margin-top:0" data-page-node-id="sOXgUS4gE9vYF8kWXQgtoA">
       凭证是一串 <code>eyJ</code> 开头的长串，小程序签发，7 天有效。
-      谁抓到的都能用：粘进来会先拿一台桩真打一次，通过才算数，
-      然后加密传到云端 —— <b>之后所有打开这个网址的人自动用上</b>，你也不用再做任何事。
+      粘进来会先拿一台桩真打一次，通过才算数。
     </p>
     <label for="token-input" data-page-node-id="skZzb3rszK7hZ7o0RFz70n">凭证内容</label>
     <textarea id="token-input" placeholder="整段请求头、cURL、eyJ 开头的长串，粘哪个都行"></textarea>
     <div class="note" style="margin:-6px 0 10px">
       不用自己挑那一行 —— 抓包工具里「复制请求头 / 复制 cURL」直接整块粘进来，这边会自己认出 <code>authorization</code>。
+    </div>
+    <!-- 🔴 2026-11-01 v2.67：这里是「让全站用上」的唯一入口。
+         10-27 删掉内置同步密钥之后，老的那条 cloudPush 链路恒 null，
+         弹窗却一直写着「之后所有打开这个网址的人自动用上」—— 承诺落空，
+         用户以为传上去了，其实只写内存，刷新就没了。现在改成显式填口令直传 /api/cred。 -->
+    <label for="token-admin">写口令（填了才会存到服务器）</label>
+    <input type="password" id="token-admin" placeholder="只在本机临时用就留空" autocomplete="off">
+    <div class="note" style="margin:-2px 0 10px">
+      <b>留空</b>：只对当前这个标签页有效 —— 凭证不落盘（防止 F12 直接抄走），所以刷新就没了，别人也用不到。<br>
+      <b>填口令</b>：校验通过后写进 Cloudflare KV，之后打开这个网址的人都自动用上。口令只有站长有。
     </div>
     <div class="row" data-page-node-id="ojC1CKL1qX6f8MB7feYwl2">
       <button class="icon-btn" id="token-paste" data-page-node-id="JTagd0BRSPfyU03JWoFKV0">粘贴</button>
@@ -3521,7 +3530,7 @@ function paintCred() {
     }
     CRED_MISSING = true;
     $('cred-title').textContent = '还没有凭证';
-    $('cred-sub').textContent = '粘一串新的进来就能查，粘完所有人都能用';
+    $('cred-sub').textContent = '去「设备凭证」粘一串；填口令才能让所有人用上';
     paintCredHint('还没有凭证 · 去「设备凭证」更新一次');
     return;
   }
@@ -5869,6 +5878,9 @@ async function refresh({ force = false, retried = false, only = null } = {}) {
 
 function openTokenDialog(message) {
   $('token-input').value = '';
+  /* 写口令每次重填，不留上一轮的值。 */
+  const adminEl = $('token-admin');
+  if (adminEl) adminEl.value = '';
   $('token-note').className = 'note' + (message ? ' bad' : '');
   $('token-note').textContent = message || '';
   $('token-dialog').showModal();
@@ -6207,6 +6219,69 @@ async function credBoxPull(opts) {
   store.set(KEY_BOX_TS, stamp);
   store.set(KEY_BOX_EXP, exp);   // v2.60：持久化到期时间，下次首屏能立即恢复 credState
   return { applied: true, stamp, exp, note: data.note || '', source: 'box' };
+}
+
+/** 把一串凭证**写进服务端**（Cloudflare KV），全站立刻生效。v2.67 新增。
+ *
+ * 为什么需要它：在这之前，弹窗上那句「加密传到云端」是条死链 ——
+ * 内置同步密钥 10-27 已删，`cloudMaybePush()` 第一行就 return null，
+ * 于是「上传」从没真正发生过，用户看到的现象是「刷新一次就没了」。
+ *
+ * 走的就是 Worker 的 `POST /api/cred`（与本机 push-cred.bat 同一个接口）：
+ *   · `x-admin-token` 写口令只在这个请求里用一次，绝不落盘；
+ *   · `token` 明文交给服务端，`/api/pile` 靠它自己取、自己带 Authorization；
+ *   · `data` 是历史字段（老版本用它下发密文），接口要求非空 ——
+ *     这里用一把一次性随机钥匙封一份，格式与老数据一致，谁也不需要再解开它；
+ *   · `exp` 取 JWT 里的秒级 exp，服务端原样存，读回来时 `credState()` 自己认单位。
+ */
+async function credBoxPush(token, adminToken) {
+  const payload = jwtPayload(token);
+  const exp = payload && Number.isFinite(Number(payload.exp)) ? Number(payload.exp) : 0;
+  /* 🔴 exp 必须能读出来才允许上传：服务端拿它**覆盖**原来的到期时间，
+     传 0 进去等于把「这串还在有效期内」这件事抹掉 —— 下一步 GET 回来 expiresAt=0，
+     页面就变成「还没有凭证」（线上真踩过：拿 exp=0 做冒烟测试，把全站的凭证状态打空）。 */
+  if (!(exp > 0)) {
+    return { ok: false, message: '这串里读不到有效期，像是残缺的凭证 —— 回小程序重新抓一次完整的' };
+  }
+
+  let data = '';
+  try {
+    const raw = new Uint8Array(32);
+    crypto.getRandomValues(raw);
+    let key = '';
+    for (let i = 0; i < raw.length; i++) key += raw[i].toString(16).padStart(2, '0');
+    data = JSON.stringify(await sealToken(key, token));
+  } catch (e) {
+    data = '';
+  }
+  if (!data) return { ok: false, message: '本机加密没成功，换个浏览器再试' };
+
+  let res = null;
+  let body = null;
+  try {
+    res = await fetch(BOX_PATH, {
+      method: 'POST',
+      cache: 'no-store',
+      headers: { 'content-type': 'application/json', 'x-admin-token': adminToken },
+      body: JSON.stringify({ data, token, exp, note: 'web' }),
+    });
+    body = await res.json().catch(() => null);
+  } catch (e) {
+    return { ok: false, message: '连不上服务器（' + (e.message || '网络问题') + '）' };
+  }
+
+  if (res.status === 401) return { ok: false, badToken: true, message: '写口令不对' };
+  if (res.status === 429) return { ok: false, message: '试太多次了，过几分钟再来' };
+  if (!res.ok || !body || !body.ok) {
+    return { ok: false, message: (body && body.error) || ('服务器返回 ' + res.status) };
+  }
+
+  /* 服务端回的元数据直接落到内存 + 本地缓存，`paintCred()` 立刻显示成「服务端凭证」。 */
+  SERVER_CRED = { exp: Number(body.expiresAt) || exp, stamp: Number(body.updatedAt) || Date.now() };
+  store.set(KEY_BOX_EXP, SERVER_CRED.exp);
+  store.set(KEY_BOX_TS, SERVER_CRED.stamp);
+  store.set(KEY_CLOUD_CHECK, Date.now());
+  return { ok: true, expiresAt: SERVER_CRED.exp };
 }
 
 /**
@@ -7585,17 +7660,38 @@ $('token-save').addEventListener('click', async () => {
     return;
   }
 
-  const pushed = await cloudMaybePush(checked.token);
+  /* v2.67：写口令填了才会上传；留空就只写内存（弹窗里已经说清楚了）。 */
+  const adminEl = $('token-admin');
+  const admin = (adminEl && adminEl.value ? adminEl.value : '').trim();
+  let pushed = null;
+  if (admin) {
+    btn.disabled = true;
+    btn.textContent = '上传中…';
+    note.className = 'note';
+    note.textContent = '正在写进服务器…';
+    pushed = await credBoxPush(checked.token, admin);
+    btn.disabled = false;
+    btn.textContent = '校验并保存';
+    if (pushed && pushed.badToken) {
+      /* 口令错就停在这里、别关弹窗 —— 关掉等于让人以为已经传上去了。 */
+      note.className = 'note bad';
+      note.textContent = '写口令不对：这串只留在当前标签页。改口令再点一次，或留空只在本机用。';
+      paintCred();
+      return;
+    }
+  }
+
   $('token-dialog').close();
+  if (adminEl) adminEl.value = '';
   await refresh({ force: true });
 
   const base = '已通过校验：' + (probe.device || '第一台桩') + ' 能查到 ' + probe.count + ' 个插座';
   if (pushed && pushed.ok) {
-    showToast(base + '，已共享给所有人');
+    showToast(base + '，已写进服务器，所有人立刻用上');
   } else if (pushed && pushed.message) {
-    showToast(base + '；没能共享到云端（' + pushed.message + '），只在这台设备生效', 4800);
+    showToast(base + '；没能写进服务器（' + pushed.message + '），只在当前标签页有效', 5200);
   } else {
-    showToast(base + '，只存在这台设备上');
+    showToast(base + '，只在当前标签页有效（要让所有人用请填写口令）', 5200);
   }
 });
 

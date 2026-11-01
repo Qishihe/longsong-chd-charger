@@ -78,4 +78,9 @@ dependencies {
     // 只为一个东西引入 AndroidX：AppCompatActivity 的 DayNight 主题与 insets 兼容层。
     // WebView 全屏显示，不需要 Material、RecyclerView 那些。
     implementation("androidx.appcompat:appcompat:1.7.0")
+
+    // 🔴 appcompat 1.7.0 会拖进 kotlin-stdlib-jdk8 1.6.21，与另一路来的 kotlin-stdlib 1.8.22
+    // 撞在 kotlin.collections.jdk8.CollectionsJDK8Kt 上 → :app:checkReleaseDuplicateClasses 直接红。
+    // 用 kotlin-bom 把这一族整体对齐（1.8 起 jdk7/jdk8 已是空壳，只剩 stdlib 本体，重复就消失了）。
+    implementation(platform("org.jetbrains.kotlin:kotlin-bom:1.8.22"))
 }

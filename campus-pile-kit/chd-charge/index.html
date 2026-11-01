@@ -1389,7 +1389,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.67</div>
+    <div id="app-ver" class="foot-ver">版本 v2.68</div>
   </footer>
 </div>
 
@@ -3092,7 +3092,7 @@ async function readPorts(device) {
  *  `throttled` = 平台侧每分钟回源预算用完了、本轮部分被降级，
  *  `oldestAge` = 沿用缓存里最旧的多少秒）。
  *  页面用它决定收尾提示怎么写 —— 下面 `refresh()` 末尾读它。 */
-let lastPileMeta = { fetched: 0, hit: 0, throttled: false, batches: 0, oldestAge: 0 };
+let lastPileMeta = { fetched: 0, hit: 0, throttled: false, rateLimited: false, batches: 0, oldestAge: 0 };
 
 async function pileProxyBatch(items, onChunk, shouldStop, opts = {}) {
   /* 🔴 2026-10-27：不再要求本机有凭证 —— 访客本来就没有。
@@ -3104,7 +3104,7 @@ async function pileProxyBatch(items, onChunk, shouldStop, opts = {}) {
    * 只改页面本地的 THROTTLE_MS 没用：真正持有 5 分钟缓存的是 Worker，
    * 它返回的 `at` 就是缓存写入时刻。这正是「点了刷新还显示 3 分钟前」的根因。 */
   const fresh = !!(opts && opts.fresh);
-  lastPileMeta = { fetched: 0, hit: 0, throttled: false, batches: 0, oldestAge: 0 };
+  lastPileMeta = { fetched: 0, hit: 0, throttled: false, rateLimited: false, batches: 0, oldestAge: 0 };
 
   /* ① 先按**数据源**分组，再在组内切批（v2.63）。
    * 一个批次只能带一个 `src` —— 混在一起的话 Worker 只能用其中一个，
@@ -3129,10 +3129,10 @@ async function pileProxyBatch(items, onChunk, shouldStop, opts = {}) {
 
   const out = {};
   let gotAny = false;
+  /* 这一轮是否已经为 429 退让过一次（跨批次共享，见 oneBatch 里那段注释） */
+  let rateRetried = false;
 
   const oneBatch = async (part) => {
-    const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
-    const timer = ctrl ? setTimeout(() => ctrl.abort(), PILE_PROXY_TIMEOUT_MS) : null;
     try {
       /* 没 token 就不带这个字段（而不是发一个空串）——
        * 让「服务端决定用哪份凭证」这件事只有一个明确入口。
@@ -3140,14 +3140,52 @@ async function pileProxyBatch(items, onChunk, shouldStop, opts = {}) {
       const payload = fresh ? { ids: part.ids, fresh: true } : { ids: part.ids };
       if (part.src === 'lvcc') payload.src = 'lvcc';
       if (token && part.src !== 'lvcc') payload.token = token;
-      const res = await fetch(PILE_PROXY_PATH, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(payload),
-        cache: 'no-store',
-        signal: ctrl ? ctrl.signal : undefined,
-      });
-      if (!res.ok) return false;
+
+      /* 🔴 v2.68：429 单独处理，别和「平台没响应」混成一条路。
+       *
+       * Worker 对**同一个出口 IP** 有每分钟 30 批的限流（挡人当免费代理用）。
+       * 校园网 IPv4 是 NAT —— 一个宿舍楼共用一个公网地址，几百人一起点刷新时
+       * 三四个人的额度就能把 30 批吃满，剩下的全拿到 429。
+       *
+       * 那是**我们自己**的闸，几秒后就好；而 `!res.ok → return false` 会让这条
+       * 流水线整条断掉 → 剩下上百台被逐台标成「平台没响应」→ 攒够 10 台按失败率
+       * 触发 netAbort → 横幅劝用户「换手机流量试试」并停掉自动刷新 10 分钟。
+       * 一次人多，被解释成「你的网络被平台封了」。所以这里退避重试一次，
+       * 并把「人多」记进 lastPileMeta，让收尾的话说对原因。 */
+      let res = null;
+      let lastErr = null;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const ac = typeof AbortController === 'function' ? new AbortController() : null;
+        const t = ac ? setTimeout(() => ac.abort(), PILE_PROXY_TIMEOUT_MS) : null;
+        try {
+          res = await fetch(PILE_PROXY_PATH, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(payload),
+            cache: 'no-store',
+            signal: ac ? ac.signal : undefined,
+          });
+        } catch (e) {
+          lastErr = e;
+          res = null;
+        } finally {
+          if (t) clearTimeout(t);
+        }
+        if (!res || res.status !== 429) break;
+        lastPileMeta.rateLimited = true;
+        /* 🔴 一整轮只退一次，不是每批都退。
+         * 限流窗口是 60 秒滑动的：真被吃满时，退 1 秒再打还是 429，只是把
+         * 同一分钟的请求数又推到更高，还拖慢别的同学。所以第一次 429 退一步
+         * 试试（多半是「同一秒涌进来的那批」），之后再撞就直接认了、停手。 */
+        if (attempt === 0 && !rateRetried) {
+          rateRetried = true;
+          await new Promise((r) => setTimeout(r, 900 + Math.random() * 600));
+          continue;
+        }
+        break;
+      }
+      if (lastErr) throw lastErr;
+      if (!res || !res.ok) return false;
       const data = await res.json();
       if (!data || !data.ok || !data.results) return false;
       lastPileMeta.batches += 1;
@@ -3165,8 +3203,6 @@ async function pileProxyBatch(items, onChunk, shouldStop, opts = {}) {
       return true;
     } catch (e) {
       return false;
-    } finally {
-      if (timer) clearTimeout(timer);
     }
   };
 
@@ -5722,8 +5758,8 @@ async function refresh({ force = false, retried = false, only = null } = {}) {
         applyChunk,
         () => aborted,
         /* 🔴 一律 fresh：refresh() 的语义就是「现在要一份新的」。
-         * 平台侧不会被这行打爆 —— Worker 有「缓存年龄 90 秒内直接复用」+
-         * 「全站回源锁」两道闸（见 _worker.js 的 PILE_FRESH_MIN / PILE_LOCK_TTL）。 */
+         * 平台侧不会被这行打爆 —— Worker 有「缓存年龄 60 秒内直接复用」+
+         * 「全站回源预算」两道闸（见 _worker.js 的 PILE_FRESH_MIN / PILE_FRESH_BUDGET）。 */
         { fresh: true },
       );
       pileMeta = { ...lastPileMeta };
@@ -5754,6 +5790,17 @@ async function refresh({ force = false, retried = false, only = null } = {}) {
         let record = null;
         if (canDirect) {
           record = await loadDevice(device, { force: force || !!only });
+        } else if (lastPileMeta.rateLimited) {
+          /* 这一轮是被**我们自己的**单 IP 限流挡下的（同时查的人太多），
+             不是平台挂了。换一句实话，并且 `crowded: true` 让下面不把它算进
+             「没响应」—— 算进去会按失败率触发 10 分钟冷却 + 劝用户换网络。 */
+          record = {
+            at: Date.now(),
+            ports: [],
+            error: '同时查的人有点多，这几台没排上（过十几秒再点一次刷新）',
+            auth: false,
+            crowded: true,
+          };
         } else {
           record = {
             at: Date.now(),
@@ -5765,7 +5812,12 @@ async function refresh({ force = false, retried = false, only = null } = {}) {
         if (record.error) {
           if (failedIdx.indexOf(i) < 0) failedIdx.push(i);   // 收尾时只补这几台
           if (record.auth) { lastError = AUTH_ERROR; aborted = true; }
-          else {
+          else if (record.crowded) {
+            /* 人多没排上（v2.68）：既不记「已查」也不记「没响应」。
+             * 记进去会把失败率的分母冲淡，让真正的平台抖动判不出来；
+             * 而这条本身不是故障，只是要再点一次。 */
+            if (!lastError) lastError = record.error;
+          } else {
             if (!lastError) lastError = record.error;
             /* v2.60：失败率判定（见 NET_FAIL_RATIO 上方注释）。这里只统计「已查」与
              * 「没响应」两个计数，攒够样本后按占比决定要不要提前结束。 */
@@ -5842,6 +5894,18 @@ async function refresh({ force = false, retried = false, only = null } = {}) {
       + '并暂停自动刷新 10 分钟。当前地址里没查通的那几台仍是旧数据，'
       + '直接再点「刷新」只会重查它们，刚更新过的不会重复查（也不会再被「刚更新过」拦住）。'
       + '多半是这个网络的出口 IP 被平台限流了：换手机流量试试，或者过一会儿再来。', true);
+  } else if (pileMeta && pileMeta.rateLimited && (failedIdx.length || pileMeta.hit > 0)) {
+    /* 撞到**我们自己的**单 IP 限流（v2.68）：同一出口（校园网 NAT）下，同一分钟
+     * 点刷新的人太多。这不是平台判我们违规，也不该劝人「换网络」—— 十几秒就过去了。
+     * 不提这一句的话，用户只会看到几台「没排上」，以为桩坏了。
+     * 只有「真留下痕迹」时才提（有没排上的，或退回了缓存）——退一步就重试成功的那次
+     * 用户什么都没少，别多嘴。 */
+    const n = failedIdx.length;
+    showToast(n > 0
+      ? '同时查的人有点多，有 ' + n + ' 台没排上，过十几秒再点一次刷新'
+      : '同时查的人有点多，先显示 '
+        + (pileMeta.oldestAge > 0 ? Math.round(pileMeta.oldestAge) + ' 秒前' : '刚才')
+        + ' 的结果，过十几秒再点');
   } else if (pileMeta && pileMeta.throttled && !failedIdx.length) {
     /* 平台侧每分钟的回源预算用完了（自己连点，或同学同时在刷）。
      * 说清楚「为什么这次没变新」，否则用户只会觉得又坏了。 */
@@ -6154,7 +6218,7 @@ const PILE_PROXY_TIMEOUT_MS = 25000;
  * 直连这条路就走不通了：访客没有 token 可用。
  *
  * 代价是重新接受跨境那一跳。缓解措施在 Worker 侧：按台缓存 5 分钟、
- * 12 台一批、两条流水线、`fresh` 门槛 90 秒、全站回源预算 240 台/分钟 ——
+ * 12 台一批、两条流水线、`fresh` 门槛 60 秒、全站回源预算 160 台/分钟 ——
  * 都是为「多人共享同一个出口」设计的，比浏览器直连更抗风控。
  *
  * 逃生口：URL 带 `?piledirect=1` 时退回浏览器直连（站长自己粘贴了凭证、
@@ -8040,6 +8104,7 @@ const CHANGELOG = [
     '设置 › 偏好设置里多了「字体」：默认（黑体）/ 书卷·宋体 / 等宽·数据感 / 圆润·柔和，随时切，只改字体、不动颜色和排版',
     '刷新不再因为「连续几台没响应」就整轮放弃：现在查够一定数量、失败占比真的很高才提前结束，平台偶尔抖一下不会误砍整轮',
     '首次打开更快了：查询数据和核对凭证同时进行，不再先等凭证回来才开始查',
+    '同时查的人多的时候，以前会有一大片卡片写着「平台没响应」、还劝你换网络；现在只会说一句「同时查的人有点多，过十几秒再点一次」，等一会儿就好',
     '换了一枚新图标：长大蓝底上写着花体的 Changge（长歌的英文名），以后主屏上认这一个签名'
   ] },
   { v: 'v2.50 – v2.59', d: '2026-10-30', items: [

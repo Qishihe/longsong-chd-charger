@@ -114,6 +114,16 @@ const PILE_RATE = 30;            // 单 IP 每分钟最多几次批量请求
  *    返回 error 会被页面当成「平台没响应」，连续几台就整轮放弃。 */
 const PILE_FRESH_MIN = 60;       // fresh 请求：缓存比这新就直接用（秒）
 const PILE_FRESH_BUDGET = 160;   // 全站每分钟最多回源多少台（一轮全量 109 台 ≈ 1.5 轮）
+/* 🔴 v2.68：内部调度（快照站整点采样，带 x-snap-key）走**自己的桶**，不跟访客抢。
+ *
+ * 以前共用 160/分：人多的时候快照这边整批被降级成 `throttled`，快照记成 `busy` →
+ * 那一格没入账 → 一周回顾缺格。2026-10-31 修的「某区某时段没记录」有两条入口，
+ * 这是第二条 —— 采样被自家访客饿死。
+ *
+ * 采样量是固定的（5 个区，每区一轮 40 台上下的设备，分散在 :00~:05 几条 cron），
+ * 320 有足够余量；上限不是「为了省平台额度」，纯粹是防「快照自己跑飞」，
+ * 真正的红线在 `PILE_CONCURRENCY` 与每批台数那两处。 */
+const PILE_FRESH_BUDGET_INTERNAL = 320;
 
 /* 🔴 平台对**同一出口 IP 的并发**有硬上限，实测（2026-10-24）：
  *     单批 20 台并发 → 1857ms，20/20 成功
@@ -373,7 +383,10 @@ async function handlePile(request, url, env) {
   }
 
   const ip = clientIp(request);
-  if (pileTooMany(ip)) return json({ ok: false, error: 'rate_limited' }, 429);
+  /* 内部调度不吃这道闸（v2.68）：它的出口是 Cloudflare 自己的 IP，跟「人当代理刷」
+   * 无关；更实际的是，快照站一轮要连发 5~8 批，碰上有人刷就一起被挡，
+   * 结果是一周回顾掉格子（见 PILE_FRESH_BUDGET_INTERNAL 上方注释）。 */
+  if (!internal && pileTooMany(ip)) return json({ ok: false, error: 'rate_limited' }, 429);
 
   /* `fresh` = 用户明确要「现在这一刻」。缺省 false → 与旧版页面完全一致的行为。 */
   const wantFresh = body && body.fresh === true;
@@ -415,13 +428,16 @@ async function handlePile(request, url, env) {
   const demotedIds = [];
   if (wantFresh && missIds.length && src !== 'lvcc') {
     const bucket = Math.floor(Date.now() / 60000);
-    const bkey = new Request(url.origin + '/__pile_budget/' + bucket);
+    /* 内部调度单独一个桶（v2.68）：`/__pile_budget/snap/<分钟>`。
+     * 键分开之后两边的读写互不相干 —— 访客刷得再猛，快照的整点采样照样有额度。 */
+    const bkey = new Request(url.origin + '/__pile_budget/' + (internal ? 'snap/' : '') + bucket);
     let used = 0;
     try {
       const r = await cache.match(bkey);
       if (r) used = Number(await r.text()) || 0;
     } catch (e) { used = 0; }
-    const allow = Math.max(0, PILE_FRESH_BUDGET - used);
+    const cap = internal ? PILE_FRESH_BUDGET_INTERNAL : PILE_FRESH_BUDGET;
+    const allow = Math.max(0, cap - used);
     if (missIds.length > allow) {
       throttled = true;
       /* 前 allow 台照常回源，剩下的降级（splice 返回被切掉的尾部） */

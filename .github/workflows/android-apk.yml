@@ -1,0 +1,110 @@
+name: 安卓 · 构建 APK
+
+# 什么时候需要跑这条：
+#   · 第一次出安装包
+#   · 改了 App 外壳（图标、名字、返回键行为、入口域名……）
+#   · 网站本身的更新**不需要**跑 —— App 只加载线上页面，网页一改就是新版
+#
+# versionCode 取 GitHub 运行号，天然单调递增，手机才会认这个包"是新的"。
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: '版本名（留空则自动生成 1.0.<运行号>）'
+        required: false
+        default: ''
+  push:
+    branches: [master, main]
+    paths:
+      - 'campus-pile-kit/android-app/**'
+      - '.github/workflows/android-apk.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: 取代码
+        uses: actions/checkout@v4
+
+      - name: 装 JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: 装 Gradle 8.11.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      - name: 装 Android 命令行工具
+        uses: android-actions/setup-android@v3
+
+      - name: 补装 SDK 平台与构建工具
+        run: sdkmanager --install "platforms;android-35" "build-tools;35.0.0" | tail -3
+
+      - name: 构建 release APK
+        working-directory: campus-pile-kit/android-app
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          RUN_NUMBER: ${{ github.run_number }}
+          INPUT_NAME: ${{ github.event.inputs.version_name }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "签名：固定 release 密钥"
+          else
+            echo "::warning::没配置 KEYSTORE_BASE64 —— 这次出的是 debug 签名包，能装能测，但不能覆盖升级正式包。先跑「生成签名密钥」那条 workflow。"
+          fi
+          VER_NAME="${INPUT_NAME:-1.0.$RUN_NUMBER}"
+          gradle --no-daemon --stacktrace assembleRelease \
+            -PAPP_VERSION_CODE="$RUN_NUMBER" \
+            -PAPP_VERSION_NAME="$VER_NAME"
+
+      - name: 收集并打印签名信息
+        id: apk
+        working-directory: campus-pile-kit/android-app
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -e
+          src=$(find app/build/outputs/apk/release -name '*.apk' | head -1)
+          if [ -z "$src" ]; then echo "::error::没有产出 APK"; exit 1; fi
+          name="chd-charge-$RUN_NUMBER.apk"
+          cp "$src" "$name"
+          echo "path=$(pwd)/$name" >> "$GITHUB_OUTPUT"
+          ls -lh "$name"
+          APKSIGNER=$(find "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/build-tools" -name apksigner 2>/dev/null | head -1)
+          if [ -n "$APKSIGNER" ]; then
+            "$APKSIGNER" verify --print-certs "$name" 2>/dev/null | grep -i "certificate SHA-256 digest" || true
+          fi
+
+      - name: 上传 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: chd-charge-apk
+          path: ${{ steps.apk.outputs.path }}
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: 写运行摘要
+        run: |
+          {
+            echo "## APK 构建完成"
+            echo ""
+            echo "在本次运行的 **Artifacts** 里下载 \`chd-charge-apk\`，得到 \`chd-charge-${{ github.run_number }}.apk\`。"
+            echo ""
+            echo "手机上安装：文件管理器里点开 APK → 允许「安装未知应用」→ 安装。"
+            echo "覆盖升级时不用卸载，偏好设置都在。"
+          } >> "$GITHUB_STEP_SUMMARY"

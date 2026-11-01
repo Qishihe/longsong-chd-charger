@@ -24,6 +24,9 @@ node_modules/
 # ── 构建产物：由 tools/ 里的脚本从 chd-charge/ 重新生成 ──
 campus-pile-kit/dist-*/
 campus-pile-kit/*.zip
+# 对外设备目录：由 tools/gen_catalog.py 在打包时生成，属构建产物
+# （仓库里出现副本会形成第二个真源）
+campus-pile-kit/chd-charge/catalog.json
 
 # ── 本机运行数据 ──
 campus-pile-kit/data/history/

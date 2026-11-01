@@ -38,8 +38,15 @@ SUBREQUEST_LIMIT = 50
 DEV_RE = re.compile(r"\{\s*id:\s*'([^']+)'([^}]*)\}")
 
 
-def parse_devices():
-    """读 DEFAULT_DEVICES，返回 [(id, location, src)]。"""
+def parse_device_records():
+    """读 DEFAULT_DEVICES，返回完整记录。
+
+    除了分区表要的 (id, location, src)，这里也带上 code/name/portCount ——
+    `gen_catalog.py` 要拿它们生成对外目录。两个生成器共用同一份解析，
+    避免「同一条清单被两处各读一遍、然后各自漂」。
+
+    返回 [{id, code, name, location, src, portCount}]；`src` 缺省 'zm'（住芒）。
+    """
     src = io.open(INDEX, encoding='utf-8', newline='').read()
     m = re.search(r'const DEFAULT_DEVICES = \[(.*?)\n\s*\];', src, re.S)
     if not m:
@@ -48,11 +55,26 @@ def parse_devices():
     for dm in DEV_RE.finditer(m.group(1)):
         dev_id, rest = dm.group(1), dm.group(2)
         loc = re.search(r"location:\s*'([^']+)'", rest)
-        s = re.search(r"src:\s*'([^']+)'", rest)
         if not loc:
             sys.exit('设备 %s 没有 location' % dev_id)
-        out.append((dev_id, loc.group(1), s.group(1) if s else 'zm'))
+        code = re.search(r"code:\s*'([^']+)'", rest)
+        name = re.search(r"name:\s*'([^']+)'", rest)
+        s = re.search(r"src:\s*'([^']+)'", rest)
+        pc = re.search(r'portCount:\s*(\d+)', rest)
+        out.append({
+            'id': dev_id,
+            'code': code.group(1) if code else '',
+            'name': name.group(1) if name else '',
+            'location': loc.group(1),
+            'src': s.group(1) if s else 'zm',
+            'portCount': int(pc.group(1)) if pc else None,
+        })
     return out
+
+
+def parse_devices():
+    """读 DEFAULT_DEVICES，返回 [(id, location, src)]。"""
+    return [(d['id'], d['location'], d['src']) for d in parse_device_records()]
 
 
 def build():

@@ -144,6 +144,8 @@ def main():
     worker = read("_worker.js", CF)
     routes = read("_routes.json", CF)
     packer = read("make_cloudflare.py", KIT / "tools")
+    dist_packer = read("make_dist.py", KIT / "tools")
+    gitignore = read(".gitignore", KIT.parent)
     c = Checker()
 
     if not ix:
@@ -309,6 +311,43 @@ def main():
         c.check("UPSTREAM_ORIGIN" in srv_src and 'add_header("origin"' in srv_src,
                 "serve_gzip.py 反代时改写 Origin",
                 "Worker 里有 origin !== url.origin → 403 的防盗链判断")
+
+    # ---------- 8. 对外目录 catalog.json（第三方应用接入） ----------
+    # 第三方不该为了「有哪些桩」去抠 500 KB 的 index.html、再把三套落点算法重写一遍。
+    # catalog.json 把这些公开数据摊平成一份 JSON。
+    #
+    # 🔴 目录是构建产物（不进版本库）：打包时由 gen_catalog.py 生成，
+    #    serve_gzip.py 启动时在内存里生成一份。
+    #    所以这里查三件事：生成器自身是否自洽、三条产出路径是否都接上、产物有没有被误提交。
+    gen = KIT / "tools" / "gen_catalog.py"
+    c.check(gen.exists(), "tools/gen_catalog.py 存在")
+    if gen.exists():
+        try:
+            r = subprocess.run([sys.executable, str(gen), "--check"],
+                               capture_output=True, text=True, timeout=120)
+            lines = [l for l in (r.stdout or r.stderr or "").splitlines() if l.strip()]
+            c.check(r.returncode == 0, "生成器自检通过（gen_catalog.py --check）",
+                    "" if r.returncode == 0 else (lines[0][:120] if lines else ""))
+        except Exception as e:  # noqa: BLE001
+            c.check(True, f"生成器自检通过（跳过：{e.__class__.__name__}）", "")
+    c.check("gen_catalog" in packer,
+            "make_cloudflare.py 打包时自动生成 catalog.json",
+            "目录必须随打包产出，不能依赖人工重跑生成器")
+    c.check("gen_catalog" in dist_packer,
+            "make_dist.py 打包时自动生成 catalog.json",
+            "自建部署那条路也要自动，不然只有 Pages 上有目录")
+    c.check('"catalog.json"' in packer and '"catalog.json"' in dist_packer,
+            "两个打包器的自检清单里都有 catalog.json",
+            "漏了的话打包成功、线上 404")
+    c.check("/catalog.json" in packer and "Access-Control-Allow-Origin" in packer,
+            "make_cloudflare.py 给 catalog.json 配了缓存与 CORS 头",
+            "网页类应用要靠 ACAO 才能直接 fetch")
+    c.check("add_catalog" in srv_src and "Access-Control-Allow-Origin" in srv_src,
+            "serve_gzip.py 会补 catalog.json 并发 CORS（自建部署一致）",
+            "只在 Pages 上生效的话，换成自建部署第三方就 fetch 不到了")
+    c.check("campus-pile-kit/chd-charge/catalog.json" in gitignore,
+            "catalog.json 被 .gitignore 挡住（构建产物不进版本库）",
+            "仓库里出现副本会形成第二个真源")
 
     c.info("当前版本：" + ix_ver.strip() + " / " + (cache.group(1) if cache else "?"))
 

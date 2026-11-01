@@ -14,7 +14,7 @@
  * 跑法：node campus-pile-kit/snapshot-worker/analyze_stats7d.mjs
  */
 
-import { SCHEDULE, TUNING, intervalFor, shouldRunAt, AREA_CRON_MINUTES, AREA_CRON_GROUPS, STATS_CRON_MINUTE } from './config.mjs';
+import { SCHEDULE, TUNING, intervalFor, shouldRunAt, AREA_CRON_MINUTES, AREA_CRON_GROUPS, STATS_CRON_MINUTES } from './config.mjs';
 import { PARTITIONS } from './partitions.mjs';
 
 const AREAS = PARTITIONS.areas;
@@ -130,9 +130,14 @@ console.log('  基线（audit_loop 实测正常日）：行读 ' + BASE.rowsRead
 
 const variants = [];
 
+/* 统计 cron 每小时几跳。2026-11-01 从 1 跳改成 3 跳（:09/:29/:49）——
+   分区 cron 5 分钟就自愈的抖动，一小时只采一次样会把整小时判成灰桩。
+   这里跟着 config 走，别再手写 24。 */
+const STATS_PER_DAY = 24 * STATS_CRON_MINUTES.length;
+
 /* A. 单行 JSON blob（现设计，stats/hourly.json） */
 {
-  const writes = 24 * INDEX_ROWS;            // 每小时 UPSERT 一次
+  const writes = STATS_PER_DAY * INDEX_ROWS;   // 每跳 UPSERT 一次（同小时是覆盖，同一行）
   variants.push({
     key: 'A',
     name: '单行 JSON blob（现设计）',
@@ -218,5 +223,7 @@ console.log('     D 逐区快照 + GROUP BY → 单次查询扫 ' + D.readsPerLo
   pct(D.readsPerLoad * 4000, FREE.rowsRead) + ' 额度吃光');
 
 /* 一个容易被忽略的量：统计 cron 本身的请求数 */
-console.log('\n  统计 cron 自身：每小时 1 次 = 24 次/天 请求（Workers 额度 10 万/天，' +
-  pct(24, FREE.requests) + '）');
+console.log(
+  '\n  统计 cron 自身：每小时 ' + STATS_CRON_MINUTES.length + ' 次 = ' + STATS_PER_DAY +
+    ' 次/天 请求（Workers 额度 10 万/天，' + pct(STATS_PER_DAY, FREE.requests) + '）',
+);

@@ -23,9 +23,13 @@ import { createD1Store } from './store-d1.mjs';
 import { PARTITIONS } from './partitions.mjs';
 
 /* cron 表达式 → 分区偏移。四条分区 cron 都是 `N-59/5 * * * *`，
-   统计 cron 是 `N * * * *`，靠这个正则区分。 */
+   统计 cron 是 `N,M,K * * * *`（v2.65 起每小时三跳，见 config.STATS_CRON_MINUTES），
+   靠这个正则区分。
+   ⚠️ 统计那条必须允许逗号列表：只写 `^\d{1,2} \* \* \* \*$` 的话，
+   `9,29,49 * * * *` 不匹配 → 掉进下面的分区分支 → 被当成「未知 cron」记一条
+   warn 然后**什么都不做**，统计从此静默停摆，而且日志里只有一行 warning。 */
 const AREA_CRON_RE = /^(\d{1,2})-59\/\d{1,2}\b/;
-const STATS_CRON_RE = /^\d{1,2} \* \* \* \*$/;
+const STATS_CRON_RE = /^\d{1,2}(,\d{1,2})* \* \* \* \*$/;
 
 const DEFAULT_PILE_ORIGIN = 'https://chd-charge.pages.dev';
 

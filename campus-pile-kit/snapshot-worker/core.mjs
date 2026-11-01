@@ -472,6 +472,44 @@ export async function refreshArea({
   for (const r of okRows) devices[r.id] = { p: r.p, f: r.f, n: r.n, t: started };
 
   /**
+   * 部分失败（partial）时，把**失败那几台**接上上一份数据（2026-11-01 新增）。
+   *
+   * 改之前：`devices` 只装成功那批 → total/free 是「残缺口径」，所以
+   * `appendStats` 只能把 partial 整区记成 null，一周回顾里那一小时就是灰桩。
+   * 而分区 cron 5 分钟一跳、统计一小时才采一次样 —— 18:07 抖一下没取到的桩，
+   * 18:12 就好了，但 18:05 那次采样已经把它判死了。74 个点里 5 个灰桩
+   * 全是这么来的。
+   *
+   * 改之后：成功的那批用**新**数据，失败的那批沿用**上一份**（每台自带 `t`），
+   * 于是 total/free/used_pct 重新是**全区口径**，这一小时就有数可记了。
+   * 口径上不算「编造」——这是「最后一次已知状态」，而且：
+   *
+   *   · 只接上一份，不无限往前追：沿用数据本身超龄（超过跟统计同一个阈值
+   *     maxAge）就不接，宁可留空 —— 那说明这台桩已经坏了不止一轮。
+   *   · 接了几台一起写进 `carried`，`appendStats` 据此标 `est`，
+   *     前端 / 诊断脚本能看出这一格不是纯新数据。
+   *   · 全军覆没（allFailed）走的是下面那条老路（整份 carry + `at` 不动），
+   *     与这里互斥：那种情况连一个新读数都没有，年龄必须继续变大。
+   */
+  let carried = 0;
+  let carriedAt = 0;
+  if (failed > 0 && !allFailed && prev && prev.devices) {
+    const carryMaxAge = Math.max(
+      tuning.STATS_MAX_AGE_S,
+      intervalFor(started, tuning.schedule) * 1.2 + 120,
+    );
+    for (const id of area.ids) {
+      if (devices[id]) continue;
+      const old = prev.devices[id];
+      if (!old || !Number.isFinite(old.t)) continue;
+      if (started - old.t > carryMaxAge) continue;
+      devices[id] = old;
+      carried += 1;
+      if (!carriedAt || old.t < carriedAt) carriedAt = old.t;
+    }
+  }
+
+  /**
    * 全军覆没时**不写空数据**：把上一份 devices 原样带上，但 `at` 保持不变。
    * 这样前端算出的年龄会继续变大，能老老实实说「这是 40 分钟前的数据，
    * 因为平台没响应」，而不是把空表当成新的。
@@ -572,6 +610,10 @@ export async function refreshArea({
     free,
     used_pct: total ? r1(((total - free) / total) * 100) : null,
     checked: okRows.length,
+    /* 有几台的数是沿用上一份的（partial 才有）。0 = 全部都是本轮新取的。
+       `carriedAt` = 被沿用的那几台里最早的时刻，用来算「这份快照最老的部分」。 */
+    carried,
+    carriedAt: carriedAt || null,
     failed,
     failStreak,
     retryAfter,
@@ -766,10 +808,59 @@ export async function readStats(bucket, tuning = TUNING) {
 }
 
 /**
+ * 同一小时里多次采样 → 合并成一个点（2026-11-01 新增）。
+ *
+ * 一天只采一次样的时候，「覆盖」是对的语义。改成每小时三跳之后就不能再覆盖了：
+ * :49 那一次如果某个区正好在抖动（partial 且补不齐），覆盖会把 :09 采到的
+ * **好读数**擦成 null —— 多采样反而制造灰桩，与初衷相反。
+ *
+ * 规则：**按区择优**。新区有数就用新的（更接近当下），新区没有就保留旧的
+ * （这一小时至少采到过一次）。all / coverage 用合并后的各区 total/free 重算，
+ * 保证「总和」与「各区」永远自洽 —— 不能出现「各区都在、all 却只含 3 个区」。
+ */
+function mergeHourPoint(oldP, newP) {
+  const areas = {};
+  const oldAreas = (oldP && oldP.areas) || {};
+  const newAreas = (newP && newP.areas) || {};
+  const keys = new Set([...Object.keys(oldAreas), ...Object.keys(newAreas)]);
+  for (const k of keys) {
+    const a = newAreas[k];
+    const b = oldAreas[k];
+    if (a && typeof a.pct === 'number') areas[k] = a;
+    else if (b && typeof b.pct === 'number') areas[k] = b;
+    else areas[k] = a || b;
+  }
+
+  let freeSum = 0;
+  let totalSum = 0;
+  let coverage = 0;
+  for (const k of keys) {
+    const v = areas[k];
+    if (!v || typeof v.pct !== 'number') continue;
+    if (!Number.isFinite(v.free) || !Number.isFinite(v.total) || v.total <= 0) continue;
+    freeSum += v.free;
+    totalSum += v.total;
+    coverage += 1;
+  }
+
+  return {
+    h: newP.h,
+    at: newP.at,
+    areas,
+    all: totalSum ? r1(((totalSum - freeSum) / totalSum) * 100) : null,
+    coverage,
+    /* 这一格是几次采样合出来的（1 = 只有一次）。诊断用，前端不读。 */
+    samples: ((oldP && oldP.samples) || 1) + 1,
+  };
+}
+
+/**
  * 采一个点。**不触发上游请求** —— 每小时全量 109 台会超单次 50 子请求上限，
  * 而且会把「统计」和「刷新」两件事耦合死。改成：只读，超龄就记 null。
  *
- * 想让点更密，就把统计 cron 的分钟数挪到某条分区 cron 刚刷完之后。
+ * 每小时采三次（config.STATS_CRON_MINUTES），同一小时的后两跳与前一跳合并
+ * （见 mergeHourPoint）—— 这是「某区抖一下，整小时变灰桩」的根治手段：
+ * 分区 cron 5 分钟就自愈，多采两次就赶上了。
  */
 export async function appendStats({ bucket, areas, now, tuning = TUNING }) {
   const ts = now();
@@ -810,23 +901,42 @@ export async function appendStats({ bucket, areas, now, tuning = TUNING }) {
       per[a.key] = { pct: null, age, reason: 'stale' };
       return;
     }
-    /* 🔴 有 error 就一律不算进 all，不止 upstream。
+    /* 🔴 有 error 就一律不算进 all，**唯一的例外是「补齐的 partial」**（2026-11-01）。
      *
      * `error.code` 有四种：auth / busy / upstream / partial。
-     * 原来只拦 upstream 是个漏洞：
-     *   · partial（有成功也有失败）—— 快照的 used_pct/total/free 是按
-     *     carry（只含成功那批桩）算的**残缺口径**。它不代表全区，记进
-     *     all 会让「所有地址」这条线里混进一个口径不完整的分量，而
-     *     coverage 还显示满格，用户看不出。
-     *   · auth / busy —— 一般因为 carry 沿用了旧数据、at 停在旧时间戳，
-     *     会被上面的 age>maxAge 拦成 stale；但那是「碰巧被拦」，不是
-     *     「本该放行」。统一「有 error 就不参与」语义更清晰，也更稳。
+     *
+     * 原来 partial 也一律排除，理由是对的：partial 快照的 used_pct/total/free
+     * 按 carry（只含成功那批桩）算，是**残缺口径**，记进 all 会让「所有地址」
+     * 这条线里混进一个口径不完整的分量，而 coverage 还显示满格。
+     *
+     * 但现在 core.refreshArea 会把失败那几台**接上上一份数据**（`carried`），
+     * 只要全部失败台都接上了（carried === failed），total/free 就重新是全区
+     * 口径 —— 上面那个理由不再成立，而把它排除掉的代价是：分区 cron 5 分钟
+     * 一跳就自愈的抖动，会把**整小时**判成灰桩（用户报的「偶尔有一个地址
+     * 某个时段没有记录」，74 个点里 5 个，全是这么来的）。
+     *
+     * 接不齐（比如新桩一次都没成功过、或上一份也超龄）就仍然留空 ——
+     * 宁可空着，不拿半区的数冒充全区。这时记 reason=partial，前端照旧画灰桩。
      */
-    if (s.error) {
+    const carried = Number(s.carried) || 0;
+    const failedN = Number(s.failed) || 0;
+    /* 沿用的那几台自己也得够新：`carriedAt` 是它们里面最早的时刻。
+       超了同一个 maxAge 就说明这台桩坏了不止一轮，宁可留空。 */
+    const carriedAge = Number.isFinite(Number(s.carriedAt)) && s.carriedAt ? ts - Number(s.carriedAt) : 0;
+    const partialHealed =
+      !!s.error &&
+      s.error.code === 'partial' &&
+      failedN > 0 &&
+      carried >= failedN &&
+      carriedAge <= maxAge;
+    if (s.error && !partialHealed) {
       per[a.key] = { pct: null, age, reason: s.error.code || 'upstream' };
       return;
     }
     per[a.key] = { pct: s.used_pct, free: s.free, total: s.total, age };
+    /* `est` = 这一格里有多少台是沿用上一份的数（不是本轮新取）。
+       前端不拿它改画法，只用于诊断；`all`/`coverage` 已经把这几台算在内。 */
+    if (partialHealed) per[a.key].est = carried;
     freeSum += s.free;
     totalSum += s.total;
     coverage += 1;
@@ -864,10 +974,12 @@ export async function appendStats({ bucket, areas, now, tuning = TUNING }) {
   const windowEnd = bjDayStart + 86400;
 
   const allPrev = Array.isArray(prev.points) ? prev.points : [];
+  /* 同一小时已经采过（每小时三跳的常态）→ 与旧点合并，不覆盖。见 mergeHourPoint。 */
+  const sameHour = allPrev.find((p) => p && p.h === hourStart) || null;
   const fresh = allPrev.filter((p) => p && p.h !== hourStart);
   const points = fresh.filter((p) => p.h >= windowStart && p.h < windowEnd);
   const dropped = fresh.length - points.length;
-  points.push(point);
+  points.push(sameHour ? mergeHourPoint(sameHour, point) : point);
   points.sort((a, b) => a.h - b.h);
   const kept = points.slice(-tuning.STATS_KEEP);
   /* 缺口 = 「窗口起点到现在」本该有多少小时 - 实际有多少。
@@ -894,5 +1006,8 @@ export async function appendStats({ bucket, areas, now, tuning = TUNING }) {
     console.error(`[snap] 统计写入失败：${String((err && err.message) || err)}`);
   }
 
-  return { point, kept: kept.length, dropped, gaps, writeFailed };
+  /* 返回合并后的那一格，不是本轮原始采样 —— 否则 cron 日志里看到的
+     all/coverage 会和真正落盘的不一致（同小时第二、三跳之后就会差）。 */
+  const merged = kept[kept.length - 1];
+  return { point: merged, kept: kept.length, dropped, gaps, writeFailed };
 }

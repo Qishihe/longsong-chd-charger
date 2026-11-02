@@ -455,6 +455,33 @@
   .view-opt{display:flex; gap:9px; align-items:flex-start; margin-top:12px;
     font-size:13.5px; line-height:1.55; cursor:pointer}
   .view-opt input{margin-top:2px}
+  /* 扫码采设备号（v2.69）：取景框是个固定高的黑框，html5-qrcode 会往
+     #scan-reader 里塞 video + canvas + 取景遮罩，video 必须 object-fit:cover
+     才不会在竖屏上被拉变形；hud 和提示浮在 video 上层。 */
+  .scan-reader{position:relative; margin-top:12px; height:264px;
+    border-radius:14px; overflow:hidden; background:#101418}
+  .scan-reader video{width:100% !important; height:100% !important;
+    object-fit:cover; display:block}
+  .scan-hud{position:absolute; top:10px; left:50%; transform:translateX(-50%);
+    z-index:3; padding:6px 14px; border-radius:999px; background:rgba(10,14,20,.72);
+    color:#fff; font-size:13px; white-space:nowrap}
+  .scan-hud[hidden]{display:none}
+  .scan-hud b{font-size:15px; margin:0 2px}
+  .scan-hint{position:absolute; bottom:10px; left:0; right:0; text-align:center;
+    font-size:12px; color:rgba(255,255,255,.72); z-index:3; pointer-events:none}
+  /* 已扫编号条：绿色边=站里已接入，琥珀边=还没接入（编号本身一样是等宽字体）。
+     颜色只用半透明底 + 现有变量，暗色皮肤下不至于糊成一片。 */
+  .scan-chips{display:flex; gap:6px; overflow-x:auto; margin-top:10px;
+    padding-bottom:2px; scrollbar-width:none}
+  .scan-chips::-webkit-scrollbar{display:none}
+  .scan-chip{flex:none; padding:6px 11px; border-radius:999px; font-size:12px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Courier New",monospace;
+    background:var(--row-active); border:1px solid var(--line); color:var(--text);
+    animation:chipIn .22s cubic-bezier(.2,.9,.3,1.2)}
+  .scan-chip.new{border-color:rgba(234,138,20,.6)}
+  @keyframes chipIn{from{opacity:0; transform:scale(.8)}to{opacity:1; transform:scale(1)}}
+  /* 扫码失败提示：note 的强调态，摄像头被拒 / CDN 加载失败时用 */
+  .note.warn{color:var(--danger, #b4232a)}
   /* 标题与第一项之间也松一点；只作用于这个弹窗，别的弹窗不受影响 */
   #sync-dialog .dlg-body{padding:20px 20px 18px}
   #sync-dialog .dlg-head{margin-bottom:16px}
@@ -1389,7 +1416,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.68</div>
+    <div id="app-ver" class="foot-ver">版本 v2.69</div>
   </footer>
 </div>
 
@@ -1580,6 +1607,14 @@
 
     <div class="set-sec">管理员</div>
     <div class="set-card">
+      <!-- 扫码采设备号（v2.69）：把独立 scan.html 工具并进设置。
+           放在「管理员后台」上面、但**不要密码**——扫出来的只是编号清单，
+           复制走人，不碰任何会推给别人的数据。 -->
+      <button class="set-row" type="button" id="set-scan-btn">
+        <span class="set-ico" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><path d="M9 9.2h2.3v2.3H9zM13.2 9v1M9 13.2h1M13.2 12.2v1" stroke-linecap="round"/></svg></span>
+        <span class="set-txt">扫码采设备号</span>
+        <span class="set-caret" aria-hidden="true"></span>
+      </button>
       <button class="set-row" type="button" id="set-admin-btn">
         <span class="set-ico" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3.2" y="7" width="9.6" height="6.2" rx="1.6"/><path d="M5.6 7V5.3a2.4 2.4 0 0 1 4.8 0V7"/></svg></span>
         <span class="set-txt">管理员后台</span>
@@ -1672,6 +1707,28 @@
     </div>
     <div class="note" id="password-note"></div>
   </div></dialog>
+
+<!-- 扫码采设备号（v2.69）：常驻弹窗而不是 scan.html 那种两屏切换——
+     边扫边看 chips 增长，关弹窗就停摄像头（close 事件兜底，Esc 也走这里）。 -->
+<dialog id="dlg-scan" class="sub-dlg" aria-label="扫码采设备号">
+  <div class="dlg-body">
+    <div class="dlg-head">
+      <h2>扫码采设备号</h2>
+      <button class="x-btn" data-close aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+    </div>
+    <p class="note" style="margin-top:0">对着桩身上的二维码扫，自动提取编号并去重。绿色是站里已接入的，琥珀色是还没接入的；扫完点「复制全部」发给加桩的人就行。</p>
+    <div class="scan-reader" id="scan-reader">
+      <div class="scan-hud" id="scan-hud" hidden>已扫 <b id="scan-count">0</b> 台</div>
+      <div class="scan-hint">将二维码对准取景框，自动识别</div>
+    </div>
+    <div class="scan-chips" id="scan-chips" hidden></div>
+    <div class="row" style="margin-top:12px">
+      <button class="icon-btn" id="scan-clear">清空</button>
+      <button class="icon-btn primary" id="scan-copy">复制全部</button>
+    </div>
+    <div class="note" id="scan-note"></div>
+  </div>
+</dialog>
 
 <!-- 皮肤子弹窗（v2.52）：风格 × 材质两个正交维度。选中态由 applySkin() 维护。 -->
 <dialog id="dlg-skin" class="sub-dlg" aria-label="皮肤">
@@ -8092,7 +8149,8 @@ const CHANGELOG = [
         「刷新」散在三条，这次压回一句话 —— 用户要看到的是「这块变了」，
         不是同一件事在四个版本里各说一遍。新加条目也照这个来。
      只写用户看得见的变化：测试版入口、赞赏码措辞、密钥放哪、Worker/接口这类一律不进。 */
-  { from: 'v2.60', d: '2026-10-30 ~ 10-31', items: [
+  { from: 'v2.60', d: '2026-10-30 ~ 11-02', items: [
+    '设置里新增「扫码采设备号」：对着桩身上的二维码一扫就提出编号，自动去重，绿边是已接入、琥珀边是还没接入的，一键复制全部——加新桩不用再对着二维码手抄',
     '新增「住宅」8 台充电桩（Z-01~Z-08）：都在校园北侧尚苑路边的西区住宅小区，地图上沿路边排成一排；这批机器有 2 口、10 口、20 口的，卡片按实际口数铺格子'
       + '；地图弹窗的地址气泡里也多了「住宅」这一颗，点开直接看这 8 台的分布'
       + '（为了让 6 颗气泡在手机上一屏排得下，「物业服务中心」「朝晖体育场南」在气泡上简写成「物业」「朝晖」，点进去表头仍是全名）',
@@ -8221,6 +8279,10 @@ const SET_ENTRIES = [
   { btn: 'set-cred-btn', dlg: 'dlg-cred', onOpen: () => paintCred() },
   { btn: 'set-sync-btn', dlg: 'dlg-sync', focus: 'sync-password-input' },
   { btn: 'set-admin-btn', dlg: 'dlg-admin', focus: 'password-input' },
+  /* 扫码（v2.69）：showModal 之后再启动摄像头 —— dialog 还没显示时 video
+     在不可见子树里，个别浏览器不给播放；onOpen 在 showModal **前**触发，
+     所以这里用 80ms 的 setTimeout 隔开。 */
+  { btn: 'set-scan-btn', dlg: 'dlg-scan', onOpen: () => { scanResetSession(); setTimeout(scanStart, 80); } },
   { btn: 'set-view-btn', dlg: 'dlg-view' },
   { btn: 'set-skin-btn', dlg: 'dlg-skin' },
   { btn: 'set-font-btn', dlg: 'dlg-font' },
@@ -8254,6 +8316,209 @@ SET_ENTRIES.forEach((e) => {
   });
 });
 
+
+/* ── 扫码采设备号（v2.69）────────────────────────────
+   从独立工具 scan.html 并进设置弹窗，三处刻意不一样：
+   ① 常驻弹窗，边扫边看 chips 增长（独立页那种「扫完切结果屏」在弹窗里很别扭）；
+   ② 多一步「这台站里接没接入」的比对 —— getDevices() 含云端同步加进来的桩，
+      判据用编号大写比对（二维码里偶尔会有小写字母）；
+   ③ html5-qrcode 走 jsdelivr → unpkg 双源运行时加载，**不进 SW 壳**：
+      摄像头在线才用得到，预缓存白占 ~200KB 还拖慢首装。 */
+const SCAN_LIBS = [
+  'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js',
+  'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js',
+];
+let scanLibIdx = -1;      // 下一个要试的源下标
+let scanScanner = null;   // Html5Qrcode 实例
+let scanRunning = false;
+let scanStarting = false;
+let scanKnown = null;     // 站内编号 Set（打开弹窗时重建，拿到最新清单）
+const scanSeen = new Set();
+const scanIds = [];
+
+function loadQrLib(then) {
+  if (window.Html5Qrcode) { then(true); return; }
+  scanLibIdx += 1;
+  if (scanLibIdx >= SCAN_LIBS.length) { then(false); return; }
+  const s = document.createElement('script');
+  s.src = SCAN_LIBS[scanLibIdx];
+  s.onload = () => then(!!window.Html5Qrcode);
+  s.onerror = () => loadQrLib(then);   // 这个源挂了，换下一个
+  document.head.appendChild(s);
+}
+
+/* 站内编号集合：每次打开弹窗重建 —— 管理员刚同步的新桩不该被标成「未接入」。 */
+function scanKnownSet() {
+  if (scanKnown) return scanKnown;
+  scanKnown = new Set();
+  try { for (const d of getDevices()) scanKnown.add(String(d.id || '').trim().toUpperCase()); }
+  catch (e) { /* 清单读不出来就当全都没接入，只是颜色不同 */ }
+  return scanKnown;
+}
+
+function scanResetSession() {
+  scanKnown = null;
+  scanSeen.clear();
+  scanIds.length = 0;
+  $('scan-count').textContent = '0';
+  $('scan-chips').hidden = true;
+  $('scan-chips').innerHTML = '';
+  $('scan-note').className = 'note';
+  $('scan-note').textContent = '';
+}
+
+/* 扫中提示音：Web Audio 合成的两声上行短音，不用外部音频文件。
+   AudioContext 要用户手势解锁 —— 打开这个弹窗的那一下点击就是手势。 */
+let scanAudio = null;
+function scanBeep() {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    if (!scanAudio) scanAudio = new AC();
+    if (scanAudio.state === 'suspended') scanAudio.resume().catch(() => {});
+    const t = scanAudio.currentTime + 0.01;
+    [[1046.5, t, 0.09, 0.2], [1568, t + 0.085, 0.13, 0.17]].forEach(([f, st, dur, peak]) => {
+      const o = scanAudio.createOscillator(), g = scanAudio.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(f, st);
+      g.gain.setValueAtTime(0.0001, st);
+      g.gain.exponentialRampToValueAtTime(peak, st + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, st + dur);
+      o.connect(g); g.connect(scanAudio.destination);
+      o.start(st); o.stop(st + dur + 0.03);
+    });
+  } catch (e) { /* 没声音就算了，toast 和振动还在 */ }
+}
+
+/* 从二维码内容里提取编号：`…/?id=XLA69119` → XLA69119；
+   顺带认 deviceId / sn / code 这几个常见参数名，兜底是内容本身就是纯编号。
+   统一转大写 —— 站内 id 全大写，二维码里偶尔混小写。 */
+function scanExtractId(raw) {
+  const text = String(raw || '').trim();
+  if (!text) return null;
+  const m = text.match(/[?&#](?:id|deviceid|device_id|sn|code)=([^&#\s]+)/i);
+  if (m && m[1]) {
+    try { return decodeURIComponent(m[1]).trim().toUpperCase(); }
+    catch (e) { return m[1].trim().toUpperCase(); }
+  }
+  if (/^[A-Za-z0-9_-]{2,64}$/.test(text)) return text.toUpperCase();
+  return null;
+}
+
+function scanOnSuccess(decodedText) {
+  const id = scanExtractId(decodedText);
+  if (!id || scanSeen.has(id)) return;   // 非目标格式 / 已记录过，静默忽略
+  scanSeen.add(id);
+  scanIds.push(id);
+  const known = scanKnownSet().has(id);
+  $('scan-count').textContent = scanIds.length;
+  const wrap = $('scan-chips');
+  wrap.hidden = false;
+  const chip = document.createElement('span');
+  chip.className = 'scan-chip' + (known ? '' : ' new');
+  chip.textContent = known ? id : id + ' · 未接入';
+  wrap.appendChild(chip);
+  wrap.scrollLeft = wrap.scrollWidth;    // 最新记录始终可见
+  scanBeep();
+  showToast(known ? id : id + '（站里还没有这台）', 1800);
+  if (navigator.vibrate) { try { navigator.vibrate(40); } catch (e) {} }
+}
+
+/* html5-qrcode 的 clear() 会把容器整个清空 —— 连我们自己的 hud/hint 一起带走
+   （真踩过：hud 被删后 $('scan-hud') 是 null，catch 里写失败提示的代码跟着断）。
+   所以这里统一「全清 + 重建」，不挑着删。 */
+const SCAN_HUD_HTML =
+  '<div class="scan-hud" id="scan-hud" hidden>已扫 <b id="scan-count">0</b> 台</div>' +
+  '<div class="scan-hint">将二维码对准取景框，自动识别</div>';
+
+function scanClearReader() {
+  $('scan-reader').innerHTML = SCAN_HUD_HTML;
+}
+
+function scanStop() {
+  const s = scanScanner;
+  scanScanner = null;
+  scanRunning = false;
+  if (!s) { scanClearReader(); return; }
+  s.stop().then(() => { try { s.clear(); } catch (e) {} scanClearReader(); })
+    .catch(() => scanClearReader());
+}
+
+function scanStart() {
+  if (scanRunning || scanStarting) return;
+  scanStarting = true;
+  loadQrLib((ok) => {
+    scanStarting = false;
+    if (!ok) {
+      $('scan-note').className = 'note warn';
+      $('scan-note').textContent = '扫码组件加载失败（需要联网）。检查网络后关掉这个弹窗再打开一次。';
+      return;
+    }
+    if (!$('dlg-scan').open) return;   // 用户已经把弹窗关了，别再开摄像头
+    try {
+      scanScanner = new Html5Qrcode('scan-reader', {
+        verbose: false,
+        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+      });
+    } catch (e) {
+      $('scan-note').textContent = '初始化失败：' + e.message;
+      return;
+    }
+    scanScanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: (w, h) => {
+          const s = Math.max(160, Math.floor(Math.min(w, h) * 0.72));
+          return { width: s, height: s };
+        } },
+      scanOnSuccess,
+      () => {}   // 每帧没识别到是常态，静默
+    ).then(() => {
+      scanRunning = true;
+      $('scan-hud').hidden = false;
+    }).catch((err) => {
+      scanRunning = false;
+      scanScanner = null;
+      scanClearReader();
+      $('scan-note').className = 'note warn';
+      $('scan-note').textContent = '摄像头打不开（' + ((err && err.message) || err) +
+        '）。要在手机上用浏览器打开本站再试；笔记本则要允许摄像头权限。';
+    });
+  });
+}
+
+/* 关弹窗（x 按钮 / Esc / 点别处关）一律停摄像头 —— close 事件三条路都会走。 */
+$('dlg-scan').addEventListener('close', scanStop);
+
+$('scan-clear').addEventListener('click', () => {
+  scanResetSession();
+});
+
+$('scan-copy').addEventListener('click', () => {
+  const text = scanIds.join('\n');
+  if (!text) { showToast('还没有扫到编号', 1800); return; }
+  const n = scanIds.length;
+  const fallbackCopy = () => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, text.length);
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+    showToast(ok ? '已复制 ' + n + ' 个编号' : '复制失败，长按上方文本手动复制', ok ? 2200 : 3200);
+  };
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text)
+      .then(() => showToast('已复制 ' + n + ' 个编号', 2200))
+      .catch(fallbackCopy);
+  } else {
+    fallbackCopy();
+  }
+});
 
 function openSyncDialog() {
   /* 每次打开都把两个密码子弹窗清干净 —— 上次输错留下的红字，

@@ -226,7 +226,7 @@
    而前端把 429 当成「整批失败」→ 剩下上百台逐台标成「平台没响应」→ 触发 10 分钟冷却 +
    劝用户换网络。现在 429 单独认、退一步重试、只提示「同时查的人有点多」。
    改动全在 index.html 里 → 共享 js / 地图数据没变，`?v=` 不动，只换壳。 */
-const CACHE = 'campus-pile-v163';
+const CACHE = 'campus-pile-v164';
 const SHELL = [
   './',
   './index.html',

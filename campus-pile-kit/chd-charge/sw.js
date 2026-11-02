@@ -252,7 +252,9 @@
    `index.html` 改了（地址胶囊去掉「全部」、排序搬进设置、新增校区/排序两个子弹窗、
    地址胶囊两端渐隐），`map-amap.js` 也改了（limitBounds 跟着视图走 —— 之前一进北院，
    轻轻拖一下就被高德拽回渭水）。两个 `?v=` 各 +1。 */
-const CACHE = 'campus-pile-v170';
+/* v170 → v171（2026-11-02 v2.75）：只改了 `index.html`（双列网格 + 北院地址行），
+   两个外链 js 没动，所以 `?v=` 一个都不升 —— 只换壳，让旧壳里的旧 HTML 失效。 */
+const CACHE = 'campus-pile-v171';
 const SHELL = [
   './',
   './index.html',

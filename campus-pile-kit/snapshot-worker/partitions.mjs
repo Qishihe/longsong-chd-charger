@@ -4,7 +4,8 @@
  * 重新生成：python tools/gen_snapshot_partitions.py
  * 一致性校验：python tools/gen_snapshot_partitions.py --check
  *
- * ⚠️ `areas` 的顺序 = cron 分钟的偏移顺序（见 config.mjs 的 AREA_CRON_MINUTES）。
+ * ⚠️ `areas` 的**顺序不代表 cron 排班** —— v2.65 起按 key 取组，见 config.mjs
+ *    的 AREA_CRON_GROUPS（一张「哪一跳刷哪几个区」的表）。这里只按台数大到小排。
  * ⚠️ 分区里的 `src` 缺省表示住芒；写了 `lvcc` 表示这批桩在驴充充平台，
  *    扫它们时 /api/pile 要带 `src: 'lvcc'`（不需要凭证）。
  */
@@ -12,7 +13,7 @@ export const PARTITIONS = {
   "schema": 1,
   "source": "chd-charge/index.html#DEFAULT_DEVICES",
   "generator": "tools/gen_snapshot_partitions.py",
-  "total": 117,
+  "total": 174,
   "subrequestLimit": 50,
   "areas": [
     {
@@ -172,6 +173,71 @@ export const PARTITIONS = {
         "PILEXXXX"
       ],
       "count": 8
+    },
+    {
+      "key": "beiyuan",
+      "name": "体育馆北停车场",
+      "location": "北院-体育馆北停车场",
+      "ids": [
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX"
+      ],
+      "count": 57
     }
   ]
 };

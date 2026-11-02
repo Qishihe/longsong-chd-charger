@@ -363,14 +363,14 @@ async function handleRequest(request, env) {
       const failedCount = list.filter((x) => x.degraded).length;
 
       /* 最旧的那个区。总览页要「补刷」时只能挑一个区单独发 —— 这里给它。
-         挑最旧的而不是固定某个区，是为了让四个区被轮流推进。 */
+         挑最旧的而不是固定某个区，是为了让六个区被轮流推进。 */
       const oldest = valid.length
         ? valid.reduce((m, x) => ((x.age ?? 0) > (m.age ?? 0) ? x : m), valid[0])
         : null;
 
       /* ⚠️ `area=all` **不支持 refresh=1**，而这里原来会静默忽略它。
-         原因：四个区串行扫描，最坏 4 × 18 秒 = 72 秒，远超 Workers 的
-         30 秒 wall-clock —— 请求会被运行时直接掐掉，连响应都发不出去。
+         原因：六个区串行扫描，最坏 6 × 18 秒 = 108 秒 —— 这是 HTTP 请求
+         （不是 cron），没人会为一个总览页等两分钟，站点 Worker 的反代也早断了。
          所以总览页必须自己挑一个区单独补刷（用下面这个 oldest_key）。
          显式回一个字段，好过让前端以为「传了 refresh 就会刷新」。 */
       const refreshAsked = url.searchParams.get('refresh') === '1';

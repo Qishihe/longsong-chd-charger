@@ -55,14 +55,14 @@ function eq(name, actual, expected) {
 
 /* ── 1. 分区表 ─────────────────────────────────────────────────── */
 console.log('\n1. 分区表');
-ok('总量 117 台', PARTITIONS.total === 117, PARTITIONS.total);
-ok('5 个分区', AREAS.length === 5, AREAS.length);
+ok('总量 174 台', PARTITIONS.total === 174, PARTITIONS.total);
+ok('6 个分区', AREAS.length === 6, AREAS.length);
 ok(
-  '每区台数都能被 SCAN_CHUNK 拆成 ≤ 4 批',
-  AREAS.every((a) => a.count >= 1 && Math.ceil(a.count / TUNING.SCAN_CHUNK) <= 4),
+  '每个区都能被 SCAN_CHUNK 拆成 ≤ 5 批',
+  AREAS.every((a) => a.count >= 1 && Math.ceil(a.count / TUNING.SCAN_CHUNK) <= 5),
   AREAS.map((a) => `${a.key}:${a.count}→${Math.ceil(a.count / TUNING.SCAN_CHUNK)}批`),
 );
-ok('分区台数之和 = 总量', AREAS.reduce((s, a) => s + a.count, 0) === 117);
+ok('分区台数之和 = 总量', AREAS.reduce((s, a) => s + a.count, 0) === PARTITIONS.total);
 /* 一个分区的设备必须同源：/api/pile 一次只认一个 src，混着放会让一半 id
    打到错的平台、整批报错（2026-10-31 v2.63 加第二个平台时的红线）。 */
 ok(
@@ -150,9 +150,23 @@ console.log('\n2b. 配置一致性');
     2,
   );
   eq(
-    '住宅与物业同一跳（免费版只有 5 条 cron，没地方再开一跳）',
+    '住宅与朝晖同一跳（v2.76 重排：把 :03 让给北院）',
     AREA_CRON_GROUPS.find((g) => g.includes('zhu')),
-    ['wuye', 'zhu'],
+    ['zhu', 'chaohui'],
+  );
+  /* 🔴 加区时最容易犯的错：往某一跳里硬塞，把那一分钟的台数从 30 抬到 90。
+     实测 57 台整轮 5.3 秒 / 37 台 ~5 秒，超过 70 台就逼近 CPU 10ms 和
+     18 秒扫描预算 —— 这里按台数卡一刀，逼着加区的人去重排而不是堆。 */
+  const countByKey = {};
+  for (const a of AREAS) countByKey[a.key] = a.count;
+  const heaviest = Math.max(
+    ...AREA_CRON_GROUPS.map((g) => g.reduce((s, k) => s + (countByKey[k] || 0), 0)),
+  );
+  ok('一跳总台数 ≤ 70（超了要重排，不能硬塞）', heaviest <= 70, `最重一跳 ${heaviest} 台`);
+  eq(
+    '北院独占一跳（57 台，谁也别和它挤）',
+    AREA_CRON_GROUPS.find((g) => g.includes('beiyuan')),
+    ['beiyuan'],
   );
 
   /* 在飞判定窗口必须盖得住最坏的一轮扫描，否则自己就会叠。 */
@@ -833,32 +847,56 @@ console.log('\n11. Worker 入口');
     );
     eq('分批后台数不漏不重（合计 37）', batchSizes.reduce((s, n) => s + n, 0), 37);
 
-    Date.now = () => (T0 + 120) * 1000; // 北京 08:02，偏移 2 的那一跳
-    await mod.default.scheduled({ cron: '2-59/5 * * * *' }, env, ctx);
-    eq('偏移 2 → 刷 20号楼', bucket.businessKeys(), ['snap/b20.json', 'snap/beimen.json']);
-
-    /* 🔴 偏移 3 那一跳带两个区（物业 + 住宅，v2.65）：免费版只有 5 条 cron，
-       4 跳分区 + 1 跳统计已经用满，住宅只能并进这一跳。这里验三件事：
-       两个区都真的刷了、住宅那批带了 src=lvcc、而且台数是对的。 */
-    Date.now = () => (T0 + 180) * 1000; // 北京 08:03
+    /* 🔴 偏移 0 那一跳带两个区（住宅 + 朝晖，v2.76 重排）：免费版一个账号只有
+       5 条 cron，4 跳分区 + 1 跳统计已经用满，加北院只能靠重排分组。
+       这里验三件事：两个区都真的刷了、住宅那批带了 src=lvcc、
+       朝晖那批仍走住芒（没被住宅的数据源带偏）。 */
+    Date.now = () => T0 * 1000; // 北京 08:00
     batchSrcs.length = 0;
-    await mod.default.scheduled({ cron: '3-59/5 * * * *' }, env, ctx);
-    const wuye = await readJson(bucket, KEYS.snap('wuye'));
+    await mod.default.scheduled({ cron: '0-59/5 * * * *' }, env, ctx);
+    const chaohui = await readJson(bucket, KEYS.snap('chaohui'));
     const zhu = await readJson(bucket, KEYS.snap('zhu'));
-    ok('偏移 3 一跳刷两个区：物业', wuye && wuye.piles === 12, wuye && wuye.piles);
-    ok('偏移 3 一跳刷两个区：住宅', zhu && zhu.piles === 8, zhu && zhu.piles);
+    ok('偏移 0 一跳刷两个区：朝晖', chaohui && chaohui.piles === 36, chaohui && chaohui.piles);
+    ok('偏移 0 一跳刷两个区：住宅', zhu && zhu.piles === 8, zhu && zhu.piles);
     ok('住宅那 8 台是带 src=lvcc 发出去的', batchSrcs.includes('lvcc'), batchSrcs);
     ok(
-      '物业那批仍走住芒（没被住宅的数据源带偏）',
+      '朝晖那批仍走住芒（没被住宅的数据源带偏）',
       batchSrcs.filter((s) => s === 'zm').length >= 1,
       batchSrcs,
     );
     /* mock 每台固定 4 个插座 —— 这条只是确认「8 台的数据真的摊进了快照」，
        真实口数（2/10/20 口混装）在线上验收里看。 */
     eq('住宅快照的插座总数 = 8 台 × 4 口', zhu && zhu.total, 32);
+    /* 先跑谁：住宅（8 台 1 批）先于朝晖（36 台 3 批），让小区早点落地 ——
+       这条断言锁的是「配平顺序」这个意图，不是正确性。 */
+    eq('偏移 0 先发住宅、后发朝晖', batchSrcs[0], 'lvcc');
+
+    Date.now = () => (T0 + 120) * 1000; // 北京 08:02，偏移 2 的那一跳
+    await mod.default.scheduled({ cron: '2-59/5 * * * *' }, env, ctx);
+    eq(
+      '偏移 2 → 刷 20号楼 + 物业',
+      bucket.businessKeys(),
+      ['snap/b20.json', 'snap/beimen.json', 'snap/chaohui.json', 'snap/wuye.json', 'snap/zhu.json'],
+    );
+    const wuye = await readJson(bucket, KEYS.snap('wuye'));
+    eq('偏移 2 里的物业 12 台', wuye && wuye.piles, 12);
+
+    /* 🔴 偏移 3 独占北院 57 台（v2.76）。这是全站最大的一个区 ——
+       实测 5 批 5.3 秒，所以它自己占一跳，谁也不和它挤。 */
+    Date.now = () => (T0 + 180) * 1000; // 北京 08:03
+    batchSizes.length = 0;
+    await mod.default.scheduled({ cron: '3-59/5 * * * *' }, env, ctx);
+    const beiyuan = await readJson(bucket, KEYS.snap('beiyuan'));
+    eq('偏移 3 → 刷北院 57 台', beiyuan && beiyuan.piles, 57);
+    eq('北院拆成 5 批', batchSizes.length, Math.ceil(57 / TUNING.SCAN_CHUNK));
+    ok(
+      '北院每批都 ≤ SCAN_CHUNK',
+      batchSizes.every((n) => n <= TUNING.SCAN_CHUNK),
+      batchSizes,
+    );
 
     await mod.default.scheduled({ cron: '9-59/5 * * * *' }, env, ctx);
-    eq('未知偏移不刷任何区', bucket.businessKeys().length, 4);
+    eq('未知偏移不刷任何区', bucket.businessKeys().length, 6);
 
     await mod.default.scheduled({ cron: '2 * * * *' }, env, ctx);
     ok('统计 cron 落点', (await readJson(bucket, KEYS.stats())) !== null);
@@ -883,7 +921,7 @@ console.log('\n11. Worker 入口');
 
     const r3 = await mod.default.fetch(new Request('https://x/api/snap?area=all', { headers }), env);
     const b3 = await r3.json();
-    eq('/api/snap?area=all 汇总', b3.summary.areas, 4);
+    eq('/api/snap?area=all 汇总', b3.summary.areas, 6);
     eq('总览不传 refresh 时没有提示', b3.refresh_ignored, null);
     ok('总览会指认最旧的那个区', typeof b3.oldest_key === 'string', b3.oldest_key);
 

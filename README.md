@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <code>纯前端单页</code> · <code>无构建、无框架、无 npm</code> · <code>174 台桩 / 6 个分区 / 2 个校区</code> · <code>v2.73</code>
+  <code>纯前端单页</code> · <code>无构建、无框架、无 npm</code> · <code>174 台桩 / 6 个分区 / 2 个校区</code> · <code>v2.74</code>
 </p>
 
 ---

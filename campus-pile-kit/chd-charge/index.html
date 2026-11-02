@@ -546,14 +546,8 @@
   }
   .campus-pill svg{flex:none; transition:transform .15s}
   .campus-pill[aria-expanded="true"] svg{transform:rotate(180deg)}
-  .toolbar select{
-    flex:none; font:inherit; font-size:13px; padding:9px 26px 9px 10px;
-    border:1px solid var(--line-strong); border-radius:10px;
-    background:var(--card); color:var(--text); min-height:38px;
-    -webkit-appearance:none; appearance:none;
-    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B6A65' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-    background-repeat:no-repeat; background-position:right 9px center;
-  }
+  /* v2.74：`.toolbar select`（排序下拉）随之退役 —— 那颗已搬进 `#dlg-sort` 并隐藏。
+     留空不写规则，比留一条没人命中的选择器更不容易误导。 */
 
   /* 收藏星标 */
   .fav-btn{
@@ -926,17 +920,23 @@
   .rv-locs{ margin:0 0 10px; }
   /* 横滑容器两端渐隐：`.more` = 右边还有、`.back` = 左边还有（两边都有就同时挂）。
      只靠「被切掉半颗胶囊」当提示不够 —— 切在字中间时更像排版坏了。 */
+  /* v2.74：首页那排地址胶囊也算（`#loc-pills`）—— 390px 下 5 颗放不下、
+     右边永远露着半颗被硬切开的胶囊，看着就是「布局坏了」。
+     同一套 .more/.back，同一套渐隐宽度，别再写第二份数值。 */
   .rv-locs.more,
+  .loc-pills.more,
   .map-tabs.more{
     -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 18px),transparent);
             mask-image:linear-gradient(90deg,#000 calc(100% - 18px),transparent);
   }
   .rv-locs.back,
+  .loc-pills.back,
   .map-tabs.back{
     -webkit-mask-image:linear-gradient(90deg,transparent,#000 18px);
             mask-image:linear-gradient(90deg,transparent,#000 18px);
   }
   .rv-locs.more.back,
+  .loc-pills.more.back,
   .map-tabs.more.back{
     -webkit-mask-image:linear-gradient(90deg,transparent,#000 18px,#000 calc(100% - 18px),transparent);
             mask-image:linear-gradient(90deg,transparent,#000 18px,#000 calc(100% - 18px),transparent);
@@ -1324,6 +1324,14 @@
   /* 选中环：描一层强调色。默认皮肤没有 --accent，回退到品牌绿 */
   .skin-opt.on{border-color:var(--accent,#1D9E75); box-shadow:inset 0 0 0 1.5px var(--accent,#1D9E75)}
   .skin-dot{flex:none; width:22px; height:22px; border-radius:50%; border:1.5px solid #D3D1C7}
+  /* 校区 / 排序弹窗左侧那颗圆形字标（v2.74）：比 .font-dot 小一号，
+     只放一个字，作用是让四行选项有共同的对齐基线，不至于像纯文字列表。 */
+  .opt-dot{
+    flex:none; width:26px; height:26px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--free-soft); color:var(--free-deep);
+    border:1px solid var(--free-line); font-size:13px; line-height:1;
+  }
   .skin-txt{flex:1; min-width:0}
   .skin-txt b{display:block; font-size:13.5px; font-weight:600}
   .skin-txt small{display:block; font-size:11.5px; color:var(--hint); margin-top:2px; line-height:1.5}
@@ -1438,14 +1446,13 @@
          ⚠️ 旧实现把地址写死在 <option> 里（全部地址 / 渭水-朝晖体育场南），
             @ 新地址根本不会出现 —— 自动生成就是修这个。 -->
     <div class="loc-pills" id="loc-pills" role="group" aria-label="地址筛选"></div>
-    <!-- 2026-10-29 v2.43：默认从「按编号」换成「当前空闲」（空位多的排前面）。
-         选项顺序也跟着把 free 提到第一项 —— 第一项是 id、实际默认却是 free，看着自相矛盾。
-         2026-10-30 v2.48：这颗下拉保留，挪到最右边，左边整排让给地址胶囊。 -->
-    <select id="sort-by" aria-label="排序">
-      <option value="free">当前空闲</option>
-      <option value="id">按编号</option>
-      <option value="fav">收藏优先</option>
-    </select>
+    <!-- 2026-11-02 v2.74（产品方）：排序下拉从顶部**整颗搬进 设置 › 排序**。
+         顶部这排只剩「校区胶囊 + 本校区地址胶囊」，一颗都不多 —— 390px 上原来四颗
+         挤成一排，最右那颗排序几乎贴着屏幕边缘（产品方说的「布局有问题」就是这个）。
+         ⚠️ `<select id="sort-by">` 没删，挪进 #dlg-sort 里藏起来了：
+            `bindToolbar()` 的 change 监听、`getSort()` 的回填、以及老验收脚本都按
+            这个 id 读写；换成按钮自己存一份等于把三条路各写一遍、迟早对不上。
+            弹窗里那几个 `data-sort` 按钮只做一件事：改 select 的值 → 派发 change。 -->
   </div>
 
   <!-- 🔴 2026-10-29 首帧骨架：三张占位卡写在 HTML 里，解析到就有形状，
@@ -1464,7 +1471,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.73</div>
+    <div id="app-ver" class="foot-ver">版本 v2.74</div>
   </footer>
 </div>
 
@@ -1635,6 +1642,22 @@
 
     <div class="set-sec">偏好设置</div>
     <div class="set-card">
+      <!-- 校区（v2.74，产品方要求）：顶部那颗胶囊的**第二入口**。
+           两处读写同一个 `cpk.campus`，谁先用都不打架；右边那颗值由
+           paintCampusPill() 顺手写，别在这里手写死。 -->
+      <button class="set-row" type="button" id="set-campus-btn">
+        <span class="set-ico" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 6.3 8 2.5l5.4 3.8v6.5a.9.9 0 0 1-.9.9H3.5a.9.9 0 0 1-.9-.9z"/><path d="M6.4 13.7V9.5h3.2v4.2"/></svg></span>
+        <span class="set-txt">校区</span>
+        <span class="set-val" id="set-campus-val">渭水校区</span>
+        <span class="set-caret" aria-hidden="true"></span>
+      </button>
+      <!-- 排序（v2.74）：从顶部那颗下拉整颗搬进来。 -->
+      <button class="set-row" type="button" id="set-sort-btn">
+        <span class="set-ico" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.4h10M3 8h6.6M3 11.6h3.4"/></svg></span>
+        <span class="set-txt">排序</span>
+        <span class="set-val" id="set-sort-val">当前空闲</span>
+        <span class="set-caret" aria-hidden="true"></span>
+      </button>
       <button class="set-row" type="button" id="set-view-btn">
         <span class="set-ico" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="2.5" y="2.5" width="4.6" height="4.6" rx="1"/><rect x="8.9" y="2.5" width="4.6" height="4.6" rx="1"/><rect x="2.5" y="8.9" width="4.6" height="4.6" rx="1"/><rect x="8.9" y="8.9" width="4.6" height="4.6" rx="1"/></svg></span>
         <span class="set-txt">显示方式</span>
@@ -1742,6 +1765,70 @@
       <span>一行显示<b>两个</b>充电桩（取消勾选就回到一行一个）</span>
     </label>
     <p class="note">只改本机的显示，不影响别人。两个一行的排得更紧凑，插座格子会相应缩小一号。</p>
+  </div>
+</dialog>
+
+<!-- 校区（v2.74）：与顶部那颗胶囊同一份数据（`cpk.campus`），点一下就地生效。
+     没有设备的校区（雁塔 / 小寨）照样列出来，选中会提示「还没有接入充电桩」——
+     列出来再说明，比「干脆没有这一项」更让人明白为什么看不到东西。 -->
+<dialog id="dlg-campus" class="sub-dlg" aria-label="校区">
+  <div class="dlg-body">
+    <div class="dlg-head">
+      <h2>校区</h2>
+      <button class="x-btn" data-close aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+    </div>
+    <div class="skin-group" id="campus-group">
+      <button class="skin-opt" type="button" data-campus="weishui">
+        <span class="opt-dot" aria-hidden="true">渭</span>
+        <span class="skin-txt"><b>渭水校区</b><small>朝晖体育场南 / 北门 / 20 号楼 / 物业服务中心 / 住宅，共 5 处</small></span>
+      </button>
+      <button class="skin-opt" type="button" data-campus="beiyuan">
+        <span class="opt-dot" aria-hidden="true">北</span>
+        <span class="skin-txt"><b>本部北院</b><small>体育馆北停车场，57 台</small></span>
+      </button>
+      <button class="skin-opt" type="button" data-campus="yanta">
+        <span class="opt-dot" aria-hidden="true">雁</span>
+        <span class="skin-txt"><b>雁塔校区</b><small>还没有接入充电桩，选中后列表是空的</small></span>
+      </button>
+      <button class="skin-opt" type="button" data-campus="xiaozhai">
+        <span class="opt-dot" aria-hidden="true">小</span>
+        <span class="skin-txt"><b>小寨校区</b><small>还没有接入充电桩，选中后列表是空的</small></span>
+      </button>
+    </div>
+    <p class="note">切校区会换掉整套地址：顶部那排地址胶囊、设备列表、地图页签都跟着走。只改本机，不影响别人。</p>
+  </div>
+</dialog>
+
+<!-- 排序（v2.74）：从顶部那颗下拉整颗搬进来。
+     🔴 `#sort-by` 这个原生 select **必须留着且带 id**（这里 hidden）：
+        bindToolbar() 的 change 监听、getSort() 回填、老验收脚本都按 id 读写。
+        下面三颗按钮只负责「改它的值 + 派发 change」，自己不再存一份。 -->
+<dialog id="dlg-sort" class="sub-dlg" aria-label="排序">
+  <div class="dlg-body">
+    <div class="dlg-head">
+      <h2>排序</h2>
+      <button class="x-btn" data-close aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+    </div>
+    <div class="skin-group" id="sort-group">
+      <button class="skin-opt" type="button" data-sort="free">
+        <span class="opt-dot" aria-hidden="true">空</span>
+        <span class="skin-txt"><b>当前空闲</b><small>空位最多的桩排最前面，出门前找车位的默认档</small></span>
+      </button>
+      <button class="skin-opt" type="button" data-sort="id">
+        <span class="opt-dot" aria-hidden="true">号</span>
+        <span class="skin-txt"><b>按编号</b><small>按地址分组、组内 A-01 → B-02 顺着排，站在桩跟前找的时候用这档</small></span>
+      </button>
+      <button class="skin-opt" type="button" data-sort="fav">
+        <span class="opt-dot" aria-hidden="true">星</span>
+        <span class="skin-txt"><b>收藏优先</b><small>点过星标的桩排最前，其余仍按编号</small></span>
+      </button>
+    </div>
+    <select id="sort-by" aria-label="排序" hidden tabindex="-1">
+      <option value="free">当前空闲</option>
+      <option value="id">按编号</option>
+      <option value="fav">收藏优先</option>
+    </select>
+    <p class="note">只改本机这一份列表的顺序，不影响别人，也不会改变查到的结果。</p>
   </div>
 </dialog>
 
@@ -2151,14 +2238,14 @@
         于是"其实没有数据"这件事被掩盖了 —— 判据两边都由同一个常量兜底时，
         它**永远不会为假**，也就等于没有判据。
      所以让数据**先于主脚本就位** ✓
-     `?v=165` 与下面 `loadScriptOnce('map-data.js?v=168')` **保持同一个 URL**，
+     `?v=165` 与下面 `loadScriptOnce('map-data.js?v=169')` **保持同一个 URL**，
      免得缓存出两份；那条懒加载链保留，作为"这个静态标签没加载成功"时的兜底
      （`ensureAMap()` 里已有 `window.CHD_MAP` 守卫，不会重复拉）。 -->
 <!-- 🔴 2026-10-25 加 `defer`：这个文件 39KB（gzip 10KB），走 Cloudflare 时单次
      跨境往返就要 1 秒左右 —— 不带 defer 会**阻塞 HTML 解析**，首屏白屏多等一秒。
      安全前提（已核对）：页面只在函数里读 `window.CHD_MAP`（mapAreaOf / buildScope /
      ensureAMap），没有任何顶层同步读；defer 在 DOMContentLoaded 之前执行完，赶得上 boot()。 -->
-<script src="map-data.js?v=168" defer fetchpriority="low"></script>
+<script src="map-data.js?v=169" defer fetchpriority="low"></script>
 <script>
 'use strict';
 
@@ -3726,6 +3813,11 @@ const AUTH_ERROR = '凭证失效了 · 在右上角设置 › 设备凭证里粘
    拿不到 → 下面这句，只如实说明为什么数据不再变新。 */
 const CRED_HINT = '凭证还没接上，下面是最后一次查到的结果 · 换凭证去右上角设置 › 设备凭证';
 
+/** 上一次画出来的地址筛选值 —— 只有它变了才把选中的胶囊滚进可视区。
+ *  声明放在 renderLocationFilter **前面**：函数体里先用到、声明在后面的 `let`
+ *  会在某次早调用里撞 TDZ（这个文件里踩过一次）。 */
+let _locPillKey = null;
+
 /** 地址胶囊排：从当前设备清单里的地址自动去重生成，@ 写了新地址就自动出现。
  *  2026-10-30 v2.48：由 <select> 下拉改成一行左右滑动的胶囊（产品方要求）。
  *  · data-loc 存**完整分区名**（含「渭水-」），getFilter()/inFilterScope() 一字不改，
@@ -3745,15 +3837,53 @@ function renderLocationFilter(devices) {
       .filter(Boolean),
   )].sort((a, b) => a.localeCompare(b, 'zh'));
   let cur = getFilter();
-  if (cur && !locs.some((l) => normKey(l) === cur)) {
-    store.set(KEY_FILTER, '');
-    cur = '';
+  /* v2.74：顶部**不再有「全部」那颗**（产品方要求）。于是地址这一层必须**永远有一颗
+     亮着** —— 筛空 / 存量值失效时落到本校区第一个地址（渭水=朝晖体育场南、
+     北院=体育馆北停车场）。locs 是按 localeCompare 排的，顺序稳定，不会今天朝晖
+     明天北门。
+     🔴 只在这里兜底，**别**把这个默认值塞进 `getFilter()`：那个函数到处被读
+        （refreshPlan / inFilterScope / 验收判据），掺进「默认值」之后
+        「用户到底选了什么」就永远说不清了。
+     ⚠️ 空校区（雁塔 / 小寨）locs 为空 → 保持 `''`，那边列表本来就是空的。 */
+  if (!cur || !locs.some((l) => normKey(l) === cur)) {
+    /* 默认点哪颗：**设备清单里第一个属于本校区的地址**（渭水=朝晖体育场南、
+       北院=体育馆北停车场）。不按 `locs[0]`（那是 localeCompare 序，排出来是
+       「20号楼」打头），也不写死分区名 —— 清单顺序就是「主场地在前」的既有口径，
+       以后加分区自动跟着走。清单里没有（空校区）就退回第一颗。 */
+    const firstOfCampus = devices.find((d) => campusOfDevice(d) === campus
+      && locs.some((l) => normKey(l) === normKey(String(d.location || '').trim())));
+    const next = (firstOfCampus && String(firstOfCampus.location).trim()) || locs[0] || '';
+    store.set(KEY_FILTER, next);
+    cur = next ? normKey(next) : '';
   }
-  const html = '<button type="button" class="loc-pill" data-loc="">全部</button>' +
-    locs.map((l) => `<button type="button" class="loc-pill" data-loc="${escapeHtml(l)}">${escapeHtml(shortAddrLabel(l))}</button>`).join('');
+  const html = locs
+    .map((l) => `<button type="button" class="loc-pill" data-loc="${escapeHtml(l)}">${escapeHtml(shortAddrLabel(l))}</button>`)
+    .join('');
   if (box.innerHTML !== html) box.innerHTML = html;
   paintLocPills();
+  /* 选中项变了才滚（首屏 / 换地址 / 换校区）—— 每 60 秒照常重画时也滚一次的话，
+     用户刚滑到「物业」看两眼就被拽回「朝晖」，比不滚更烦。 */
+  const changed = cur !== _locPillKey;
+  _locPillKey = cur;
+  locPillsHint(changed);
   paintCampusPill();
+}
+
+/** 地址胶囊排：把选中的那颗滚进可视区，并更新两端渐隐（.more / .back）。
+ *  🔴 别用 `scrollIntoView()` —— 它会连带滚动整页（和回顾那条踩过同一个坑）。
+ *  🔴 `offsetLeft` 是相对 offsetParent 的，与容器的相减才等于内容坐标。 */
+function locPillsHint(forceScroll) {
+  const box = $('loc-pills');
+  if (!box) return;
+  const on = box.querySelector('.loc-pill.on');
+  if (forceScroll && on && box.clientWidth) {
+    const pad = 8;
+    const l = on.offsetLeft - box.offsetLeft;
+    const r = l + on.offsetWidth;
+    if (l < box.scrollLeft + pad) box.scrollLeft = Math.max(0, l - pad);
+    else if (r > box.scrollLeft + box.clientWidth - pad) box.scrollLeft = r - box.clientWidth + pad;
+  }
+  paintScrollHint(box);
 }
 
 /** 校区胶囊的文案（显示短名：渭水 / 北院 / 雁塔 / 小寨）。
@@ -3766,6 +3896,20 @@ function paintCampusPill() {
   if (lab) lab.textContent = campusName(campus, true);
   const sub = $('sub');
   if (sub) sub.textContent = campusName(campus, false) + ' · 空闲桩位随时查';
+  /* v2.74：设置 › 校区 的右侧值、以及那个弹窗里的选中态，都跟这里走 ——
+     顶部胶囊和设置是**同一个值的两种写法**，各写一遍迟早对不上。 */
+  paintCampusPrefs();
+}
+
+/** 设置 › 校区 的那一行 + 弹窗里的选中态。
+ *  只读 `getCampus()`，不写盘 —— 写盘只有 setCampus() / 顶部胶囊两处入口。 */
+function paintCampusPrefs() {
+  const cur = getCampus();
+  document.querySelectorAll('#campus-group .skin-opt').forEach((b) => {
+    b.classList.toggle('on', b.dataset.campus === cur);
+  });
+  const val = $('set-campus-val');
+  if (val) val.textContent = campusName(cur, false);
 }
 
 /** 校区下拉的选项（四颗，当前那颗打勾）。 */
@@ -4729,7 +4873,7 @@ function warmAMap() {
         return loadScriptOnce('https://webapi.amap.com/maps?v=2.0&key='
           + encodeURIComponent(window.CHD_AMAP_KEY));
       })
-      .then(() => loadScriptOnce('map-amap.js?v=146'))
+      .then(() => loadScriptOnce('map-amap.js?v=147'))
       .catch(() => { /* 预热失败：点开时 ensureAMap() 会重新拉 */ });
   };
   if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 4000 });
@@ -5051,7 +5195,7 @@ function renderMapMarkers() {
  *   1. 把留档文件挪回本目录（chd-charge/）
  *   2. TMAP_ENABLED 改成 true
  *   3. 把 key 填到 window.CHD_TMAP_KEY
- *   4. 下面 loadScriptOnce('map-tmap.js?v=171') 的版本号加一（sw.js 是缓存优先）
+ *   4. 下面 loadScriptOnce('map-tmap.js?v=172') 的版本号加一（sw.js 是缓存优先）
  * TMAP_ENABLED 为 false 时 ensureTMap() 直接返回，不会去拉这个脚本，所以现在移走了也不会 404。
  */
 
@@ -5245,8 +5389,8 @@ function ensureTMap() {
       });
     };
     if (window.CHD_TMAP && window.CHD_MAP) { boot(); return; }
-    loadScriptOnce('map-data.js?v=168')
-      .then(() => loadScriptOnce('map-tmap.js?v=171'))
+    loadScriptOnce('map-data.js?v=169')
+      .then(() => loadScriptOnce('map-tmap.js?v=172'))
       .then(boot)
       .catch(() => done(false));
   });
@@ -5350,17 +5494,17 @@ function ensureAMap() {
       });
     };
     if (window.CHD_AMAP && window.CHD_MAP) { boot(); return; }
-    /* 正常情况下 `map-data.js` 已由页面顶部的静态 `<script src="map-data.js?v=168">` 加载好
+    /* 正常情况下 `map-data.js` 已由页面顶部的静态 `<script src="map-data.js?v=169">` 加载好
        （见那里的长注释：冷启动没有它 → `mapAreaOf()` 的两个兜底同值 → 弧线判据恒真 ✗）。
        所以这里先看 `window.CHD_MAP` 在不在，在就跳过，避免重复拉一次；
        若那个静态标签**没加载成功**（例如断网中途失败），仍会走 `loadScriptOnce` 重试 ✓ */
-    (window.CHD_MAP ? Promise.resolve(true) : loadScriptOnce('map-data.js?v=168'))
+    (window.CHD_MAP ? Promise.resolve(true) : loadScriptOnce('map-data.js?v=169'))
       .then(loadLocalKeyOnce)
 // 2026-10-25：v2.22/v2.23 的地图改版（飞入动画 + keepCamera + 首帧标志 + 预热）已随 v2.14
 //    并入本站唯一那份 map-amap.js。改了 js 一定要同时改 ?v（SW 缓存优先）。
 //    2026-10-29 v2.38：内测版退役 —— `map-amap-preview.js` 已删，以后只有一份引擎、一份 HTML，
 //    不再存在「改了 js 要两边同步」这件事。
-      .then(() => loadScriptOnce('map-amap.js?v=146'))
+      .then(() => loadScriptOnce('map-amap.js?v=147'))
       .then(boot)
       .catch(() => done(false));
   });
@@ -8380,6 +8524,11 @@ function bindToolbar() {
   // 回填已保存的选择
   sortSel.value = getSort();
 
+  /* v2.74：横滑容器两端渐隐（与一周回顾 / 地图页签同一套 .more/.back）。
+     容器不变、只有内容在换，所以监听只挂这一次。 */
+  pillBox.addEventListener('scroll', () => paintScrollHint(pillBox), { passive: true });
+  locPillsHint(true);
+
   // 事件委托：胶囊由 renderLocationFilter() 动态生成，监听只能挂在容器上
   pillBox.addEventListener('click', (e) => {
     const btn = e.target.closest('.loc-pill');
@@ -8388,6 +8537,7 @@ function bindToolbar() {
     if (normKey(val) === getFilter()) return;   // 点的就是当前地址，别白跑一轮
     store.set(KEY_FILTER, val);
     paintLocPills();
+    locPillsHint(false);          // 只更新两端渐隐，别把用户刚滑的位置拽回去
     // 切换地址后按新范围查询（只查这个地址下的桩）
     refresh();
   });
@@ -8427,7 +8577,57 @@ function bindToolbar() {
     const cache = readCache();
     const results = devices.map((d) => cache[d.id] || { ports: [], error: '尚未查询', at: 0 });
     render(devices, results);
+    paintSortPrefs();          // v2.74：设置 › 排序 的右侧值与选中态
   });
+}
+
+const SORT_NAME = { free: '当前空闲', id: '按编号', fav: '收藏优先' };
+
+/** 设置 › 排序 的那一行 + 弹窗里的选中态（v2.74）。
+ *  🔴 唯一真源是 `#sort-by` 的 value：弹窗里那三颗按钮只改它、再派发 change，
+ *     自己**不存**一份。所以「按钮亮哪颗 / 列表怎么排 / 存进 cpk.sort 什么」
+ *     永远是同一个值，不存在两套状态互相覆盖。 */
+function paintSortPrefs() {
+  const cur = getSort();
+  document.querySelectorAll('#sort-group .skin-opt').forEach((b) => {
+    b.classList.toggle('on', b.dataset.sort === cur);
+  });
+  const val = $('set-sort-val');
+  if (val) val.textContent = SORT_NAME[cur] || SORT_NAME.free;
+}
+
+/** 设置里的「校区」「排序」两个子弹窗（v2.74）。
+ *  与皮肤 / 字体那两个 pickGroup 分开写：它们只改本机显示，这两个会**重排整个列表**
+ *  （校区还会触发一次查询），副作用不同，不该塞进同一个通用绑定里。 */
+function bindCampusSortPrefs() {
+  const cg = $('campus-group');
+  if (cg) {
+    cg.addEventListener('click', (e) => {
+      const btn = e.target.closest('.skin-opt');
+      if (!btn) return;
+      const id = btn.getAttribute('data-campus');
+      if (!CAMPUS_PREFIX[id]) return;
+      /* setCampus 内部早退（点的就是当前校区）→ 这里仍重画一次，保证选中态同步 */
+      setCampus(id);
+      paintCampusPrefs();
+    });
+  }
+  const sg = $('sort-group');
+  if (sg) {
+    sg.addEventListener('click', (e) => {
+      const btn = e.target.closest('.skin-opt');
+      if (!btn) return;
+      const want = btn.getAttribute('data-sort');
+      if (!SORT_NAME[want]) return;
+      const sel = $('sort-by');
+      if (!sel) return;
+      sel.value = want;
+      sel.dispatchEvent(new Event('change'));   // 存盘 + 重绘都复用 bindToolbar 那条
+      paintSortPrefs();
+    });
+  }
+  paintSortPrefs();
+  paintCampusPrefs();
 }
 
 // 前台自动更新开关（主页卡片 + 设置弹窗里的 checkbox 状态互通）
@@ -8535,8 +8735,13 @@ const CHANGELOG = [
     /* v2.72 往这条「正在更新」的区间里加了北院 —— 按规矩同一话题只写一条，
        所以「校区胶囊」和「北院 57 台」合成一条，别再拆成两条各说一遍。 */
     '站里多了「本部北院」的 57 台：就在南二环校区体育馆北边那片停车场，按现场图排了 7 排（桩号 B1-01 ～ B7-09）。'
-      + '首页最左边那颗「全部」换成了**校区下拉**：渭水 / 北院 / 雁塔 / 小寨，选哪个校区就只看哪个校区的桩'
+      + '首页最左边那颗胶囊现在管**校区**：渭水 / 北院 / 雁塔 / 小寨，选哪个校区就只看哪个校区的桩'
       + '（雁塔、小寨目前还没接机器，点进去会说明一句）。地图弹窗里也多一颗「北院」，能看这 57 台在停车场里的分布',
+    /* v2.74：顶部精简 + 设置里补两个入口。和上面「校区」是同一件事的两半，
+       所以紧跟在这一条后面写，别另开一段「界面优化」。 */
+    '顶部那排筛选短了：地址里不再有「全部」那颗，进来就落在本校区第一个地址上，想看别处点一下就行；'
+      + '排序从顶部搬进了「设置 › 排序」（当前空闲 / 按编号 / 收藏优先），「设置」里还多了一行「校区」，'
+      + '换校区不必再回首页顶部。一个校区有五个地址时，右边会淡出提示「还能往左划」',
     '设置里新增「扫码采设备号」：对着桩身上的二维码一扫就提出编号，自动去重，绿边是站里已接入的、琥珀边是还没接入的，一键复制全部——加新桩不用再对着二维码手抄。'
       + '（手机请用浏览器打开本站；电脑要在地址栏左侧允许摄像头；光线暗时点右上角那颗闪电开闪光灯，iPhone 的浏览器不支持）'
   ] },
@@ -8673,6 +8878,8 @@ const SET_ENTRIES = [
      在不可见子树里，个别浏览器不给播放；onOpen 在 showModal **前**触发，
      所以这里用 80ms 的 setTimeout 隔开。 */
   { btn: 'set-scan-btn', dlg: 'dlg-scan', onOpen: () => { scanResetSession(); setTimeout(scanStart, 80); } },
+  { btn: 'set-campus-btn', dlg: 'dlg-campus' },
+  { btn: 'set-sort-btn', dlg: 'dlg-sort' },
   { btn: 'set-view-btn', dlg: 'dlg-view' },
   { btn: 'set-skin-btn', dlg: 'dlg-skin' },
   { btn: 'set-font-btn', dlg: 'dlg-font' },
@@ -9629,6 +9836,7 @@ async function boot() {
   bindViewPrefs();
   bindSkinPrefs();
   bindFontPrefs();
+  bindCampusSortPrefs();
   bindAutoToggle();
   applyAutoRefresh();
 

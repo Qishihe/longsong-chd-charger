@@ -248,7 +248,11 @@
 /* v168 → v169（2026-11-02 v2.73）：北院那 57 个落点**重算了一遍**（位置没挪到对的地方：
    第一版压到求是路西侧运动场，第二版铺得比停车场还宽）。`map-amap.js` 的 `BY_GEO`
    与 `map-data.js` 的 `line` 都变了 → 两个 `?v=` 各 +1，壳跟着换。 */
-const CACHE = 'campus-pile-v169';
+/* v169 → v170（2026-11-02 v2.74）：顶部精简与设置补位，**壳必须换**。
+   `index.html` 改了（地址胶囊去掉「全部」、排序搬进设置、新增校区/排序两个子弹窗、
+   地址胶囊两端渐隐），`map-amap.js` 也改了（limitBounds 跟着视图走 —— 之前一进北院，
+   轻轻拖一下就被高德拽回渭水）。两个 `?v=` 各 +1。 */
+const CACHE = 'campus-pile-v170';
 const SHELL = [
   './',
   './index.html',
@@ -277,7 +281,7 @@ const SHELL = [
      `mapAreaOf()` 与 `arcArea` 落到**同一个兜底值**，判据恒真，
      朝晖弧于是多画 20号楼(E-*) 与物流(W-*) 的桩（74 个点、24 个重合槽）✗
      （修好后应为 38 个节点 = 36 点 + 2 弧线） */
-  './map-data.js?v=168',
+  './map-data.js?v=169',
 ];
 
 self.addEventListener('install', (event) => {

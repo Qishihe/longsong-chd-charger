@@ -197,15 +197,26 @@ def parse_geometry():
         'E': geo_table('E_GEO'),
         'W': geo_table('W_GEO'),
         'Z': geo_table('Z_GEO'),
+        # 2026-11-02 v2.72：北院停车场（57 个点，7 排）。它和 E/W/Z 不同 ——
+        # 桩号是 `B<排>-<序号>`，要先按 rows 换算成一维下标，见 by_seq()。
+        'B': geo_table('BY_GEO'),
     }
 
-    # LINE_AREAS：location → prefix（前缀决定用哪张表）
+    # LINE_AREAS：location → (prefix, rows)。rows 只有「二维分区」才有（目前只有北院），
+    # 表示每排的点数；一维分区是 None。
     line_areas = {}
     lm = re.search(r'var LINE_AREAS = \[', text)
     if not lm:
         die('map-amap.js 里找不到 LINE_AREAS')
-    for entry in re.finditer(r"loc:\s*'([^']+)'[^}]*?prefix:\s*'([A-Z])'", text[lm.end():]):
-        line_areas.setdefault(entry.group(1), entry.group(2))
+    for chunk in _brace_block(text, lm.end() - 1, '[', ']').split('{')[1:]:
+        loc_m = re.search(r"loc:\s*'([^']+)'", chunk)
+        pre_m = re.search(r"prefix:\s*'([A-Z])'", chunk)
+        row_m = re.search(r'rows:\s*\[([\d,\s]+)\]', chunk)
+        if loc_m and pre_m:
+            line_areas.setdefault(loc_m.group(1), (
+                pre_m.group(1),
+                [int(x) for x in re.findall(r'\d+', row_m.group(1))] if row_m else None,
+            ))
 
     # `rot: 16.7 * Math.PI / 180` —— _numbers 只能抽到 16.7，这里换算成弧度
     bm['rot'] = bm['rot'] * math.pi / 180.0
@@ -259,6 +270,23 @@ def line_seq(code, prefix):
     return int(m.group(1)) if m else 0
 
 
+def by_seq(code, rows):
+    """二维分区（北院）的桩号 → 一维下标（1 起算）：'B3-05' → 21、'B7-09' → 57。
+
+    镜像 `map-amap.js` 的 `bySeq()`。行优先：前面各排点数之和 + 本排列号。
+    认不出（排/列越界）返回 0，交给 build() 里的「补空位」分支。
+    """
+    s = str(code or '').upper().replace(' ', '')
+    m = re.match(r'B[-\u2010\u2011\u2012\u2013\u2014\u2015\u2212]?(\d)'
+                 r'[-\u2010\u2011\u2012\u2013\u2014\u2015\u2212]?(\d{1,2})$', s)
+    if not m:
+        return 0
+    r, c = int(m.group(1)), int(m.group(2))
+    if r < 1 or r > len(rows) or c < 1 or c > rows[r - 1]:
+        return 0
+    return sum(rows[:r - 1]) + c
+
+
 def arc_seq(code, total):
     m = re.search(r'(\d+)(?!.*\d)', str(code or ''))
     if not m:
@@ -293,9 +321,9 @@ def build():
         bucket = used.setdefault(loc, set())
         lng = lat = None
         if loc in line_areas:
-            prefix = line_areas[loc]
+            prefix, rows = line_areas[loc]
             table = tables[prefix]
-            seq = line_seq(code, prefix)
+            seq = by_seq(code, rows) if rows else line_seq(code, prefix)
             if 1 <= seq <= len(table) and seq not in bucket:
                 lng, lat = table[seq - 1]
                 bucket.add(seq)

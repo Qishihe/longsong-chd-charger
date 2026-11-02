@@ -31,7 +31,22 @@ AREA_ORDER = [
     ('渭水-20号楼', 'b20', '20号楼'),
     ('渭水-物业服务中心', 'wuye', '物业服务中心'),
     ('渭水-住宅', 'zhu', '住宅'),
+    # 2026-11-02 v2.72：本部北院的停车场（57 台，B1-01~B7-09）。
+    # ⚠️ 它**只登记、不生成快照分区** —— 见下面的 NO_SNAPSHOT。
+    ('北院-体育馆北停车场', 'beiyuan', '体育馆北停车场'),
 ]
+
+# 「登记在册、但这一版**还不进快照分区**」的 location。
+#
+# 为什么要有这么一张表：`partitions.mjs` 的 areas 顺序**就是 cron 分钟的偏移顺序**，
+# 而免费版一个 Worker 只挂得下 5 条 cron —— 4 跳分区 + 1 跳统计早就用满了
+# （见 snapshot-worker/config.mjs 里 AREA_CRON_GROUPS 那段解释）。
+# 北院 57 台往任何一跳里硬塞，那一分钟的采样台数都会从 12~37 台跳到 70~95 台，
+# 平台那边大概率开始超时；而如果只加分区、不排 cron，统计每小时都会缺这一区，
+# 「一周回顾」的覆盖率会被打成 5/6 —— 比不收录更糟。
+# 所以这一版：**前台可见、可查、上图，但不进一周回顾**。
+# 以后要收录，把这里删掉 + 在 config.mjs 里重排 cron 分组（不是简单加一跳）。
+NO_SNAPSHOT = {'北院-体育馆北停车场'}
 
 SUBREQUEST_LIMIT = 50
 
@@ -86,6 +101,11 @@ def build():
 
     areas = []
     for loc, key, name in AREA_ORDER:
+        # 登记了但这一版不进快照分区的（北院 57 台）—— 跳过，别让它进 partitions.mjs。
+        # ⚠️ 跳过时**不校验有没有设备**：那个校验是给「分区有桩、但漏排了快照」用的，
+        #    这里本来就是故意不排。
+        if loc in NO_SNAPSHOT:
+            continue
         rows = [(i, s) for i, l, s in devices if l == loc]
         if not rows:
             sys.exit('分区「%s」一台设备都没有 —— 要么清单删了，要么 AREA_ORDER 写错了' % loc)

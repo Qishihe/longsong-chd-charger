@@ -226,13 +226,17 @@
    而前端把 429 当成「整批失败」→ 剩下上百台逐台标成「平台没响应」→ 触发 10 分钟冷却 +
    劝用户换网络。现在 429 单独认、退一步重试、只提示「同时查的人有点多」。
    改动全在 index.html 里 → 共享 js / 地图数据没变，`?v=` 不动，只换壳。 */
+/* v165 → v166（2026-11-02 v2.71）：扫码弹窗加闪光灯 —— 走库的
+   applyVideoConstraints({advanced:[{torch:true}]})，按钮挂在 .scan-stage 上，
+   按 getRunningTrackCapabilities().torch 决定显示（iOS Safari 不支持 → 藏起来）。
+   改动全在 index.html 里 → 共享 js / 地图数据没变，`?v=` 不动，只换壳。 */
 /* v164 → v165（2026-11-02 v2.70）：扫码弹窗的「摄像头打不开」是假警报 ——
    html5-qrcode 的 start() 成功后会把 #scan-reader 整个清空，而角标 hud 当时就在
    这个容器里，被一起抹掉；随后 .then 里 `$('scan-hud').hidden = false` 抛
    TypeError，又被紧邻的 .catch 当成摄像头失败显示出来（真错误被掩盖）。
    现在 hud/hint 移到容器外层的 .scan-stage 里，库再怎么清也碰不到。
    改动全在 index.html 里 → 共享 js / 地图数据没变，`?v=` 不动，只换壳。 */
-const CACHE = 'campus-pile-v165';
+const CACHE = 'campus-pile-v166';
 const SHELL = [
   './',
   './index.html',

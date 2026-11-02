@@ -471,6 +471,18 @@
     color:#fff; font-size:13px; white-space:nowrap}
   .scan-hud[hidden]{display:none}
   .scan-hud b{font-size:15px; margin:0 2px}
+  /* 闪光灯（v2.71）：只有支持 torch 约束的浏览器（安卓 Chrome 一类）才显示，
+     iOS Safari 至今不支持 → 默认 hidden，起流后按能力再亮。
+     z-index 要压过库自己塞的取景遮罩，且必须挂在 .scan-stage 上（不能进 #scan-reader）。 */
+  .scan-torch{position:absolute; top:10px; right:10px; z-index:4;
+    width:34px; height:34px; display:grid; place-items:center; padding:0;
+    border:1px solid rgba(255,255,255,.28); border-radius:999px;
+    background:rgba(10,14,20,.72); color:#fff; cursor:pointer;
+    -webkit-tap-highlight-color:transparent}
+  .scan-torch[hidden]{display:none}
+  .scan-torch svg{width:17px; height:17px}
+  .scan-torch[aria-pressed="true"]{background:rgba(240,176,32,.94);
+    border-color:rgba(255,224,150,.95); color:#1c1402}
   .scan-hint{position:absolute; bottom:10px; left:0; right:0; text-align:center;
     font-size:12px; color:rgba(255,255,255,.72); z-index:3; pointer-events:none}
   /* 已扫编号条：绿色边=站里已接入，琥珀边=还没接入（编号本身一样是等宽字体）。
@@ -1420,7 +1432,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.70</div>
+    <div id="app-ver" class="foot-ver">版本 v2.71</div>
   </footer>
 </div>
 
@@ -1726,6 +1738,12 @@
     <div class="scan-stage">
       <div class="scan-reader" id="scan-reader"></div>
       <div class="scan-hud" id="scan-hud" hidden>已扫 <b id="scan-count">0</b> 台</div>
+      <!-- 闪光灯按钮同样不能进 #scan-reader（见上方注释），默认隐藏等能力检测 -->
+      <button class="scan-torch" id="scan-torch" type="button" hidden
+              aria-label="闪光灯" aria-pressed="false" title="闪光灯">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.4 1.4 3.9 9.1h3.1l-.9 5.5 5.9-7.8H8.7l.7-5.4Z"
+          fill="currentColor" stroke="currentColor" stroke-width=".8" stroke-linejoin="round"/></svg>
+      </button>
       <div class="scan-hint">将二维码对准取景框，自动识别</div>
     </div>
     <div class="scan-chips" id="scan-chips" hidden></div>
@@ -8158,7 +8176,7 @@ const CHANGELOG = [
      只写用户看得见的变化：测试版入口、赞赏码措辞、密钥放哪、Worker/接口这类一律不进。 */
   { from: 'v2.70', d: '2026-11-02', items: [
     '设置里新增「扫码采设备号」：对着桩身上的二维码一扫就提出编号，自动去重，绿边是站里已接入的、琥珀边是还没接入的，一键复制全部——加新桩不用再对着二维码手抄。'
-      + '（手机请用浏览器打开本站；电脑要在地址栏左侧允许摄像头）'
+      + '（手机请用浏览器打开本站；电脑要在地址栏左侧允许摄像头；光线暗时点右上角那颗闪电开闪光灯，iPhone 的浏览器不支持）'
   ] },
   { v: 'v2.60 – v2.69', d: '2026-10-30 ~ 11-02', items: [
     '新增「住宅」8 台充电桩（Z-01~Z-08）：都在校园北侧尚苑路边的西区住宅小区，地图上沿路边排成一排；这批机器有 2 口、10 口、20 口的，卡片按实际口数铺格子'
@@ -8372,6 +8390,7 @@ function scanResetSession() {
   scanIds.length = 0;
   $('scan-count').textContent = '0';
   $('scan-hud').hidden = true;   // 重新开弹窗先不显示角标，摄像头起来后再亮
+  scanTorchReset();              // 闪光灯按钮也等这次起流的能力检测
   $('scan-chips').hidden = true;
   $('scan-chips').innerHTML = '';
   $('scan-note').className = 'note';
@@ -8444,10 +8463,71 @@ function scanClearReader() {
   $('scan-reader').innerHTML = '';
 }
 
+/* ── 闪光灯（v2.71）──────────────────────────────────────
+   走库的 applyVideoConstraints({advanced:[{torch:true}]})，不是自己去抓 track ——
+   库已经把 track 藏在 RenderedCamera 里，绕过它拿 track 反而容易拿错。
+   🔴 能力探测一定要做：iOS Safari 到今天都不支持 torch 约束，拿不到的就把按钮藏掉，
+      而不是给一个点了必然失败的按钮。也别指望「能不能 apply」当探测 —— 失败是异步的，
+      用户会先看到按钮再看到报错。 */
+let scanTorchOn = false;
+
+function scanTorchReset() {
+  scanTorchOn = false;
+  const b = $('scan-torch');
+  if (!b) return;
+  b.hidden = true;
+  b.disabled = false;
+  b.setAttribute('aria-pressed', 'false');
+}
+
+function scanTorchSupported() {
+  try {
+    const caps = scanScanner && scanScanner.getRunningTrackCapabilities();
+    return !!(caps && caps.torch);
+  } catch (e) {
+    return false;    // 少数浏览器这里直接抛，当不支持处理
+  }
+}
+
+function scanTorchShow(supported) {
+  const b = $('scan-torch');
+  if (!b) return;
+  b.hidden = !supported;
+  b.disabled = false;
+  b.setAttribute('aria-pressed', 'false');
+  scanTorchOn = false;
+}
+
+function scanTorchToggle() {
+  const s = scanScanner;
+  const btn = $('scan-torch');
+  if (!s || !btn || btn.disabled) return;
+  const next = !scanTorchOn;
+  btn.disabled = true;
+  /* 库在参数非法时会 throw 字符串（不是 Error），所以这里 String() 一下，
+     否则 catch 里拼文案又是一次 TypeError。 */
+  Promise.resolve()
+    .then(() => s.applyVideoConstraints({ advanced: [{ torch: next }] }))
+    .then(() => {
+      scanTorchOn = next;
+      if (btn.isConnected) {
+        btn.disabled = false;
+        btn.setAttribute('aria-pressed', next ? 'true' : 'false');
+      }
+    })
+    .catch((err) => {
+      scanTorchOn = false;
+      if (btn.isConnected) { btn.disabled = false; btn.hidden = true; }
+      showToast('这台设备开不了闪光灯', 1800);
+      console.warn('[scan] torch failed:', String((err && err.message) || err));
+    });
+}
+
 function scanStop() {
   const s = scanScanner;
   scanScanner = null;
   scanRunning = false;
+  scanTorchReset();   // 灯随流一起灭（流停了 torch 本来也会断，这里只管把按钮状态清掉）
   if (!s) { scanClearReader(); return; }
   s.stop().then(() => { try { s.clear(); } catch (e) {} scanClearReader(); })
     .catch(() => scanClearReader());
@@ -8488,6 +8568,7 @@ function scanStart() {
       if (!$('dlg-scan').open) { scanStop(); return; }
       const hud = $('scan-hud');
       if (hud) hud.hidden = false;   // 拿不到就只是少个角标，绝不能因此报「摄像头打不开」
+      scanTorchShow(scanTorchSupported());   // 有 torch 能力才亮闪光灯按钮
     }).catch((err) => {
       scanRunning = false;
       scanScanner = null;
@@ -8510,6 +8591,8 @@ $('dlg-scan').addEventListener('close', scanStop);
 $('scan-clear').addEventListener('click', () => {
   scanResetSession();
 });
+
+$('scan-torch').addEventListener('click', scanTorchToggle);
 
 $('scan-copy').addEventListener('click', () => {
   const text = scanIds.join('\n');

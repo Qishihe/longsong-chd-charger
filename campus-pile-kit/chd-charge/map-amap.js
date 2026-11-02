@@ -443,6 +443,68 @@
     return { w: w, e: e, s: s, n: n };
   }
 
+/** 首帧的活动范围 = 全部区块外接框 ∪ 两个校区的中心（再去掉 D.bounds 的死角）。
+ *  目的只有一条：mount 那一帧别把相机夹在渭水 —— 真正的范围由 applyLimitBounds 接手。 */
+  function mountLimitBounds() {
+    var w = D.bounds.west, e = D.bounds.east, s = D.bounds.south, n = D.bounds.north;
+    Object.keys(D.areas || {}).forEach(function (k) {
+      var a = D.areas[k];
+      if (!a || !a.line) return;
+      a.line.forEach(function (pt) {
+        w = Math.min(w, pt[0]); e = Math.max(e, pt[0]);
+        s = Math.min(s, pt[1]); n = Math.max(n, pt[1]);
+      });
+    });
+    if (D.campusCenter) {
+      w = Math.min(w, D.campusCenter[0]); e = Math.max(e, D.campusCenter[0]);
+      s = Math.min(s, D.campusCenter[1]); n = Math.max(n, D.campusCenter[1]);
+    }
+    var dx = Math.max((e - w) * 0.15, 0.002), dy = Math.max((n - s) * 0.15, 0.002);
+    return new AMap.Bounds([w - dx, s - dy], [e + dx, n + dy]);
+  }
+
+  /* 🔴 v2.74：相机活动范围（limitBounds）必须**跟着当前视图走**。
+   *
+   * 病灶：`new AMap.Map({ limitBounds })` 只在 mount 时按 `D.bounds` 设了一次，
+   *   而 `D.bounds` 是**渭水校区**的外接框。地图一切到 10 km 外的北院，
+   *   任何一次拖动都会被高德「拉回边界内」—— 它内部走 `panTo(渭水中心, 100)`，
+   *   用户看到的就是「轻轻一拖就跑到渭水」，而且再拖也回不来（相机被夹在框外）。
+   *   实测（CDP 合成一次 40px 拖动）：center 从 [108.95858, 34.23394] 直接变成
+   *   [108.914059, 34.364584]、zoom 不变，正是渭水那一片。
+   *
+   * 现在的口径：范围 = 当前视图的分区框 ∪ 当前这批桩的实际位置，四周各外扩一个跨度
+   *   （北院 ±100m 出头、渭水 ±1km），既留出看周边的余地，也不至于把地图拖丢。
+   *   ⚠️ 只在**取景之后**调用：相机还在渭水时先设北院的框，会被高德当场拽过去
+   *      再被 fitBBox 拉回来，白闪一下。
+   */
+  function viewBBox() {
+    var b = null;
+    if (curView && curView !== 'campus') {
+      var ab = areaBBox(curView);
+      if (ab) b = { w: ab.w, e: ab.e, s: ab.s, n: ab.n };
+    }
+    piles.forEach(function (p) {
+      var q = PIN_POS[p.id];
+      if (!q) return;
+      if (!b) { b = { w: q[0], e: q[0], s: q[1], n: q[1] }; return; }
+      b.w = Math.min(b.w, q[0]); b.e = Math.max(b.e, q[0]);
+      b.s = Math.min(b.s, q[1]); b.n = Math.max(b.n, q[1]);
+    });
+    return b;
+  }
+
+  function applyLimitBounds() {
+    if (!map || typeof map.setLimitBounds !== 'function') return;
+    var b = viewBBox();
+    if (!b) return;
+    /* 外扩量：至少给 0.0015°（约 130m 纬向），否则单点/单排视角会被夹得动不了 */
+    var dx = Math.max(b.e - b.w, 0.0015);
+    var dy = Math.max(b.n - b.s, 0.0015);
+    try {
+      map.setLimitBounds(new AMap.Bounds([b.w - dx, b.s - dy], [b.e + dx, b.n + dy]));
+    } catch (e) { /* 老版本没有 setLimitBounds 就算了，别让相机整段挂掉 */ }
+  }
+
   function unionBBox(boxes) {
     var w = Infinity, e = -Infinity, s = Infinity, n = -Infinity;
     boxes.forEach(function (b) {
@@ -1201,10 +1263,10 @@
             //   ⚠️ 楼名可能与我们自己画的 campus-label 重复；若看着重影，
             //      把 features 收成 ['bg', 'road'] 即只留路名（一个词的改动）。
             features: ['bg', 'road', 'building'],
-            limitBounds: new AMap.Bounds(
-              [D.bounds.west, D.bounds.south],
-              [D.bounds.east, D.bounds.north]
-            ),
+            /* 🔴 v2.74：这里只是**首帧兜底**（马上会被 applyLimitBounds 换成
+               当前视图的框）。以前写的是 `D.bounds`（渭水），配合 mount 后
+               不再更新，等于一进北院就被夹住 —— 见 applyLimitBounds 的说明。 */
+            limitBounds: mountLimitBounds(),
             showLabel: true,
           });
         } catch (e) {
@@ -1270,7 +1332,7 @@
       rebuildClusters();
       syncLayers();
       // opts2.keepCamera：刷新数据时别把用户正在看的视角拉回全景
-      if (!(opts2 && opts2.keepCamera)) applyCamera();
+      if (!(opts2 && opts2.keepCamera)) { applyCamera(); applyLimitBounds(); }
       notifyView();          // 数量变了（keepCamera 那条路不会走 applyCamera）
     },
 
@@ -1282,7 +1344,7 @@
        * 给「首帧飞入」和「卡片定位」用 —— 页面在 onReady 里紧跟的那次
        * setPiles/setView 如果照默认走 applyCamera，会把刚起的飞入动画一把拽到终点，
        * 用户看到的就还是「瞬移到位」。 */
-      if (!(opts2 && opts2.keepCamera)) applyCamera();
+      if (!(opts2 && opts2.keepCamera)) { applyCamera(); applyLimitBounds(); }
       notifyView();
     },
 

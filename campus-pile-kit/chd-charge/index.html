@@ -382,7 +382,36 @@
      骨架卡也在 #cards 里 → 开两列时占位卡同步变两列，不会闪一换单列。
      插座格仍是 4 列（列数由内联 style 给，两列卡照常生效），
      只是格子高度/字号缩一号 —— 390px 屏两列卡约 170px 宽，4 格还能写下「空闲/占用」。 */
-  #cards.two-col{display:grid; grid-template-columns:repeat(2,1fr); gap:10px; align-items:start}
+  /* 🔴 v2.75：两列的轨道必须写 `minmax(0,1fr)`，不能写 `1fr`。
+     `1fr` 的最小宽度是 minmax(auto,1fr) —— 也就是**内容的 min-content**，
+     而卡片地址行 `.loc` 是 `white-space:nowrap`（min-content = 整行字宽）。
+     北院地址「本部北院 · 体育馆北停车场」把每列撑到 238px，两列 476 > 容器 452，
+     整页横向溢出 21px（渭水地址短，只有 5~7 个字，所以一直没暴露）。
+     轨道放开后卡片才真的按 1fr 平分，地址行由既有的 ellipsis 收尾。 */
+  #cards.two-col{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; align-items:start}
+  /* grid item 默认 min-width:auto，同样会顶着内容宽不收缩 —— 与轨道那条是两码事，
+     两条都要有，少一条仍会溢出。 */
+  #cards.two-col .card{min-width:0}
+  /* 双列时地址行放宽到两行。单列 390px 下标题块还有 300px 富余，一行够；
+     双列只剩 80px（右上是定位图标 + 收藏星标，共 60px），一行只能露「北院 · 体…」，
+     地址里真正有用的后半截全被切掉。两个校区各有一个「体育馆」，切掉的正好是区分点。
+     🔴 仍然**不放开成任意多行**：只给 2 行 + line-clamp，最多让卡片高 18px；
+        不限制的话「西区住宅小区 · 3 号楼东侧」这类长地址会折三行，双列卡片高低参差。 */
+  #cards.two-col .loc{
+    white-space:normal; display:-webkit-box; -webkit-box-orient:vertical;
+    -webkit-line-clamp:2; line-clamp:2; line-height:1.34;
+  }
+  /* 🔴 双列在 ≤349px 上自动退回单列（v2.75）。
+     320px 时一列只剩 141px，扣掉 padding 和右上的「定位 + 收藏」两个按钮，
+     标题块只有 61px —— 连「B1-01 号桩」都要折成「B1-01 / 号桩」两行，
+     地址更只剩「北院 · 体育…」。这不叫紧凑，是压碎。
+     420 / 390 / 375 都还站得住（标题块 84px 以上），所以只掐到 349 以下。
+     ⚠️ 这条 @media 必须写在上面的 `#cards.two-col` 规则**之后**（同权重靠顺序决胜）。 */
+  @media (max-width:349px){
+    #cards.two-col{grid-template-columns:1fr}
+    /* 回到单列的卡片内边距，别留着双列那套 12px 显得局促 */
+    #cards.two-col .card{padding:14px 15px}
+  }
   #cards.two-col .card{margin-bottom:0; padding:12px}
   #cards.two-col .card h2{font-size:13px}
   #cards.two-col .dots{gap:5px; margin:10px 0 8px}
@@ -1471,7 +1500,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.74</div>
+    <div id="app-ver" class="foot-ver">版本 v2.75</div>
   </footer>
 </div>
 
@@ -4184,10 +4213,13 @@ function shortAddrLabel(loc) {
  * ⚠️ 键要过 `normKey()`（U+2011 等变体连字符，见 normKey 的说明）。 */
 const ADDR_FULL_LABEL = {
   '渭水-住宅': '西区住宅小区',
-  /* v2.72：北院这批的卡片地址行**要把校区写出来** —— 「体育馆北停车场」这五个字
-     在南二环和渭水各有一个，用户一眼分不清是哪边的。胶囊上仍然是短的
-     （那排左边已经有校区胶囊，右边再写一遍纯属重复）。 */
-  '北院-体育馆北停车场': '本部北院 · 体育馆北停车场',
+  /* 北院**不在这张表里**（v2.75）。`cardAddrLabel()` 找不到映射就走 `shortAddrLabel()`，
+     那条会把 `北院-` 前缀去掉 → 卡片地址行就是「体育馆北停车场」。
+     历史：v2.72 曾写「本部北院 · 体育馆北停车场」，理由是怕和渭水的同名场地混；
+     v2.75 缩短成「北院 · …」，仍嫌长 —— 双列时那一行只有 84~197px，
+     「北院 · 」四个字把「停车场」挤进省略号。产品方定稿：**只写场地名**，
+     校区由顶部那颗胶囊承担（列表本来就是按校区筛的，卡片上不会混进别的校区）。
+     🔴 以后要给某个地址起「卡片专用长名」，往这张表里加；不加就是场地短名。 */
 };
 
 function cardAddrLabel(loc) {
@@ -8743,7 +8775,10 @@ const CHANGELOG = [
       + '排序从顶部搬进了「设置 › 排序」（当前空闲 / 按编号 / 收藏优先），「设置」里还多了一行「校区」，'
       + '换校区不必再回首页顶部。一个校区有五个地址时，右边会淡出提示「还能往左划」',
     '设置里新增「扫码采设备号」：对着桩身上的二维码一扫就提出编号，自动去重，绿边是站里已接入的、琥珀边是还没接入的，一键复制全部——加新桩不用再对着二维码手抄。'
-      + '（手机请用浏览器打开本站；电脑要在地址栏左侧允许摄像头；光线暗时点右上角那颗闪电开闪光灯，iPhone 的浏览器不支持）'
+      + '（手机请用浏览器打开本站；电脑要在地址栏左侧允许摄像头；光线暗时点右上角那颗闪电开闪光灯，iPhone 的浏览器不支持）',
+    /* v2.75：双列布局修复 + 北院地址行简化。用户看得见的两处，合成一条。 */
+    '「一行两桩」时北院那 57 台会把列表顶出屏幕右边，已经修好；顺带把北院的卡片地址简化成「体育馆北停车场」——'
+      + '校区在上面那颗胶囊里写着，卡片上不必再重复一遍'
   ] },
   { v: 'v2.60 – v2.69', d: '2026-10-30 ~ 11-02', items: [
     '新增「住宅」8 台充电桩（Z-01~Z-08）：都在校园北侧尚苑路边的西区住宅小区，地图上沿路边排成一排；这批机器有 2 口、10 口、20 口的，卡片按实际口数铺格子'

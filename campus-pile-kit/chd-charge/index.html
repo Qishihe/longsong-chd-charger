@@ -535,6 +535,17 @@
     min-height:38px; flex:none; cursor:pointer;
   }
   .loc-pill.on{background:var(--accent,var(--free)); border-color:var(--accent,var(--free)); color:var(--on-accent,#fff); font-weight:500}
+  /* 校区胶囊（v2.72）：这排最左边那颗，**不跟着横滑走**（flex:none 且在 .loc-pills 外面），
+     否则往右划两下校区就不知去向了。下拉气泡对齐左边 —— 它贴着屏幕左沿，
+     用 .rv-bubble 默认的 right:0 会往左溢出屏幕。 */
+  .loc-campus{position:relative; flex:none}
+  .loc-campus .rv-bubble{left:0; right:auto; min-width:104px}
+  .campus-pill{
+    display:inline-flex; align-items:center; gap:4px;
+    background:var(--free-soft); border-color:var(--free-line); color:var(--free-deep); font-weight:500;
+  }
+  .campus-pill svg{flex:none; transition:transform .15s}
+  .campus-pill[aria-expanded="true"] svg{transform:rotate(180deg)}
   .toolbar select{
     flex:none; font:inherit; font-size:13px; padding:9px 26px 9px 10px;
     border:1px solid var(--line-strong); border-radius:10px;
@@ -780,6 +791,12 @@
      线上 A/B 实测（CDP 注入，未发版）：CLS 0.3066/0.3912 → 0.0407，两次结果一致。
      代价：设备很少时列表下方会有一段空白，可接受（本项目稳定 73 台）。 */
   #cards{min-height:100vh}
+  /* v2.72：校区分档会出现「一台桩都没有」的清单（雁塔 / 小寨）。
+     那时 #cards 是空的，`min-height:100vh` 会把空状态提示顶到**一屏之外**，
+     用户看到的是一片空白 —— 所以空的时候整块藏掉，让提示紧跟工具栏。
+     ⚠️ 必须显式写 `[hidden]` 这条：下面 `.two-col` 会把 #cards 变成 grid，
+        单纯靠 `hidden` 属性在 grid 布局里不一定压得住。 */
+  #cards[hidden]{display:none}
 
   footer{margin-top:22px; font-size:11.5px; color:var(--hint); text-align:center; line-height:1.7}
   .foot-contact{padding-top:14px; border-top:1px solid var(--line)}
@@ -1400,6 +1417,21 @@
           只是内部改成驱动 `#stat-free` / `#s-free` / `#s-free-sub`，不再碰 `#progress`。 -->
 
   <div class="toolbar" id="toolbar" hidden>
+    <!-- 2026-11-02 v2.72：这一排最左边原来是颗「全部」，现在换成**校区下拉**
+         （产品方要求：渭水 / 北院 / 雁塔 / 小寨）。
+         两层筛选：左边这颗定校区（不带 data-loc，走自己的 data-campus 分支），
+         右边那排才是**当前校区的地址**，由 renderLocationFilter() 生成。
+         🔴 校区判定靠 location 前缀（`campusOfLocation`），不是设备上多存一个字段 ——
+            云端清单、本机旧数据、用户自己改的 @地址 都不用迁移。 -->
+    <div class="rv-pick loc-campus" id="loc-campus">
+      <button class="loc-pill campus-pill" id="loc-campus-btn" type="button"
+              aria-haspopup="listbox" aria-expanded="false" aria-controls="loc-campus-bubble"
+              aria-label="切换校区">
+        <span id="loc-campus-label">渭水</span>
+        <svg viewBox="0 0 10 6" width="10" height="6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="rv-bubble" id="loc-campus-bubble" role="listbox" aria-label="切换校区" hidden></div>
+    </div>
     <!-- 2026-10-30 v2.48：地址筛选从 <select> 下拉改成一行**左右滑动的胶囊**（产品方要求）。
          胶囊由 renderLocationFilter() 按设备清单自动生成，显示文案不带「渭水-」前缀；
          data-loc 仍存完整分区名，getFilter()/inFilterScope() 的口径一字不改。
@@ -1432,7 +1464,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.71</div>
+    <div id="app-ver" class="foot-ver">版本 v2.73</div>
   </footer>
 </div>
 
@@ -1473,6 +1505,10 @@
     <button class="map-tab" data-map="lou20" role="tab">20 号楼</button>
     <button class="map-tab" data-map="beimen" role="tab">北门</button>
     <button class="map-tab" data-map="chaohui" role="tab">朝晖</button>
+    <!-- v2.72：本部北院的停车场。**它和上面 6 颗不会同时出现** ——
+         `syncMapTabs()` 按 `campus` 藏页签（上面 6 颗是渭水、这颗是北院）。
+         文案只写「北院」：校区胶囊就在旁边写着「本部北院」，重复占宽度。 -->
+    <button class="map-tab" data-map="beiyuan" role="tab">北院</button>
   </div>
   <!-- 2026-10-30 v2.46：这里原来有一条“空闲数 / 已满 / 离线 / 点分区圈放大”图例，已删。
        圆点的颜色本身就把这套语义讲完了（绿=有空位、红=占满、灰=无数据），
@@ -2115,14 +2151,14 @@
         于是"其实没有数据"这件事被掩盖了 —— 判据两边都由同一个常量兜底时，
         它**永远不会为假**，也就等于没有判据。
      所以让数据**先于主脚本就位** ✓
-     `?v=165` 与下面 `loadScriptOnce('map-data.js?v=166')` **保持同一个 URL**，
+     `?v=165` 与下面 `loadScriptOnce('map-data.js?v=168')` **保持同一个 URL**，
      免得缓存出两份；那条懒加载链保留，作为"这个静态标签没加载成功"时的兜底
      （`ensureAMap()` 里已有 `window.CHD_MAP` 守卫，不会重复拉）。 -->
 <!-- 🔴 2026-10-25 加 `defer`：这个文件 39KB（gzip 10KB），走 Cloudflare 时单次
      跨境往返就要 1 秒左右 —— 不带 defer 会**阻塞 HTML 解析**，首屏白屏多等一秒。
      安全前提（已核对）：页面只在函数里读 `window.CHD_MAP`（mapAreaOf / buildScope /
      ensureAMap），没有任何顶层同步读；defer 在 DOMContentLoaded 之前执行完，赶得上 boot()。 -->
-<script src="map-data.js?v=166" defer fetchpriority="low"></script>
+<script src="map-data.js?v=168" defer fetchpriority="low"></script>
 <script>
 'use strict';
 
@@ -2313,7 +2349,7 @@ let CRED_MISSING = false;   // 已确认「这一轮拿不到凭证」（见 pai
 const KEY_DEVICES = 'cpk.devices';
 const KEY_DEVICES_SCHEMA = 'cpk.devices.schema';
 const KEY_DEVICES_TS = 'cpk.devices.ts';
-const DEVICE_SCHEMA = 7;   // 清单格式版本：2 = 支持「桩号 名称 @地址」+ 任意编号前缀
+const DEVICE_SCHEMA = 8;   // 清单格式版本：2 = 支持「桩号 名称 @地址」+ 任意编号前缀
 /* schema 3（2026-10-21）= 「**新增分区要能自动补进老浏览器**」。
  * schema 4（2026-10-21）= 再加一个分区（当时的名字是「物流服务中心」）。
  * schema 5（2026-10-24）= 该分区**改名**「物流服务中心」→「物业服务中心」。
@@ -2349,6 +2385,11 @@ const SCHEMA_ADDED_LOCATIONS = {
   /* 7（2026-10-31 v2.64）= 住宅那 8 台**换地址 + 改桩号**（不新增设备）。
      8 台全在校内（尚苑路南侧的西区住宅小区），桩号按机号重排成 Z-01~Z-08。 */
   7: ['渭水-住宅'],
+  /* 8（2026-11-02 v2.72）= 新增「北院-体育馆北停车场」57 台（校本部北院，
+     B1-01~B7-09）。这是**第一个不在渭水校区的分区** —— 它同时带来首页那颗
+     校区胶囊（渭水/北院/雁塔/小寨），见 `CAMPUSES` / `campusOf()`。
+     ⚠️ 老浏览器不升到 8 就永远只有 117 台：迁移分支只补「本版新增分区」的桩。 */
+  8: ['北院-体育馆北停车场'],
 };
 
 /* 桩号**改名**表：{ schema 版本: { 设备 id(大写): 新桩号 } }。
@@ -2602,6 +2643,88 @@ const DEFAULT_DEVICES = [
   { id: '860048071219040', src: 'lvcc', portCount: 2,  code: 'Z-06', name: '渭水校区 Z-06 号桩', location: '渭水-住宅' },
   { id: '862289058733268', src: 'lvcc', portCount: 10, code: 'Z-07', name: '渭水校区 Z-07 号桩', location: '渭水-住宅' },
   { id: '862289058759602', src: 'lvcc', portCount: 10, code: 'Z-08', name: '渭水校区 Z-08 号桩', location: '渭水-住宅' },
+
+  /* ═══ 2026-11-02 v2.72：新增「北院-体育馆北停车场」57 台（校本部北院）═══
+   *
+   * 清单来源：产品方给的《本部北院2.txt》+ 一张手绘图。图上是一条路边的停车场，
+   * 横着排了 ①~⑦ 七排，每排 8 台；第 7 排写了 10 行，其中 `XLA80065` 连写两遍
+   * （产品方确认是同一台写重了）→ **按 9 台算**。8×6 + 9 = **57 台**。
+   *
+   * `location` 用「**北院-**」前缀，与渭水那批「渭水-」同一个规矩 ——
+   *   🔴 校区判定完全靠这个前缀（见 `campusOf()` / `CAMPUS_PREFIX`）：
+   *      首页那颗校区胶囊（渭水/北院/雁塔/小寨）就是拿它把清单切成几堆的，
+   *      写错前缀 = 这台在界面上人间蒸发（哪个校区都不显示）。
+   *   地址只有一个（产品方 2026-11-02 定的）：北院就不拆成 7 个地址，
+   *      排号只体现在桩号里（B1-01 = 1 排 1 号）和地图上的位置。
+   *
+   * 桩号 `B<排>-<序号>`：与 `map-amap.js` 的 `BY_GEO`（7 排固定点）和
+   *   `LINE_AREAS` 里那条 `rows:[8,8,8,8,8,8,9]` 一一对应 —— 改编号必须同步改那两处，
+   *   否则落点会整排错位（`lineSeqAny()` 认不出就退到「按顺序补空位」）。
+   *
+   * `id` 全是 XLA 开头 = **住芒平台**，和渭水那 109 台同源，所以不写 `src`
+   *   （缺省就是住芒），也不需要新增适配器。
+   *
+   * ⚠️ 这 57 台**还没有进快照分区**（`gen_snapshot_partitions.py` 的 AREA_ORDER
+   *   登记了但标了 `in_snapshot=False`）：免费版一个 Worker 只挂得下 5 条 cron，
+   *   4 跳分区 + 1 跳统计早就满了，硬塞第 6 个区会把「一周回顾」的覆盖率打成 5/6。
+   *   等重排完 cron 分组再放进来（见该文件的注释）。 */
+{ id: 'XLA69119', code: 'B1-01', name: '北院 B1-01 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA81876', code: 'B1-02', name: '北院 B1-02 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA35478', code: 'B1-03', name: '北院 B1-03 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA83752', code: 'B1-04', name: '北院 B1-04 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA31765', code: 'B1-05', name: '北院 B1-05 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA83567', code: 'B1-06', name: '北院 B1-06 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA83760', code: 'B1-07', name: '北院 B1-07 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA83833', code: 'B1-08', name: '北院 B1-08 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA69090', code: 'B2-01', name: '北院 B2-01 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA83727', code: 'B2-02', name: '北院 B2-02 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA36112', code: 'B2-03', name: '北院 B2-03 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA83648', code: 'B2-04', name: '北院 B2-04 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA83725', code: 'B2-05', name: '北院 B2-05 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA81873', code: 'B2-06', name: '北院 B2-06 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA80270', code: 'B2-07', name: '北院 B2-07 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA69107', code: 'B2-08', name: '北院 B2-08 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA83560', code: 'B3-01', name: '北院 B3-01 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA35352', code: 'B3-02', name: '北院 B3-02 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA35419', code: 'B3-03', name: '北院 B3-03 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA81871', code: 'B3-04', name: '北院 B3-04 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA83589', code: 'B3-05', name: '北院 B3-05 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA83819', code: 'B3-06', name: '北院 B3-06 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA81837', code: 'B3-07', name: '北院 B3-07 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA36083', code: 'B3-08', name: '北院 B3-08 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA83627', code: 'B4-01', name: '北院 B4-01 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA83557', code: 'B4-02', name: '北院 B4-02 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA83643', code: 'B4-03', name: '北院 B4-03 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA35663', code: 'B4-04', name: '北院 B4-04 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA81866', code: 'B4-05', name: '北院 B4-05 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA83519', code: 'B4-06', name: '北院 B4-06 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA81880', code: 'B4-07', name: '北院 B4-07 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA36095', code: 'B4-08', name: '北院 B4-08 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA81865', code: 'B5-01', name: '北院 B5-01 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA36102', code: 'B5-02', name: '北院 B5-02 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA81845', code: 'B5-03', name: '北院 B5-03 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA81827', code: 'B5-04', name: '北院 B5-04 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA81879', code: 'B5-05', name: '北院 B5-05 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA81825', code: 'B5-06', name: '北院 B5-06 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA35386', code: 'B5-07', name: '北院 B5-07 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA35376', code: 'B5-08', name: '北院 B5-08 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA83642', code: 'B6-01', name: '北院 B6-01 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA83565', code: 'B6-02', name: '北院 B6-02 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA83585', code: 'B6-03', name: '北院 B6-03 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA31825', code: 'B6-04', name: '北院 B6-04 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA83498', code: 'B6-05', name: '北院 B6-05 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA81854', code: 'B6-06', name: '北院 B6-06 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA83457', code: 'B6-07', name: '北院 B6-07 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA83545', code: 'B6-08', name: '北院 B6-08 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA81872', code: 'B7-01', name: '北院 B7-01 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA83538', code: 'B7-02', name: '北院 B7-02 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA83675', code: 'B7-03', name: '北院 B7-03 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA80268', code: 'B7-04', name: '北院 B7-04 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA81877', code: 'B7-05', name: '北院 B7-05 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA83646', code: 'B7-06', name: '北院 B7-06 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA31751', code: 'B7-07', name: '北院 B7-07 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA81843', code: 'B7-08', name: '北院 B7-08 号桩', location: '北院-体育馆北停车场' },
+  { id: 'XLA80065', code: 'B7-09', name: '北院 B7-09 号桩', location: '北院-体育馆北停车场' },
 ];
 
 const $ = (id) => document.getElementById(id);
@@ -2885,6 +3008,57 @@ function isFav(deviceId) {
   return getFavs().includes(String(deviceId).toUpperCase());
 }
 
+/* ---------- 校区（2026-11-02 v2.72） ----------
+ *
+ * 首页地址胶囊行最左边那颗「全部」换成了**校区下拉**（产品方要求）：
+ * 一层选校区、一层选地址。判定完全靠 `location` 的前缀 ——
+ *   「渭水-朝晖体育场南」→ 渭水，「北院-体育馆北停车场」→ 北院。
+ *
+ * 🔴 为什么用前缀而不给设备加一个 `campus` 字段：
+ *   清单有三份（仓库默认、本机 `cpk.devices`、云端共享），多一个字段就多三处要一起迁移；
+ *   而 `location` 本来就是「分区名」，前缀是它自带的语义。加了字段反而会出现
+ *   「字段说北院、地址写着渭水」这种自相矛盾的状态。
+ *   ⚠️ 代价：**新校区的 location 必须带对前缀**，否则那台在界面上哪个校区都不显示。
+ *
+ * 四个校区里雁塔、小寨目前一台设备都没有 —— 产品方要求先留在下拉里占位，
+ * 选中时列表给一句「暂无设备」，而不是把选项藏起来（藏起来用户会以为是漏了）。 */
+const KEY_CAMPUS = 'cpk.campus';
+const CAMPUS_PREFIX = { weishui: '渭水', beiyuan: '北院', yanta: '雁塔', xiaozhai: '小寨' };
+const CAMPUSES = [
+  { id: 'weishui', name: '渭水校区', short: '渭水' },
+  { id: 'beiyuan', name: '本部北院', short: '北院' },
+  { id: 'yanta', name: '雁塔校区', short: '雁塔' },
+  { id: 'xiaozhai', name: '小寨校区', short: '小寨' },
+];
+
+/** 分区名 → 校区 id；认不出前缀返回空串（调用方自己决定兜底）。 */
+function campusOfLocation(loc) {
+  const v = normKey(String(loc || '').trim());
+  if (!v) return '';
+  for (const id in CAMPUS_PREFIX) {
+    if (v.indexOf(normKey(CAMPUS_PREFIX[id])) === 0) return id;
+  }
+  return '';
+}
+
+/** 设备 → 校区 id。
+ *  ⚠️ 认不出前缀（用户在「设备与设置」里手写了个 `@某某停车场`）一律算**渭水** ——
+ *     宁可放错校区也不要静默丢桩：默认校区就是渭水，这台上线就看得见。 */
+function campusOfDevice(device) {
+  return campusOfLocation(device && device.location) || 'weishui';
+}
+
+function getCampus() {
+  const raw = String(store.get(KEY_CAMPUS, '') || '');
+  return CAMPUS_PREFIX[raw] ? raw : 'weishui';
+}
+
+function campusName(id, short) {
+  const c = CAMPUSES.find((x) => x.id === id);
+  if (!c) return '';
+  return short ? c.short : c.name;
+}
+
 function getFilter() {
   const raw = store.get(KEY_FILTER, '') || '';
   /* v2.23：存量筛选值可能是**旧分区名**（渭水-物流服务中心）或带 U+2011 变体。
@@ -2908,6 +3082,11 @@ function getFilter() {
  *   · 两侧都过 normKey()（U+2010~U+2015、U+2212 → `-`，见 normKey 的说明）；
  *   · 兼容旧版存下来的筛选值（如「朝晖体育场南充电桩」）：去「渭水-」前缀后做包含匹配。 */
 function inFilterScope(device, filter) {
+  /* 校区是**硬范围**（2026-11-02 v2.72）：先过校区，再过地址。
+     放在这里而不是每个调用点各判一次 —— 列表过滤和刷新范围必须是同一套规则
+     （见下面那段「筛选判定的唯一真源」），在这里加一行，两处同时生效。 */
+  if (!device) return false;
+  if (campusOfDevice(device) !== getCampus()) return false;
   const f = filter === undefined ? getFilter() : filter;
   if (!f) return true;
   const want = normKey(String(f).trim());
@@ -2948,10 +3127,12 @@ function applyFilterSort(devices, results, cache) {
   // 1. 先按位置筛选
   let idx = devices.map((d, i) => ({ d, r: results[i] || c[d.id], i }));
 
-  if (filter) {
-    // 判定统一走 inFilterScope()：刷新范围与列表过滤必须是同一套规则（见该函数的说明）
-    idx = idx.filter((item) => inFilterScope(item.d, filter));
-  }
+  /* 🔴 v2.72：**不能**再用 `if (filter)` 短路了。
+     校区是「硬范围」，而地址筛选为空（「全部」）恰恰是最常见的一档 ——
+     短路掉的话，切到北院、地址停在「全部」时，174 张卡会一张不少地全列出来
+     （验收脚本 `_check_campus72.mjs` 抓到过：胶囊变了、列表没变）。
+     现在无条件过一遍；174 台的字符串归一化开销远小于一次渲染。 */
+  idx = idx.filter((item) => inFilterScope(item.d, filter));
 
   // 2. 排序
   const freeOf = (rec) => {
@@ -3554,19 +3735,79 @@ const CRED_HINT = '凭证还没接上，下面是最后一次查到的结果 · 
 function renderLocationFilter(devices) {
   const box = $('loc-pills');
   if (!box) return;
+  /* v2.72：只列**当前校区**的地址。校区胶囊已经写了「北院」，右边再摆一排渭水的
+     分区名，点下去就跨校区了 —— 两层筛选必须各自只讲自己那一层。 */
+  const campus = getCampus();
   const locs = [...new Set(
-    devices.map((d) => String(d.location || '').trim()).filter(Boolean),
+    devices
+      .filter((d) => campusOfDevice(d) === campus)
+      .map((d) => String(d.location || '').trim())
+      .filter(Boolean),
   )].sort((a, b) => a.localeCompare(b, 'zh'));
   let cur = getFilter();
   if (cur && !locs.some((l) => normKey(l) === cur)) {
     store.set(KEY_FILTER, '');
     cur = '';
   }
-  const short = (l) => l.replace(/^渭水-?/, '') || l;
   const html = '<button type="button" class="loc-pill" data-loc="">全部</button>' +
-    locs.map((l) => `<button type="button" class="loc-pill" data-loc="${escapeHtml(l)}">${escapeHtml(short(l))}</button>`).join('');
+    locs.map((l) => `<button type="button" class="loc-pill" data-loc="${escapeHtml(l)}">${escapeHtml(shortAddrLabel(l))}</button>`).join('');
   if (box.innerHTML !== html) box.innerHTML = html;
   paintLocPills();
+  paintCampusPill();
+}
+
+/** 校区胶囊的文案（显示短名：渭水 / 北院 / 雁塔 / 小寨）。
+ *  长名「渭水校区」在 390px 上要多占 30px，而这排右边还要放地址胶囊。
+ *  v2.72：副标题 `#sub` 也跟着校区走 —— 切到北院还写着「渭水校区 ·
+ *  空闲桩位随时查」，等于告诉用户他没切换成功。 */
+function paintCampusPill() {
+  const campus = getCampus();
+  const lab = $('loc-campus-label');
+  if (lab) lab.textContent = campusName(campus, true);
+  const sub = $('sub');
+  if (sub) sub.textContent = campusName(campus, false) + ' · 空闲桩位随时查';
+}
+
+/** 校区下拉的选项（四颗，当前那颗打勾）。 */
+function renderCampusMenu() {
+  const bub = $('loc-campus-bubble');
+  if (!bub) return;
+  const cur = getCampus();
+  bub.innerHTML = CAMPUSES.map((c) =>
+    '<button type="button" class="rv-opt' + (c.id === cur ? ' on' : '') + '"'
+    + ' role="option" data-campus="' + c.id + '"'
+    + ' aria-selected="' + (c.id === cur) + '">' + escapeHtml(c.short) + '</button>'
+  ).join('');
+}
+
+function setCampusMenu(open) {
+  const btn = $('loc-campus-btn');
+  const bub = $('loc-campus-bubble');
+  if (!btn || !bub) return;
+  if (open) renderCampusMenu();
+  bub.hidden = !open;
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+/** 切校区：清掉地址筛选（地址是校区的下一层，跨校区没有意义）→ 重画 → 按新范围查。
+ *  🔴 必须走 `refresh()` 而不是只 `render()`：`inFilterScope()` 已经把范围锁在校区内，
+ *     `refreshPlan()` 会算出「这个校区一台都没查过」→ 触发一次全量查询。
+ *     只 render 的话，切到北院看到的是 57 张「查询中」的卡，得再点一次刷新才动。 */
+function setCampus(id) {
+  if (!CAMPUS_PREFIX[id] || id === getCampus()) { setCampusMenu(false); return; }
+  store.set(KEY_CAMPUS, id);
+  store.set(KEY_FILTER, '');
+  setCampusMenu(false);
+  paintCampusPill();
+  const devices = getDevices();
+  const cache = readCache();
+  render(devices, devices.map((d) => cache[d.id] || { ports: [], error: '尚未查询', at: 0 }));
+  showToast('已切到' + campusName(id, false) + (campusHasDevices(id) ? '' : ' · 这里还没有接入充电桩'));
+  refresh();
+}
+
+function campusHasDevices(id) {
+  return getDevices().some((d) => campusOfDevice(d) === id);
 }
 
 /** 按 getFilter() 点亮当前地址胶囊 —— 选中态与列表过滤必须是同一个值（getFilter）。 */
@@ -3756,12 +3997,23 @@ function shortPileLabel(name) {
      与朝晖 `TY-28`、20 号楼 `E-01`、物业 `W-01` 的写法对齐（别的分区本来就是带连字符的）。
      ⚠️ 只改显示：`device.name` 原值要喂 mapForAddress()，`code` 要喂地图的 BM_BY_CODE 定位，
         两处都不能动（动了北门 37 个车位会对不上）。 */
-  const body = raw.replace(/^渭水校区\s*/, '');
+  /* v2.72：校区前缀不再只有「渭水」——北院也是「北院-体育馆北停车场」这种写法。
+     一条正则收掉四个前缀，以后加校区只要往 `CAMPUS_PREFIX` 里加一条
+     （这里用同一个键的来源：`campusPrefixRe()`）。
+     ⚠️ 只改显示：`device.name` 原值要喂 mapForAddress()，`code` 要喂地图的 BM_BY_CODE 定位，
+        两处都不能动（动了北门 37 个车位会对不上）。 */
+  const body = raw.replace(campusPrefixRe(), '');
   const bare = body.replace(/^北[-\u2010-\u2015\u2212]\s*/, '');
   const tidy = bare.replace(/^([A-Z])(\d{2})(\s*号桩)?$/, function (m, a, n, tail) {
     return a + '-' + n + (tail || '');
   });
   return tidy || raw;
+}
+
+/** 「渭水校区」「北院」「雁塔」「小寨」这些**校区名**开头的正则（v2.72 统一口径）。
+ *  卡片标题、地址行都要去掉它 —— 校区已经由上面那颗胶囊写着了，再写一遍只是占宽度。 */
+function campusPrefixRe() {
+  return new RegExp('^(' + CAMPUSES.map((c) => c.name + '|' + c.short).join('|') + ')\\s*');
 }
 
 /** 卡片地址行的**显示名**：去掉「渭水-」前缀（2026-10-30 v2.51 产品方要求，
@@ -3770,7 +4022,10 @@ function shortPileLabel(name) {
  *  `mapForAddress()` 都靠它工作，别动数据。 */
 function shortAddrLabel(loc) {
   const raw = String(loc || '');
-  return raw.replace(/^渭水[-—－‐‑‒–]?/, '') || raw;
+  /* v2.72：前缀不止「渭水-」了（北院也是同一套写法），所以按 `CAMPUSES` 逐个试。 */
+  const re = new RegExp('^(' + CAMPUSES.map((c) => c.name + '|' + c.short).join('|')
+    + ')[-—－‐‑‒–]?');
+  return raw.replace(re, '') || raw;
 }
 
 /** 卡片地址行的**完整名**：有的分区要写全称（2026-10-31 v2.64 产品方口径）。
@@ -3785,6 +4040,10 @@ function shortAddrLabel(loc) {
  * ⚠️ 键要过 `normKey()`（U+2011 等变体连字符，见 normKey 的说明）。 */
 const ADDR_FULL_LABEL = {
   '渭水-住宅': '西区住宅小区',
+  /* v2.72：北院这批的卡片地址行**要把校区写出来** —— 「体育馆北停车场」这五个字
+     在南二环和渭水各有一个，用户一眼分不清是哪边的。胶囊上仍然是短的
+     （那排左边已经有校区胶囊，右边再写一遍纯属重复）。 */
+  '北院-体育馆北停车场': '本部北院 · 体育馆北停车场',
 };
 
 function cardAddrLabel(loc) {
@@ -3805,6 +4064,11 @@ function render(devices, results) {
   mapResults = devices.map((d, i) => results[i] || cache[d.id] || { ports: [], error: '尚未查询', at: 0 });
 
   // 应用筛选 + 排序（同步重排 devices 和 results，保证卡片与数据不错位）
+  /* 🔴 v2.72：先记下**筛选前**的台数 —— 下面「工具栏要不要显示」必须看它。
+     踩过的坑：切到雁塔（0 台）时 `devices` 已经被过滤成空数组，
+     `$('toolbar').hidden = devices.length === 0` 于是把**整条工具栏**藏了，
+     连那颗校区胶囊一起消失 → 用户再也切不回别的校区，只能刷新页面。 */
+  const totalDevices = devices.length;
   const [sortedDevices, sortedResults] = applyFilterSort(devices, results, cache);
   devices = sortedDevices;
   results = sortedResults;
@@ -3909,9 +4173,27 @@ function render(devices, results) {
   });
 
   $('cards').innerHTML = cards.join('');
+  /* 空清单时把整块藏掉（见 `#cards[hidden]` 那条 CSS 的说明：
+     `min-height:100vh` 会把下面的空状态顶到一屏之外）。 */
+  $('cards').hidden = cards.length === 0;
   $('empty').hidden = cards.length > 0;
+  /* 空清单时这张卡的两个数字都要清掉 —— 它们是在 `refresh()` 里按**上一轮范围**
+     滚出来的，切到雁塔之后还挂着 104/104，看着像「这个校区有 104 个插座」。
+     v2.72 由 `#cards[hidden]` 那条一起收口。 */
   if (!cards.length) {
-    $('empty').textContent = '还没有设备。点下面的「设备与设置」添加桩号。';
+    $('s-free').textContent = '–';
+    $('s-free-sub').textContent = '共统计 –/（–）插座';
+  }
+  if (!cards.length) {
+    /* v2.72：空列表有三种原因，说的是三件事 —— 原来只有一句「还没有设备」，
+       切到雁塔/小寨时会变成「没有设备，点下面的设备与设置添加」，
+       像是在催用户自己去加桩（那 57 台北院明明在清单里）。 */
+    const campus = getCampus();
+    const campusEmpty = !campusHasDevices(campus);
+    const filter = getFilter();
+    $('empty').textContent = campusEmpty
+      ? campusName(campus, false) + '还没有接入充电桩 · 左上角可以切回其他校区'
+      : (filter ? '这个地址下没有桩，换个地址试试。' : '还没有设备。点下面的「设备与设置」添加桩号。');
   }
 
   $('stats').hidden = false;
@@ -3920,8 +4202,8 @@ function render(devices, results) {
   $('s-free').textContent = fresh > 0 ? String(free) : '–';
   $('s-time').textContent = newest ? fmtStatTime(newest) : '–';
 
-  // 工具栏：有数据才显示
-  $('toolbar').hidden = devices.length === 0;
+  // 工具栏：清单里有桩就显示（看的是**筛选前**的台数，见上面 totalDevices 的说明）
+  $('toolbar').hidden = totalDevices === 0;
 
   // 顶部横幅只保留「凭证失效」这种必须人工处理的提示；
   // 网络波动引起的单设备错误，在卡片内用「设备状态未知，请重新查询」表达，不再弹横幅
@@ -4111,11 +4393,9 @@ const ZHU_AMAP = {
   fallbackStaticId: 'overview',
 };
 
-/** 校区清单。目前只有渭水 —— 这一层是给「将来要加别的校区」留的，
- *  真正用的地方是头部那颗胶囊的下拉项（见 `renderCampusBubble()`）。 */
-const CAMPUSES = [
-  { id: 'weishui', name: '渭水校区' },
-];
+/** 校区清单见文件上方 `CAMPUS_PREFIX` 旁边那处定义（2026-11-02 v2.72 搬到共用区：
+ *  首页那颗胶囊和这里那颗都要用，放在地图段里会变成「首页先用到、后定义」的 TDZ 隐患）。
+ *  地图这边只认 `campus` 字段：给每个地图项标上它属于哪个校区。 */
 
 /** 手绘兜底图（**不在**地址胶囊里出现，在线地图加载失败时才由 `switchMap()` 捞出来） */
 const STATIC_MAPS = [
@@ -4136,12 +4416,28 @@ const LOU20_AMAP = {
   // 20 号楼没有手绘图 → 兜底落到静态总览
   fallbackStaticId: 'overview',
 };
+/* 「北院停车场」分区（2026-11-02 v2.72）——**第一个不在渭水校区的分区**。
+ * 与住宅/物业/20号楼完全同构，只是 `campus` 不同：
+ *   · 落点由 `map-amap.js` 的 `BY_GEO` 决定（7 排 × 8~9 个固定点，共 57 个）；
+ *   · 取景框由 `map-data.js` 的 `areas['北院-体育馆北停车场'].line` 决定；
+ *   · 没有手绘图 → 高德拉不出来时退回静态总览（和其它无手绘图的区一样）。
+ * ⚠️ id 用 `beiyuan`（拼音），不用 `b20` 那种数字后缀，避免和「20 号楼」的 `lou20` 混淆。 */
+const BEIYUAN_AMAP = {
+  id: 'beiyuan', label: '本部北院 · 停车场', name: '体育馆北停车场',
+  layout: 'amap', area: '北院-体育馆北停车场',
+  campus: 'beiyuan',
+  fallbackStaticId: 'overview',
+};
+
 /* 地址气泡的顺序（HTML 里 `#map-tabs` 那排按钮要跟这里一一对应）：
-   校区全图 → 住宅 → 物业服务中心 → 20 号楼 → 北门 → 朝晖体育场南。
+   校区全图 → 住宅 → 物业服务中心 → 20 号楼 → 北门 → 朝晖体育场南（**渭水**）
+   ＋ 北院停车场（**本部北院**，v2.72）。
    🔴 新分区**别往队尾塞**：那排是横滑的，390px 下第 6 颗已经贴着右边缘，
       再往后加就等于「加了但看不见」（v2.65 在回顾的筛选条上刚踩过一次）。
-   住宅放第二颗是因为它紧挨校区北沿、又是独立车棚，值得一进来就能点到。 */
-const MAP_ORDER = [AMAP_MAP, ZHU_AMAP, WULIU_MAP, LOU20_AMAP, BEIMEN_AMAP, CHAOHUI_AMAP];
+   住宅放第二颗是因为它紧挨校区北沿、又是独立车棚，值得一进来就能点到。
+   ⚠️ 北院那颗是**另一个校区**，不会和渭水那 6 颗同时出现 ——
+      `syncMapTabs()` 会按 `campus` 把别的校区的页签整颗藏掉。 */
+const MAP_ORDER = [AMAP_MAP, ZHU_AMAP, WULIU_MAP, LOU20_AMAP, BEIMEN_AMAP, CHAOHUI_AMAP, BEIYUAN_AMAP];
 // 总览图上的分区锚点（底图像素坐标，底图 9600×3422）
 //   labelSide:'left' 把地址名排到点的左边 —— 北门这个点在图上紧挨着底图自己的红色「北门」二字，
 //   标签往右会压住它，往左才读得清。锚点 x=7920 是量的：红字在 4800 图上 bbox x 4032~4196、
@@ -4433,7 +4729,7 @@ function warmAMap() {
         return loadScriptOnce('https://webapi.amap.com/maps?v=2.0&key='
           + encodeURIComponent(window.CHD_AMAP_KEY));
       })
-      .then(() => loadScriptOnce('map-amap.js?v=144'))
+      .then(() => loadScriptOnce('map-amap.js?v=146'))
       .catch(() => { /* 预热失败：点开时 ensureAMap() 会重新拉 */ });
   };
   if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 4000 });
@@ -4949,7 +5245,7 @@ function ensureTMap() {
       });
     };
     if (window.CHD_TMAP && window.CHD_MAP) { boot(); return; }
-    loadScriptOnce('map-data.js?v=166')
+    loadScriptOnce('map-data.js?v=168')
       .then(() => loadScriptOnce('map-tmap.js?v=171'))
       .then(boot)
       .catch(() => done(false));
@@ -5054,17 +5350,17 @@ function ensureAMap() {
       });
     };
     if (window.CHD_AMAP && window.CHD_MAP) { boot(); return; }
-    /* 正常情况下 `map-data.js` 已由页面顶部的静态 `<script src="map-data.js?v=166">` 加载好
+    /* 正常情况下 `map-data.js` 已由页面顶部的静态 `<script src="map-data.js?v=168">` 加载好
        （见那里的长注释：冷启动没有它 → `mapAreaOf()` 的两个兜底同值 → 弧线判据恒真 ✗）。
        所以这里先看 `window.CHD_MAP` 在不在，在就跳过，避免重复拉一次；
        若那个静态标签**没加载成功**（例如断网中途失败），仍会走 `loadScriptOnce` 重试 ✓ */
-    (window.CHD_MAP ? Promise.resolve(true) : loadScriptOnce('map-data.js?v=166'))
+    (window.CHD_MAP ? Promise.resolve(true) : loadScriptOnce('map-data.js?v=168'))
       .then(loadLocalKeyOnce)
 // 2026-10-25：v2.22/v2.23 的地图改版（飞入动画 + keepCamera + 首帧标志 + 预热）已随 v2.14
 //    并入本站唯一那份 map-amap.js。改了 js 一定要同时改 ?v（SW 缓存优先）。
 //    2026-10-29 v2.38：内测版退役 —— `map-amap-preview.js` 已删，以后只有一份引擎、一份 HTML，
 //    不再存在「改了 js 要两边同步」这件事。
-      .then(() => loadScriptOnce('map-amap.js?v=144'))
+      .then(() => loadScriptOnce('map-amap.js?v=146'))
       .then(boot)
       .catch(() => done(false));
   });
@@ -5072,7 +5368,16 @@ function ensureAMap() {
 }
 
 /** 高德地图上的桩点数据（与 tmapDevices 同口径） */
+/** 当前底图属于哪个校区（决定「校区全图」里画哪些桩）。
+ *  v2.72 之前全校只有渭水，`amapDevices()` 无脑把全部桩塞进校区视图 ——
+ *  现在北院在图外 10 km（南二环），不按校区切的话「校区全图」会自动缩到
+ *  能同时容下两个校区的视野，渭水那一片糊成一团。 */
+function mapCampusScope() {
+  return (curMap && curMap.campus) || curCampus || '';
+}
+
 function amapDevices() {
+  const campus = mapCampusScope();
   return mapDevices.map((d, i) => {
     const ports = (mapResults[i] || {}).ports || [];
     const free = ports.filter((p) => p.state === SLOT_FREE).length;
@@ -5083,7 +5388,9 @@ function amapDevices() {
       free: ports.length ? free : 0,
       total: ports.length,
     };
-  }).filter((x) => !!x.location);   // v2.63：校外那几台不上地图（同 tmapDevices）
+  }).filter((x) => !!x.location
+    // 认不出前缀的分区跟着当前校区走（见 campusOfDevice 的兜底理由）
+    && (!campus || (campusOfLocation(x.location) || campus) === campus));
 }
 
 function onAMapPileClick(ev) {
@@ -5175,6 +5482,9 @@ function syncMapTabs() {
   if (label && curMap.campus) {
     const c = CAMPUSES.find((x) => x.id === curMap.campus);
     if (c) label.textContent = c.name;
+    /* v2.72：`curCampus` 与「当前这块图属于哪个校区」必须是同一个值 ——
+       下拉里的对勾按 `curCampus` 画，不一致就会出现「表头写着北院、下拉勾在渭水」。 */
+    curCampus = curMap.campus;
   }
   const bar = $('map-tabs');
   if (!bar) return;
@@ -5282,18 +5592,24 @@ function setCampusBubble(open) {
   btn.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
-/** 选校区：只有一台校区时点了就是「确认」，照样收起来，不用静默。 */
+/** 选校区：切到该校区第一块图。
+ *  v2.72：雁塔、小寨**还没有分布图**（一台设备都没有），选中时给一句话、
+ *  并且**不改当前图** —— 改了的话表头写着「雁塔校区」、下面还是渭水的图，
+ *  比「点了没反应」更让人困惑。 */
 function pickCampus(id) {
   const want = CAMPUSES.find((c) => c.id === id);
   if (!want) return;
+  const first = MAP_ORDER.find((m) => m.campus === want.id);
+  setCampusBubble(false);
+  if (!first) {
+    showToast(want.name + '还没有分布图 · 现在有图的是渭水和本部北院');
+    return;
+  }
   curCampus = want.id;
   const btn = $('map-campus-btn');
   if (btn) btn.querySelector('#map-campus-label').textContent = want.name;
-  setCampusBubble(false);
-  /* 切了校区，当前这块图可能已经不属于它了 —— 落到该校区第一个地址上。
-     目前只有渭水一个校区，这一步恒等于「不动」，留着是为了将来。 */
-  const first = MAP_ORDER.find((m) => m.campus === curCampus);
-  if (first && (!curMap || curMap.campus !== curCampus)) switchMap(first.id);
+  /* 切了校区，当前这块图可能已经不属于它了 —— 落到该校区第一个地址上。 */
+  if (!curMap || curMap.campus !== curCampus) switchMap(first.id);
   else syncMapTabs();
 }
 
@@ -5316,7 +5632,13 @@ function focusDevice(deviceId) {
 
 function openMap() {
   // 通用「看地图」按钮：默认渭水校区，之后停留在上次看的图（v2.23 改默认值）
-  if (!MAP_ORDER.some((m) => m.id === curMap.id)) curMap = AMAP_MAP;
+  /* v2.72：首页切到北院之后再点「看地图」，不能还停在渭水那张 ——
+     页签全被藏掉、表头写着「本部北院」而底图是体育场，比「重新打开」更费解。
+     所以只要当前这块图不属于首页选中的校区，就回到该校区第一块图。 */
+  const home = getCampus();
+  if (!MAP_ORDER.some((m) => m.id === curMap.id) || (curMap.campus && curMap.campus !== home)) {
+    curMap = MAP_ORDER.find((m) => m.campus === home) || AMAP_MAP;
+  }
   syncMapTabs();
   const dlg = $('map-dialog');
   if (!dlg.open) dlg.showModal();
@@ -5533,12 +5855,18 @@ function setFreeCardState(state) {
   box.classList.toggle('stat--done', state === 'done');
 }
 
-/** 写入滚动中的统计数字：空闲数 + 副标「共统计 有效/（有效+无效）插座」 */
+/** 写入滚动中的统计数字：空闲数 + 副标「共统计 有效/（有效+无效）插座」
+ *  v2.72：一台桩都不在范围里时（切到没有桩的校区）写「–」——
+ *  原来这里会写「共统计 0/（0）插座」，比空着还容易读错。 */
 function setFreeRolling(free, valid, invalid) {
   const n = $('s-free');
   if (n) n.textContent = String(free);
   const sub = $('s-free-sub');
-  if (sub) sub.textContent = `共统计 ${valid}/（${valid + invalid}）插座`;
+  if (sub) {
+    sub.textContent = (valid + invalid)
+      ? `共统计 ${valid}/（${valid + invalid}）插座`
+      : '共统计 –/（–）插座';
+  }
 }
 
 /* 🔴 2026-10-21 产品方：**进度条下线**，换成「空闲插座」卡上的滚动统计。
@@ -8064,6 +8392,35 @@ function bindToolbar() {
     refresh();
   });
 
+  /* ---- 校区胶囊（v2.72） ----
+   * 它和地址胶囊**是两层**：这一颗换校区，右边那排换地址。
+   * 🔴 打开菜单那一拍必须 `stopPropagation()` —— 下面那个「点空白处收起」的监听挂在
+   *    document 上，不拦住的话「点开」这个动作会顺着一路冒泡到 document，当场又被收起，
+   *    用户看到的就是「点了没反应」。 */
+  const campBtn = $('loc-campus-btn');
+  const campBox = $('loc-campus-bubble');
+  if (campBtn && campBox) {
+    paintCampusPill();
+    campBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setCampusMenu(campBox.hidden);
+    });
+    campBox.addEventListener('click', (e) => {
+      const opt = e.target.closest('[data-campus]');
+      if (!opt) return;
+      e.stopPropagation();
+      setCampus(opt.getAttribute('data-campus'));
+    });
+    document.addEventListener('click', (e) => {
+      if (campBox.hidden) return;
+      if (e.target.closest && e.target.closest('#loc-campus')) return;
+      setCampusMenu(false);
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !campBox.hidden) { setCampusMenu(false); campBtn.focus(); }
+    });
+  }
+
   sortSel.addEventListener('change', () => {
     store.set(KEY_SORT, sortSel.value);
     const devices = getDevices();
@@ -8175,6 +8532,11 @@ const CHANGELOG = [
         不是同一件事在四个版本里各说一遍。新加条目也照这个来。
      只写用户看得见的变化：测试版入口、赞赏码措辞、密钥放哪、Worker/接口这类一律不进。 */
   { from: 'v2.70', d: '2026-11-02', items: [
+    /* v2.72 往这条「正在更新」的区间里加了北院 —— 按规矩同一话题只写一条，
+       所以「校区胶囊」和「北院 57 台」合成一条，别再拆成两条各说一遍。 */
+    '站里多了「本部北院」的 57 台：就在南二环校区体育馆北边那片停车场，按现场图排了 7 排（桩号 B1-01 ～ B7-09）。'
+      + '首页最左边那颗「全部」换成了**校区下拉**：渭水 / 北院 / 雁塔 / 小寨，选哪个校区就只看哪个校区的桩'
+      + '（雁塔、小寨目前还没接机器，点进去会说明一句）。地图弹窗里也多一颗「北院」，能看这 57 台在停车场里的分布',
     '设置里新增「扫码采设备号」：对着桩身上的二维码一扫就提出编号，自动去重，绿边是站里已接入的、琥珀边是还没接入的，一键复制全部——加新桩不用再对着二维码手抄。'
       + '（手机请用浏览器打开本站；电脑要在地址栏左侧允许摄像头；光线暗时点右上角那颗闪电开闪光灯，iPhone 的浏览器不支持）'
   ] },

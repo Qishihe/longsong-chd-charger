@@ -457,8 +457,12 @@
   .view-opt input{margin-top:2px}
   /* 扫码采设备号（v2.69）：取景框是个固定高的黑框，html5-qrcode 会往
      #scan-reader 里塞 video + canvas + 取景遮罩，video 必须 object-fit:cover
-     才不会在竖屏上被拉变形；hud 和提示浮在 video 上层。 */
-  .scan-reader{position:relative; margin-top:12px; height:264px;
+     才不会在竖屏上被拉变形。
+     🔴 v2.70：hud / hint **必须**放在 #scan-reader 外面（.scan-stage 里）——
+        html5-qrcode 的 start() 成功后会把容器整个清空，放在里面会被一起抹掉。
+     定位靠 .scan-stage，取景黑框自己不再 position:relative。 */
+  .scan-stage{position:relative; margin-top:12px; height:264px}
+  .scan-reader{height:100%;
     border-radius:14px; overflow:hidden; background:#101418}
   .scan-reader video{width:100% !important; height:100% !important;
     object-fit:cover; display:block}
@@ -1416,7 +1420,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.69</div>
+    <div id="app-ver" class="foot-ver">版本 v2.70</div>
   </footer>
 </div>
 
@@ -1717,7 +1721,10 @@
       <button class="x-btn" data-close aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
     </div>
     <p class="note" style="margin-top:0">对着桩身上的二维码扫，自动提取编号并去重。绿色是站里已接入的，琥珀色是还没接入的；扫完点「复制全部」发给加桩的人就行。</p>
-    <div class="scan-reader" id="scan-reader">
+    <!-- 🔴 hud / hint 不能放进 #scan-reader：库在 start() 成功后会把容器清空，
+         它们会被一起抹掉，随后 $('scan-hud') 是 null → 报「摄像头打不开」。 -->
+    <div class="scan-stage">
+      <div class="scan-reader" id="scan-reader"></div>
       <div class="scan-hud" id="scan-hud" hidden>已扫 <b id="scan-count">0</b> 台</div>
       <div class="scan-hint">将二维码对准取景框，自动识别</div>
     </div>
@@ -8139,7 +8146,7 @@ function openSettingsDialog() {
       不是「这块昨天变过、今天又变了」的流水账。 */
 const CHANGELOG = [
   /* 2026-10-30 v2.62：公告重排 —— 按「每 0.1 级一条」切分，并把同一话题压成一句。
-     区间：v2.60–2.6x / v2.50–2.59 / v2.40–2.49（更早的 v2.30–2.39、v2.20–2.29 不动）。
+     区间：v2.70 / v2.60–2.69 / v2.50–2.59 / v2.40–2.49（更早的 v2.30–2.39、v2.20–2.29 不动）。
      再往前不切了：用户只想知道「我这个星期看到的界面为什么变了」，
      半年前的一次对齐调整写在最底下没人会往下翻。
      🔴 最新那条写 `from`、**不写终点**：终点永远跟页脚版本走（见 renderChangelog），
@@ -8149,8 +8156,11 @@ const CHANGELOG = [
         「刷新」散在三条，这次压回一句话 —— 用户要看到的是「这块变了」，
         不是同一件事在四个版本里各说一遍。新加条目也照这个来。
      只写用户看得见的变化：测试版入口、赞赏码措辞、密钥放哪、Worker/接口这类一律不进。 */
-  { from: 'v2.60', d: '2026-10-30 ~ 11-02', items: [
-    '设置里新增「扫码采设备号」：对着桩身上的二维码一扫就提出编号，自动去重，绿边是已接入、琥珀边是还没接入的，一键复制全部——加新桩不用再对着二维码手抄',
+  { from: 'v2.70', d: '2026-11-02', items: [
+    '设置里新增「扫码采设备号」：对着桩身上的二维码一扫就提出编号，自动去重，绿边是站里已接入的、琥珀边是还没接入的，一键复制全部——加新桩不用再对着二维码手抄。'
+      + '（手机请用浏览器打开本站；电脑要在地址栏左侧允许摄像头）'
+  ] },
+  { v: 'v2.60 – v2.69', d: '2026-10-30 ~ 11-02', items: [
     '新增「住宅」8 台充电桩（Z-01~Z-08）：都在校园北侧尚苑路边的西区住宅小区，地图上沿路边排成一排；这批机器有 2 口、10 口、20 口的，卡片按实际口数铺格子'
       + '；地图弹窗的地址气泡里也多了「住宅」这一颗，点开直接看这 8 台的分布'
       + '（为了让 6 颗气泡在手机上一屏排得下，「物业服务中心」「朝晖体育场南」在气泡上简写成「物业」「朝晖」，点进去表头仍是全名）',
@@ -8361,6 +8371,7 @@ function scanResetSession() {
   scanSeen.clear();
   scanIds.length = 0;
   $('scan-count').textContent = '0';
+  $('scan-hud').hidden = true;   // 重新开弹窗先不显示角标，摄像头起来后再亮
   $('scan-chips').hidden = true;
   $('scan-chips').innerHTML = '';
   $('scan-note').className = 'note';
@@ -8424,15 +8435,13 @@ function scanOnSuccess(decodedText) {
   if (navigator.vibrate) { try { navigator.vibrate(40); } catch (e) {} }
 }
 
-/* html5-qrcode 的 clear() 会把容器整个清空 —— 连我们自己的 hud/hint 一起带走
-   （真踩过：hud 被删后 $('scan-hud') 是 null，catch 里写失败提示的代码跟着断）。
-   所以这里统一「全清 + 重建」，不挑着删。 */
-const SCAN_HUD_HTML =
-  '<div class="scan-hud" id="scan-hud" hidden>已扫 <b id="scan-count">0</b> 台</div>' +
-  '<div class="scan-hint">将二维码对准取景框，自动识别</div>';
-
+/* html5-qrcode 的 start() / clear() 都会把 #scan-reader 整个清空，所以那个容器里
+   只放它自己的 video + canvas，我们一个元素都不往里塞（hud/hint 在外层 .scan-stage）。
+   v2.69 踩过一次：hud 放在容器里被清掉 → $('scan-hud') 为 null → .then 里赋
+   .hidden 抛 TypeError → 被紧邻的 .catch 当成「摄像头打不开」报给用户，
+   而真正的错误原因（打不开摄像头）反倒被掩盖。 */
 function scanClearReader() {
-  $('scan-reader').innerHTML = SCAN_HUD_HTML;
+  $('scan-reader').innerHTML = '';
 }
 
 function scanStop() {
@@ -8474,14 +8483,23 @@ function scanStart() {
       () => {}   // 每帧没识别到是常态，静默
     ).then(() => {
       scanRunning = true;
-      $('scan-hud').hidden = false;
+      /* 起流要一两秒，用户可能已经按 Esc 关了弹窗 —— 这时 close 事件里的 scanStop
+         还拿不到 scanScanner（当时还在 starting），摄像头会白开着，必须自己收回。 */
+      if (!$('dlg-scan').open) { scanStop(); return; }
+      const hud = $('scan-hud');
+      if (hud) hud.hidden = false;   // 拿不到就只是少个角标，绝不能因此报「摄像头打不开」
     }).catch((err) => {
       scanRunning = false;
       scanScanner = null;
       scanClearReader();
       $('scan-note').className = 'note warn';
-      $('scan-note').textContent = '摄像头打不开（' + ((err && err.message) || err) +
-        '）。要在手机上用浏览器打开本站再试；笔记本则要允许摄像头权限。';
+      /* 只写人话，不再把内部的 TypeError 原文拼给用户看 —— 上一版那条
+         「摄像头打不开（Cannot set properties of null…）」就是这么来的误导。 */
+      const m = String((err && err.message) || err || '');
+      const denied = /permission|denied|NotAllowed|NotFound|no camera|Requested device/i.test(m);
+      $('scan-note').textContent = denied
+        ? '打不开摄像头（没拿到摄像头权限）。手机请用浏览器打开本站再试；电脑要在地址栏左侧允许摄像头。'
+        : '打不开摄像头（' + (m || '未知原因') + '）。手机请用浏览器打开本站再试；电脑要在地址栏左侧允许摄像头。';
     });
   });
 }

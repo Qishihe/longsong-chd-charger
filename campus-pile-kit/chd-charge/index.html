@@ -947,6 +947,19 @@
          这样即使选了被藏在右边的那颗，也不会出现「选中了却看不见」。
      ⚠️ 别再改回 `.usage-filter`：那是「使用情况统计」旧弹窗的 chip 条，样式不同。 */
   .rv-locs{ margin:0 0 10px; }
+  /* 校区选择（v2.77）：一颗「选择校区」胶囊 + 下拉。
+     v2.76 曾把 全部/渭水/北院 和地址档并列成三颗胶囊、中间插一根竖线 ——
+     结果「渭水」和「朝晖」长得一模一样，用户会以为它也是个停车场。
+     现在校区是**控件**不是**档位**：胶囊在 `.loc-pills` 外面，往右划地址时它不动
+     （和首页那排同一套 `.loc-campus` / `.campus-pill`）。
+     ⚠️ 容器必须 flex、且 `#rv-loc` 保持 `flex:1; min-width:0`（`.loc-pills` 自带），
+        否则地址行会被内容撑开、整条顶出弹窗（v2.75 双列那次是同一种毛病）。 */
+  .rv-scope{display:flex; gap:7px; align-items:center; margin:0 0 10px}
+  .rv-scope .loc-pills{margin:0}
+  /* 地址行没有内容时整条撤掉（选了北院、或选了「全部」）：留一条 4px 的空行
+     会把柱状图往下顶，看着像排版漏了一块。`:empty` 生效的前提是 `innerHTML=''`
+     —— 别往里塞空白字符，塞了就永远不空。 */
+  .rv-locs:empty{display:none}
   /* 横滑容器两端渐隐：`.more` = 右边还有、`.back` = 左边还有（两边都有就同时挂）。
      只靠「被切掉半颗胶囊」当提示不够 —— 切在字中间时更像排版坏了。 */
   /* v2.74：首页那排地址胶囊也算（`#loc-pills`）—— 390px 下 5 颗放不下、
@@ -1500,7 +1513,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.75</div>
+    <div id="app-ver" class="foot-ver">版本 v2.77</div>
   </footer>
 </div>
 
@@ -1629,8 +1642,23 @@
     <div id="rv-loading" class="note">正在读取云端统计…</div>
     <div id="rv-error" class="note" hidden></div>
     <div id="rv-body" hidden>
-      <!-- 地址档（v2.66）：左右滑动的胶囊，和列表顶部那排同一套 `.loc-pill` 外观。 -->
-      <div class="loc-pills rv-locs" id="rv-loc" role="group" aria-label="选择地址"></div>
+      <!-- 校区档（v2.77）：一颗「选择校区」胶囊 + 下拉，**不再**把 全部/渭水/北院
+           做成三颗并列的胶囊 —— 它们和地址档长得一模一样，用户会以为「渭水」
+           也是个停车场。胶囊放在 `.loc-pills` 外面，所以往右划地址时它不动
+           （和首页那排完全同一套做法：`.loc-campus` + `.campus-pill`）。 -->
+      <div class="rv-scope">
+        <div class="loc-campus">
+          <button class="loc-pill campus-pill" id="rv-campus-btn" type="button"
+                  aria-haspopup="listbox" aria-expanded="false" aria-controls="rv-campus-bubble"
+                  aria-label="选择校区">
+            <span id="rv-campus-label">选择校区</span>
+            <svg viewBox="0 0 10 6" width="10" height="6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="rv-bubble" id="rv-campus-bubble" role="listbox" aria-label="选择校区" hidden></div>
+        </div>
+        <!-- 地址档（v2.66）：左右滑动的胶囊，和列表顶部那排同一套 `.loc-pill` 外观。 -->
+        <div class="loc-pills rv-locs" id="rv-loc" role="group" aria-label="选择地址"></div>
+      </div>
       <h3 class="usage-sec" id="rv-bars-title">各时段占用率</h3>
       <div class="usage-chart" id="rv-bars"></div>
       <div class="rv-note" id="rv-note"></div>
@@ -7798,15 +7826,67 @@ async function openUsageDialog() {
  */
 const RV_BJ = 8 * 3600;
 const RV_AREAS = [
-  { key: 'chaohui', name: '朝晖' },
-  { key: 'beimen', name: '北门' },
-  { key: 'b20', name: '20号楼' },
-  { key: 'wuye', name: '物业' },
+  { key: 'chaohui', name: '朝晖', campus: 'weishui' },
+  { key: 'beimen', name: '北门', campus: 'weishui' },
+  { key: 'b20', name: '20号楼', campus: 'weishui' },
+  { key: 'wuye', name: '物业', campus: 'weishui' },
   /* 2026-10-31 v2.65：住宅区那 8 台（驴充充平台）也纳入统计。
      键名必须和快照站 partitions.mjs 里那一条的 `key` 逐字一致 ——
      `/api/stats` 的 `areas` 就是按这个键存每个区每小时占用率的。 */
-  { key: 'zhu', name: '住宅' },
+  { key: 'zhu', name: '住宅', campus: 'weishui' },
+  /* 2026-11-03 v2.76：本部北院 57 台（B1-01~B7-09）进统计。
+     `campus` 是**前端分组用的**，和快照站无关 —— 服务端只认 key。 */
+  { key: 'beiyuan', name: '北院', campus: 'beiyuan' },
 ];
+
+/* 「全部地址」改成按校区看（v2.76），校区从三颗并列胶囊收成一颗下拉（v2.77）。
+ *
+ * 为什么拆：北院 57 台 × 4 口 = 228 个插座，占接入后全站 768 的 **30%**。
+ * 它和渭水（教学区 + 宿舍区）的占用曲线形状完全不同，混在一条「全部地址」里，
+ * 接入当天那根柱子会凭空跳一下 —— 用户只会以为数据坏了，而实际是权重变了。
+ * 历史数据也救不回来：前六天的点里根本没有北院这个键。
+ *
+ * 所以分两层：
+ *   · **校区层**（下拉里的三档）：全部 / 渭水 / 北院；
+ *   · **地址层**（那条横滑行）：只放**当前校区**的地址。
+ * 「全部」= 服务端 `all`（六个区按插座数加权，口径和历史一致）；
+ * 「渭水」= 五个区加权 —— 这条**不受北院影响，七天曲线是连续的**；
+ * 「北院」= 单区，从接入那天起才有数据（前面的格子画灰，不是 0）。
+ *
+ * 🔴 菜单里只列**统计里真的有区**的校区，不写死四校区：雁塔、小寨一台设备都没有，
+ *    列进来点开必然一片灰（`acc` 里没有那个键），等于让用户白点一次。
+ *    以后雁塔接进设备，`RV_AREAS` 里多一条、这里自动就多一项，不用改代码。
+ */
+const RV_CAMPUS_IDS = CAMPUSES.map((c) => c.id)
+  .filter((id) => RV_AREAS.some((a) => a.campus === id));
+const RV_CAMPUS_TABS = [{ key: 'all', name: '全部' }].concat(
+  RV_CAMPUS_IDS.map((id) => ({ key: id, name: campusName(id, true) })),
+);
+/* 校区 → 成员区。**单地址校区也进来**（北院就一个停车场）—— 合并后的键统一叫
+   校区 id，`rvSlots` / `rvBuildHeat` 因此只需要认「acc 里有没有这个键」，
+   不必知道它底下是一个区还是五个区。
+   🔴 只有一个成员时**直接别名**（`acc[cid] = acc[成员]`），不做加权重算：
+      重算要求每个 slot 带 free/total，早期点缺这两个字段就会被整格丢掉；
+      而「一个区的加权平均」本来就等于它自己的值，重算是白干。
+   ⚠️ 别名必须**先取成员引用再赋值** —— 北院的校区 id 和它唯一那个区的 key 是
+      同一串字符，先 `acc['beiyuan'] = {}` 再读 `acc['beiyuan']` 会把自己的数据抹掉。 */
+const RV_CAMPUS_AREA = {};
+for (const id of RV_CAMPUS_IDS) {
+  RV_CAMPUS_AREA[id] = RV_AREAS.filter((a) => a.campus === id).map((a) => a.key);
+}
+
+/** 某个档属于哪个校区（'all' 或认不出 → 空串）。档可能是校区 id，也可能是地址 key。 */
+function rvCampusOfLoc(loc) {
+  if (RV_CAMPUS_AREA[loc]) return loc;
+  const a = RV_AREAS.filter((x) => x.key === loc)[0];
+  return a ? a.campus : '';
+}
+
+/** rvLoc 是不是个认得的档。存量 localStorage 里可能留着旧的地址名，
+ *  直接拿去当 `acc` 的键会得到一条全灰的曲线（看着像「这个区没采到数据」）。 */
+function rvLocKnown(loc) {
+  return loc === 'all' || !!RV_CAMPUS_AREA[loc] || RV_AREAS.some((a) => a.key === loc);
+}
 /* 与站点 Worker 反代的边缘缓存 300 秒对齐：同一个页面反复开关弹窗不该反复打请求。 */
 const RV_TTL_MS = 5 * 60 * 1000;
 /* 「全部地址」那一格要几个区都在才算数。⚠️ 只用于文案，**不再参与判断** ——
@@ -7832,7 +7912,7 @@ function rvExpectedAreas(p) {
 let rvCache = null;      // 最近一次 /api/stats 的原始响应
 let rvCacheAt = 0;
 let rvModel = null;      // 由原始响应算出的「按天 × 24 小时」模型
-let rvLoc = 'all';       // 当前地址：all / chaohui / beimen / b20 / wuye / zhu
+let rvLoc = '';          // 当前档：空 = 尚未定过（首次渲染按首页校区落位）；all / weishui / beiyuan / 各区 key
 let rvDay = 'avg';       // 当前日期：avg（七天平均）或 'YYYY-MM-DD'
 let rvSel = null;        // 柱状图上被点中的小时（0~23），null = 未选中
 
@@ -7866,27 +7946,76 @@ function buildReviewModel(raw) {
     if (!(p.coverage >= rvExpectedAreas(p))) partial += 1;
 
     for (const k of keys) {
-      let v = null, cov = null;
+      let v = null, cov = null, fr = null, tot = null;
       if (k === 'all') {
         v = (typeof p.all === 'number') ? p.all : null;
         cov = Number.isFinite(p.coverage) ? p.coverage : null;
       } else {
         const a = p.areas && p.areas[k];
         v = (a && typeof a.pct === 'number') ? a.pct : null;
+        /* v2.76：校区档要按插座数加权（Σfree / Σtotal），不能再把各区 pct
+           算术平均 —— 住宅只有 8 台、朝晖 36 台，等权平均会被小区带偏。
+           ⚠️ 早期点（v2.60 之前）也带 free/total，所以这条不会让老数据失效；
+              真缺了就只累加 pct、把这一格从加权里排除。 */
+        if (a && Number.isFinite(a.free) && Number.isFinite(a.total) && a.total > 0) {
+          fr = a.free; tot = a.total;
+        }
       }
       if (v === null) continue;          // 缺就跳过，别当 0
       const byDay = acc[k][dk] || (acc[k][dk] = {});
-      const slot = byDay[hr] || (byDay[hr] = { sum: 0, n: 0, cov: null });
+      const slot = byDay[hr] || (byDay[hr] = { sum: 0, n: 0, cov: null, free: 0, total: 0 });
       slot.sum += v;
       slot.n += 1;
+      if (fr !== null) { slot.free += fr; slot.total += tot; }
       if (cov !== null) slot.cov = (slot.cov === null ? cov : Math.min(slot.cov, cov));
     }
   }
+  /* 校区档（v2.76 起）：把成员区按「天 × 小时」合成一条，键就是校区 id。
+     🔴 必须用 **Σfree ÷ Σtotal**，不能把各区的 pct 取平均：住宅只有 8 台、
+       朝晖 36 台，等权平均会让「校区有多满」明显偏离实际（小区闲置时被大区
+       的高占用淹没，反过来也一样）。
+     `n` 用成员样本数之和、`sum` 用 `pct × n`，这样上层那句 `sum / n`
+       自然就是「按样本数加权」的平均，和其他档的口径一致。
+     ⚠️ 某区这一小时没采到（pct:null）时它本来就没往 slot 里累 free/total，
+        天然被排除在分母外 —— 这是对的：「采到了几个区」≠「假装那个区是空的」。 */
+  for (const cid in RV_CAMPUS_AREA) {
+    const members = RV_CAMPUS_AREA[cid];
+    if (members.length === 1) {
+      /* 单地址校区：直接别名，**先取引用再赋值**（cid 可能等于成员 key）。 */
+      const only = acc[members[0]];
+      if (only) acc[cid] = only;
+      continue;
+    }
+    const src = members.map((mk) => acc[mk] || {});
+    const byDayV = (acc[cid] = {});
+    for (const byDay of src) {
+      for (const dk in byDay) {
+        const dst = byDayV[dk] || (byDayV[dk] = {});
+        const row = byDay[dk];
+        for (let h = 0; h < 24; h += 1) {
+          const s = row[h];
+          if (!s || !s.n || !s.total) continue;
+          const d = dst[h] || (dst[h] = { free: 0, total: 0, n: 0, sum: 0, cov: null });
+          d.free += s.free;
+          d.total += s.total;
+          d.n += s.n;
+        }
+      }
+    }
+    for (const dk in byDayV) {
+      for (let h = 0; h < 24; h += 1) {
+        const d = byDayV[dk][h];
+        if (!d || !d.total) continue;
+        d.sum = ((d.total - d.free) / d.total) * 100 * d.n;
+      }
+    }
+  }
+
   /* 日期升序：热力图的纵轴从上往下 = 从早到晚，好读。 */
   return { days: Object.keys(daySet).sort(), acc, total: pts.length, oldest, newest, partial };
 }
 
-/** 取某地址在「某一天」或「七天平均」下的 24 格。n=0 表示这一小时没采到。 */
+/** 取某地址（或某校区档）在「某一天」或「七天平均」下的 24 格。n=0 表示这一小时没采到。 */
 function rvSlots(model, key, day) {
   const acc2 = [];
   for (let h = 0; h < 24; h += 1) acc2.push({ sum: 0, n: 0, cov: null });
@@ -8009,16 +8138,48 @@ function rvBuildHeat(model, key, selDay) {
 }
 
 /** 开/关日期气泡。打开时把当前选中项滚进可视区 —— 8 项里只露 5 项，
-    不滚的话用户在「七天平均」时点开，看到的是列表顶部，选中的第 7 天还得自己找。 */
+    不滚的话用户在「七天平均」时点开，看到的是列表顶部，选中的第 7 天还得自己找。
+    ⚠️ 打开前先关掉校区气泡（v2.77）：两个气泡都往下展开、又是左右邻居，
+       同时开着会叠在一起，看着像菜单串行了。`setRvCampus(false)` 不会回调这里，
+       所以不会无限递归。 */
 function setRvPicker(open) {
   const btn = $('rv-day-btn');
   const bub = $('rv-day-bubble');
   if (!btn || !bub) return;
+  if (open) setRvCampus(false);
   btn.setAttribute('aria-expanded', open ? 'true' : 'false');
   bub.hidden = !open;
   if (!open) return;
   const on = bub.querySelector('.rv-opt.on');
   if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest' });
+}
+
+/** 校区菜单的选项（全部 / 渭水 / 北院 …，当前那档打勾）。
+ *  `data-rvcampus` 而不是复用 `data-rvday`：日期那套的点击分支会把值直接写进
+ *  `rvDay`，混用会让「点校区」变成「切日期」。 */
+function renderRvCampusMenu() {
+  const bub = $('rv-campus-bubble');
+  if (!bub) return;
+  const cur = rvCampusOfLoc(rvLoc) || 'all';
+  bub.innerHTML = RV_CAMPUS_TABS.map((t) =>
+    '<button type="button" class="rv-opt' + (t.key === cur ? ' on' : '') + '" role="option"'
+    + ' data-rvcampus="' + t.key + '" aria-selected="' + (t.key === cur) + '">'
+    + escapeHtml(t.name) + '</button>'
+  ).join('');
+}
+
+/** 开/关校区气泡。选中态看的是**当前档所属的校区** —— 用户在地址行点了
+    「朝晖」，菜单里勾的仍是「渭水」，因为朝晖属于渭水。 */
+function setRvCampus(open) {
+  const btn = $('rv-campus-btn');
+  const bub = $('rv-campus-bubble');
+  if (!btn || !bub) return;
+  if (open) {
+    renderRvCampusMenu();
+    setRvPicker(false);
+  }
+  bub.hidden = !open;
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
 /** 把一句话里的数字包成绿色加粗：`3/24`、`98.7%`、`17:00` 都算一个整体。
@@ -8067,13 +8228,34 @@ function renderReview() {
   const model = rvModel;
   if (!model) return;
 
-  const locs = [{ key: 'all', name: '全部地址' }, ...RV_AREAS];
-  if (!locs.some((l) => l.key === rvLoc)) rvLoc = 'all';
+  /* 校区下拉 + 地址档（v2.77）：
+       上面那颗「选择校区」胶囊换范围，下面这条横滑行只放**当前校区的地址**。
+     为什么不把校区做成三颗并列胶囊 —— 它们和地址档长得一模一样，用户会以为
+     「渭水」也是个停车场；而且校区是「范围」、地址是「范围里的某块」，混排会点错。
+     为什么不把地址也塞进下拉 —— 渭水有 5 个地址，塞进去菜单就变成两级了。
+     ⚠️ 地址行只在「当前校区有 ≥2 个地址」时出现：北院就一个停车场，单列一颗
+        和上面的校区完全重复；「全部」是全站口径，没有地址层。
+        地址行清空后靠 CSS 的 `.rv-locs:empty{display:none}` 撤掉，
+        这里**不要**留任何空白字符，否则 `:empty` 永远不成立。 */
+  if (!rvLoc) {
+    /* 首次打开落位到「首页正在看的那个校区」（v2.76）。
+       为什么不固定 `all`：北院刚接入，`all` 里它占 30% 权重、前六天还没有它的点，
+       曲线一进来就是个台阶 —— 从渭水来的人默认看渭水，那条线才是连续的。
+       为什么只落一次：用户手动选过档之后重开弹窗，得停在他刚才看的那一档。
+       `yanta` / `xiaozhai` 暂时一台设备都没有，落到菜单里没有的 key 会被
+       下面的兜底改成 `all`。 */
+    const home = getCampus();
+    rvLoc = RV_CAMPUS_AREA[home] ? home : 'all';
+  }
+  if (!rvLocKnown(rvLoc)) rvLoc = 'all';
+
+  const campus = rvCampusOfLoc(rvLoc);
+  const addrs = campus ? RV_AREAS.filter((a) => a.campus === campus) : [];
   const locBox = $('rv-loc');
-  locBox.innerHTML = locs.map((l) =>
-    '<button type="button" class="loc-pill' + (l.key === rvLoc ? ' on' : '')
-    + '" data-loc="' + l.key + '">' + escapeHtml(l.name) + '</button>'
-  ).join('');
+  locBox.innerHTML = addrs.length > 1
+    ? addrs.map((a) => '<button type="button" class="loc-pill' + (a.key === rvLoc ? ' on' : '')
+      + '" data-loc="' + a.key + '">' + escapeHtml(a.name) + '</button>').join('')
+    : '';
   /* 滚动监听只绑一次：innerHTML 换了按钮，容器本身没换，绑在容器上不会丢。 */
   if (!locBox.dataset.scrollBound) {
     locBox.dataset.scrollBound = '1';
@@ -8094,7 +8276,11 @@ function renderReview() {
   ).join('');
 
   const slots = rvSlots(model, rvLoc, rvDay);
-  const locName = (locs.find((l) => l.key === rvLoc) || locs[0]).name;
+  /* 标题里的范围名：地址档用地址名，校区档用校区简称，'all' 用「全部」。
+     三者的 key 空间重叠（北院的校区 id 和它唯一那个区的 key 是同一串），
+     所以先查地址表、查不到再当校区 id —— 两边都查不到就退回「全部」。 */
+  const locArea = RV_AREAS.filter((a) => a.key === rvLoc)[0];
+  const locName = (rvLoc === 'all') ? '全部' : (locArea ? locArea.name : campusName(rvLoc, true) || '全部');
   const dayName = (rvDay === 'avg') ? '七天平均' : rvDay.slice(5);
 
   $('rv-bars-title').textContent = locName + ' · ' + dayName + ' · 各时段占用率';
@@ -8113,7 +8299,15 @@ function renderReview() {
   const avgAll = nSum ? filled.reduce((a, s) => a + s.pct * s.n, 0) / nSum : null;
   /* 2026-10-29 v2.41：原来三句挤成一整段（「…样本数。 当前视图共 3/24… 选中 17:00…」），
      读起来分不清哪句在说整体、哪句在说选中的那一格。改成一句一行，数字统一绿字加粗。 */
-  const lines = ['占用率 = 该小时内「被占用插座 ÷ 有数据的插座」，逐次采样后取算术平均；'
+  /* 口径说明第一句要跟着档位变（v2.76）：
+     单个地址是「逐次采样的算术平均」，而「全部」「渭水」这类多区合并
+     是**按插座数加权** —— 说成算术平均会让人以为 8 台的住宅和 36 台的朝晖等权。
+     单地址校区（北院）走的是「一个区的加权平均 = 它自己的值」，两种说法都对，
+     统一按「单地址」措辞，免得用户对着一个停车场读「多个地址合并」。 */
+  const members = RV_CAMPUS_AREA[rvLoc] || [];
+  const multiArea = (rvLoc === 'all') || members.length > 1;
+  const lines = ['占用率 = 该小时内「被占用插座 ÷ 有数据的插座」；'
+    + (multiArea ? '多个地址合并时按插座数加权（大区占比大），' : '逐次采样后取算术平均，')
     + '下方小字是这一格的样本数。'];
   if (avgAll !== null) {
     lines.push('当前视图共 ' + filled.length + '/24 个时段有数据，整体平均 '
@@ -8142,7 +8336,7 @@ function renderReview() {
     /* 不再写死「N 个区」：分区会长出来（2026-10-31 加了住宅），
        不同日子的分母本来就不同。见 rvExpectedAreas 的说明。 */
     hnote += ' 其中 ' + model.partial + ' 个统计点有分区缺数据'
-      + '（那天某个区没采到），「全部地址」在这些小时里只代表部分区。';
+      + '（那天某个区没采到），「全部」在这些小时里只代表部分区。';
   }
   hnote += ' 点格子可切到那一天。';
   $('rv-heat-note').textContent = hnote;
@@ -8154,6 +8348,7 @@ async function openReviewDialog() {
   if (!dlg) return;
   dlg.showModal();
   setRvPicker(false);
+  setRvCampus(false);
   $('rv-loading').hidden = false;
   $('rv-body').hidden = true;
   $('rv-error').hidden = true;
@@ -8778,7 +8973,15 @@ const CHANGELOG = [
       + '（手机请用浏览器打开本站；电脑要在地址栏左侧允许摄像头；光线暗时点右上角那颗闪电开闪光灯，iPhone 的浏览器不支持）',
     /* v2.75：双列布局修复 + 北院地址行简化。用户看得见的两处，合成一条。 */
     '「一行两桩」时北院那 57 台会把列表顶出屏幕右边，已经修好；顺带把北院的卡片地址简化成「体育馆北停车场」——'
-      + '校区在上面那颗胶囊里写着，卡片上不必再重复一遍'
+      + '校区在上面那颗胶囊里写着，卡片上不必再重复一遍',
+    /* v2.76：「北院进统计」和「按校区分档」是同一件事的两半，写成一条。
+       别再拆出「一周回顾改版」这种标题 —— 用户读的是"我能不能看北院"。
+       v2.77 把三颗并列的胶囊改成了下拉，顺手把这句里「顶上那排变成…」的描述
+       一起改掉：同一话题只留一条，描述必须和用户现在看到的一致
+       （改了文案 = 已读的人会重新亮红点，这是对的，行为确实变了）。 */
+    '「一周回顾」能分校区看了：左上多一颗「选择校区」，点开是全部 / 渭水 / 北院；'
+      + '北院那 57 台从今天起也每小时记一次占用率。刚接进来的头一天，北院那些小时还空着'
+      + '（从有数据那一刻才开始画）；渭水这一档不受影响，七天曲线是连着的'
   ] },
   { v: 'v2.60 – v2.69', d: '2026-10-30 ~ 11-02', items: [
     '新增「住宅」8 台充电桩（Z-01~Z-08）：都在校园北侧尚苑路边的西区住宅小区，地图上沿路边排成一排；这批机器有 2 口、10 口、20 口的，卡片按实际口数铺格子'
@@ -9351,6 +9554,24 @@ $('usage-day').addEventListener('click', (event) => {
     rvDlg.addEventListener('click', (event) => {
       const t = event.target;
       if (!t || typeof t.getAttribute !== 'function') return;
+      /* 校区下拉（v2.77）三件事，**顺序不能动**：点胶囊开合 → 点选项换校区 →
+         点别处收起。选项那一支必须排在下面 `.rv-opt` 通用分支之前 ——
+         通用支读的是 `data-rvday`，校区选项没有这个属性，会当场把 rvDay
+         置成 null，用户看到的是「点了校区，日期自己跳回七天平均了」。 */
+      if (t.closest && t.closest('#rv-campus-btn')) {
+        const cb = $('rv-campus-bubble');
+        setRvCampus(!!cb && cb.hidden);
+        return;
+      }
+      const campOpt = t.closest ? t.closest('[data-rvcampus]') : null;
+      if (campOpt) {
+        rvLoc = campOpt.getAttribute('data-rvcampus');
+        rvSel = null;
+        setRvCampus(false);
+        renderReview();
+        return;
+      }
+      if (!(t.closest && t.closest('#rv-campus-bubble'))) setRvCampus(false);
       /* 日期气泡三件事：点胶囊开合、点选项切换、点别处收起。
          必须排在下面的筛选分支**之前** —— 「点别处收起」要能吃掉所有其它点击，
          否则用户在气泡开着时点柱子，气泡会一直挂在那儿。 */

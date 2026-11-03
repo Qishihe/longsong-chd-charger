@@ -1631,7 +1631,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.92</div>
+    <div id="app-ver" class="foot-ver">版本 v2.93</div>
   </footer>
 </div>
 
@@ -9655,11 +9655,11 @@ const CHANGELOG = [
     /* v2.91 的估算器**不公告**：它只挂在管理员后台里，普通访客看不到。
        等哪天挪到「设置 › 偏好设置」对所有人开放了，再在这里补一条。
        v2.92：天气提醒 —— 这是访客一进首页就看得见的新东西，必须写一条。 */
-    '首页顶上会提前提醒天气了：未来 24 小时要下雨、下雪、冻雨或打雷，标题下面挂一句'
-      + '「预计约 3 小时后有雨，请合理规划充电时间」；大热天（37℃ 以上）和大冷天（-5℃ 以下）也提一句。'
-      + '四个校区各按自己那片天算 —— 渭水在北郊，本部北院 / 雁塔 / 小寨在市区，'
-      + '相隔十几公里，常常一边下一边不下，切校区时提醒会跟着换。'
-      + '不想要就在「设置 › 天气提醒」里关掉，关掉后连气象数据也不取',
+    '首页顶上会提前提醒天气了：未来 24 小时要下雨、下雪、冻雨或打雷，就挂一句'
+      + '「预计约 3 小时后有雨，请合理规划充电时间」；37℃ 以上、-5℃ 以下也提一句。'
+      + '四个校区各按自己那片天算 —— 渭水在北郊，另外三个在市区，常常一边下一边不下，'
+      + '切校区时提醒跟着换；每次打开都会重新查一次，点掉的「×」只管这一次。'
+      + '不想要就在「设置 › 天气提醒」里关掉',
   ] },
   { v: 'v2.60 – v2.69', d: '2026-10-30 ~ 11-02', items: [
     '新增「住宅」8 台充电桩（Z-01~Z-08）：都在校园北侧尚苑路边的西区住宅小区，地图上沿路边排成一排；这批机器有 2 口、10 口、20 口的，卡片按实际口数铺格子'
@@ -10097,7 +10097,7 @@ const WX_SPOT = {
 };
 const KEY_WX_ON = 'cpk.wxOn';        // 默认开
 const KEY_WX_CACHE = 'cpk.wx';       // { <campusId>: { at, event } } —— 一个校区一格
-const KEY_WX_OFF = 'cpk.wxOff';      // { key, day } —— 同一条预报当天说过就不再弹
+const KEY_WX_OFF = 'cpk.wxOff';      // { key, day } —— 同一条预报这次访问不再弹（每次打开清空）
 const WX_TTL = 30 * 60 * 1000;
 const WX_STALE = 6 * 3600 * 1000;    // 请求失败时，旧缓存最多用 6 小时
 
@@ -10216,7 +10216,8 @@ function wxPaint() {
   const ev = wxEvent;
   if (!wxEnabled() || !ev) { el.hidden = true; return; }
   const off = store.get(KEY_WX_OFF, null);
-  /* 用户点过「×」：同一条预报当天不再冒出来。预报刷新后（at 变了）算新的，还会提醒。 */
+  /* 用户点过「×」：同一条预报这一次访问不再冒出来（每次打开会清掉，见 bindWeather）。
+     预报刷新后（at 变了）算新的，还会提醒。 */
   if (off && off.day === wxDay() && off.key === wxKeyOf(ev)) { el.hidden = true; return; }
   const txt = $('wx-txt');
   if (txt) txt.textContent = wxText(ev);
@@ -10344,6 +10345,10 @@ function wxOpenDlg() {
 (function bindWeather() {
   if (!$('wx-banner')) return;
   wxPaintRow();
+  /* v2.93：每次打开都重新提醒一次 —— 「×」只管这一次访问，不跨会话留着。
+     清在这里（首帧铺缓存之前），否则首帧会先按上回那条记录把横幅藏起来，
+     等 5 秒后联网那次才冒出来，用户看到的是「打开半天没动静、突然跳一条」。 */
+  store.del(KEY_WX_OFF);
   /* 先用「当前校区」上一次的缓存同步铺一遍：老用户第二次打开时横幅**首屏就在**，
      不会等 5 秒后那次网络回来才插进来 —— 那一下会把下面整页推下一行，
      是这个站以前吃过亏的 CLS 源头。缓存过期、或这个校区还没查过，就不铺。 */
@@ -10373,10 +10378,12 @@ function wxOpenDlg() {
 })();
 
 /** 主流程里那次查询：等首屏那轮桩数据先跑完（5 秒），别抢带宽；
- *  之后每小时顺手更新一次（页面切后台时 wxRun 自己会跳过）。 */
+ *  之后每小时顺手更新一次（页面切后台时 wxRun 自己会跳过）。
+ *  🔴 v2.93：打开这一次必须真去查（force），不能吃 cpk.wx 的 30 分钟缓存 ——
+    用户的心智是「我一打开就该是最新的」，多花 1.6KB 换这一下确定性。 */
 function wxBoot() {
   if (!$('wx-banner')) return;
-  setTimeout(() => wxRun({}), 5000);
+  setTimeout(() => wxRun({ force: true }), 5000);
   setInterval(() => wxRun({}), 60 * 60 * 1000);
 }
 

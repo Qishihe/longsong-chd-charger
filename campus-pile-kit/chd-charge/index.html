@@ -884,6 +884,9 @@
   .row{display:flex; gap:8px; margin-top:14px}
   .row button{flex:1}
   .note{font-size:12px; color:var(--hint); margin-top:10px; line-height:1.6}
+  /* v2.83：文案精简后有些 note 会被清空（凭证副标、各类状态行），
+     空 div 仍带着 margin-top:10px，看着像漏了一块。空就整块收掉。 */
+  .note:empty{display:none}
   .cloud-block{margin-top:16px; border-top:1px solid var(--line); padding-top:13px}
   .cloud-block>b{display:block; font-size:13.5px}
   .cloud-block .fingerprint{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -1408,7 +1411,7 @@
         <h1 data-page-node-id="8cCep9m9QumF173Welrzdi">长安大学充电桩查询</h1>
         <!-- 副标题（v2.59）：原来的「by长歌 · 致谢 & 贡献名单」已下线 ——
              开发者与致谢名单统一收进「设置 › 关于」，首页只留一句范围说明。 -->
-        <div class="sub" id="sub" data-page-node-id="mWi9c9mTrdTE6oqwHFpZSH">渭水校区 · 空闲桩位随时查</div>
+        <div class="sub" id="sub" data-page-node-id="mWi9c9mTrdTE6oqwHFpZSH">渭水校区</div>
       </div>
       <div class="head-icons">
         <!-- 版本更新公告（2026-10-29）。红点由 syncChangelogDot() 控制：
@@ -1529,11 +1532,11 @@
 
   <footer data-page-node-id="FcAfbyjWi7cXyHxRagdnt4">
     <div class="foot-contact">
-      <div class="foot-line">有任何问题，欢迎联系 <a href="mailto:2742973313@qq.com" class="foot-link" data-page-node-id="contact-mail">2742973313@qq.com</a></div>
-      <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
+      <div class="foot-line">反馈邮箱 <a href="mailto:2742973313@qq.com" class="foot-link" data-page-node-id="contact-mail">2742973313@qq.com</a></div>
+      <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
-    <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.82</div>
+    <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
+    <div id="app-ver" class="foot-ver">版本 v2.83</div>
   </footer>
 </div>
 
@@ -1596,7 +1599,7 @@
     <div class="tmap-host" id="tmap-host"></div>
     <div class="amap-host" id="amap-host"></div>
     <div class="map-keybar" id="map-keybar" hidden>
-      <span>真实地图需配置腾讯地图 key（免费申请约 3 分钟）</span>
+      <span>需要腾讯地图 key</span>
       <button id="map-key-btn" type="button">填写 key</button>
     </div>
     <svg id="campus-map" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 9600 3422" preserveAspectRatio="xMidYMid meet">
@@ -1641,7 +1644,7 @@
       <p class="note" id="usage-note"></p>
     </div>
     <div id="usage-empty" class="note" hidden>
-      还没有历史数据。数据从「每次刷新查询」开始累积，攒够一段时间后这里就会出现统计。
+      还没有历史数据，刷新几次后才会有统计。
     </div>
   </div>
 </dialog>
@@ -1695,7 +1698,7 @@
       <h3 class="usage-sec">七天 × 24 时段全览</h3>
       <div class="rv-legend" id="rv-legend"></div>
       <div class="usage-chart" id="rv-heat"></div>
-      <p class="note" id="rv-heat-note">点某一格可以切到那一天的 24 小时曲线；点左侧日期同理。</p>
+      <p class="note" id="rv-heat-note">点格子看那一天的曲线。</p>
     </div>
     <div id="rv-empty" class="note" hidden></div>
   </div>
@@ -1821,7 +1824,7 @@
       </div>
       <button class="link-btn" id="cred-edit">更新</button>
     </div>
-    <p class="note">凭证是所有人共享的，<b>谁都能更新</b>，不用密码。小程序签发的那串 7 天有效，到期前谁抓一串新的粘进来都算续上。</p>
+    <p class="note">全校共享，<b>谁都能更新</b>，不用密码。有效期 7 天，到期前换一串即可。</p>
   </div>
 </dialog>
 
@@ -1831,7 +1834,7 @@
       <h2>云端同步</h2>
       <button class="x-btn" data-close aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
     </div>
-    <p class="note" style="margin-top:0">同步密码只用来拉清单（新桩位、新地址），和设备凭证、管理员密码都不是一回事。</p>
+    <p class="note" style="margin-top:0">只用来拉设备清单，与凭证、管理员密码无关。</p>
     <input type="password" id="sync-password-input" placeholder="请输入同步密码" autocomplete="off">
     <div class="row">
       <button class="icon-btn" id="sync-cancel">取消</button>
@@ -1849,9 +1852,8 @@
     </div>
     <label class="view-opt">
       <input type="checkbox" id="dense-cards" style="width:auto;min-width:18px;height:18px;padding:0">
-      <span>一行显示<b>两个</b>充电桩（取消勾选就回到一行一个）</span>
+      <span>一行显示<b>两个</b>充电桩</span>
     </label>
-    <p class="note">只改本机的显示，不影响别人。两个一行的排得更紧凑，插座格子会相应缩小一号。</p>
   </div>
 </dialog>
 
@@ -1867,7 +1869,7 @@
     <div class="skin-group" id="campus-group">
       <button class="skin-opt" type="button" data-campus="weishui">
         <span class="opt-dot" aria-hidden="true">渭</span>
-        <span class="skin-txt"><b>渭水校区</b><small>朝晖体育场南 / 北门 / 20 号楼 / 物业服务中心 / 住宅，共 5 处</small></span>
+        <span class="skin-txt"><b>渭水校区</b><small>朝晖 / 北门 / 20 号楼 / 物业 / 住宅，117 台</small></span>
       </button>
       <button class="skin-opt" type="button" data-campus="beiyuan">
         <span class="opt-dot" aria-hidden="true">北</span>
@@ -1875,14 +1877,13 @@
       </button>
       <button class="skin-opt" type="button" data-campus="yanta">
         <span class="opt-dot" aria-hidden="true">雁</span>
-        <span class="skin-txt"><b>雁塔校区</b><small>还没有接入充电桩，选中后列表是空的</small></span>
+        <span class="skin-txt"><b>雁塔校区</b><small>水利与环境学院，3 台</small></span>
       </button>
       <button class="skin-opt" type="button" data-campus="xiaozhai">
         <span class="opt-dot" aria-hidden="true">小</span>
-        <span class="skin-txt"><b>小寨校区</b><small>还没有接入充电桩，选中后列表是空的</small></span>
+        <span class="skin-txt"><b>小寨校区</b><small>暂无充电桩</small></span>
       </button>
     </div>
-    <p class="note">切校区会换掉整套地址：顶部那排地址胶囊、设备列表、地图页签都跟着走。只改本机，不影响别人。</p>
   </div>
 </dialog>
 
@@ -1899,15 +1900,15 @@
     <div class="skin-group" id="sort-group">
       <button class="skin-opt" type="button" data-sort="free">
         <span class="opt-dot" aria-hidden="true">空</span>
-        <span class="skin-txt"><b>当前空闲</b><small>空位最多的桩排最前面，出门前找车位的默认档</small></span>
+        <span class="skin-txt"><b>当前空闲</b><small>空位多的排最前</small></span>
       </button>
       <button class="skin-opt" type="button" data-sort="id">
         <span class="opt-dot" aria-hidden="true">号</span>
-        <span class="skin-txt"><b>按编号</b><small>按地址分组、组内 A-01 → B-02 顺着排，站在桩跟前找的时候用这档</small></span>
+        <span class="skin-txt"><b>按编号</b><small>按地址分组，组内按编号</small></span>
       </button>
       <button class="skin-opt" type="button" data-sort="fav">
         <span class="opt-dot" aria-hidden="true">星</span>
-        <span class="skin-txt"><b>收藏优先</b><small>点过星标的桩排最前，其余仍按编号</small></span>
+        <span class="skin-txt"><b>收藏优先</b><small>星标排最前</small></span>
       </button>
     </div>
     <select id="sort-by" aria-label="排序" hidden tabindex="-1">
@@ -1915,7 +1916,6 @@
       <option value="id">按编号</option>
       <option value="fav">收藏优先</option>
     </select>
-    <p class="note">只改本机这一份列表的顺序，不影响别人，也不会改变查到的结果。</p>
   </div>
 </dialog>
 
@@ -1925,7 +1925,7 @@
       <h2>管理员后台</h2>
       <button class="x-btn" data-close aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
     </div>
-    <p class="note" style="margin-top:0">管理员改的清单会推给所有人，所以这一项要密码。普通查询用不到。</p>
+    <p class="note" style="margin-top:0">改动会推给所有人，需要密码。</p>
     <input type="password" id="password-input" placeholder="请输入管理员密码" autocomplete="off">
     <div class="row">
       <button class="icon-btn" id="password-cancel">取消</button>
@@ -1942,7 +1942,7 @@
       <h2>扫码采设备号</h2>
       <button class="x-btn" data-close aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
     </div>
-    <p class="note" style="margin-top:0">对着桩身上的二维码扫，自动提取编号并去重。绿色是站里已接入的，琥珀色是还没接入的；扫完点「复制全部」发给加桩的人就行。</p>
+    <p class="note" style="margin-top:0">扫桩上的二维码提取编号。绿边＝已接入，琥珀边＝未接入。</p>
     <!-- 🔴 hud / hint 不能放进 #scan-reader：库在 start() 成功后会把容器清空，
          它们会被一起抹掉，随后 $('scan-hud') 是 null → 报「摄像头打不开」。 -->
     <div class="scan-stage">
@@ -1972,7 +1972,7 @@
       <h2>皮肤</h2>
       <button class="x-btn" data-close aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
     </div>
-    <div class="set-sec">风格 —— 颜色、字体与排版</div>
+    <div class="set-sec">风格</div>
     <div class="skin-group" id="skin-style-group">
       <button class="skin-opt" type="button" data-skin-style="default">
         <span class="skin-dot" style="background:#F7F6F2"></span>
@@ -1980,22 +1980,22 @@
       </button>
       <button class="skin-opt" type="button" data-skin-style="magazine">
         <span class="skin-dot" style="background:#F4EBD8; border-color:#B84032"></span>
-        <span class="skin-txt"><b>杂志编辑 · 书页朱砂</b><small>暖白纸色、衬线大标题、细分隔线；列表一行一个/两个仍可在显示方式里切换</small></span>
+        <span class="skin-txt"><b>杂志编辑 · 书页朱砂</b><small>暖白纸色、衬线标题、细分隔线</small></span>
       </button>
       <button class="skin-opt" type="button" data-skin-style="forest">
         <span class="skin-dot" style="background:#183D2D; border-color:#DDB957"></span>
-        <span class="skin-txt"><b>森林麦穗 · 温暖自然</b><small>深苔绿底、麦穗金强调，字距行距更舒展、卡片带拱形与轻曲线；暗色皮肤，字自动转浅</small></span>
+        <span class="skin-txt"><b>森林麦穗 · 温暖自然</b><small>深苔绿底、麦穗金强调</small></span>
       </button>
       <button class="skin-opt" type="button" data-skin-style="moss">
         <span class="skin-dot" style="background:#DDE5CD; border-color:#C96A35"></span>
-        <span class="skin-txt"><b>苔绿暖橙 · 自然有机</b><small>苔绿与米色打底、暖橙强调，大圆角与柔和曲线，阅读间距更松</small></span>
+        <span class="skin-txt"><b>苔绿暖橙 · 自然有机</b><small>苔绿米色、暖橙强调、大圆角</small></span>
       </button>
       <button class="skin-opt" type="button" data-skin-style="pixel">
         <span class="skin-dot" style="background:#F4E7BD; border-color:#549B3F"></span>
-        <span class="skin-txt"><b>奶油草绿 · 像素游戏</b><small>米黄面板、方形边框与硬投影，8px 轻网格；按钮更大，选中态是实心 + 硬阴影</small></span>
+        <span class="skin-txt"><b>奶油草绿 · 像素游戏</b><small>米黄面板、方形边框、硬投影</small></span>
       </button>
     </div>
-    <div class="set-sec">材质 —— 卡片与面板</div>
+    <div class="set-sec">材质</div>
     <div class="skin-group" id="skin-mat-group">
       <button class="skin-opt" type="button" data-skin-mat="default">
         <span class="skin-dot" style="background:#FFFFFF; border-color:#B4B2A9"></span>
@@ -2003,22 +2003,22 @@
       </button>
       <button class="skin-opt" type="button" data-skin-mat="clear">
         <span class="skin-dot" style="background:rgba(255,255,255,.55); border-color:#C3CEC9"></span>
-        <span class="skin-txt"><b>透明磨砂 · 百搭</b><small>只把卡片与弹窗换成半透明 + 背景模糊 + 细亮边，颜色完全跟着上面的风格走；暗底风格下自动收成一薄层雾</small></span>
+        <span class="skin-txt"><b>透明磨砂 · 百搭</b><small>半透明 + 背景模糊，跟随风格配色</small></span>
       </button>
       <button class="skin-opt" type="button" data-skin-mat="glass">
         <span class="skin-dot" style="background:#DDE0F8; border-color:#6D4CDB"></span>
-        <span class="skin-txt"><b>磨砂玻璃 · 雾紫晶光</b><small>半透明面板、背景模糊、细亮边，底下衬柔和色块；不支持模糊的浏览器自动改用实色底</small></span>
+        <span class="skin-txt"><b>磨砂玻璃 · 雾紫晶光</b><small>半透明面板、紫调柔光</small></span>
       </button>
       <button class="skin-opt" type="button" data-skin-mat="peach">
         <span class="skin-dot" style="background:#F6CEC8; border-color:#A4306C"></span>
-        <span class="skin-txt"><b>桃雾莓光</b><small>桃粉底、莓紫强调的磨砂玻璃，柔光色块在面板后面；同样带不模糊时的实色兜底</small></span>
+        <span class="skin-txt"><b>桃雾莓光</b><small>桃粉底、莓紫强调</small></span>
       </button>
       <button class="skin-opt" type="button" data-skin-mat="deepsea">
         <span class="skin-dot" style="background:#143A54; border-color:#49D7ED"></span>
-        <span class="skin-txt"><b>深海冰晶</b><small>深海底色 + 冰蓝强调的磨砂玻璃（薄霜面板），字自动转浅；夜间看着最安静</small></span>
+        <span class="skin-txt"><b>深海冰晶</b><small>深海底色、冰蓝强调</small></span>
       </button>
     </div>
-    <p class="note">皮肤只改本机的观感，不影响别人。材质带自己的配色时以材质为准（配色随材质走），「透明磨砂」不带配色、跟着风格走；排版（字体、圆角、列数）始终由风格与「显示方式」决定。</p>
+    <p class="note">只改本机。</p>
   </div>
 </dialog>
 
@@ -2035,22 +2035,22 @@
     <div class="skin-group" id="font-group">
       <button class="skin-opt" type="button" data-font="default">
         <span class="font-dot" style="font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif">A桩</span>
-        <span class="skin-txt"><b>默认 · 系统无衬线</b><small>现在的样子：手机自带的中文黑体，笔画匀、最省电，小字号最清楚</small></span>
+        <span class="skin-txt"><b>默认 · 系统无衬线</b><small>系统黑体，小字最清楚</small></span>
       </button>
       <button class="skin-opt" type="button" data-font="serif">
         <span class="font-dot" style="font-family:Georgia,'Songti SC',serif">A桩</span>
-        <span class="skin-txt"><b>书卷 · 宋体</b><small>中文走宋体（衬线），横细竖粗、有书写味；读长段说明文字时更像在读书</small></span>
+        <span class="skin-txt"><b>书卷 · 宋体</b><small>宋体，适合长文</small></span>
       </button>
       <button class="skin-opt" type="button" data-font="mono">
         <span class="font-dot" style="font-family:ui-monospace,Menlo,Consolas,monospace">A桩</span>
-        <span class="skin-txt"><b>等宽 · 数据感</b><small>数字和字母等宽，桩号（A-01）、插座数（3/4）、时刻上下对齐；中文按系统黑体回落</small></span>
+        <span class="skin-txt"><b>等宽 · 数据感</b><small>等宽，数字上下对齐</small></span>
       </button>
       <button class="skin-opt" type="button" data-font="round">
         <span class="font-dot" style="font-family:ui-rounded,'SF Pro Rounded',system-ui,sans-serif">A桩</span>
-        <span class="skin-txt"><b>圆润 · 柔和</b><small>笔画转角更圆（iPhone / Mac 上是 SF Rounded，最明显）；安卓缺圆体时退回系统黑体</small></span>
+        <span class="skin-txt"><b>圆润 · 柔和</b><small>圆体，笔画更柔和</small></span>
       </button>
     </div>
-    <p class="note">只改本机字体，不动颜色和排版。用的是手机里已有的字体，没装的那族会自动退到最接近的一种；想让 iPhone 和安卓看起来一致，就用「默认」。</p>
+    <p class="note">只用系统自带字体。</p>
   </div>
 </dialog>
 
@@ -2093,17 +2093,16 @@
     <div class="set-sec">致谢与贡献人员</div>
     <div class="set-card">
       <div class="about-para">
-        <p class="note">首先感谢参与数据采集、拍摄照片、核对桩位信息的各位同学：<b>F.、ditto、W、元气少女</b>。大家利用课余时间实地走访，为这个校园充电桩项目提供了宝贵的实地数据，让网站能够真实、准确地展示充电桩状态，帮助同学们避免跑空。</p>
-        <p class="note">特别感谢 <b>MyCHU</b> 开发作者 <b>Rinn</b>，为本项目地图开发提供思路与实现方法。</p>
-        <p class="note" style="margin-bottom:6px">同时，本项目在开发过程中参考、使用了优秀的开源项目：</p>
+        <p class="note">实地采集、拍照与桩位核对：<b>F.、ditto、W、元气少女</b>。</p>
+        <p class="note">地图实现思路来自 <b>MyCHU</b>（<b>Rinn</b>）。</p>
+        <p class="note" style="margin-bottom:6px">参考的开源项目：</p>
         <ul class="thanks-list">
           <li>MyCHU：<a href="https://github.com/RinnMoe/my_chu" target="_blank" rel="noopener noreferrer">github.com/RinnMoe/my_chu</a></li>
           <li>汕头大学充电：<a href="https://github.com/zhuangchuyuan86-bot/stu-charge-watch" target="_blank" rel="noopener noreferrer">github.com/zhuangchuyuan86-bot/stu-charge-watch</a></li>
         </ul>
-        <p class="note" style="margin-top:8px">在此向所有开源开发者致以感谢。开源社区的共享精神，为本网站的实现提供了重要的技术支撑。</p>
       </div>
     </div>
-    <p class="note">本项目为学生公益项目，持续维护更新中，欢迎大家继续反馈问题、提供数据。</p>
+    <p class="note">学生公益项目，欢迎反馈。</p>
   </div>
 </dialog>
 
@@ -2113,7 +2112,7 @@
       <h2>加入反馈交流群</h2>
       <button class="x-btn" data-close aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
     </div>
-    <p class="note" style="margin-top:0">没能自动打开 QQ（可能是设备没装 QQ，或在电脑上浏览）。可以打开手机 QQ，在「加群」里搜索下面的群号：</p>
+    <p class="note" style="margin-top:0">没能打开 QQ，请在手机 QQ 里搜索群号：</p>
     <div class="qq-num-row">
       <span class="qq-num" id="qq-num-text">1128669064</span>
       <button class="icon-btn" id="qq-copy-btn">复制群号</button>
@@ -2138,63 +2137,45 @@
       <button class="x-btn" data-close aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
     </div>
 
-    <h3 class="help-sec">为什么做这个站</h3>
+    <h3 class="help-sec">这个站做什么</h3>
     <p class="help-body">
-      渭水校区四个充电区、一百多台桩。官方小程序要先登录，进去还只能一台一台点开看 ——
-      想知道「现在哪里有空位」，得翻好几遍。
-    </p>
-    <p class="help-body">
-      这个站把一百多台桩一次性摊开：哪个区、几号桩、还剩几个空位，一屏看完，点一下「刷新」就是最新的。
-      数据来自充电平台本身，本站<b>只读不写</b>，不涉及账号、订单和支付。
+      全校 177 台桩摊在一屏：哪个区、几号桩、还剩几个位，不用一台台点开。
+      数据来自充电平台，本站<b>只读</b>，不涉及账号与支付。
     </p>
 
-    <h3 class="help-sec">三步查到空桩</h3>
+    <h3 class="help-sec">怎么看</h3>
     <ol class="help-steps">
-      <li><b>选地址</b>　先挑校区，再从下面一排地址里挑一块：校区全图、物业服务中心、20 号楼、北门、朝晖体育场南。点哪颗就跳到那一块的分布。</li>
-      <li><b>空位多的排在前</b>　默认就是「当前空闲」排序，空位最多的桩自动排最上面；想看编号顺序，把右边那颗下拉换成「按编号」。</li>
-      <li><b>一行摆两个</b>　想让一屏塞下更多桩：右上角设置 › 显示方式，勾上「一行显示两个充电桩」。</li>
-      <li><b>点定位图标看位置</b>　每张卡片右上角有颗定位图标（星标左边）。点它，地图会打开并直接定位到这台桩，同时标出它周围还有哪些桩。</li>
+      <li><b>选地址</b>　先挑校区，再挑地址胶囊，点哪颗看哪块。</li>
+      <li><b>排序</b>　默认空位多的排前面；设置 › 排序 可改成按编号或收藏优先。</li>
+      <li><b>一行两个</b>　设置 › 显示方式，一屏能多放一倍。</li>
+      <li><b>定位</b>　卡片右上角定位图标，点开地图直接标出这台桩。</li>
     </ol>
     <p class="help-body">
-      卡片上四个格子就是这台桩的四个插座，格子里的字是「<b>编号</b>」和「<b>空闲 / 占用</b>」——
-      绿色可用、红色已被占。有几格写着「空闲」，这台桩就还剩几个位。
+      卡片上每个格子是一个插座：<b>绿色空闲、红色占用</b>。
     </p>
 
-    <h3 class="help-sec">如果页面卡住了</h3>
-    <p class="help-body">
-      先做一件事：<b>关掉 Wi-Fi，改用手机流量打开。</b><br>
-      学校 Wi-Fi 人多的时候出口带宽是共享的，而本站服务器在境外，走 Wi-Fi 要绕一圈才拿得到数据；
-      手机流量走运营商直连，反而更稳更快。
-    </p>
+    <h3 class="help-sec">卡住了怎么办</h3>
     <ul class="help-list">
-      <li>点右上角「刷新」重查一次，或者下拉页面重新加载</li>
-      <li>等一两分钟再试 —— 平台对短时间内的密集查询有限流，缓一下就恢复</li>
-      <li>一直转圈超过一分钟，到群里说一声，一般很快有人处理</li>
+      <li>先换成手机流量：校园网出口共享，服务器在境外，绕一圈更慢</li>
+      <li>点「刷新」重查；等一两分钟再试，平台对密集查询有限流</li>
+      <li>转圈超过一分钟，群里说一声</li>
     </ul>
 
-    <h3 class="help-sec">一起把它做得更好</h3>
-    <p class="help-body">
-      桩位、照片、新装的桩、拆掉的桩，这些都得有人真去跑一趟才知道。
-      如果你发现哪台桩的位置标错了，或者某个区新加了桩，欢迎在群里说。
-    </p>
+    <h3 class="help-sec">反馈</h3>
     <p class="help-body" style="margin-bottom:0">
-      QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" data-qq-open>1128669064</a>（点一下直接加群）<br>
-      邮箱 <a href="mailto:2742973313@qq.com" class="foot-link">2742973313@qq.com</a>
+      桩位标错、新装或拆了桩，都欢迎说一声。<br>
+      QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" data-qq-open>1128669064</a>
+      　邮箱 <a href="mailto:2742973313@qq.com" class="foot-link">2742973313@qq.com</a>
     </p>
 
-    <h3 class="help-sec">项目开源</h3>
+    <h3 class="help-sec">开源与赞助</h3>
     <p class="help-body">
-      代码在 GitHub：<a href="https://github.com/Qishihe/longsong-chd-charger" target="_blank" rel="noopener noreferrer" class="foot-link">github.com/Qishihe/longsong-chd-charger</a>
-      　欢迎看看、提问题，或者自己部署一份。
+      代码：<a href="https://github.com/Qishihe/longsong-chd-charger" target="_blank" rel="noopener noreferrer" class="foot-link">github.com/Qishihe/longsong-chd-charger</a>。
     </p>
-
-    <h3 class="help-sec">关于赞助</h3>
-    <p class="help-body">本站没有广告，也从不收费；服务器和域名由我自己维护。</p>
     <div class="sponsor-box">
       <img class="sponsor-qr" src="./sponsor-qr.png" alt="支付宝收款二维码" loading="lazy" decoding="async">
       <p class="sponsor-note">
-        上面是<b>支付宝</b>收款码，如果它帮到了你，可以用支付宝扫码请我喝杯水。<br>
-        <b>完全自愿</b>：不打赏也能用全部功能，也没有任何额外权限或数据上的差别。
+        本站无广告、不收费。想请我喝杯水就扫这个支付宝码，完全自愿。
       </p>
     </div>
 
@@ -2211,13 +2192,13 @@
       <button class="x-btn" data-close data-page-node-id="NTEj2V0cPHy3OJCVPEVOto" aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
     </div>
     <p class="note" style="margin-top:0" data-page-node-id="sOXgUS4gE9vYF8kWXQgtoA">
-      凭证是一串 <code>eyJ</code> 开头的长串，小程序签发，7 天有效。
-      粘进来会先拿一台桩真打一次，通过才算数。
+      小程序签发的 <code>eyJ</code> 长串，7 天有效。
+      保存前会实测一台桩。
     </p>
     <label for="token-input" data-page-node-id="skZzb3rszK7hZ7o0RFz70n">凭证内容</label>
     <textarea id="token-input" placeholder="整段请求头、cURL、eyJ 开头的长串，粘哪个都行"></textarea>
     <div class="note" style="margin:-6px 0 10px">
-      不用自己挑那一行 —— 抓包工具里「复制请求头 / 复制 cURL」直接整块粘进来，这边会自己认出 <code>authorization</code>。
+      请求头或 cURL 整段粘进来，会自动取出 <code>authorization</code>。
     </div>
     <!-- 🔴 2026-11-01 v2.67：这里是「让全站用上」的唯一入口。
          10-27 删掉内置同步密钥之后，老的那条 cloudPush 链路恒 null，
@@ -2226,8 +2207,8 @@
     <label for="token-admin">写口令（填了才会存到服务器）</label>
     <input type="password" id="token-admin" placeholder="只在本机临时用就留空" autocomplete="off">
     <div class="note" style="margin:-2px 0 10px">
-      <b>留空</b>：只对当前这个标签页有效 —— 凭证不落盘（防止 F12 直接抄走），所以刷新就没了，别人也用不到。<br>
-      <b>填口令</b>：校验通过后写进 Cloudflare KV，之后打开这个网址的人都自动用上。口令只有站长有。
+      <b>留空</b>：只在本标签页有效，刷新即失效。<br>
+      <b>填口令</b>：写进服务器，所有人都能用。
     </div>
     <div class="row" data-page-node-id="ojC1CKL1qX6f8MB7feYwl2">
       <button class="icon-btn" id="token-paste" data-page-node-id="JTagd0BRSPfyU03JWoFKV0">粘贴</button>
@@ -2235,7 +2216,7 @@
     </div>
     <div class="note" id="token-note" data-page-node-id="q16Fi4WMiRs70q0HDzl5ua"></div>
     <div class="note" style="border-top:1px solid var(--line);padding-top:11px;margin-top:13px">
-      第一次弄？<a href="./help.html">看三分钟教程</a> —— 手边没电脑就走 iPhone 那条，安卓建议别折腾。
+      第一次弄？<a href="./help.html">看教程</a>。
     </div>
   </div>
 </dialog>
@@ -2253,7 +2234,7 @@
          这里只留一句指引，别再把它复制回来（复制 = 文档里两个同 id，`getElementById` 只认靠前的）。 -->
     <p class="note" style="margin-top:0">凭证状态与更新入口在「设置 → 设备凭证」里，所有人可见。</p>
 
-    <label for="devices-input" data-page-node-id="DGjs0M3GYAb4rdnX7K6jZt">要看的设备，每行一个：<code data-page-node-id="KsL6Gk1UTPQAxSxX9zgksQ">桩号 名称 @地址</code>（地址可省略，新地址会自动加进筛选列表）</label>
+    <label for="devices-input" data-page-node-id="DGjs0M3GYAb4rdnX7K6jZt">要看的设备，每行一个：<code data-page-node-id="KsL6Gk1UTPQAxSxX9zgksQ">桩号 名称 @地址</code></label>
     <textarea id="devices-input" placeholder="XLA29464 渭水校区 TY-36 号桩 @渭水-朝晖体育场南&#10;XLA29461 渭水校区 W-04 号桩 @渭水-物业服务中心"></textarea>
     <div class="row" data-page-node-id="KXaFTpYMXwCDHfjWFWlXjn">
       <button class="icon-btn" id="devices-reset" data-page-node-id="GDhvRnKGFR7m3dpjzPquCO">恢复默认</button>
@@ -2262,7 +2243,7 @@
     <div class="note" id="devices-cloud-state" style="margin-top:4px"></div>
     <label style="display:flex;align-items:center;gap:9px;margin-top:16px;font-size:13.5px;color:var(--text)" data-page-node-id="hhO9Pq8QS0mqltv6kBPuOQ">
       <input type="checkbox" id="auto-refresh" style="width:auto;min-width:18px;height:18px;padding:0" data-page-node-id="Vi63dqGunNGDQnk4DGAXAP">
-      <span>前台自动更新<small style="display:block;font-size:12px;color:var(--hint)">打开页面时每小时更新一次汇总、记录使用情况；卡片数据靠手动刷新</small></span>
+      <span>前台自动更新<small style="display:block;font-size:12px;color:var(--hint)">每小时更新一次汇总，卡片要手动刷</small></span>
     </label>
 
     <div class="cloud-block" data-page-node-id="XqxpEXXGe7AZGm5ruJHw4x">
@@ -2273,14 +2254,13 @@
       </div>
       <div class="note" id="cloud-note" data-page-node-id="zfBAnUgpQsFeaseHvCs7JN"></div>
       <div class="note" style="margin-top:4px" data-page-node-id="ryWhblJkEmqAVIBZUd606M">
-        谁抓到新凭证，校验通过后都会自动传上来；打开这个网址的设备每次都取最新的，
-        <b data-page-node-id="b4ASWmA4jjSuHhyHt66eML">不用扫码、不用输任何东西</b>。
+        新凭证校验通过后自动上传，所有设备打开时自动取最新的一份。
       </div>
     </div>
 
     <div class="note" id="settings-note" data-page-node-id="bl5sTq3o3leAih0qTE6ACV"></div>
     <div class="note" style="border-top:1px solid var(--line);padding-top:12px;margin-top:14px" data-page-node-id="slxfGMqO7hduSOvDijuOQn">
-      凭证由云端统一保管，不会下发到浏览器，所以这台设备上不需要存任何东西。查询由本站转发到平台。
+      凭证由云端保管，不下发到浏览器；查询经本站转发到平台。
     </div>
   </div>
 </dialog>
@@ -2295,7 +2275,7 @@
       <button class="x-btn" data-close aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
     </div>
     <p class="note" style="margin-top:0">
-      每次改动都记在这儿，方便你判断要不要刷新看看。<span style="white-space:nowrap">当前版本 <b id="chg-cur">–</b></span>
+      改动都记在这里。<span style="white-space:nowrap">当前版本 <b id="chg-cur">–</b></span>
     </p>
     <div class="chg-list" id="chg-list"></div>
   </div>
@@ -3917,11 +3897,11 @@ async function loadDevice(device, { force = false } = {}) {
 let lastError = null;
 
 // 凭证失效提示：唯一还会在顶部横幅出现的错误类型
-const AUTH_ERROR = '凭证失效了 · 在右上角设置 › 设备凭证里粘一串新的，粘完所有人都能用';
+const AUTH_ERROR = '凭证失效 · 在设置 › 设备凭证里换一串';
 /* 「这一轮根本拿不到凭证」和「凭证过期了」是两件事，文案必须分开（v2.47）：
    过期 → 上面那句，告诉用户去哪儿粘；
    拿不到 → 下面这句，只如实说明为什么数据不再变新。 */
-const CRED_HINT = '凭证还没接上，下面是最后一次查到的结果 · 换凭证去右上角设置 › 设备凭证';
+const CRED_HINT = '还没有凭证，下面是上次查到的数据 · 设置 › 设备凭证';
 
 /** 上一次画出来的地址筛选值 —— 只有它变了才把选中的胶囊滚进可视区。
  *  声明放在 renderLocationFilter **前面**：函数体里先用到、声明在后面的 `let`
@@ -4005,7 +3985,7 @@ function paintCampusPill() {
   const lab = $('loc-campus-label');
   if (lab) lab.textContent = campusName(campus, true);
   const sub = $('sub');
-  if (sub) sub.textContent = campusName(campus, false) + ' · 空闲桩位随时查';
+  if (sub) sub.textContent = campusName(campus, false);
   /* v2.74：设置 › 校区 的右侧值、以及那个弹窗里的选中态，都跟这里走 ——
      顶部胶囊和设置是**同一个值的两种写法**，各写一遍迟早对不上。 */
   paintCampusPrefs();
@@ -4056,7 +4036,7 @@ function setCampus(id) {
   const devices = getDevices();
   const cache = readCache();
   render(devices, devices.map((d) => cache[d.id] || { ports: [], error: '尚未查询', at: 0 }));
-  showToast('已切到' + campusName(id, false) + (campusHasDevices(id) ? '' : ' · 这里还没有接入充电桩'));
+  showToast(campusName(id, false) + (campusHasDevices(id) ? '' : ' · 暂无充电桩'));
   refresh();
 }
 
@@ -4137,14 +4117,14 @@ function paintCred() {
     if (!CLOUD_TOKEN_TRIED) {
       CRED_MISSING = false;
       $('cred-title').textContent = '正在确认凭证状态…';
-      $('cred-sub').textContent = '打开页面时会向云端问一次，一般一两秒就有结论';
-      paintCredHint('正在确认凭证状态…');
+      $('cred-sub').textContent = '';
+      paintCredHint('确认中…');
       return;
     }
     CRED_MISSING = true;
     $('cred-title').textContent = '还没有凭证';
-    $('cred-sub').textContent = '去「设备凭证」粘一串；填口令才能让所有人用上';
-    paintCredHint('还没有凭证 · 去「设备凭证」更新一次');
+    $('cred-sub').textContent = '去「设备凭证」粘一串';
+    paintCredHint('还没有凭证');
     return;
   }
 
@@ -4163,8 +4143,8 @@ function paintCred() {
   /* 到期提示按「谁的凭证」分开：
    *   本机粘贴的 → 邀请他再抓一串（把单点供血分散掉的关键一句）；
    *   服务端的   → 换证由站长的自动续期负责，访客插不上手，别给徒劳的指引。 */
-  if (state.status === 'soon') parts.push(state.server ? '到期前会自动换新' : '谁抓一串新的都算续上');
-  if (state.status === 'expired') parts.push(state.server ? '等站长换证，稍后自动恢复' : '粘一串新的就恢复');
+  if (state.status === 'soon' && state.server) parts.push('到期前自动换新');
+  if (state.status === 'expired') parts.push(state.server ? '等站长换证' : '换一串就恢复');
   $('cred-sub').textContent = parts.join(' · ') || '无法判断有效期';
   paintCredHint(Number.isFinite(state.days)
     ? $('cred-title').textContent + (state.days > 0 ? ' · 还剩 ' + state.days.toFixed(1) + ' 天' : ' · 已过期')
@@ -4484,8 +4464,8 @@ function render(devices, results) {
     const campusEmpty = !campusHasDevices(campus);
     const filter = getFilter();
     $('empty').textContent = campusEmpty
-      ? campusName(campus, false) + '还没有接入充电桩 · 左上角可以切回其他校区'
-      : (filter ? '这个地址下没有桩，换个地址试试。' : '还没有设备。点下面的「设备与设置」添加桩号。');
+      ? campusName(campus, false) + '还没有接入充电桩'
+      : (filter ? '这个地址下没有桩' : '还没有设备');
   }
 
   $('stats').hidden = false;
@@ -5771,8 +5751,7 @@ function paintMapSub(v) {
   if (tip) {
     tip.hidden = !empty;
     if (empty) {
-      tip.innerHTML = '<b>' + escapeHtml(nm) + '还没有接入点位</b>'
-        + '地图已经按校区范围铺好，补上点位后这里就会显示桩位。';
+      tip.innerHTML = '<b>' + escapeHtml(nm) + '还没有接入点位</b>';
     }
   }
 }
@@ -5923,7 +5902,7 @@ function switchStaticMap(staticId) {
   const want = STATIC_MAPS.find((m) => m.id === staticId) || CAMPUS_MAP;
   staticApplyView(want.id);
   const sub = $('map-sub');
-  if (sub) sub.textContent = '在线地图没连上，先给你看手绘图';
+  if (sub) sub.textContent = '在线地图没连上，先看手绘图';
   /* 兜底图是渭水总览，一定有点位 —— 别让上一个视图（雁塔/小寨）的
      「暂无点位」浮层盖在这张图上。 */
   const tip = $('map-empty');
@@ -6258,7 +6237,7 @@ async function refresh({ force = false, retried = false, only = null, autoRetry 
   if (busyFlag) {
     /* 忙时点击：只记一笔，收尾时补查失败的几台（见 pendingTargets 上方注释） */
     pendingTargets = true;
-    showToast('正在更新，这一轮马上就结束（不用重复点）');
+    showToast('正在更新…');
     return;
   }
 
@@ -6274,7 +6253,7 @@ async function refresh({ force = false, retried = false, only = null, autoRetry 
       const rest = plan.scope - plan.need.length;
       const gap = lastPartialRefreshAt ? Date.now() - lastPartialRefreshAt : Infinity;
       if (gap < MIN_PARTIAL_GAP_MS) {
-        showToast(`刚补查过那几台，${Math.ceil((MIN_PARTIAL_GAP_MS - gap) / 1000)} 秒后再试`);
+        showToast(`${Math.ceil((MIN_PARTIAL_GAP_MS - gap) / 1000)} 秒后再试`);
         return;
       }
       lastPartialRefreshAt = Date.now();
@@ -6283,7 +6262,7 @@ async function refresh({ force = false, retried = false, only = null, autoRetry 
       const bits = [];
       if (plan.failed) bits.push(plan.failed + ' 台没响应');
       if (plan.stale) bits.push(plan.stale + ' 台超过 1 分钟');
-      showToast('只补查 ' + bits.join(' / ') + '，其余 ' + rest + ' 台刚更新过');
+      showToast('只补查 ' + bits.join(' / '));
     }
   }
 
@@ -6300,8 +6279,8 @@ async function refresh({ force = false, retried = false, only = null, autoRetry 
     if (gap < limit) {
       const wait = Math.ceil((limit - gap) / 1000);
       showToast(stale
-        ? `这个地址的数据还是旧的，${wait} 秒后就能重试`
-        : `刚更新过，${wait} 秒后才能再刷`);
+        ? `数据还是旧的，${wait} 秒后再试`
+        : `刚更新过，${wait} 秒后再刷`);
       return;
     }
   }
@@ -6374,7 +6353,7 @@ async function refresh({ force = false, retried = false, only = null, autoRetry 
     render(devices, results);
     /* 筛选值对不上任何桩时给一句明确的话，否则「点刷新什么都没发生」会被当成卡死 */
     if (filter && !targets.length) {
-      paintBanner('当前筛选「' + filter + '」下没有可查询的桩，换个地址试试。', true);
+      paintBanner('「' + filter + '」下没有可查的桩', true);
     }
 
     /* ③ 云端共享结果（别的设备 60 秒内查过的）：一次请求，能省掉大量平台请求。
@@ -6647,7 +6626,7 @@ async function refresh({ force = false, retried = false, only = null, autoRetry 
   if (needRecover && !retried && getSyncKey() && (cloudSupport() || credBoxAvailable())) {
     const pulled = await remoteAutoSync({ force: true });
     if (pulled && pulled.applied) {
-      showToast('收到新凭证，已自动换上，正在重查…');
+      showToast('已换上新凭证，正在重查…');
       return refresh({ force: true, retried: true });
     }
   }
@@ -6658,10 +6637,10 @@ async function refresh({ force = false, retried = false, only = null, autoRetry 
      * 只保留用户手点 —— 手点是他明确的意图，不该被系统拦住。
      * v2.60：文案跟着失败率判定走，不再说「连续 N 台」（那套连续计数已删）。 */
     autoCooldownUntil = Date.now() + AUTO_COOLDOWN_MS;
-    paintBanner('这一轮大部分查询都没响应，已提前结束，'
-      + '并暂停自动刷新 10 分钟。当前地址里没查通的那几台仍是旧数据，'
-      + '直接再点「刷新」只会重查它们，刚更新过的不会重复查（也不会再被「刚更新过」拦住）。'
-      + '多半是这个网络的出口 IP 被平台限流了：换手机流量试试，或者过一会儿再来。', true);
+    paintBanner('大部分查询没响应，'
+      + '已暂停自动刷新 10 分钟。'
+      + '再点「刷新」只会重查没查通的那几台；'
+      + '换个网络通常就好。', true);
   } else if (pileMeta && pileMeta.rateLimited && (failedIdx.length || pileMeta.hit > 0)) {
     /* 撞到**我们自己的**单 IP 限流（v2.68）：同一出口（校园网 NAT）下，同一分钟
      * 点刷新的人太多。这不是平台判我们违规，也不该劝人「换网络」—— 十几秒就过去了。
@@ -6670,21 +6649,21 @@ async function refresh({ force = false, retried = false, only = null, autoRetry 
      * 用户什么都没少，别多嘴。 */
     const n = failedIdx.length;
     showToast(n > 0
-      ? '同时查的人有点多，有 ' + n + ' 台没排上，过十几秒再点一次刷新'
-      : '同时查的人有点多，先显示 '
+      ? '同时查的人多，' + n + ' 台没排上，稍后再试'
+      : '同时查的人多，先看 '
         + (pileMeta.oldestAge > 0 ? Math.round(pileMeta.oldestAge) + ' 秒前' : '刚才')
-        + ' 的结果，过十几秒再点');
+        + ' 的结果');
   } else if (pileMeta && pileMeta.throttled && !failedIdx.length) {
     /* 平台侧每分钟的回源预算用完了（自己连点，或同学同时在刷）。
      * 说清楚「为什么这次没变新」，否则用户只会觉得又坏了。 */
-    showToast('这一分钟查得太多，先用 '
+    showToast('这一分钟查得太多，先看 '
       + (pileMeta.oldestAge > 0 ? Math.round(pileMeta.oldestAge) + ' 秒前' : '刚查到')
-      + ' 的结果，过十几秒再点');
+      + ' 的结果');
   } else if (pileMeta && !pileMeta.fetched && pileMeta.hit > 0 && !failedIdx.length) {
     /* 平台侧缓存还在有效期内（90 秒内刚有人查过），这一轮一台都没真回源。
      * 这本来就是对的 —— 但得让用户知道时间戳为什么不是「刚刚」。 */
     showToast('平台 ' + Math.max(1, Math.round(pileMeta.oldestAge))
-      + ' 秒前刚更新过，这次直接用那份结果');
+      + ' 秒前的数据');
   }
 
   /* 这一轮期间用户又点过「刷新」→ **只补查本轮失败的那几台**（通常 0~4 台，一两秒）。
@@ -6706,7 +6685,7 @@ async function refresh({ force = false, retried = false, only = null, autoRetry 
   if (!autoRetry && !only && !pendingTargets && failedIdx.length && !netAbort
       && lastError !== AUTH_ERROR && failedIdx.length <= AUTO_RETRY_MAX) {
     const list = failedIdx.slice();
-    showToast(list.length + ' 台没查通，稍后自动再试一次…');
+    showToast(list.length + ' 台没查通，自动补查…');
     setTimeout(() => refresh({ force: true, only: list, autoRetry: true }), AUTO_RETRY_DELAY_MS);
   }
 
@@ -6717,11 +6696,11 @@ async function refresh({ force = false, retried = false, only = null, autoRetry 
     if (retryList.length && !busyFlag && !netAbort && lastError !== AUTH_ERROR) {
       const left = failedIdx.length - retryList.length;
       if (left > 0) {
-        showToast('先补查这次没查通的 ' + retryList.length + ' 台，还剩 ' + left + ' 台');
+        showToast('补查 ' + retryList.length + ' 台');
       }
       setTimeout(() => refresh({ force: true, only: retryList, autoRetry: true }), 0);
     } else if (!failedIdx.length && !netAbort && lastError !== AUTH_ERROR) {
-      showToast('已经是最新结果了（本轮 ' + done + ' 台全部查通）');
+      showToast('已是最新，' + done + ' 台全部查通');
     }
   }
 }
@@ -7756,7 +7735,7 @@ function renderUsageStats(stats) {
   loading.hidden = true;
 
   if (!stats) {
-    empty.textContent = '暂时读不到历史数据（云端未连接或读取失败）。稍后重试，或先点一次「刷新」攒数据。';
+    empty.textContent = '暂时读不到历史数据，稍后重试。';
     empty.hidden = false;
     body.hidden = true;
     return;
@@ -8508,17 +8487,16 @@ function renderReview() {
      统一按「单地址」措辞，免得用户对着一个停车场读「多个地址合并」。 */
   const members = RV_CAMPUS_AREA[rvLoc] || [];
   const multiArea = (rvLoc === 'all') || members.length > 1;
-  const lines = ['占用率 = 该小时内「被占用插座 ÷ 有数据的插座」；'
-    + (multiArea ? '多个地址合并时按插座数加权（大区占比大），' : '逐次采样后取算术平均，')
-    + '下方小字是这一格的样本数。'];
+  const lines = ['占用率 = 占用插座 ÷ 有数据的插座' + '；'
+    + (multiArea ? '多区合并按插座数加权' : '逐次采样取平均')
+    + '；小字是样本数。'];
   if (avgAll !== null) {
-    lines.push('当前视图共 ' + filled.length + '/24 个时段有数据，整体平均 '
+    lines.push('当前视图 ' + filled.length + '/24 个时段有数据，平均 '
       + avgAll.toFixed(1) + '%（' + nSum + ' 次采样）。');
   } else {
     /* 整档一个点都没有时（v2.65 加「住宅」的第一小时就是这种），
        原来这里一声不响 —— 用户只看到一排灰桩，不知道是坏了还是没数据。 */
-    lines.push('这一档还没有数据。新接进来的地址要等整点采到第一个点才会出曲线；'
-      + '如果一直是空的，多半是那几天这个区没采到。');
+    lines.push('这一档还没有数据。');
   }
   if (rvSel !== null && slots[rvSel]) {
     const s = slots[rvSel];
@@ -8532,15 +8510,14 @@ function renderReview() {
     .join('');
 
   const safeDays = days.length;
-  let hnote = '纵轴是日期（' + (safeDays ? days[0].slice(5) + ' → ' + days[safeDays - 1].slice(5) : '—')
-    + '，共 ' + safeDays + ' 天），横轴是 0–23 时。';
+  let hnote = '纵轴日期（' + (safeDays ? days[0].slice(5) + ' → ' + days[safeDays - 1].slice(5) : '—')
+    + '，' + safeDays + ' 天），横轴 0–23 时。';
   if (model.partial) {
     /* 不再写死「N 个区」：分区会长出来（2026-10-31 加了住宅），
        不同日子的分母本来就不同。见 rvExpectedAreas 的说明。 */
-    hnote += ' 其中 ' + model.partial + ' 个统计点有分区缺数据'
-      + '（那天某个区没采到），「全部」在这些小时里只代表部分区。';
+    hnote += ' 有 ' + model.partial + ' 个统计点缺分区数据。';
   }
-  hnote += ' 点格子可切到那一天。';
+  hnote += ' 点格子看那一天。';
   $('rv-heat-note').textContent = hnote;
 }
 
@@ -8570,7 +8547,7 @@ async function openReviewDialog() {
       $('rv-loading').hidden = true;
       const err = $('rv-error');
       err.hidden = false;
-      err.textContent = '读取云端统计失败（' + String((e && e.message) || e) + '）。不影响查桩，稍后再点一次。';
+      err.textContent = '读取统计失败（' + String((e && e.message) || e) + '），不影响查桩。';
       return;
     }
   }
@@ -8581,8 +8558,7 @@ async function openReviewDialog() {
   if (!rvModel.total) {
     const empty = $('rv-empty');
     empty.hidden = false;
-    empty.textContent = '云端统计是 2026-10-29 才上线的新链路：每小时 :05 采一个点，攒够一天才看得出规律。'
-      + '现在还是空的，过几个小时再来。';
+    empty.textContent = '统计还在攒数据，过几个小时再来。';
     return;
   }
 
@@ -8734,11 +8710,11 @@ $('token-save').addEventListener('click', async () => {
 
   const base = '已通过校验：' + (probe.device || '第一台桩') + ' 能查到 ' + probe.count + ' 个插座';
   if (pushed && pushed.ok) {
-    showToast(base + '，已写进服务器，所有人立刻用上');
+    showToast(base + '，已写进服务器');
   } else if (pushed && pushed.message) {
-    showToast(base + '；没能写进服务器（' + pushed.message + '），只在当前标签页有效', 5200);
+    showToast(base + '；没写进服务器（' + pushed.message + '），只在当前标签页有效', 5200);
   } else {
-    showToast(base + '，只在当前标签页有效（要让所有人用请填写口令）', 5200);
+    showToast(base + '，只在当前标签页有效', 5200);
   }
 });
 
@@ -9070,7 +9046,7 @@ function bindAutoToggle() {
     if (dlg) dlg.checked = main.checked;
     applyAutoRefresh();
     showToast(main.checked
-      ? '前台自动更新已开启：每小时汇总一次，卡片仍要手动刷'
+      ? '自动更新已开启：每小时汇总一次，卡片仍要手动刷'
       : '前台自动更新已关闭');
   });
 }
@@ -9210,7 +9186,11 @@ const CHANGELOG = [
     '刷新时「平台没响应」的桩会自己再试一次：以前北院 57 台一轮里尾部几台撞上平台限流，'
       + '就停在红卡片上等你一个个点「重新查询」；现在一轮结束后会只挑那几台再查一遍，'
       + '不用你动手。同时把连着的几批查询摊匀了一点，刷新整屏大约多花两秒，' 
-      + '换来的是同一时刻打给平台的请求不再挤在一起'
+      + '换来的是同一时刻打给平台的请求不再挤在一起',
+    /* v2.83：整页提示文案收敛。这是用户看得见的一处变化（页面变「安静」了），
+       但**不是新功能**，所以只写一条，别按弹窗一个个列。 */
+    '全站提示文案收短了：副标题、页脚和各弹窗里那些解释性的括号、劝告和客套话都删了，'
+      + '刷新类的提示压成一句；「使用说明」只留怎么用，不再讲为什么做这个站'
   ] },
   { v: 'v2.60 – v2.69', d: '2026-10-30 ~ 11-02', items: [
     '新增「住宅」8 台充电桩（Z-01~Z-08）：都在校园北侧尚苑路边的西区住宅小区，地图上沿路边排成一排；这批机器有 2 口、10 口、20 口的，卡片按实际口数铺格子'
@@ -9554,7 +9534,7 @@ function scanTorchToggle() {
     .catch((err) => {
       scanTorchOn = false;
       if (btn.isConnected) { btn.disabled = false; btn.hidden = true; }
-      showToast('这台设备开不了闪光灯', 1800);
+      showToast('开不了闪光灯', 1800);
       console.warn('[scan] torch failed:', String((err && err.message) || err));
     });
 }
@@ -9632,7 +9612,7 @@ $('scan-torch').addEventListener('click', scanTorchToggle);
 
 $('scan-copy').addEventListener('click', () => {
   const text = scanIds.join('\n');
-  if (!text) { showToast('还没有扫到编号', 1800); return; }
+  if (!text) { showToast('没扫到编号', 1800); return; }
   const n = scanIds.length;
   const fallbackCopy = () => {
     const ta = document.createElement('textarea');
@@ -9646,7 +9626,7 @@ $('scan-copy').addEventListener('click', () => {
     let ok = false;
     try { ok = document.execCommand('copy'); } catch (e) {}
     document.body.removeChild(ta);
-    showToast(ok ? '已复制 ' + n + ' 个编号' : '复制失败，长按上方文本手动复制', ok ? 2200 : 3200);
+    showToast(ok ? '已复制 ' + n + ' 个编号' : '复制失败', ok ? 2200 : 3200);
   };
   if (navigator.clipboard && window.isSecureContext) {
     navigator.clipboard.writeText(text)
@@ -9696,10 +9676,10 @@ $('sync-ok').addEventListener('click', async () => {
   const applied = await cloudPullDevices({ force: true });
   $('dlg-sync').close();
   if (applied) {
-    showToast('已把云端的最新设备清单同步到本机');
+    showToast('已同步到本机');
     await refresh({ force: true });
   } else {
-    showToast('云端还没有清单，或暂时连不上云端', 4500);
+    showToast('云端没有清单或连不上', 4500);
   }
 });
 

@@ -1536,7 +1536,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.85</div>
+    <div id="app-ver" class="foot-ver">版本 v2.86</div>
   </footer>
 </div>
 
@@ -4995,6 +4995,15 @@ function buildScope() {
  *   （注：这张图只在「渭水校区」页签被打开时才用得上。）
  */
 function warmBaseMaps() {
+  /* v2.86：这里原来连 `navigator.connection` 都没看 —— 隔壁 `warmAMap()` 一直有，
+     这张却漏了，于是开着省流模式的用户照样被下 145KB 底图（实测占首屏传输的 35%），
+     而这两张图只有点「地图」才用得上。判断与 `warmAMap()` 保持一致。 */
+  try {
+    const c = navigator.connection || {};
+    if (c.saveData) return;
+    if (/2g|3g/.test(String(c.effectiveType || ''))) return;
+  } catch (e) { /* 不支持 Network Information API 就照常预热 */ }
+
   const urls = ['map-clean.webp', 'map-beimen.webp'];
   const run = () => urls.forEach((u) => { const im = new Image(); im.src = u; });
   if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 3000 });
@@ -9185,7 +9194,11 @@ const CHANGELOG = [
     /* v2.85：抓凭证教程整页下线，弹窗里那些教学文字也清掉。用户看得见的是
        「点开更新只有输入框」，所以只写一条。 */
     '「怎么抓一串凭证」那页教程下线了。「更新」弹窗里剩下的只有输入框和保存按钮，'
-      + '不再有抓包说明'
+      + '不再有抓包说明',
+    /* v2.86：离线壳瘦身 + 省流修复。用户能感知到的是「第一次打开快一点」，
+       内部细节（重复缓存、出壳）不用写进来。 */
+    '离线壳瘦了：首次打开少下载约 350KB，赞助二维码和云同步组件改成用到时才取；'
+      + '开着省流模式的话，也不再多花 145KB 预载地图底图了'
   ] },
   { v: 'v2.60 – v2.69', d: '2026-10-30 ~ 11-02', items: [
     '新增「住宅」8 台充电桩（Z-01~Z-08）：都在校园北侧尚苑路边的西区住宅小区，地图上沿路边排成一排；这批机器有 2 口、10 口、20 口的，卡片按实际口数铺格子'

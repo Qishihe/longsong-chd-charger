@@ -293,9 +293,14 @@
 /* v180 → v181（2026-11-03 v2.85：「怎么抓一串凭证」教程页下线，SHELL 里去掉
    `./help.html`；「换一串凭证」弹窗里的教学文字一并清空。
    index.html 与 sw.js 都变了 → 换壳名。） */
-const CACHE = 'campus-pile-v181';
+/* v181 → v182（2026-11-03 v2.86：壳清单瘦身 —— 去掉与 index.html 同内容的 './'，
+   赞助码与云同步 SDK 改按需；index.html 的 warmBaseMaps 补上省流判断。
+   两个文件都变了 → 换壳名。） */
+const CACHE = 'campus-pile-v182';
 const SHELL = [
-  './',
+  /* v2.86：`'./'` 删了。线上实测 `/` 与 `/index.html` 返回的字节完全相同（md5 一致），
+     而 fetch 拦截只把 `'./index.html'` 当主 key，`'./'` 只是回退链的第二顺位 ——
+     留着等于每次首装白下一份 583KB 的首页。 */
   './index.html',
   /* 2026-11-03 v2.85：`./help.html` 从这里去掉 —— 教程页已下线（Worker 那层回 410），
      再预缓存它会让 `cache.addAll` 整批失败，一条都装不进壳。 */
@@ -306,13 +311,11 @@ const SHELL = [
      所以要进壳 —— 否则断网重开时标签页会退回默认图标。
      ⚠️ 必须带 `?v=1`，与页面里的 `<link rel="icon" ... ?v=1>` 逐字一致（Cache API 按完整 URL 匹配）。 */
   './icons/favicon.svg?v=1',
-  /* 「使用说明」弹窗里的赞助码（39KB）。断网时点开说明也得看得见图，
-     否则会是一个破图占位符。它不带 query，所以直接写路径即可。 */
-  './sponsor-qr.png',
-  /* 云同步（v2.53）的 DB 客户端 —— cloudSupport() 靠 WorkBuddyCloud 全局工作，
-     是功能必需文件，不是平台残留。72KB 不小，进壳之后重访/断网不再白下
-     （此前它靠 HTTP 缓存，弱网下经常 304 一来一回）。 */
-  './sdk/workbuddy-cloud.global.js',
+  /* v2.86：赞助码（39KB）与云同步 SDK（72KB）从壳里撤了。两个都只在弹窗里才用得上
+     （赞助图在「关于」、SDK 是管理员点「云端同步」时），却让每个访客首装先付 110KB。
+     出壳不影响可用性：`<img>` 与 `<script src>` 照样发请求，SW 的
+     stale-while-revalidate 会给它们进缓存；代价是断网状态下第一次打开「关于」
+     时赞助图是破图。 */
   /* ⚠️ 必须**带 `?v=167`** —— Cache API 按**完整 URL** 匹配：
      存不带 query 的 `./map-data.js`，断网时那个带 `?v=165` 的请求**命中不了**，等于没存 ✗
      ⚠️ 而且这个 `?v=` 要与页面里的**静态标签** `<script src="map-data.js?v=171">`

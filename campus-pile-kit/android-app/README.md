@@ -9,7 +9,7 @@
 ## 一、为什么网站更新，App 会跟着更新
 
 因为这个 APK 里**一行网页都没有**。它只做一件事：启动时打开
-`https://chd-charge.app.workbuddy.host/`，然后把屏幕交给那个网页。
+`https://chd-charge.pages.dev/`，然后把屏幕交给那个网页。
 
 更新链路是这样接起来的（三段都在线上，缺一段就会「App 里还是旧版」）：
 
@@ -20,6 +20,11 @@
 | `sw.js` 的激活 | `skipWaiting()` + `clients.claim()` | 新版本 SW 立刻接管，不用等第二次打开 |
 
 所以：**你在电脑上部署完新版，手机上杀掉 App 重开，就是新版。** 不重装、不清缓存。
+
+> 🔴 2026-11-04 换过一次入口：原地址 `chd-charge.app.workbuddy.host` 是 CloudStudio 的
+> 「发布为应用」**快照站**，发布一次就不再跟着更新，App 里永远停在当时的 v2.22。
+> 现在指向 `chd-charge.pages.dev` —— 那是 `wrangler pages deploy` 真正在写的地方。
+> **别把 App 指到任何「快照/归档」类托管**，否则网页发版再勤也白搭。
 
 反过来说，只有下面这些情况才需要重新出 APK：
 
@@ -157,7 +162,7 @@ cd campus-pile-kit\android-app
 - **断网只能看壳**：Service Worker 缓存的界面 + 上次的数据；空位数据本来就不缓存（缓存空位等于骗人）。
 - **WebView 太老的机型**：站点用了 `body:has(dialog[open])` 锁背景滚动，需要 Chromium 105+（2022 年）。更老的 WebView 上弹窗打开时背景还能滚，功能不受影响，只是观感差一点。
 - **不上应用商店**：自用侧载。要走商店需另外准备隐私政策、截图、软著等材料。
-- **高德 Key 不用改**：WebView 里页面的 origin 仍是 `https://chd-charge.app.workbuddy.host`，域名白名单照样匹配。
+- **高德 Key 不用改**：WebView 里页面的 origin 仍是 `https://chd-charge.pages.dev`，域名白名单照样匹配。
 
 ---
 

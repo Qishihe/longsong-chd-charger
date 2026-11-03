@@ -9,8 +9,8 @@ plugins {
 
 val appVersionCode = (project.findProperty("APP_VERSION_CODE") as String?)?.toIntOrNull() ?: 1
 val appVersionName = (project.findProperty("APP_VERSION_NAME") as String?) ?: "1.0.0"
-val appUrl = (project.findProperty("APP_URL") as String?) ?: "https://chd-charge.app.workbuddy.host/"
-val appHost = (project.findProperty("APP_HOST") as String?) ?: "chd-charge.app.workbuddy.host"
+val appUrl = (project.findProperty("APP_URL") as String?) ?: "https://chd-charge.pages.dev/"
+val appHost = (project.findProperty("APP_HOST") as String?) ?: "chd-charge.pages.dev"
 
 android {
     namespace = "cn.edu.chd.charge"

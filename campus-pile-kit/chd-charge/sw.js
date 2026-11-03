@@ -259,7 +259,11 @@
    快照站的分区表与 cron 分组是 Worker 侧的事，与壳无关 → `?v=` 一个都不升。 */
 /* v172 → v173（2026-11-03 v2.77）：回顾里的校区从三颗并列胶囊收成一颗「选择校区」
    下拉。仍然只动 `index.html` → 只换壳。 */
-const CACHE = 'campus-pile-v173';
+/* v173 → v174（2026-11-03 v2.78）：雁塔、小寨两块校区地图接进来（先只有底图，点位等补）。
+   `map-data.js` 的 areas 多了 `雁塔-校区` / `小寨-校区` 两个取景框，所以
+   SHELL 里的 `./map-data.js?v=` 跟着 169 → 170（Cache API 按完整 URL 匹配，
+   只换壳不动 `?v=` 的话，新页面会去要 `?v=170` 而壳里存的是 `?v=169`，断网就没 CHD_MAP）。 */
+const CACHE = 'campus-pile-v174';
 const SHELL = [
   './',
   './index.html',
@@ -280,15 +284,15 @@ const SHELL = [
   './sdk/workbuddy-cloud.global.js',
   /* ⚠️ 必须**带 `?v=167`** —— Cache API 按**完整 URL** 匹配：
      存不带 query 的 `./map-data.js`，断网时那个带 `?v=165` 的请求**命中不了**，等于没存 ✗
-     ⚠️ 而且这个 `?v=` 要与页面里的**静态标签** `<script src="map-data.js?v=167">`
-     和 `loadScriptOnce('map-data.js?v=167')` **保持一致**（升级时要一起改）✗
+     ⚠️ 而且这个 `?v=` 要与页面里的**静态标签** `<script src="map-data.js?v=170">`
+     和 `loadScriptOnce('map-data.js?v=170')` **保持一致**（升级时要一起改）✗
 
      为什么非要缓存它：首访那次导航发生在 SW 接管**之前**，所以它平时进不了缓存 ✗
      而断网时它是 `window.CHD_MAP` 的**唯一来源** —— 取不到就会让
      `mapAreaOf()` 与 `arcArea` 落到**同一个兜底值**，判据恒真，
      朝晖弧于是多画 20号楼(E-*) 与物流(W-*) 的桩（74 个点、24 个重合槽）✗
      （修好后应为 38 个节点 = 36 点 + 2 弧线） */
-  './map-data.js?v=169',
+  './map-data.js?v=170',
 ];
 
 self.addEventListener('install', (event) => {

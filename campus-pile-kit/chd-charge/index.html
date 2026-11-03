@@ -750,6 +750,21 @@
   }
   .map-keybar[hidden]{display:none}
   .map-keybar span{flex:1}
+  /* 空校区提示（2026-11-03 v2.78）：雁塔 / 小寨先接地图、点位还没补，
+     那里除了底图什么都没有。没有这句话，用户只会以为地图挂了。
+     `pointer-events:none` 是硬要求 —— 它悬在舞台正中，吃得掉拖拽就等于
+     「这张图拖不动」，比不显示更糟。 */
+  .map-empty{
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    z-index:5; max-width:min(260px, 76%); text-align:center;
+    padding:14px 18px; border-radius:14px;
+    background:var(--card); border:1px solid var(--line-strong);
+    box-shadow:0 6px 20px rgba(0,0,0,.10);
+    font-size:13px; line-height:1.6; color:var(--muted);
+    pointer-events:none;
+  }
+  .map-empty b{display:block; margin-bottom:4px; font-size:14px; font-weight:600; color:var(--text)}
+  .map-empty[hidden]{display:none}
   .map-keybar button{
     flex:none; font:inherit; font-size:12px; font-weight:600;
     padding:5px 11px; border-radius:8px; border:1px solid #D9A94C;
@@ -1513,7 +1528,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.77</div>
+    <div id="app-ver" class="foot-ver">版本 v2.78</div>
   </footer>
 </div>
 
@@ -1558,11 +1573,20 @@
          `syncMapTabs()` 按 `campus` 藏页签（上面 6 颗是渭水、这颗是北院）。
          文案只写「北院」：校区胶囊就在旁边写着「本部北院」，重复占宽度。 -->
     <button class="map-tab" data-map="beiyuan" role="tab">北院</button>
+    <!-- v2.78：雁塔 / 小寨 —— **先把地图接进来，点位等补**。
+         和北院那颗一样按 `campus` 藏：选中哪个校区，这一排就只剩它自己那颗。
+         文案写「校区全图」而不是校区名：上面那颗校区胶囊已经写着校区了，
+         重复一遍只会让 390px 下的页签行更挤。 -->
+    <button class="map-tab" data-map="yanta" role="tab">校区全图</button>
+    <button class="map-tab" data-map="xiaozhai" role="tab">校区全图</button>
   </div>
   <!-- 2026-10-30 v2.46：这里原来有一条“空闲数 / 已满 / 离线 / 点分区圈放大”图例，已删。
        圆点的颜色本身就把这套语义讲完了（绿=有空位、红=占满、灰=无数据），
        再抄一遍文字只是把地图压矮一截。 -->
   <div class="map-stage" id="map-stage">
+    <!-- 空校区提示（v2.78）：只有「当前视图一个点位都没有」时才显示，
+         由 `paintMapSub()` 按引擎回传的 piles 控制 —— 渭水、北院永远不显示。 -->
+    <div class="map-empty" id="map-empty" hidden></div>
     <div class="tmap-host" id="tmap-host"></div>
     <div class="amap-host" id="amap-host"></div>
     <div class="map-keybar" id="map-keybar" hidden>
@@ -2295,14 +2319,14 @@
         于是"其实没有数据"这件事被掩盖了 —— 判据两边都由同一个常量兜底时，
         它**永远不会为假**，也就等于没有判据。
      所以让数据**先于主脚本就位** ✓
-     `?v=165` 与下面 `loadScriptOnce('map-data.js?v=169')` **保持同一个 URL**，
+     `?v=170` 与下面 `loadScriptOnce('map-data.js?v=170')` **保持同一个 URL**，
      免得缓存出两份；那条懒加载链保留，作为"这个静态标签没加载成功"时的兜底
      （`ensureAMap()` 里已有 `window.CHD_MAP` 守卫，不会重复拉）。 -->
 <!-- 🔴 2026-10-25 加 `defer`：这个文件 39KB（gzip 10KB），走 Cloudflare 时单次
      跨境往返就要 1 秒左右 —— 不带 defer 会**阻塞 HTML 解析**，首屏白屏多等一秒。
      安全前提（已核对）：页面只在函数里读 `window.CHD_MAP`（mapAreaOf / buildScope /
      ensureAMap），没有任何顶层同步读；defer 在 DOMContentLoaded 之前执行完，赶得上 boot()。 -->
-<script src="map-data.js?v=169" defer fetchpriority="low"></script>
+<script src="map-data.js?v=170" defer fetchpriority="low"></script>
 <script>
 'use strict';
 
@@ -4633,15 +4657,45 @@ const BEIYUAN_AMAP = {
   fallbackStaticId: 'overview',
 };
 
+/* 「雁塔校区」「小寨校区」（2026-11-03 v2.78）—— **先把地图接进来，点位等产品方补**。
+ *
+ * 这两个校区一台设备都没有，所以每边只有一块「校区全图」，没有分区胶囊：
+ *   · 取景框由 `map-data.js` 的 `areas['雁塔-校区' / '小寨-校区'].line` 决定（校区外接框）；
+ *   · 落点公式不用写 —— 没有桩，`setPiles([])` 之后图上只有底图，`areaBBox()` 直接吃
+ *     areas 里那个框，取景照样正确；
+ *   · 页签在 HTML 里静态占一颗，`syncMapTabs()` 按 `campus` 藏（和北院同一套规则）。
+ *
+ * 🔴 `area` 必须是 areas 里**自己的键**，不能写 `'campus'`：那是渭水总览的伪键，
+ *    写错的话 `areaBBox()` 返回 null → `applyCamera()` 退回 `fitCampus()` →
+ *    表头写着「雁塔校区」、底下是渭水的地图（静默错图，不报错）。
+ * ⚠️ 以后补点位：设备 location 用「雁塔-<场地>」前缀（`CAMPUS_PREFIX` 已经认 '雁塔'），
+ *    再按渭水那套加分区项；这块「校区全图」留着当该校区的不分区视图。 */
+const YANTA_AMAP = {
+  id: 'yanta', label: '雁塔校区', name: '雁塔校区',
+  layout: 'amap', area: '雁塔-校区',
+  campus: 'yanta',
+  fallbackStaticId: 'overview',
+};
+const XIAOZHAI_AMAP = {
+  id: 'xiaozhai', label: '小寨校区', name: '小寨校区',
+  layout: 'amap', area: '小寨-校区',
+  campus: 'xiaozhai',
+  fallbackStaticId: 'overview',
+};
+
 /* 地址气泡的顺序（HTML 里 `#map-tabs` 那排按钮要跟这里一一对应）：
    校区全图 → 住宅 → 物业服务中心 → 20 号楼 → 北门 → 朝晖体育场南（**渭水**）
-   ＋ 北院停车场（**本部北院**，v2.72）。
+   ＋ 北院停车场（**本部北院**，v2.72）＋ 雁塔、小寨（v2.78）。
    🔴 新分区**别往队尾塞**：那排是横滑的，390px 下第 6 颗已经贴着右边缘，
       再往后加就等于「加了但看不见」（v2.65 在回顾的筛选条上刚踩过一次）。
    住宅放第二颗是因为它紧挨校区北沿、又是独立车棚，值得一进来就能点到。
-   ⚠️ 北院那颗是**另一个校区**，不会和渭水那 6 颗同时出现 ——
-      `syncMapTabs()` 会按 `campus` 把别的校区的页签整颗藏掉。 */
-const MAP_ORDER = [AMAP_MAP, ZHU_AMAP, WULIU_MAP, LOU20_AMAP, BEIMEN_AMAP, CHAOHUI_AMAP, BEIYUAN_AMAP];
+   ⚠️ 后三颗各属**另一个校区**，不会和渭水那 6 颗同时出现 ——
+      `syncMapTabs()` 会按 `campus` 把别的校区的页签整颗藏掉。
+      所以「队尾看不见」这条对它们不成立：选中那个校区时，那一排只有一颗。 */
+const MAP_ORDER = [
+  AMAP_MAP, ZHU_AMAP, WULIU_MAP, LOU20_AMAP, BEIMEN_AMAP, CHAOHUI_AMAP,
+  BEIYUAN_AMAP, YANTA_AMAP, XIAOZHAI_AMAP,
+];
 // 总览图上的分区锚点（底图像素坐标，底图 9600×3422）
 //   labelSide:'left' 把地址名排到点的左边 —— 北门这个点在图上紧挨着底图自己的红色「北门」二字，
 //   标签往右会压住它，往左才读得清。锚点 x=7920 是量的：红字在 4800 图上 bbox x 4032~4196、
@@ -5449,7 +5503,7 @@ function ensureTMap() {
       });
     };
     if (window.CHD_TMAP && window.CHD_MAP) { boot(); return; }
-    loadScriptOnce('map-data.js?v=169')
+    loadScriptOnce('map-data.js?v=170')
       .then(() => loadScriptOnce('map-tmap.js?v=172'))
       .then(boot)
       .catch(() => done(false));
@@ -5554,11 +5608,11 @@ function ensureAMap() {
       });
     };
     if (window.CHD_AMAP && window.CHD_MAP) { boot(); return; }
-    /* 正常情况下 `map-data.js` 已由页面顶部的静态 `<script src="map-data.js?v=169">` 加载好
+    /* 正常情况下 `map-data.js` 已由页面顶部的静态 `<script src="map-data.js?v=170">` 加载好
        （见那里的长注释：冷启动没有它 → `mapAreaOf()` 的两个兜底同值 → 弧线判据恒真 ✗）。
        所以这里先看 `window.CHD_MAP` 在不在，在就跳过，避免重复拉一次；
        若那个静态标签**没加载成功**（例如断网中途失败），仍会走 `loadScriptOnce` 重试 ✓ */
-    (window.CHD_MAP ? Promise.resolve(true) : loadScriptOnce('map-data.js?v=169'))
+    (window.CHD_MAP ? Promise.resolve(true) : loadScriptOnce('map-data.js?v=170'))
       .then(loadLocalKeyOnce)
 // 2026-10-25：v2.22/v2.23 的地图改版（飞入动画 + keepCamera + 首帧标志 + 预热）已随 v2.14
 //    并入本站唯一那份 map-amap.js。改了 js 一定要同时改 ?v（SW 缓存优先）。
@@ -5624,9 +5678,23 @@ function onAMapPileClick(ev) {
 function paintMapSub(v) {
   if (!v) return;
   const nm = v.school ? '渭水校区' : (v.name || '');
-  $('map-sub').textContent = `${nm} · ${v.piles} 个点位 · ${v.free} 个有空位`;
+  /* v2.78：空视图（雁塔/小寨先接地图、点位还没补）不能写「0 个点位 · 0 个有空位」——
+     「0」读起来像「全占满了」或「查询失败」，而实际情况是**还没有采集对象**。
+     同时在舞台正中放一句说明：没有那句话，一张干净的底图看起来就是加载失败。 */
+  const empty = !(v.piles > 0);
+  $('map-sub').textContent = empty
+    ? `${nm} · 暂无点位`
+    : `${nm} · ${v.piles} 个点位 · ${v.free} 个有空位`;
   const back = $('map-back');
   if (back) back.hidden = !!v.school;
+  const tip = $('map-empty');
+  if (tip) {
+    tip.hidden = !empty;
+    if (empty) {
+      tip.innerHTML = '<b>' + escapeHtml(nm) + '还没有接入点位</b>'
+        + '地图已经按校区范围铺好，补上点位后这里就会显示桩位。';
+    }
+  }
 }
 
 /** 高德地图套用总览视角 */
@@ -5771,6 +5839,10 @@ function switchStaticMap(staticId) {
   staticApplyView(want.id);
   const sub = $('map-sub');
   if (sub) sub.textContent = '在线地图没连上，先给你看手绘图';
+  /* 兜底图是渭水总览，一定有点位 —— 别让上一个视图（雁塔/小寨）的
+     「暂无点位」浮层盖在这张图上。 */
+  const tip = $('map-empty');
+  if (tip) tip.hidden = true;
 }
 
 /* ---------- 校区胶囊（2026-10-30 v2.45） ----------
@@ -5797,16 +5869,17 @@ function setCampusBubble(open) {
 }
 
 /** 选校区：切到该校区第一块图。
- *  v2.72：雁塔、小寨**还没有分布图**（一台设备都没有），选中时给一句话、
- *  并且**不改当前图** —— 改了的话表头写着「雁塔校区」、下面还是渭水的图，
- *  比「点了没反应」更让人困惑。 */
+ *  v2.72：雁塔、小寨当时**还没有分布图**，选中时给一句话、并且**不改当前图** ——
+ *  改了的话表头写着「雁塔校区」、下面还是渭水的图，比「点了没反应」更让人困惑。
+ *  v2.78：四个校区都有图了（雁塔/小寨只有「校区全图」、暂时没有点位），
+ *  这条兜底留着是为了以后又加第五个校区时别静默跳到渭水。 */
 function pickCampus(id) {
   const want = CAMPUSES.find((c) => c.id === id);
   if (!want) return;
   const first = MAP_ORDER.find((m) => m.campus === want.id);
   setCampusBubble(false);
   if (!first) {
-    showToast(want.name + '还没有分布图 · 现在有图的是渭水和本部北院');
+    showToast(want.name + '还没有分布图，暂时只能看渭水和本部北院');
     return;
   }
   curCampus = want.id;
@@ -8963,7 +9036,7 @@ const CHANGELOG = [
        所以「校区胶囊」和「北院 57 台」合成一条，别再拆成两条各说一遍。 */
     '站里多了「本部北院」的 57 台：就在南二环校区体育馆北边那片停车场，按现场图排了 7 排（桩号 B1-01 ～ B7-09）。'
       + '首页最左边那颗胶囊现在管**校区**：渭水 / 北院 / 雁塔 / 小寨，选哪个校区就只看哪个校区的桩'
-      + '（雁塔、小寨目前还没接机器，点进去会说明一句）。地图弹窗里也多一颗「北院」，能看这 57 台在停车场里的分布',
+      + '（雁塔、小寨目前还没接机器，地图能打开但里面还没有点位）。地图弹窗里也多一颗「北院」，能看这 57 台在停车场里的分布',
     /* v2.74：顶部精简 + 设置里补两个入口。和上面「校区」是同一件事的两半，
        所以紧跟在这一条后面写，别另开一段「界面优化」。 */
     '顶部那排筛选短了：地址里不再有「全部」那颗，进来就落在本校区第一个地址上，想看别处点一下就行；'
@@ -8981,7 +9054,11 @@ const CHANGELOG = [
        （改了文案 = 已读的人会重新亮红点，这是对的，行为确实变了）。 */
     '「一周回顾」能分校区看了：左上多一颗「选择校区」，点开是全部 / 渭水 / 北院；'
       + '北院那 57 台从今天起也每小时记一次占用率。刚接进来的头一天，北院那些小时还空着'
-      + '（从有数据那一刻才开始画）；渭水这一档不受影响，七天曲线是连着的'
+      + '（从有数据那一刻才开始画）；渭水这一档不受影响，七天曲线是连着的',
+    /* v2.78：雁塔/小寨的**地图**先上（点位还没有）。和上面「校区」是同一条线，
+       但用户能看到的动作不一样（点进去看到的是地图，不是一句话），所以单独一条。 */
+    '雁塔、小寨两个校区的地图也接上了：校区胶囊选过去能看到这两块校园的底图，'
+      + '只是还没有点位 —— 页面上会写一句「还没有接入点位」，等机器装好、点位补上，这里就能和渭水一样看了'
   ] },
   { v: 'v2.60 – v2.69', d: '2026-10-30 ~ 11-02', items: [
     '新增「住宅」8 台充电桩（Z-01~Z-08）：都在校园北侧尚苑路边的西区住宅小区，地图上沿路边排成一排；这批机器有 2 口、10 口、20 口的，卡片按实际口数铺格子'

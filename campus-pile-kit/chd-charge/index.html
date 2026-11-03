@@ -215,6 +215,20 @@
   }
   .banner.bad{background:var(--bad-bg); border-color:var(--bad-line); color:var(--bad-fg)}
 
+  /* 天气提醒横幅（v2.92）：和状态横幅同底色（warn 系），但**必须是独立一条** ——
+     #banner 被 paintBanner() 独占（凭证失效那种话要一直挂着），两条挤一个元素
+     会互相顶掉：天气一刷新就把「凭证失效」抹了。 */
+  .banner.wx{display:flex; align-items:flex-start; gap:8px}
+  .banner.wx .wx-ico{flex:none; width:15px; height:15px; margin-top:1.5px}
+  .banner.wx .wx-txt{flex:1; min-width:0; line-height:1.45}
+  .banner.wx .wx-x{
+    flex:none; width:20px; height:20px; margin:-3px -5px 0 0; padding:0;
+    display:flex; align-items:center; justify-content:center;
+    background:none; border:0; border-radius:50%; color:inherit;
+    font-size:15px; line-height:1; opacity:.5; cursor:pointer;
+  }
+  .banner.wx .wx-x:active{opacity:.9}
+
   /* 2026-10-29 v2.34：一次性提示改走**底部轻提示**（toast），不再占横幅条。
      区别在语义，不是美观：横幅条是**状态**（凭证失效、平台挂了）—— 该一直挂着
      直到条件消失；而「刚更新过 18 秒后才能再刷」是**一次事件**，挂在页面顶部
@@ -1523,6 +1537,17 @@
 
   <div class="banner" id="banner" hidden data-page-node-id="x7L6Gbhv1ZDYOfOXiGxOOL"></div>
 
+  <!-- 天气提醒（v2.92）：未来 24 小时有雨/雪/冻雨/雷暴时，在这里挂一句
+       「预计约 3 小时后有雨，请合理规划充电时间」。
+       🔴 与 #banner 分开的理由见上面 .banner.wx 的注释：那条归 paintBanner() 独占。
+       数据来自 Open-Meteo 的公开预报（只发校区经纬度，不读桩数据）；
+       设置 › 偏好 › 天气提醒 里能关掉，关掉之后连请求都不发。 -->
+  <div class="banner wx" id="wx-banner" hidden role="status" aria-live="polite">
+    <svg class="wx-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.4 10.2h7a2.5 2.5 0 0 0 .3-5 3.6 3.6 0 0 0-6.9-.8 2.8 2.8 0 0 0-.4 5.8Z"/><path d="M5.4 12.5 4.8 14M8 12.5 7.4 14M10.6 12.5 10 14"/></svg>
+    <span class="wx-txt" id="wx-txt"></span>
+    <button class="wx-x" id="wx-close" type="button" aria-label="知道了" title="知道了">×</button>
+  </div>
+
   <!-- 🔴 2026-10-21 修 #55：`#cred`（凭证框）**已搬到 `#settings-dialog` 里**，这里不再保留。
        上一版这里是「**复制**」而不是「搬移」→ 页面上出现**两个** `#cred` / `#cred-title` / `#cred-edit`，
        而 `getElementById` 只认**文档里靠前的那个**（= 这里这个）→
@@ -1606,7 +1631,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.91</div>
+    <div id="app-ver" class="foot-ver">版本 v2.92</div>
   </footer>
 </div>
 
@@ -1832,6 +1857,15 @@
         <span class="set-ico" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.1 13.1 8 2.9l4.9 10.2M5.2 9.7h5.6"/></svg></span>
         <span class="set-txt">字体</span>
         <span class="set-val" id="set-font-val">默认</span>
+        <span class="set-caret" aria-hidden="true"></span>
+      </button>
+      <!-- 天气提醒（v2.92）：未来 24 小时有雨雪/雷暴时在首页顶部提醒一句。
+           默认**开**（这东西只有下雨才出现，不存在打扰）；关掉之后既不出横幅、
+           也不再向气象服务发请求。右侧值由 wxPaintRow() 写。 -->
+      <button class="set-row" type="button" id="set-wx-btn">
+        <span class="set-ico" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.4 10.2h7a2.5 2.5 0 0 0 .3-5 3.6 3.6 0 0 0-6.9-.8 2.8 2.8 0 0 0-.4 5.8Z"/><path d="M5.4 12.5 4.8 14M8 12.5 7.4 14M10.6 12.5 10 14"/></svg></span>
+        <span class="set-txt">天气提醒</span>
+        <span class="set-val" id="set-wx-val">开启</span>
         <span class="set-caret" aria-hidden="true"></span>
       </button>
     </div>
@@ -2131,6 +2165,28 @@
       </button>
     </div>
     <p class="note">只用系统自带字体。</p>
+  </div>
+</dialog>
+<!-- 天气提醒（v2.92）：一个开关 + 一次手动检查 + 数据来源说明。
+     🔴 它和桩数据无关：不读 cpk.cache、不打 /api/pile，唯一的外发请求是
+        向 Open-Meteo 要一份公开预报（只带校区经纬度）。断网时横幅静默不出现，
+        不会弹错误。 -->
+<dialog id="dlg-wx" class="sub-dlg" aria-label="天气提醒">
+  <div class="dlg-body">
+    <div class="dlg-head">
+      <h2>天气提醒</h2>
+      <button class="x-btn" data-close aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+    </div>
+    <label for="wx-on" style="display:flex;align-items:flex-start;gap:9px;margin:2px 0 10px;font-size:13.5px;color:var(--text)">
+      <input type="checkbox" id="wx-on" style="width:auto;min-width:18px;height:18px;padding:0;margin-top:2px">
+      <span>在首页提醒雨雪天气<small style="display:block;font-size:12px;color:var(--hint);font-weight:400">未来 24 小时有雨、雪、冻雨或雷暴时，顶部出现一句提示</small></span>
+    </label>
+    <div class="note" id="wx-state" style="margin-top:0">还没检查过</div>
+    <div class="row" style="margin-top:10px">
+      <button class="icon-btn" id="wx-now" type="button">立即检查</button>
+    </div>
+    <p class="note">四个校区不在同一片天：渭水在北郊，本部北院 / 雁塔 / 小寨在市区南部，相隔 16 公里。提醒按当前选中的校区各查各的，切换校区会跟着换。</p>
+    <p class="note">预报来自 Open-Meteo 的公开气象数据，只发送校区经纬度，不涉及你的位置和设备信息。校园里小气候多，出门前还是抬头看天色更准。</p>
   </div>
 </dialog>
 
@@ -4195,6 +4251,9 @@ function setCampus(id) {
   store.set(KEY_FILTER, '');
   setCampusMenu(false);
   paintCampusPill();
+  /* v2.92：天气是按校区查的，切完校区得跟着换 —— 有缓存立刻换，
+     没缓存就补一次（1.6KB，用户主动切的不算打扰）。 */
+  wxSync();
   const devices = getDevices();
   const cache = readCache();
   render(devices, devices.map((d) => cache[d.id] || { ports: [], error: '尚未查询', at: 0 }));
@@ -9594,7 +9653,13 @@ const CHANGELOG = [
       + '页签还停在「校区全图」，看着像没切过去。页签右边还多了个圆形箭头，点它只重查这块地址的桩，'
       + '别处的数字不会跟着乱跳',
     /* v2.91 的估算器**不公告**：它只挂在管理员后台里，普通访客看不到。
-       等哪天挪到「设置 › 偏好设置」对所有人开放了，再在这里补一条。 */
+       等哪天挪到「设置 › 偏好设置」对所有人开放了，再在这里补一条。
+       v2.92：天气提醒 —— 这是访客一进首页就看得见的新东西，必须写一条。 */
+    '首页顶上会提前提醒天气了：未来 24 小时要下雨、下雪、冻雨或打雷，标题下面挂一句'
+      + '「预计约 3 小时后有雨，请合理规划充电时间」；大热天（37℃ 以上）和大冷天（-5℃ 以下）也提一句。'
+      + '四个校区各按自己那片天算 —— 渭水在北郊，本部北院 / 雁塔 / 小寨在市区，'
+      + '相隔十几公里，常常一边下一边不下，切校区时提醒会跟着换。'
+      + '不想要就在「设置 › 天气提醒」里关掉，关掉后连气象数据也不取',
   ] },
   { v: 'v2.60 – v2.69', d: '2026-10-30 ~ 11-02', items: [
     '新增「住宅」8 台充电桩（Z-01~Z-08）：都在校园北侧尚苑路边的西区住宅小区，地图上沿路边排成一排；这批机器有 2 口、10 口、20 口的，卡片按实际口数铺格子'
@@ -9734,6 +9799,9 @@ const SET_ENTRIES = [
   { btn: 'set-view-btn', dlg: 'dlg-view' },
   { btn: 'set-skin-btn', dlg: 'dlg-skin' },
   { btn: 'set-font-btn', dlg: 'dlg-font' },
+  /* 天气提醒（v2.92）：开关 + 状态 + 立即检查。onOpen 里补当前开关与上次结果 ——
+     弹窗是静态 DOM，不补的话第二次打开会显示上一次的状态。 */
+  { btn: 'set-wx-btn', dlg: 'dlg-wx', onOpen: () => wxOpenDlg() },
   { btn: 'set-about-btn', dlg: 'dlg-about' },
   /* v2.91：管理员后台 › 工具 › 充满要多久。没有 onOpen —— 打开就是上次填的那组数，
      值在 boot 时已经灌进输入框了（见下面 estInit()）。 */
@@ -9990,6 +10058,327 @@ function estLoad() {
   if ($('set-about-val')) $('set-about-val').textContent = ver;
   if ($('about-ver')) $('about-ver').textContent = '版本 ' + ver;
 })();
+
+/* ── 天气提醒（v2.92）────────────────────────────────────────
+   未来 24 小时如果有雨 / 雪 / 冻雨 / 雷暴，首页顶部挂一条
+   「预计约 3 小时后有雨，请合理规划充电时间」。
+
+   为什么值得做：雨雪天充电枪口容易进水，锂电池低温下干脆充不进去 ——
+   提前知道就能把充电挪到雨前。它回答的是「现在去充合不合适」，
+   和估算器（充满要多久）是两件事。
+
+   🔴 边界：**不碰桩数据**。不读 cpk.cache、不打 /api/pile、不影响任何刷新逻辑。
+      唯一的外发请求是 Open-Meteo 的公开预报，只带校区经纬度。
+      断网 / 服务挂了 → 静默，横幅不出现，也绝不弹错误横幅。
+
+   校区：渭水在北郊、另三个在市区南部，相隔 16 公里 —— 按当前校区各查各的，
+   坐标见下面 WX_SPOT（与地图取景框同一组）。
+
+   数据源选型：open-meteo 免 key、免注册、CORS 放开（浏览器可直连），
+   返回 WMO weather code + 逐时降水量/概率。和风、高德天气都要服务端 key，
+   为一条横幅去维护一个密钥不划算。
+
+   🔴 判据不是「天气码像下雨」就报警：预报里常见「码=小雨、降水量 0.0mm」，
+      那小时其实不下。要 (降水量 ≥ 0.1mm) 或 (降水概率 ≥ 40%) 才算。
+
+   温度：未来 24 小时最高 ≥ 37℃ 或最低 ≤ -5℃ 也提醒一句（高温降功率、
+   低温充不进），阈值故意定得宽 —— 宁可少说，不要天天吓人。 */
+
+/* 🔴 四个校区不在同一片天，必须各查各的：
+     渭水在北郊，本部北院 / 雁塔 / 小寨都挤在南二环到小寨那 1 公里见方里。
+     渭水到市区**约 16 公里** —— 夏天对流雨、冬天局地雾，完全可以一边下一边不下。
+     2026-11-04 实测：渭水 7.8℃ / 市区 7.0℃，逐时降水序列不同（市区那三点同格）。
+   坐标取 map-data.js 里各校区取景框的中心，和地图看到的是同一个位置。 */
+const WX_SPOT = {
+  weishui: { lat: 34.3701, lon: 108.9021 },
+  beiyuan: { lat: 34.2339, lon: 108.9586 },
+  yanta: { lat: 34.2253, lon: 108.9586 },
+  xiaozhai: { lat: 34.2240, lon: 108.9489 },
+};
+const KEY_WX_ON = 'cpk.wxOn';        // 默认开
+const KEY_WX_CACHE = 'cpk.wx';       // { <campusId>: { at, event } } —— 一个校区一格
+const KEY_WX_OFF = 'cpk.wxOff';      // { key, day } —— 同一条预报当天说过就不再弹
+const WX_TTL = 30 * 60 * 1000;
+const WX_STALE = 6 * 3600 * 1000;    // 请求失败时，旧缓存最多用 6 小时
+
+function wxSpot(id) { return WX_SPOT[id] || WX_SPOT.weishui; }
+
+function wxUrlFor(id) {
+  const s = wxSpot(id);
+  return 'https://api.open-meteo.com/v1/forecast'
+    + '?latitude=' + s.lat + '&longitude=' + s.lon
+    + '&hourly=weather_code,precipitation,precipitation_probability,temperature_2m'
+    + '&forecast_days=2&timezone=UTC&timeformat=unixtime';
+}
+
+/** 缓存是「一个校区一格」。旧格式（v2.92 首版只存一个 {at,event}）没有校区字段，
+ *  没法判断该算谁的 —— 直接丢掉，进对应校区时重查，别张冠李戴。 */
+function wxCacheAll() {
+  const v = store.get(KEY_WX_CACHE, null);
+  if (!v || typeof v !== 'object' || typeof v.at === 'number') return {};
+  return v;
+}
+function wxCacheGet(id) {
+  const c = wxCacheAll()[id];
+  return c && typeof c.at === 'number' ? c : null;
+}
+function wxCachePut(id, obj) {
+  const m = wxCacheAll();
+  m[id] = obj;
+  store.set(KEY_WX_CACHE, m);
+}
+
+/* WMO weather code → 我们真正在乎的四类。没列出来的一律当「不影响充电」
+   （晴 / 多云 / 雾 / 毛毛雨量级太小，都不值得把整页往下推一行）。 */
+const WX_KIND = {
+  51: 'rain', 53: 'rain', 55: 'rain', 61: 'rain', 63: 'rain', 65: 'rain',
+  80: 'rain', 81: 'rain', 82: 'rain',
+  56: 'ice', 57: 'ice', 66: 'ice', 67: 'ice',
+  71: 'snow', 73: 'snow', 75: 'snow', 77: 'snow', 85: 'snow', 86: 'snow',
+  95: 'storm', 96: 'storm', 99: 'storm',
+};
+const WX_WORD = { rain: '雨', snow: '雪', ice: '冻雨', storm: '雷阵雨' };
+
+let wxBusy = false;
+let wxEvent;          // undefined = 还没查过；null = 查过没事；对象 = 有预警
+let wxCampus = '';    // wxEvent 是哪个校区的 —— 和当前校区不一致就不能拿去显示
+let wxErr = '';
+let wxLastAt = 0;
+
+function wxEnabled() { return store.get(KEY_WX_ON, true) !== false; }
+function wxDay() {
+  const d = new Date();
+  return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+}
+/* 点过「×」记的是「哪个校区的哪一条预报」—— 渭水关掉不该连北院一起关。 */
+function wxKeyOf(ev) { return (wxCampus || getCampus()) + '|' + ev.kind + '|' + (ev.at || wxDay()); }
+
+/** 纯函数：从逐时数据里挑出「未来 24 小时内第一个会挡充电的天气」。
+ *  返回 null = 24 小时内没事；返回事件对象 = 那个小时（或那段温度）。
+ *  🔴 测试脚本直接喂假数组，别去改网络层 —— 判据全在这里。 */
+function wxDecide(h, nowSec) {
+  if (!h || !h.time || !h.time.length) return null;
+  const end = nowSec + 86400;
+  for (let i = 0; i < h.time.length; i += 1) {
+    const t = h.time[i];
+    if (t + 3600 < nowSec) continue;   // 这一小时已经完全过去
+    if (t > end) break;
+    const kind = WX_KIND[h.weather_code[i]];
+    if (!kind) continue;
+    const mm = Number(h.precipitation[i]) || 0;
+    const pop = Number(h.precipitation_probability[i]) || 0;
+    if (mm < 0.1 && pop < 40) continue;   // 码是雨、量是 0 —— 大概率不下
+    return {
+      kind,
+      code: h.weather_code[i],
+      at: t * 1000,
+      inMin: Math.max(0, Math.round((t - nowSec) / 60)),
+      mm,
+      pop,
+    };
+  }
+  /* 降水扫完没有，再看温度：24 小时内的极值 */
+  let tMax = -999;
+  let tMin = 999;
+  for (let i = 0; i < h.time.length; i += 1) {
+    const t = h.time[i];
+    if (t + 3600 < nowSec) continue;
+    if (t > end) break;
+    const v = Number(h.temperature_2m[i]);
+    if (!Number.isFinite(v)) continue;
+    if (v > tMax) tMax = v;
+    if (v < tMin) tMin = v;
+  }
+  if (tMax >= 37) return { kind: 'hot', tMax };
+  if (tMin <= -5) return { kind: 'cold', tMin };
+  return null;
+}
+
+/** 事件 → 横幅那句话。时间粒度到「半小时 / 约 N 小时」，不报具体钟点：
+ *  预报本身是按小时给的，说「16:00 有雨」比「约 2 小时后」更像承诺。 */
+function wxText(ev) {
+  if (ev.kind === 'hot') {
+    return '未来一天最高 ' + Math.round(ev.tMax) + '℃，高温下电池会自己降功率，请合理规划充电时间';
+  }
+  if (ev.kind === 'cold') {
+    return '未来一天最低 ' + Math.round(ev.tMin) + '℃，低温可能充不进电，请合理规划充电时间';
+  }
+  const m = ev.inMin;
+  const when = m <= 30 ? '半小时内' : (m < 100 ? '约 1 小时后' : '约 ' + Math.round(m / 60) + ' 小时后');
+  return '预计' + when + '有' + (WX_WORD[ev.kind] || '雨') + '，请合理规划充电时间';
+}
+
+function wxPaint() {
+  const el = $('wx-banner');
+  if (!el) return;
+  /* 刚切完校区、新校区的数据还没铺上来：先藏起来，别拿渭水的雨去吓市区的人 */
+  if (wxCampus !== getCampus()) { el.hidden = true; return; }
+  const ev = wxEvent;
+  if (!wxEnabled() || !ev) { el.hidden = true; return; }
+  const off = store.get(KEY_WX_OFF, null);
+  /* 用户点过「×」：同一条预报当天不再冒出来。预报刷新后（at 变了）算新的，还会提醒。 */
+  if (off && off.day === wxDay() && off.key === wxKeyOf(ev)) { el.hidden = true; return; }
+  const txt = $('wx-txt');
+  if (txt) txt.textContent = wxText(ev);
+  el.hidden = false;
+}
+
+/** 设置列表右侧那格：开着写「开启」，关着写「关闭」。 */
+function wxPaintRow() {
+  const el = $('set-wx-val');
+  if (el) el.textContent = wxEnabled() ? '开启' : '关闭';
+}
+
+/** 设置弹窗里的状态行。 */
+function wxPaintState() {
+  const el = $('wx-state');
+  if (!el) return;
+  if (!wxEnabled()) { el.textContent = '已关闭，首页不会出现天气提示'; return; }
+  if (wxBusy) { el.textContent = '正在检查…'; return; }
+  if (wxEvent === undefined) { el.textContent = wxErr || '还没检查过'; return; }
+  const ago = wxLastAt
+    ? (Date.now() - wxLastAt < 60000 ? '刚刚' : Math.round((Date.now() - wxLastAt) / 60000) + ' 分钟前')
+    : '';
+  /* 带上校区名：四个校区位置不同，不说清是在讲哪一片天，用户会以为是「本地天气」 */
+  const head = wxEvent
+    ? '未来 24 小时：' + wxText(wxEvent).replace('，请合理规划充电时间', '')
+    : '未来 24 小时没有雨雪，可以放心充';
+  el.textContent = campusName(getCampus(), false) + ' · ' + head
+    + (ago ? ' · ' + ago + '更新' : '') + (wxErr ? ' · ' + wxErr : '');
+}
+
+/** 切校区 / 回到前台时重新对齐：先看这个校区的缓存，没有再补查。
+ *  paintOnly=true 只铺缓存、不联网 —— 首屏那一次用它，别抢桩数据的带宽。 */
+function wxSync(opts) {
+  const o = opts || {};
+  const campus = getCampus();
+  wxCampus = campus;
+  const c = wxCacheGet(campus);
+  if (c && Date.now() - c.at < WX_STALE) {
+    wxEvent = c.event || null;
+    wxLastAt = c.at;
+    wxErr = '';
+  } else {
+    wxEvent = undefined;
+    wxLastAt = 0;
+    wxErr = '';
+  }
+  wxPaint();
+  wxPaintState();
+  if (!o.paintOnly && wxEnabled() && wxEvent === undefined) wxRun({});
+}
+
+/** 去查一次。force=忽略 30 分钟缓存；manual=用户在设置里点「立即检查」
+ *  （手动时无视省流与页面隐藏，因为那是明确的动作）。
+ *  🔴 全程认「开查那一刻的校区」：请求飞在路上时用户切了校区，结果照样存进
+ *     对应校区的缓存，但不往屏幕上贴 —— 屏幕上那份得是新校区的。 */
+async function wxRun(opts) {
+  const o = opts || {};
+  if (!wxEnabled()) return;
+  if (wxBusy) return;
+  if (!o.manual && document.hidden) return;
+  const campus = getCampus();
+  if (!o.manual) {
+    /* 省流 / 2G 下不自动查：一条提醒不值得为它花流量。手动点仍然放行。 */
+    const c = navigator.connection || navigator.mozConnection || {};
+    if (c.saveData) return;
+    if (/2g/i.test(String(c.effectiveType || ''))) return;
+    const cached = wxCacheGet(campus);
+    if (!o.force && cached && Date.now() - cached.at < WX_TTL) {
+      wxEvent = cached.event || null;
+      wxCampus = campus;
+      wxLastAt = cached.at;
+      wxErr = '';
+      wxPaint();
+      wxPaintState();
+      return;
+    }
+  }
+  wxBusy = true;
+  wxPaintState();
+  try {
+    const ctl = new AbortController();
+    const to = setTimeout(() => ctl.abort(), 7000);
+    const r = await fetch(wxUrlFor(campus), { signal: ctl.signal, cache: 'no-store' });
+    clearTimeout(to);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    const ev = wxDecide(d.hourly, Math.floor(Date.now() / 1000));
+    wxCachePut(campus, { at: Date.now(), event: ev });
+    if (getCampus() === campus) {
+      wxEvent = ev;
+      wxCampus = campus;
+      wxErr = '';
+      wxLastAt = Date.now();
+    }
+  } catch (e) {
+    /* 失败：能用旧缓存就先用旧的（最多 6 小时），过期就闭嘴 ——
+       宁可不说，也别拿两天前的预报吓人。 */
+    const cached = wxCacheGet(campus);
+    if (getCampus() === campus) {
+      wxEvent = cached && Date.now() - cached.at < WX_STALE ? (cached.event || null) : null;
+      wxCampus = campus;
+      wxErr = '气象服务连不上';
+      wxLastAt = Date.now();
+    }
+  } finally {
+    wxBusy = false;
+    if (getCampus() === campus) {
+      wxPaint();
+      wxPaintRow();
+      wxPaintState();
+    } else {
+      wxSync();   // 中途切了校区：按新校区再对一次（有缓存直接铺，没有就补查）
+    }
+  }
+}
+
+/** 设置 › 天气提醒 弹窗打开时补状态。 */
+function wxOpenDlg() {
+  const on = $('wx-on');
+  if (on) on.checked = wxEnabled();
+  wxPaintState();
+  if (wxEnabled() && wxEvent === undefined) wxRun({});
+}
+
+(function bindWeather() {
+  if (!$('wx-banner')) return;
+  wxPaintRow();
+  /* 先用「当前校区」上一次的缓存同步铺一遍：老用户第二次打开时横幅**首屏就在**，
+     不会等 5 秒后那次网络回来才插进来 —— 那一下会把下面整页推下一行，
+     是这个站以前吃过亏的 CLS 源头。缓存过期、或这个校区还没查过，就不铺。 */
+  wxSync({ paintOnly: true });
+  const on = $('wx-on');
+  if (on) {
+    on.addEventListener('change', () => {
+      store.set(KEY_WX_ON, !!on.checked);
+      wxPaintRow();
+      if (on.checked) {
+        wxRun({ force: true, manual: true });
+      } else {
+        wxPaint();
+        wxPaintState();
+      }
+    });
+  }
+  const now = $('wx-now');
+  if (now) now.addEventListener('click', () => wxRun({ force: true, manual: true }));
+  const x = $('wx-close');
+  if (x) {
+    x.addEventListener('click', () => {
+      if (wxEvent) store.set(KEY_WX_OFF, { key: wxKeyOf(wxEvent), day: wxDay() });
+      wxPaint();
+    });
+  }
+})();
+
+/** 主流程里那次查询：等首屏那轮桩数据先跑完（5 秒），别抢带宽；
+ *  之后每小时顺手更新一次（页面切后台时 wxRun 自己会跳过）。 */
+function wxBoot() {
+  if (!$('wx-banner')) return;
+  setTimeout(() => wxRun({}), 5000);
+  setInterval(() => wxRun({}), 60 * 60 * 1000);
+}
 
 SET_ENTRIES.forEach((e) => {
   const btn = $(e.btn);
@@ -10962,6 +11351,9 @@ async function boot() {
   bindCampusSortPrefs();
   bindAutoToggle();
   applyAutoRefresh();
+  /* 天气提醒（v2.92）：纯 DOM 绑定 + 一个 5 秒后的懒查询，不挡首屏。
+     它和桩数据那条链路没有交集，放在这里只是因为同属「开机要做的事」。 */
+  wxBoot();
 
   /* v2.60：先把「上次拉到的服务端凭证到期时间」从 localStorage 恢复进内存。
    * 这样 `credState()` 在 `/api/cred` 那个跨境往返回来**之前**就能给出非 none 的结论，

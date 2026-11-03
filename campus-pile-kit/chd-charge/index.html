@@ -1680,7 +1680,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.95</div>
+    <div id="app-ver" class="foot-ver">版本 v2.96</div>
   </footer>
 </div>
 
@@ -1693,7 +1693,7 @@
      微信气泡里的两个点是拿 --fab-ink 挖出来的（和底色同色），所以换皮肤也不会变黑点。
      ⚠️ 别给它加 position:absolute 之外的定位：拖动靠 left/top 直接写，见 fabPut()。 -->
 <button class="scan-fab" id="scan-fab" type="button" hidden data-app="wechat"
-        aria-label="打开微信扫一扫" title="微信扫一扫">
+        aria-label="打开微信" title="打开微信">
   <span class="fab-ic" data-ic="wechat" aria-hidden="true">
     <svg viewBox="0 0 40 40"><path fill="#fff" d="M16.1 7.4C9.8 7.4 4.7 11.5 4.7 16.6c0 3 1.7 5.7 4.3 7.4l-1.1 3.4 3.9-2c1.1.3 2.2.4 3.4.4h.6a8.4 8.4 0 0 1-.3-2.2c0-5 4.7-9 10.5-9h.4c-1.4-3.3-5.4-5.8-10.3-5.8Z"/><path fill="#fff" d="M35.3 23.6c0-4.4-4.2-7.9-9.4-7.9s-9.4 3.5-9.4 7.9 4.2 7.9 9.4 7.9c1.1 0 2.2-.2 3.2-.5l3.2 1.7-.9-2.9c2.4-1.4 3.9-3.6 3.9-6.2Z"/><circle cx="13.2" cy="14.2" r="1.5" style="fill:var(--fab-ink)"/><circle cx="19.1" cy="14.2" r="1.5" style="fill:var(--fab-ink)"/><circle cx="22.8" cy="21.4" r="1.3" style="fill:var(--fab-ink)"/><circle cx="28" cy="21.4" r="1.3" style="fill:var(--fab-ink)"/></svg>
   </span>
@@ -1930,7 +1930,8 @@
         <span class="set-caret" aria-hidden="true"></span>
       </button>
       <!-- 扫码快捷按钮（v2.94）：默认**关**。开着的时候首页和地图右下角各一颗浮按钮，
-           点了直接进微信/支付宝的「扫一扫」。右侧值由 fabPaint() 写，别在这里手写死。 -->
+           点了直接进支付宝的「街电充电桩」小程序（微信只能唤到前台）。
+           右侧值由 fabPaint() 写，别在这里手写死。 -->
       <button class="set-row" type="button" id="set-fab-btn">
         <span class="set-ico" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 5.6V3.9a1.3 1.3 0 0 1 1.3-1.3h1.7M13.4 5.6V3.9a1.3 1.3 0 0 0-1.3-1.3h-1.7M2.6 10.4v1.7a1.3 1.3 0 0 0 1.3 1.3h1.7M13.4 10.4v1.7a1.3 1.3 0 0 1-1.3 1.3h-1.7M2.4 8h11.2"/></svg></span>
         <span class="set-txt">扫码快捷按钮</span>
@@ -2260,8 +2261,10 @@
 </dialog>
 
 <!-- 扫码快捷按钮（v2.94）：一个开关 + 微信/支付宝二选一 + 恢复默认位置。
-     🔴 这里必须把边界说清楚：网页唤不起「别人的扫码界面」，只能抛 URL Scheme 把
-        App 调到前台。本站不碰扫码、也不碰支付 —— 跟页脚那句「不涉及账号与支付」一致。 -->
+     v2.96 起支付宝那一路改成直达「街电充电桩」小程序（alipays 对外跳不设限）；
+     微信那一路仍然只能把微信唤到前台 —— 两边规则不一样，别按同一套思路改。
+     🔴 边界：本站在这里只抛 URL Scheme，不碰扫码、也不碰支付 —— 跟页脚那句
+        「不涉及账号与支付」一致。 -->
 <dialog id="dlg-fab" class="sub-dlg" aria-label="扫码快捷按钮">
   <div class="dlg-body">
     <div class="dlg-head">
@@ -2280,14 +2283,14 @@
       </button>
       <button class="skin-opt" type="button" data-fabapp="alipay">
         <span class="skin-dot" style="background:#1677FF; border-color:#1677FF"></span>
-        <span class="skin-txt"><b>支付宝</b><small>直接进支付宝 › 扫一扫</small></span>
+        <span class="skin-txt"><b>支付宝</b><small>直接进「街电充电桩」小程序</small></span>
       </button>
     </div>
     <div class="note" id="fab-state" style="margin-top:10px">已关闭</div>
     <div class="row" style="margin-top:10px">
       <button class="icon-btn" id="fab-reset" type="button">恢复默认位置</button>
     </div>
-    <p class="note">支付宝的扫一扫对网页开放，一点就到；微信不让网页直接跳扫一扫，只能把微信唤到前台 —— 跳不过去时会给你一个改成支付宝的入口。</p>
+    <p class="note">支付宝允许网页直接拉起小程序，一点就进「街电充电桩」，进去点它的「扫码」就行；微信既不让网页跳小程序、也不让跳扫一扫，只能把微信唤到前台 —— 跳不过去时会给你一个改成支付宝的入口。</p>
     <p class="note">扫到什么、付不付钱都在那个 App 里完成，本站不参与。如果你本来就在微信里打开本站，微信不会让自己再跳一次自己，会提示你用右上角的「扫一扫」。</p>
   </div>
 </dialog>
@@ -2305,7 +2308,7 @@
     </div>
     <p class="note" style="margin-top:2px">微信不开放「网页直接跳扫一扫」，最多只能把微信唤到前台。<b>这是微信的规矩，换手机、换浏览器都一样。</b></p>
     <div class="row" style="margin-top:12px">
-      <button class="icon-btn primary" id="fabfail-ali" type="button" style="background:#1677FF; border-color:#1677FF; color:#fff">改用支付宝扫一扫</button>
+      <button class="icon-btn primary" id="fabfail-ali" type="button" style="background:#1677FF; border-color:#1677FF; color:#fff">改用支付宝进街电小程序</button>
     </div>
     <div class="row" style="margin-top:8px">
       <button class="icon-btn" id="fabfail-wx" type="button">只打开微信，扫一扫我自己点</button>
@@ -9709,13 +9712,13 @@ const CHANGELOG = [
       + '四个校区各按自己那片天算 —— 渭水在北郊，另外三个在市区，常常一边下一边不下，'
       + '切校区时提醒跟着换；每次打开都会重新查一次，点掉的「×」只管这一次。'
       + '不想要就在「设置 › 天气提醒」里关掉',
-    /* v2.94 加的扫码快捷按钮；v2.95 又修了两处：默认品牌改支付宝、微信跳不动时给兜底卡片。
-       同话题只写一条 —— 改行为就顺手改描述，不再另起一条。
-       🔴 单条 ≤200 字（_check_chg_merge 会红），现在 129 字。 */
-    '页面右下多了一颗能拖的扫码按钮：点一下直接进支付宝或微信的「扫一扫」，'
-      + '不用再从桌面翻。默认是关着的，想用去「设置 › 扫码快捷按钮」打开，'
-      + '并选支付宝还是微信；按住按钮能拖到别处，松手会自己贴边。'
-      + '微信不让网页直接跳扫一扫，跳不过去会给你一个一键改用支付宝的入口',
+    /* v2.94 加的扫码快捷按钮；v2.95 修了默认品牌与兜底卡片；v2.96 支付宝那一路
+       从「扫一扫」改成直达小程序。同话题只写一条 —— 改行为就顺手改描述，不再另起一条。
+       🔴 单条 ≤200 字（_check_chg_merge 会红），现在 143 字。 */
+    '页面右下多了一颗能拖的扫码按钮：点一下直接进支付宝的「街电充电桩」小程序，'
+      + '进去点它的「扫码」就行，不用再从桌面翻。默认是关着的，想用去'
+      + '「设置 › 扫码快捷按钮」打开并选支付宝还是微信；按住按钮能拖到别处，松手自己贴边。'
+      + '微信既不让网页跳小程序也不让跳扫一扫，跳不过去会给你一键改用支付宝的入口',
   ] },
   { v: 'v2.80 – v2.89', d: '2026-11-03 ~ 11-04', items: [
     /* v2.80：定位高亮竞态（线上弱网实测约一半次数补不上）。用户看到的是
@@ -10563,13 +10566,26 @@ const KEY_FAB = 'cpk.scanFab';
 const FAB_DEF = { on: false, app: 'alipay', x: 1, y: 0.7 };
 const FAB_SIZE = 54;   // 🔴 与 CSS 的 .scan-fab width/height 对齐
 const FAB_EDGE = 12;   // 贴边留的呼吸位
+/* v2.96：支付宝侧不再只到扫一扫 —— 直接进「街电充电桩」小程序。
+   支付宝和微信在这一点上完全不同：官方文档明说「小程序不限制来自 H5 页面或者其它 App 的跳转」，
+   既不用 AppSecret、也没有微信那套「后台先声明」的白名单。拼接格式就一句话：
+   alipays://platformapi/startapp?appId=<appId>&page=<页面,可省>
+   不带 page 就落小程序首页，够了 —— 小程序首页本来就有「扫码」入口。
+   🔴 FAB_JD_APP 是从用户分享出来的口令短链里解出来的，别再瞎猜：
+      wmslz 短链 302 到 render.alipay.com/p/s/i/?scheme=<urlencode(真正的 scheme)>，
+      解出来的 scheme 里有两个 id —— 宿主 2021001165662428、redirect 落地页要跳的
+      2021003139600270。2026-11-04 真机逐个点过：**只有 2021003139600270 进得去**，
+      宿主那个点开不是街电充电桩。要换小程序只改这一行。 */
+const FAB_JD_APP = '2021003139600270';
 const FAB_SCHEME = {
   wechat: 'weixin://dl/scan',
-  alipay: 'alipays://platformapi/startapp?saId=10000007',
+  alipay: 'alipays://platformapi/startapp?appId=' + FAB_JD_APP,
 };
 /* 微信那边的退路：只把微信唤到前台。跳不动时卡片上的「只打开微信」用它。 */
 const FAB_HOME = { wechat: 'weixin://' };
 const FAB_NAME = { wechat: '微信', alipay: '支付宝' };
+/* 悬停/读屏用的那句话。两个品牌去的地方不一样，不能共用一句「扫一扫」了。 */
+const FAB_TIP = { wechat: '打开微信', alipay: '打开街电充电桩小程序' };
 
 /** 读配置。任何半截/脏数据都退回默认值 —— 这个功能坏了不能连累首页。 */
 function fabCfg() {
@@ -10605,8 +10621,8 @@ function fabPaint() {
   if (el) {
     el.hidden = !cfg.on;
     el.setAttribute('data-app', cfg.app);
-    el.setAttribute('aria-label', '打开' + FAB_NAME[cfg.app] + '扫一扫');
-    el.title = FAB_NAME[cfg.app] + '扫一扫';
+    el.setAttribute('aria-label', FAB_TIP[cfg.app]);
+    el.title = FAB_TIP[cfg.app];
     fabPut(el, cfg.x * (window.innerWidth || 360), cfg.y * (window.innerHeight || 640));
   }
   const v = $('set-fab-val');
@@ -10635,7 +10651,7 @@ function fabGo() {
     return;
   }
   if (app === 'alipay' && /AlipayClient/i.test(ua)) {
-    showToast('已经在支付宝里了：点首页的「扫一扫」');
+    showToast('已经在支付宝里了：搜「街电充电桩」，或用首页的「扫一扫」');
     return;
   }
   let left = false;
@@ -10654,7 +10670,7 @@ function fabGo() {
     /* v2.95：微信这一侧跳不动是常态（微信压根不开放网页直达扫一扫），
        别只丢一句 toast 让人干瞪眼 —— 给一张能当场换路的卡片。 */
     if (app === 'wechat') fabFail();
-    else showToast('没打开' + FAB_NAME[app] + '？浏览器可能拦了，手动打开它的「扫一扫」也一样');
+    else showToast('没打开支付宝？浏览器可能拦了，手动搜「街电充电桩」也一样');
   }, 1400);
 }
 
@@ -10764,7 +10780,8 @@ function fabOpenDlg() {
   const st = $('fab-state');
   if (st) {
     st.textContent = cfg.on
-      ? '已开启：点按钮进' + FAB_NAME[cfg.app] + '的「扫一扫」，按住可以拖到别处'
+      ? '已开启：点按钮' + (cfg.app === 'alipay' ? '进支付宝的「街电充电桩」小程序' : '只把微信唤到前台')
+        + '，按住可以拖到别处'
       : '已关闭：页面上不显示这个按钮';
   }
 }

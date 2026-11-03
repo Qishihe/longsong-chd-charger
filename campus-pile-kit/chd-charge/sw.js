@@ -332,7 +332,10 @@
 /* v193 → v194（2026-11-04 v2.95）：扫码按钮的微信 scheme 改 `weixin://dl/scan`、
    默认品牌改支付宝、微信跳不动时弹兜底卡片。页面变了壳名继续换，
    SHELL 清单仍没变（它不读任何静态资源）。 */
-const CACHE = 'campus-pile-v194';
+/* v194 → v195（2026-11-04 v2.96）：支付宝那一路从「扫一扫」改成直达
+   「街电充电桩」小程序（alipays://platformapi/startapp?appId=…）。
+   只是页面里的 scheme 与文案变了，SHELL 清单仍没变。 */
+const CACHE = 'campus-pile-v195';
 const SHELL = [
   /* v2.86：`'./'` 删了。线上实测 `/` 与 `/index.html` 返回的字节完全相同（md5 一致），
      而 fetch 拦截只把 `'./index.html'` 当主 key，`'./'` 只是回退链的第二顺位 ——

@@ -256,6 +256,50 @@
     .toast{transition:opacity .18s ease, visibility .18s; transform:translate(-50%, 0)}
   }
 
+  /* 2026-11-04 v2.94：扫码快捷按钮（默认关闭，设置 › 扫码快捷按钮 里开）。
+     为什么不干脆做成设置里的一行按钮：用它的时机是「站在桩前面」，那时候人在首页
+     列表或地图里，而不是在设置面板里 —— 必须是随时按得到的浮层。
+     🔴 它是 body 上唯一可拖的 fixed 元素。地图弹窗走 showModal，整个落在 top layer，
+        会盖住 body 里的一切 z-index（连 999 也没用）—— 所以打开地图那一刻要把这颗
+        按钮**整颗挪进** #map-dialog，关掉再挪回来，见 fabHost()。
+     🔴 位置存的是「中心点占视口的比例」而不是 px：换机型、横竖屏、地址栏收起
+        导致的视口变化，都不会让它跑到屏幕外。
+     尺寸变了记得同步 JS 里的 FAB_SIZE（拖动与贴边都按它算）。 */
+  .scan-fab{
+    position:fixed; z-index:55; left:0; top:0;
+    width:54px; height:54px; margin:0; padding:0; border:none; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; cursor:pointer; touch-action:none;
+    -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none;
+    box-shadow:0 6px 18px rgba(0,0,0,.22), 0 1px 3px rgba(0,0,0,.14);
+    transition:box-shadow .18s ease, opacity .18s ease, transform .12s ease;
+    opacity:.95;
+  }
+  .scan-fab[hidden]{display:none}
+  .scan-fab[data-app="wechat"]{background:#07C160; --fab-ink:#07C160}
+  .scan-fab[data-app="alipay"]{background:#1677FF; --fab-ink:#1677FF}
+  .scan-fab:active{transform:scale(.94)}
+  /* 拖动时把过渡关掉：否则每一次 pointermove 都要走 180ms 缓动，手指和按钮会打架 */
+  .scan-fab.dragging{transition:none; opacity:1; cursor:grabbing;
+    box-shadow:0 12px 28px rgba(0,0,0,.32)}
+  .scan-fab .fab-ic{display:none; width:30px; height:30px; pointer-events:none}
+  .scan-fab .fab-ic svg{width:100%; height:100%; display:block}
+  .scan-fab[data-app="wechat"] .fab-ic[data-ic="wechat"],
+  .scan-fab[data-app="alipay"] .fab-ic[data-ic="alipay"]{display:block}
+  /* 支付宝没有能一笔画对的 logo，直接用它的「支」字：26px 白字比任何简化图形
+     都更容易一眼认出来。 */
+  .scan-fab .fab-zi{font-size:27px; font-weight:700; line-height:1;
+    font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif}
+  /* 任何弹窗打开时把它藏起来 —— 设置/回顾/公告的 backdrop 只是半透明，
+     浮按钮会露在后面像个贴纸（390px 截图里很明显）。地图例外：它就该在地图里，
+     那时候按钮本身已经被挪进 #map-dialog（见 fabHost）。
+     ⚠️ :has 在老浏览器上不认，降级只是「背景里还看得见」，不影响点击 —— 不加 JS 补丁。
+  body:has(dialog[open]:not(.map-dialog)) .scan-fab{display:none}
+  @media (prefers-reduced-motion: reduce){
+    .scan-fab{transition:none}
+    .scan-fab:active{transform:none}
+  }
+
   .cred{
     display:flex; align-items:center; justify-content:space-between; gap:10px;
     background:var(--card); border:1px solid var(--line); border-radius:12px;
@@ -1631,13 +1675,25 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.93</div>
+    <div id="app-ver" class="foot-ver">版本 v2.94</div>
   </footer>
 </div>
 
 <!-- 底部轻提示（v2.34）：一过性的话都往这里说，别再占顶部横幅条。
      `role=status` + `aria-live=polite` 让读屏用户在**不打断当前朗读**的前提下听到它。 -->
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- 扫码快捷按钮（v2.94）：默认 hidden，fabPaint() 按 cpk.scanFab.on 决定露不露面。
+     两个图标都写在里面，用 data-app 切显示，换微信/支付宝不动 DOM。
+     微信气泡里的两个点是拿 --fab-ink 挖出来的（和底色同色），所以换皮肤也不会变黑点。
+     ⚠️ 别给它加 position:absolute 之外的定位：拖动靠 left/top 直接写，见 fabPut()。 -->
+<button class="scan-fab" id="scan-fab" type="button" hidden data-app="wechat"
+        aria-label="打开微信扫一扫" title="微信扫一扫">
+  <span class="fab-ic" data-ic="wechat" aria-hidden="true">
+    <svg viewBox="0 0 40 40"><path fill="#fff" d="M16.1 7.4C9.8 7.4 4.7 11.5 4.7 16.6c0 3 1.7 5.7 4.3 7.4l-1.1 3.4 3.9-2c1.1.3 2.2.4 3.4.4h.6a8.4 8.4 0 0 1-.3-2.2c0-5 4.7-9 10.5-9h.4c-1.4-3.3-5.4-5.8-10.3-5.8Z"/><path fill="#fff" d="M35.3 23.6c0-4.4-4.2-7.9-9.4-7.9s-9.4 3.5-9.4 7.9 4.2 7.9 9.4 7.9c1.1 0 2.2-.2 3.2-.5l3.2 1.7-.9-2.9c2.4-1.4 3.9-3.6 3.9-6.2Z"/><circle cx="13.2" cy="14.2" r="1.5" style="fill:var(--fab-ink)"/><circle cx="19.1" cy="14.2" r="1.5" style="fill:var(--fab-ink)"/><circle cx="22.8" cy="21.4" r="1.3" style="fill:var(--fab-ink)"/><circle cx="28" cy="21.4" r="1.3" style="fill:var(--fab-ink)"/></svg>
+  </span>
+  <span class="fab-ic fab-zi" data-ic="alipay" aria-hidden="true">支</span>
+</button>
 
 <dialog id="map-dialog" class="map-dialog" aria-label="充电桩位置地图">
   <div class="map-head">
@@ -1866,6 +1922,14 @@
         <span class="set-ico" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.4 10.2h7a2.5 2.5 0 0 0 .3-5 3.6 3.6 0 0 0-6.9-.8 2.8 2.8 0 0 0-.4 5.8Z"/><path d="M5.4 12.5 4.8 14M8 12.5 7.4 14M10.6 12.5 10 14"/></svg></span>
         <span class="set-txt">天气提醒</span>
         <span class="set-val" id="set-wx-val">开启</span>
+        <span class="set-caret" aria-hidden="true"></span>
+      </button>
+      <!-- 扫码快捷按钮（v2.94）：默认**关**。开着的时候首页和地图右下角各一颗浮按钮，
+           点了直接进微信/支付宝的「扫一扫」。右侧值由 fabPaint() 写，别在这里手写死。 -->
+      <button class="set-row" type="button" id="set-fab-btn">
+        <span class="set-ico" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 5.6V3.9a1.3 1.3 0 0 1 1.3-1.3h1.7M13.4 5.6V3.9a1.3 1.3 0 0 0-1.3-1.3h-1.7M2.6 10.4v1.7a1.3 1.3 0 0 0 1.3 1.3h1.7M13.4 10.4v1.7a1.3 1.3 0 0 1-1.3 1.3h-1.7M2.4 8h11.2"/></svg></span>
+        <span class="set-txt">扫码快捷按钮</span>
+        <span class="set-val" id="set-fab-val">关闭</span>
         <span class="set-caret" aria-hidden="true"></span>
       </button>
     </div>
@@ -2187,6 +2251,39 @@
     </div>
     <p class="note">四个校区不在同一片天：渭水在北郊，本部北院 / 雁塔 / 小寨在市区南部，相隔 16 公里。提醒按当前选中的校区各查各的，切换校区会跟着换。</p>
     <p class="note">预报来自 Open-Meteo 的公开气象数据，只发送校区经纬度，不涉及你的位置和设备信息。校园里小气候多，出门前还是抬头看天色更准。</p>
+  </div>
+</dialog>
+
+<!-- 扫码快捷按钮（v2.94）：一个开关 + 微信/支付宝二选一 + 恢复默认位置。
+     🔴 这里必须把边界说清楚：网页唤不起「别人的扫码界面」，只能抛 URL Scheme 把
+        App 调到前台。本站不碰扫码、也不碰支付 —— 跟页脚那句「不涉及账号与支付」一致。 -->
+<dialog id="dlg-fab" class="sub-dlg" aria-label="扫码快捷按钮">
+  <div class="dlg-body">
+    <div class="dlg-head">
+      <h2>扫码快捷按钮</h2>
+      <button class="x-btn" data-close aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+    </div>
+    <label for="fab-on" style="display:flex;align-items:flex-start;gap:9px;margin:2px 0 10px;font-size:13.5px;color:var(--text)">
+      <input type="checkbox" id="fab-on" style="width:auto;min-width:18px;height:18px;padding:0;margin-top:2px">
+      <span>在页面上显示悬浮按钮<small style="display:block;font-size:12px;color:var(--hint);font-weight:400">首页和地图右下角，按住能拖到顺手的位置，松手贴边</small></span>
+    </label>
+    <div class="set-sec" style="margin-top:4px">点它跳转到</div>
+    <div class="skin-group" id="fab-app">
+      <button class="skin-opt" type="button" data-fabapp="wechat">
+        <span class="skin-dot" style="background:#07C160; border-color:#07C160"></span>
+        <span class="skin-txt"><b>微信</b><small>打开微信 › 扫一扫</small></span>
+      </button>
+      <button class="skin-opt" type="button" data-fabapp="alipay">
+        <span class="skin-dot" style="background:#1677FF; border-color:#1677FF"></span>
+        <span class="skin-txt"><b>支付宝</b><small>打开支付宝 › 扫一扫</small></span>
+      </button>
+    </div>
+    <div class="note" id="fab-state" style="margin-top:10px">已关闭</div>
+    <div class="row" style="margin-top:10px">
+      <button class="icon-btn" id="fab-reset" type="button">恢复默认位置</button>
+    </div>
+    <p class="note">网页没法直接调起别的 App 的扫码界面，这个按钮只是把它唤到前台、落在「扫一扫」上。扫到什么、付不付钱都在那个 App 里完成，本站不参与。</p>
+    <p class="note">如果你是在微信里打开本站，微信不会让自己再跳一次自己 —— 这种情况会提示你用右上角的「扫一扫」。</p>
   </div>
 </dialog>
 
@@ -9585,6 +9682,13 @@ const CHANGELOG = [
       + '四个校区各按自己那片天算 —— 渭水在北郊，另外三个在市区，常常一边下一边不下，'
       + '切校区时提醒跟着换；每次打开都会重新查一次，点掉的「×」只管这一次。'
       + '不想要就在「设置 › 天气提醒」里关掉',
+    /* v2.94：扫码快捷按钮。默认关着，开了才有 —— 所以这条的语气是「有这么个东西」，
+       不是「你一定会看到」。同时把边界写清楚：本站只负责唤起 App，不碰扫码和支付。
+       🔴 单条 ≤200 字（_check_chg_merge 会红），现在 138 字。 */
+    '页面右下多了一颗能拖的扫码按钮：点一下直接进微信或支付宝的「扫一扫」，'
+      + '不用再从桌面翻。默认是关着的，想用去「设置 › 扫码快捷按钮」打开，'
+      + '并选微信还是支付宝；按住按钮能拖到别处，松手会自己贴边。'
+      + '本站只负责把 App 唤到前台，扫到什么、付不付钱都在那个 App 里，这里不参与',
   ] },
   { v: 'v2.80 – v2.89', d: '2026-11-03 ~ 11-04', items: [
     /* v2.80：定位高亮竞态（线上弱网实测约一半次数补不上）。用户看到的是
@@ -9814,6 +9918,9 @@ const SET_ENTRIES = [
   /* v2.91：管理员后台 › 工具 › 充满要多久。没有 onOpen —— 打开就是上次填的那组数，
      值在 boot 时已经灌进输入框了（见下面 estInit()）。 */
   { btn: 'set-est-btn', dlg: 'dlg-est' },
+  /* 扫码快捷按钮（v2.94）：开关/品牌/位置都在弹窗里，静态 DOM，打开时得按当前配置
+     重新铺一遍（onOpen 在 showModal **前**触发，够了）。 */
+  { btn: 'set-fab-btn', dlg: 'dlg-fab', onOpen: () => fabOpenDlg() },
 ];
 
 /* ── 充满要多久（v2.91）────────────────────────────────────────
@@ -10393,6 +10500,240 @@ function wxBoot() {
   if (!$('wx-banner')) return;
   setTimeout(() => wxRun({ force: true }), 5000);
   setInterval(() => wxRun({}), 60 * 60 * 1000);
+}
+
+/* ── 扫码快捷按钮（v2.94）────────────────────────────────────
+   需求：首页和地图上挂一颗能拖的浮按钮，点一下直接进微信/支付宝的「扫一扫」。
+   默认**关** —— 不许一上来就往每张卡片上盖东西；在「设置 › 扫码快捷按钮」里开。
+
+   🔴 网页打不开「别人的扫码界面」，只能抛一个 URL Scheme 把 App 唤到前台。
+      这是浏览器的边界，不是实现取舍：
+        微信扫一扫   weixin://scanqrcode
+        支付宝扫一扫 alipays://platformapi/startapp?saId=10000007
+      所以微信**内**打开本站时唤不起微信自己（同 App 内跳自己的 scheme 无效），
+      这种情况直接给一句提示，不让它静默失败（见 fabGo）。
+   🔴 Scheme 必须在**用户手势的同步栈**里赋给 location.href：塞进 setTimeout、
+      或包在 await 后面，iOS Safari 会当成「脚本自己发起的跳转」直接丢掉。
+   🔴 它和桩数据无关：不读 cpk.cache、不打 /api/pile，断网也点得动。
+
+   位置存 `{x, y}` = 按钮**中心点**占视口的比例。存 px 的话换机型、横竖屏、
+   地址栏收起都会把它挤出屏幕；存比例再 clamp 一次，任何视口都落在里面。 */
+const KEY_FAB = 'cpk.scanFab';
+const FAB_DEF = { on: false, app: 'wechat', x: 1, y: 0.7 };
+const FAB_SIZE = 54;   // 🔴 与 CSS 的 .scan-fab width/height 对齐
+const FAB_EDGE = 12;   // 贴边留的呼吸位
+const FAB_SCHEME = {
+  wechat: 'weixin://scanqrcode',
+  alipay: 'alipays://platformapi/startapp?saId=10000007',
+};
+const FAB_NAME = { wechat: '微信', alipay: '支付宝' };
+
+/** 读配置。任何半截/脏数据都退回默认值 —— 这个功能坏了不能连累首页。 */
+function fabCfg() {
+  const c = store.get(KEY_FAB, null);
+  if (!c || typeof c !== 'object') return Object.assign({}, FAB_DEF);
+  const ratio = (v, d) => (typeof v === 'number' && isFinite(v) ? Math.min(1, Math.max(0, v)) : d);
+  return {
+    on: c.on === true,
+    app: c.app === 'alipay' ? 'alipay' : 'wechat',
+    x: ratio(c.x, FAB_DEF.x),
+    y: ratio(c.y, FAB_DEF.y),
+  };
+}
+
+/** 把中心点按到视口里，返回真正落下去的位置（拖动与重排都走这一条）。 */
+function fabPut(el, cx, cy) {
+  const vw = window.innerWidth || 360;
+  const vh = window.innerHeight || 640;
+  const half = FAB_SIZE / 2;
+  const pad = FAB_EDGE + half;
+  const x = Math.min(vw - pad, Math.max(pad, cx));
+  /* 上下各多留 6px：贴着状态栏/刘海那一侧看着像被裁了一半 */
+  const y = Math.min(vh - pad - 6, Math.max(pad + 6, cy));
+  el.style.left = (x - half) + 'px';
+  el.style.top = (y - half) + 'px';
+  return { x: x, y: y, vw: vw, vh: vh };
+}
+
+/** 渲染：显隐 + 品牌色 + 位置 + 设置行的右侧值。全部状态都从这里出去。 */
+function fabPaint() {
+  const el = $('scan-fab');
+  const cfg = fabCfg();
+  if (el) {
+    el.hidden = !cfg.on;
+    el.setAttribute('data-app', cfg.app);
+    el.setAttribute('aria-label', '打开' + FAB_NAME[cfg.app] + '扫一扫');
+    el.title = FAB_NAME[cfg.app] + '扫一扫';
+    fabPut(el, cfg.x * (window.innerWidth || 360), cfg.y * (window.innerHeight || 640));
+  }
+  const v = $('set-fab-val');
+  if (v) v.textContent = cfg.on ? FAB_NAME[cfg.app] : '关闭';
+}
+
+/** 决定这颗按钮挂在谁身上。
+    地图弹窗是 showModal，整个落在 top layer，body 里 z-index 再大也盖不过它 ——
+    打开地图时把按钮整颗挪进 #map-dialog，关掉再挪回 body（见 fabBoot 的 observer）。 */
+function fabHost() {
+  const el = $('scan-fab');
+  if (!el) return;
+  const map = $('map-dialog');
+  const host = map && map.open ? map : document.body;
+  if (el.parentNode !== host) host.appendChild(el);
+}
+
+/** 点下去要干的事。 */
+function fabGo() {
+  const app = fabCfg().app;
+  const ua = navigator.userAgent || '';
+  /* 同 App 内唤自己的 scheme 一定被吞掉：与其让用户点完什么都不发生，
+     不如直接告诉他正确的那一步。 */
+  if (app === 'wechat' && /MicroMessenger/i.test(ua)) {
+    showToast('已经在微信里了：点右上角 ··· 选「扫一扫」');
+    return;
+  }
+  if (app === 'alipay' && /AlipayClient/i.test(ua)) {
+    showToast('已经在支付宝里了：点首页的「扫一扫」');
+    return;
+  }
+  let left = false;
+  const onVis = () => { if (document.visibilityState === 'hidden') left = true; };
+  document.addEventListener('visibilitychange', onVis);
+  const t0 = Date.now();
+  try { window.location.href = FAB_SCHEME[app]; } catch (e) {}
+  /* 1.4 秒还没走成就当它被拦了。
+     🔴 还要看时间差：iOS 切走 App 之后这个定时器是**冻住**的，等用户切回来才补跑，
+        那时候 visibilityState 早就变回 visible 了 —— 只判 visibilityState 会把
+        「其实跳成功了」误报成失败。 */
+  setTimeout(() => {
+    document.removeEventListener('visibilitychange', onVis);
+    if (left || document.visibilityState !== 'visible') return;
+    if (Date.now() - t0 > 2600) return;
+    showToast('没打开' + FAB_NAME[app] + '？浏览器可能拦了，手动打开它的「扫一扫」也一样');
+  }, 1400);
+}
+
+(function bindFab() {
+  const el = $('scan-fab');
+  if (!el) return;
+  let drag = null;
+  let swallow = false;   // 刚拖完那一下别当成点击
+
+  el.addEventListener('pointerdown', (e) => {
+    if (!fabCfg().on) return;
+    if (e.button) return;                 // 只认左键 / 单指
+    const box = el.getBoundingClientRect();
+    drag = {
+      id: e.pointerId,
+      sx: e.clientX, sy: e.clientY,
+      /* 手指按在按钮边缘时，中心不该瞬移到指尖下 —— 记下这个偏移 */
+      ox: e.clientX - (box.left + box.width / 2),
+      oy: e.clientY - (box.top + box.height / 2),
+      moved: false,
+    };
+    try { el.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+
+  el.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    /* 阈值用曼哈顿距离：手指抖 2px 不该被当成拖动，否则「点一下」的成功率会掉 */
+    if (!drag.moved && Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) < 8) return;
+    if (!drag.moved) { drag.moved = true; el.classList.add('dragging'); }
+    e.preventDefault();
+    fabPut(el, e.clientX - drag.ox, e.clientY - drag.oy);
+  });
+
+  const endDrag = (e) => {
+    if (!drag || (e && e.pointerId !== drag.id)) return;
+    const moved = drag.moved;
+    drag = null;
+    el.classList.remove('dragging');
+    try { el.releasePointerCapture(e.pointerId); } catch (err) {}
+    if (!moved) return;                   // 没拖 → 交给 click 去跳转
+    swallow = true;
+    setTimeout(() => { swallow = false; }, 400);
+    /* 松手吸附到最近的一侧：停在屏幕中间会长期压着卡片上的字 */
+    const box = el.getBoundingClientRect();
+    const cx = box.left + box.width / 2;
+    const cy = box.top + box.height / 2;
+    const vw = window.innerWidth || 360;
+    const b = fabPut(el, cx > vw / 2 ? vw * 2 : -vw, cy);   // 往两侧传极值，clamp 自己会贴边
+    store.set(KEY_FAB, Object.assign(fabCfg(), { x: b.x / b.vw, y: b.y / b.vh }));
+    /* 先让位置定住，下一帧再开过渡，otherwise 贴边那一下是瞬移 */
+    el.style.transition = 'left .16s ease, top .16s ease';
+    setTimeout(() => { el.style.transition = ''; }, 200);
+  };
+  el.addEventListener('pointerup', endDrag);
+  el.addEventListener('pointercancel', endDrag);
+
+  el.addEventListener('click', (e) => {
+    if (swallow) { e.preventDefault(); e.stopPropagation(); return; }
+    if (!fabCfg().on) return;
+    fabGo();
+  });
+})();
+
+/** 设置 › 扫码快捷按钮 弹窗：每次打开都按当前配置铺一遍（弹窗是静态 DOM）。 */
+function fabOpenDlg() {
+  const cfg = fabCfg();
+  const on = $('fab-on');
+  if (on) on.checked = cfg.on;
+  const grp = $('fab-app');
+  if (grp) {
+    Array.prototype.forEach.call(grp.querySelectorAll('[data-fabapp]'), (b) => {
+      b.classList.toggle('on', b.getAttribute('data-fabapp') === cfg.app);
+    });
+  }
+  const st = $('fab-state');
+  if (st) {
+    st.textContent = cfg.on
+      ? '已开启：点按钮进' + FAB_NAME[cfg.app] + '的「扫一扫」，按住可以拖到别处'
+      : '已关闭：页面上不显示这个按钮';
+  }
+}
+
+(function bindFabDlg() {
+  const on = $('fab-on');
+  if (on) {
+    on.addEventListener('change', () => {
+      store.set(KEY_FAB, Object.assign(fabCfg(), { on: on.checked }));
+      fabPaint();
+      fabOpenDlg();
+      if (on.checked) showToast('按钮在' + (fabCfg().app === 'alipay' ? '支付宝' : '微信') + '那一侧，按住可以拖动');
+    });
+  }
+  const grp = $('fab-app');
+  if (grp) {
+    grp.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-fabapp]');
+      if (!b) return;
+      store.set(KEY_FAB, Object.assign(fabCfg(), { app: b.getAttribute('data-fabapp') }));
+      fabPaint();
+      fabOpenDlg();
+    });
+  }
+  const rs = $('fab-reset');
+  if (rs) {
+    rs.addEventListener('click', () => {
+      store.set(KEY_FAB, Object.assign(fabCfg(), { x: FAB_DEF.x, y: FAB_DEF.y }));
+      fabPaint();
+      fabOpenDlg();
+      showToast('按钮回到默认位置');
+    });
+  }
+})();
+
+/** 开机：铺一次 + 挂拖动 + 盯地图弹窗的 open 属性。
+    用 MutationObserver 盯属性而不是在 openMap / highlightPin 里各挂钩子 ——
+    打开地图现在就有两个入口，以后还会加，盯属性只写一遍。 */
+function fabBoot() {
+  if (!$('scan-fab')) return;
+  fabPaint();
+  const map = $('map-dialog');
+  if (map && window.MutationObserver) {
+    new MutationObserver(fabHost).observe(map, { attributes: true, attributeFilter: ['open'] });
+  }
+  window.addEventListener('resize', fabPaint);
+  window.addEventListener('orientationchange', () => setTimeout(fabPaint, 240));
 }
 
 SET_ENTRIES.forEach((e) => {
@@ -11369,6 +11710,9 @@ async function boot() {
   /* 天气提醒（v2.92）：纯 DOM 绑定 + 一个 5 秒后的懒查询，不挡首屏。
      它和桩数据那条链路没有交集，放在这里只是因为同属「开机要做的事」。 */
   wxBoot();
+  /* 扫码快捷按钮（v2.94）：默认关，开着的话首帧就要在位 —— 别等网络。
+     它只读 localStorage，纯同步，放在这里和天气一样属于「开机要做的事」。 */
+  fabBoot();
 
   /* v2.60：先把「上次拉到的服务端凭证到期时间」从 localStorage 恢复进内存。
    * 这样 `credState()` 在 `/api/cred` 那个跨境往返回来**之前**就能给出非 none 的结论，

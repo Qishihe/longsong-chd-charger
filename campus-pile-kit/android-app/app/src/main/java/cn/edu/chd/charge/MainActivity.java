@@ -246,16 +246,50 @@ public class MainActivity extends AppCompatActivity {
      * 键盘弹出时把底部换成 ime 高度，输入框才不会被挡。
      */
     private void applyInsets() {
+        final int[] applied = { -1, -1, -1, -1 };
         ViewCompat.setOnApplyWindowInsetsListener(web, new OnApplyWindowInsetsListener() {
             @Override
             public WindowInsetsCompat onApplyWindowInsets(View v, WindowInsetsCompat insets) {
-                Insets bars = insets.getInsets(
-                    WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
-                Insets ime = insets.getInsets(WindowInsetsCompat.Type.ime());
-                v.setPadding(bars.left, bars.top, bars.right, Math.max(bars.bottom, ime.bottom));
+                setSafePadding(v, insets, applied);
                 return WindowInsetsCompat.CONSUMED;
             }
         });
+        /* 🔴 只设 listener 不会触发分发 —— v1.0.6 就栽在这里：
+           窗口的 insets 在 setContentView 那一次布局里已经发过了，而 listener 是之后才注册的；
+           静态待着时系统不会再来第二次，padding 永远是 0，标题就被状态栏压住、顶部三个按钮点不到。
+           必须主动要一次，否则「代码看着没问题，屏幕上是错的」。 */
+        web.requestApplyInsets();
+        web.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+            @Override public void onViewAttachedToWindow(View v) { v.requestApplyInsets(); }
+            @Override public void onViewDetachedFromWindow(View v) { }
+        });
+        /* 第二道保险：个别 ROM 上 requestApplyInsets 要等下一帧才有结果，也可能一直没人理。
+           那就直接问窗口要当前 insets 自己算一遍 —— 反正 setSafePadding 是幂等的，重复调用不出事。 */
+        web.post(new Runnable() {
+            @Override public void run() {
+                WindowInsetsCompat now = ViewCompat.getRootWindowInsets(web);
+                if (now != null) setSafePadding(web, now, applied);
+            }
+        });
+    }
+
+    /**
+     * 按 insets 给 WebView 补 padding：顶部让开状态栏/刘海，底部让开导航条，键盘弹出时让开键盘。
+     *
+     * <p>applied 记着上一次落下去的值，一模一样的就跳过 —— insets 会随着滚动、输入法反复回调，
+     * 每次都 setPadding 会让 WebView 反复 requestLayout，页面跟着抖。
+     */
+    private void setSafePadding(View v, WindowInsetsCompat insets, int[] applied) {
+        Insets bars = insets.getInsets(
+            WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+        Insets ime = insets.getInsets(WindowInsetsCompat.Type.ime());
+        int l = bars.left;
+        int t = bars.top;
+        int r = bars.right;
+        int b = Math.max(bars.bottom, ime.bottom);
+        if (applied[0] == l && applied[1] == t && applied[2] == r && applied[3] == b) return;
+        applied[0] = l; applied[1] = t; applied[2] = r; applied[3] = b;
+        v.setPadding(l, t, r, b);
     }
 
     private void bindBackKey() {

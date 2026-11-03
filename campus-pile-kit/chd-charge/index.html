@@ -388,7 +388,12 @@
      北院地址「本部北院 · 体育馆北停车场」把每列撑到 238px，两列 476 > 容器 452，
      整页横向溢出 21px（渭水地址短，只有 5~7 个字，所以一直没暴露）。
      轨道放开后卡片才真的按 1fr 平分，地址行由既有的 ellipsis 收尾。 */
-  #cards.two-col{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; align-items:start}
+  /* 🔴 `align-content:start` 不能省（v2.81）：`#cards` 有 `min-height:100vh`，
+     而 grid 的 `align-content` 默认是 stretch —— 剩余高度会摊进行盒里，
+     卡片自己 `align-items:start` 贴在行首，于是**行与行之间空出一大片**。
+     雁塔只有 3 台时最明显：第三张卡被顶到屏幕底部（y≈742），看着像丢了。 */
+  #cards.two-col{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px;
+    align-items:start; align-content:start}
   /* grid item 默认 min-width:auto，同样会顶着内容宽不收缩 —— 与轨道那条是两码事，
      两条都要有，少一条仍会溢出。 */
   #cards.two-col .card{min-width:0}
@@ -1528,7 +1533,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.80</div>
+    <div id="app-ver" class="foot-ver">版本 v2.81</div>
   </footer>
 </div>
 
@@ -4347,6 +4352,11 @@ function render(devices, results) {
   let free = 0;
   let fresh = 0;
   let newest = 0;
+  /* v2.81：副标「共统计 有效/（有效+无效）插座」也要按**当前筛选范围**算。
+     原来 render() 只写主数字、不碰副标，切校区后副标还挂着上一个校区的数：
+     雁塔页面上写着「共统计 228/（228）插座」（那是北院 57×4），主数字却已经是雁塔的。 */
+  let statValid = 0;
+  let statInvalid = 0;
 
   devices.forEach((device, index) => {
     const record = results[index] || cache[device.id] || { ports: [], error: '尚未查询', at: 0 };
@@ -4359,6 +4369,12 @@ function render(devices, results) {
       free += freeCount;
       fresh += 1;
       newest = Math.max(newest, record.at || 0);
+      statValid += ports.length;
+    } else if (record.error && record.error !== '尚未查询') {
+      /* 查过但没拿到数据 → 按这台**实际口数**计入无效，与 refresh() 里
+         paintRolling 的口径一致（住宅区那些 2/10/20 口的机器，一律按 4 会算小）。
+         「尚未查询」不算：那是还没问过，不是无效。 */
+      statInvalid += Number(device.portCount) || PORTS_PER_DEVICE;
     }
 
     /* 插座格子（2026-10-29 改版）：块内分两行 —— 上排编号、下排「空闲 / 占用」。
@@ -4469,7 +4485,12 @@ function render(devices, results) {
   $('stats').hidden = false;
   /* 一台都还没查到时不要写 `0` —— 那会被读成「全满」。
      2026-10-29：首屏改成缓存优先后，这个分支第一次真的会被走到（以前首屏是空白的）。 */
+  /* 两台数字必须同源：主数字看当前范围有没有查到，副标按同一范围的有效/无效口数写。
+     查不到一台时主数字仍写「–」（写 0 会被读成「全满」）。 */
   $('s-free').textContent = fresh > 0 ? String(free) : '–';
+  $('s-free-sub').textContent = (statValid + statInvalid)
+    ? `共统计 ${statValid}/（${statValid + statInvalid}）插座`
+    : '共统计 –/（–）插座';
   $('s-time').textContent = newest ? fmtStatTime(newest) : '–';
 
   // 工具栏：清单里有桩就显示（看的是**筛选前**的台数，见上面 totalDevices 的说明）
@@ -9129,7 +9150,13 @@ const CHANGELOG = [
     /* v2.80：定位高亮竞态（线上弱网实测约一半次数补不上）。用户看到的是
        「表头写着已标出、图上没圈」，属于同一件事的修正，不另开话题。 */
     '点卡片上的定位图标，那颗桩现在一定会被圈出来：之前网络慢的时候地图要一两秒才出来，'
-      + '偶尔只把地图切到位、圈却没画上，表头还写着「已标出 xx」'
+      + '偶尔只把地图切到位、圈却没画上，表头还写着「已标出 xx」',
+    /* v2.81：两列行距 + 统计卡范围。两条都是「显示的数字/位置和实际对不上」，
+       但用户能看到的动作不同（一个是列表排版、一个是汇总数字），按老规矩分开写。 */
+    '「一行两个」的排法不会再空出一大片：桩少的时候（比如雁塔那 3 台），'
+      + '第二排原来会被顶到屏幕最下面、看着像少了几台，现在紧跟着第一排',
+    '切校区后「共统计 x/（y）插座」跟着一起换：之前它会挂着上一个校区的数'
+      + '（雁塔页面写着 228 个插座，那是北院的），现在和下面的卡片永远是同一个范围'
   ] },
   { v: 'v2.60 – v2.69', d: '2026-10-30 ~ 11-02', items: [
     '新增「住宅」8 台充电桩（Z-01~Z-08）：都在校园北侧尚苑路边的西区住宅小区，地图上沿路边排成一排；这批机器有 2 口、10 口、20 口的，卡片按实际口数铺格子'

@@ -275,7 +275,13 @@
    表头的「已标出 xx」也挪进 paintMapSub，不再被下一次 notifyView 冲掉。
    线上冷开实测：旧写法约 1/3 次数只切了地图、圈和那句字都没了。
    index.html + map-amap.js 都变了 → 换壳名，两个 ?v= 也一起升。） */
-const CACHE = 'campus-pile-v176';
+/* v176 → v177（2026-11-03 v2.81：两列列表不再空出一大片 + 「共统计」跟着校区走。
+   ① `#cards.two-col` 补 `align-content:start` —— `#cards` 有 min-height:100vh，
+      grid 默认 stretch 会把剩余高度摊进行盒，雁塔 3 台时第三张卡被顶到屏幕底部；
+   ② render() 里补写 `#s-free-sub` —— 原来只有 refresh() 的 paintRolling 会写，
+      切校区后副标还挂着上一个校区的「共统计 x/（y）插座」（雁塔写着北院的 228）。
+   index.html 变了 → 换壳名。） */
+const CACHE = 'campus-pile-v177';
 const SHELL = [
   './',
   './index.html',

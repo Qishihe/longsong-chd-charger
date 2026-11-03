@@ -485,6 +485,7 @@
   /* 皮肤弹窗（v2.56 起 5 风格 + 5 材质）一屏放不下：弹窗自己滚，
      dialog 上的 overscroll-behavior:contain 保证滑到底不带动下面的设备列表 */
   .sub-dlg{max-height:86vh; overflow-y:auto; -webkit-overflow-scrolling:touch}
+  .est-foot{margin-top:14px}
   /* 显示方式（v2.49）的复选框行 */
   .view-opt{display:flex; gap:9px; align-items:flex-start; margin-top:12px;
     font-size:13.5px; line-height:1.55; cursor:pointer}
@@ -909,6 +910,53 @@
   /* v2.83：文案精简后有些 note 会被清空（凭证副标、各类状态行），
      空 div 仍带着 margin-top:10px，看着像漏了一块。空就整块收掉。 */
   .note:empty{display:none}
+  /* 充满要多久（v2.91）：管理员后台 › 工具里的独立估算器。
+     纯本地乘法 —— 不读 cpk.cache、不发请求、跟那 177 台桩没有任何关系。 */
+  .est-card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 14px}
+  .est-hero{
+    background:var(--free-soft); border:1px solid var(--free-line); border-radius:14px;
+    padding:14px 16px; text-align:center;
+  }
+  .est-num{font-size:34px; font-weight:700; color:var(--free-deep); line-height:1.15; letter-spacing:-.5px}
+  .est-num small{font-size:14px; font-weight:500; margin-left:4px; letter-spacing:0}
+  .est-sub{font-size:12.5px; color:var(--muted); margin-top:6px}
+  .est-meta{font-size:12px; color:var(--hint); margin-top:4px; line-height:1.5}
+  .est-sec{font-size:12px; color:var(--hint); margin:16px 2px 7px}
+  .est-sec:first-of-type{margin-top:14px}
+  .est-row{display:flex; gap:10px}
+  .est-row + .est-row{margin-top:10px}
+  .est-fld{flex:1; min-width:0}
+  /* margin:0 0 5px —— 连 margin-top 也要写死：.dlg-body label 的 12px 是给
+     竖排表单用的，这里上面已经有卡片内边距了，再加 12 就是 24px 空档。 */
+  .est-fld > label{display:block; font-size:12px; color:var(--hint); margin:0 0 5px}
+  .est-inwrap{
+    display:flex; align-items:center; gap:4px; min-height:44px;
+    border:1px solid var(--line-strong); border-radius:10px;
+    background:var(--input-bg); padding:0 10px;
+  }
+  .est-inwrap:focus-within{border-color:var(--free)}
+  /* 🔴 margin:0 压掉 .sub-dlg input{margin-top:12px}（同权重，这条在它后面） */
+  .est-inwrap input{
+    flex:1; min-width:0; margin:0; padding:10px 0; border:none; background:none;
+    font:inherit; font-size:16px; color:var(--text); -webkit-appearance:none;
+  }
+  .est-inwrap input:focus{outline:none}
+  .est-inwrap .u{font-size:12.5px; color:var(--hint); flex:none}
+  .est-chips{display:flex; gap:7px; flex-wrap:wrap; margin-top:9px}
+  .est-chip{
+    font:inherit; font-size:13px; padding:7px 12px; min-height:36px;
+    border-radius:999px; border:1px solid var(--line-strong);
+    background:var(--card); color:var(--muted); cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .est-chip.on{background:var(--free); border-color:var(--free); color:var(--on-accent,#fff); font-weight:500}
+  /* v2.91：充电器那张卡底下的「出厂一般配多大」——品牌对照，不是输入项。
+     用虚线压一条分隔，让它看起来是注释而不是又一行要填的东西。 */
+  .est-brand{
+    margin-top:11px; padding-top:10px; border-top:1px dashed var(--line);
+    font-size:12px; color:var(--hint); line-height:1.62;
+  }
+  .est-brand b{display:block; font-weight:500; color:var(--muted); margin-bottom:3px}
   .cloud-block{margin-top:16px; border-top:1px solid var(--line); padding-top:13px}
   .cloud-block>b{display:block; font-size:13.5px}
   .cloud-block .fingerprint{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -1558,7 +1606,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.89</div>
+    <div id="app-ver" class="foot-ver">版本 v2.91</div>
   </footer>
 </div>
 
@@ -2086,6 +2134,87 @@
   </div>
 </dialog>
 
+<!-- 充满要多久（v2.91）：从「满电快搜」那类小程序借来的形态 —— 填电池和
+     充电器的铭牌参数，算出充满要多久。**它不查桩**：不读 cpk.cache、不发
+     /api/pile，和站里的设备数据完全两条线，所以放在「工具」而不是任何数据卡里。
+
+     ⚠️ 大数字只由 #est-time / #est-unit 两个节点拼，别把「小时」写进 JS 字符串 ——
+        单位要跟着数值一起换（「满了」那档没有单位）。 -->
+<dialog id="dlg-est" class="sub-dlg" aria-label="充满要多久">
+  <div class="dlg-body">
+    <div class="dlg-head">
+      <h2>充满要多久</h2>
+      <button class="x-btn" data-close aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+    </div>
+
+    <div class="est-hero">
+      <div class="est-num"><span id="est-time">7.6</span><small id="est-unit">小时</small></div>
+      <div class="est-sub" id="est-sub">48V 20Ah · 铅酸 · 3A</div>
+      <div class="est-meta" id="est-meta">充 0% → 100% · 约 7 小时 37 分 · 用电 1.23 度 · 满电约 51 公里</div>
+    </div>
+
+    <div class="est-sec">电池</div>
+    <div class="est-card">
+      <div class="est-row">
+        <div class="est-fld">
+          <label for="est-v">电压</label>
+          <span class="est-inwrap"><input id="est-v" type="number" inputmode="decimal" min="12" max="120" step="1" value="48"><span class="u">V</span></span>
+        </div>
+        <div class="est-fld">
+          <label for="est-ah">容量</label>
+          <span class="est-inwrap"><input id="est-ah" type="number" inputmode="decimal" min="1" max="200" step="1" value="20"><span class="u">Ah</span></span>
+        </div>
+      </div>
+      <div class="est-fld" style="margin-top:12px">
+        <label>类型</label>
+        <!-- v2.91：把「锂电」拆成三元/磷酸铁锂（两者差在恒压段长短），另加钠电。
+             石墨烯单独列是因为市面上一半的「石墨烯」其实就是铅酸改良版，
+             用户按键上的字样选，选完看到的差别跟商家说的能对上，不至于选错。 -->
+        <div class="est-chips" id="est-type">
+          <button class="est-chip on" type="button" data-est-type="lead">铅酸</button>
+          <button class="est-chip" type="button" data-est-type="gra">石墨烯</button>
+          <button class="est-chip" type="button" data-est-type="lfp">磷酸铁锂</button>
+          <button class="est-chip" type="button" data-est-type="nmc">三元锂</button>
+          <button class="est-chip" type="button" data-est-type="na">钠电</button>
+          <button class="est-chip" type="button" data-est-type="other">其他</button>
+        </div>
+      </div>
+      <div class="est-fld" style="margin-top:13px">
+        <label>剩余电量</label>
+        <div class="est-chips" id="est-soc">
+          <button class="est-chip on" type="button" data-est-soc="0">0%</button>
+          <button class="est-chip" type="button" data-est-soc="25">25%</button>
+          <button class="est-chip" type="button" data-est-soc="50">50%</button>
+          <button class="est-chip" type="button" data-est-soc="75">75%</button>
+          <button class="est-chip" type="button" data-est-soc="90">90%</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="est-sec">充电器</div>
+    <div class="est-card">
+      <!-- v2.91：把「输出电压」删了。它是多余的 —— 时间只跟 Ah 和电流有关，
+           电压只在算电费时用得上，而那个电压就是电池电压。留着它反而害人：
+           铭牌上 48V 系统印的是 54.6V，照抄进来功率虚高 14%、时间短 12%。
+           电流跟着容量自动填（见 estSyncCa），用户手改过就不再自动覆盖。 -->
+      <div class="est-fld">
+        <label for="est-ca">输出电流</label>
+        <span class="est-inwrap"><input id="est-ca" type="number" inputmode="decimal" min="0.1" max="20" step="0.1" value="3"><span class="u">A</span></span>
+      </div>
+      <div class="est-brand">
+        <b>出厂一般配多大</b>
+        雅迪铅酸 3A · 爱玛锂电 4A · 台铃/新日/九号锂电 2A · 雅迪钠电 9A（超充桩 20A）
+      </div>
+    </div>
+
+    <div class="est-foot">
+      <p class="note" id="est-tip">铅酸是恒流→恒压→浮充三段：灯转绿才到 98%，再浮 30~60 分钟才算真满。</p>
+      <p class="note">电池上印电压和容量（例：48V 20Ah）。充电器看背面 <b>Output</b> 那一行的 A，不是 Input。</p>
+      <p class="note">这是估算：低温、电池老化、共用一台桩时功率被分走，都会让实际时间更长。</p>
+    </div>
+  </div>
+</dialog>
+
 <!-- 关于（v2.59）：开发者 + 致谢 &amp; 贡献名单，从首页副标题整体搬到这里
      （首页那条「by长歌 · 致谢 &amp; 贡献名单」已删）。入口 = 设置 › 关于本站。
      ⚠️ 两个 GitHub 链接都**实测过**：`RinnMoe/my_chu` 200、`zhuangchuyuan86-bot/stu-charge-watch` 200。
@@ -2264,6 +2393,20 @@
       <input type="checkbox" id="auto-refresh" style="width:auto;min-width:18px;height:18px;padding:0" data-page-node-id="Vi63dqGunNGDQnk4DGAXAP">
       <span>前台自动更新<small style="display:block;font-size:12px;color:var(--hint)">每小时更新一次汇总，卡片要手动刷</small></span>
     </label>
+
+    <!-- v2.91：估算器先只挂在**管理员后台**里 —— 还没定要不要对普通访客开放，
+         先自己人用一阵看看数对不对。入口 id 沿用 #set-est-btn，SET_ENTRIES
+         那一行的绑定不用改，点开仍是上面那颗 #dlg-est 子弹窗。
+         想对所有人开放时，把这一块搬到 #sync-dialog 的「偏好设置」后面即可。 -->
+    <div class="set-sec" style="margin-top:18px">工具</div>
+    <div class="set-card">
+      <button class="set-row" type="button" id="set-est-btn">
+        <span class="set-ico" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="5.9"/><path d="M8 4.8V8l2.2 1.5"/></svg></span>
+        <span class="set-txt">充满要多久</span>
+        <span class="set-val" id="set-est-val">约 7.6 小时</span>
+        <span class="set-caret" aria-hidden="true"></span>
+      </button>
+    </div>
 
     <div class="cloud-block" data-page-node-id="XqxpEXXGe7AZGm5ruJHw4x">
       <b data-page-node-id="gt8Z03WYvmI7J2Rn44nJpI">跨网络自动同步</b>
@@ -9449,7 +9592,9 @@ const CHANGELOG = [
     /* v2.89：地图点分区圈进地址视图 + 该视图的刷新键。 */
     '地图上点某个分区的圈、或者它的名字，下面那排页签会跟着切到那块地址 —— 以前只放大镜头、'
       + '页签还停在「校区全图」，看着像没切过去。页签右边还多了个圆形箭头，点它只重查这块地址的桩，'
-      + '别处的数字不会跟着乱跳'
+      + '别处的数字不会跟着乱跳',
+    /* v2.91 的估算器**不公告**：它只挂在管理员后台里，普通访客看不到。
+       等哪天挪到「设置 › 偏好设置」对所有人开放了，再在这里补一条。 */
   ] },
   { v: 'v2.60 – v2.69', d: '2026-10-30 ~ 11-02', items: [
     '新增「住宅」8 台充电桩（Z-01~Z-08）：都在校园北侧尚苑路边的西区住宅小区，地图上沿路边排成一排；这批机器有 2 口、10 口、20 口的，卡片按实际口数铺格子'
@@ -9590,7 +9735,252 @@ const SET_ENTRIES = [
   { btn: 'set-skin-btn', dlg: 'dlg-skin' },
   { btn: 'set-font-btn', dlg: 'dlg-font' },
   { btn: 'set-about-btn', dlg: 'dlg-about' },
+  /* v2.91：管理员后台 › 工具 › 充满要多久。没有 onOpen —— 打开就是上次填的那组数，
+     值在 boot 时已经灌进输入框了（见下面 estInit()）。 */
+  { btn: 'set-est-btn', dlg: 'dlg-est' },
 ];
+
+/* ── 充满要多久（v2.91）────────────────────────────────────────
+   和站里别的功能**没有关系**：不读 cpk.cache、不打 /api/pile、不碰那 177 台桩，
+   纯本地乘法 + 一个 localStorage 记住你填过什么。断网也能用。
+
+   🔴 模型 2026-11-04 重做（v2.91）：按「电流积分」算，不是「电量÷功率」那把除法。
+      恒流段 t1 = 补进去的 Ah / 充电电流 I
+      恒压段 t2 = 剩余 Ah / ((I + 截止电流) / 2)   ← 电流从 I 线性降到截止值的均值
+
+   为什么这么写（查了一轮实测/拆解之后定的，不是拍脑袋）：
+     ① **充电时间只跟 Ah 和 I 有关，跟电压无关**。20Ah 用 3A，48V 和 72V 都是 6.7 小时
+        起步。网上那些「72V 比 48V 多充两小时」的表，是因为它们配的充电器电流本就不一样。
+        所以「充电器输出电压」那个输入框已经删了 —— 原来照铭牌填 54.6V 会把时间算短 12%。
+     ② 恒压段长度由**截止电流**决定，不是某个「等效功率系数」：锂电/钠电到 0.05C 判满，
+        铅酸到 0.5A 跳灯（之后还有 30~60 分钟浮充，另算）。这个式子同时把三类电池
+        的「谁快谁慢」自然算出来了，不用给每种电池硬编一个系数。
+     ③ 铅酸截止电流是 0.5A 的**固定值**（充电器通用 10~22Ah），不是倍率。
+
+   实测对照（48V 20Ah，常温全新，都是从 0% 起充）：
+     铅酸 3A        7.6h   商家/行业协会口径 6~8h        ✓
+     石墨烯 3A      7.4h   与铅酸同档（本质仍是铅酸）    ✓
+     三元锂 4A      5.3h   出口资料 5~5.75h              ✓
+     磷酸铁锂 4A    5.4h   比三元略慢（平台平、恒压段长）✓
+     钠电 24Ah/20A  1.4h   雅迪官方「最快 1.5 小时内」   ✓
+     钠电 24Ah/9A   3.1h   台铃「满电约 3 小时」         ✓
+     九号 12.7Ah/2A 7.0h   原厂标称「约 6.5h」           ✓（+7%）
+
+   温度、老化、共用桩被分功率都不在模型里，所以界面上一律写「约」。 */
+const EST_TYPES = {
+  /* cc   = 恒流段能补进总容量的比例（其余走恒压段）
+     termA = 截止电流，固定安培（铅酸：指示灯转绿那一刻）
+     termC = 截止电流，容量倍率（锂电/钠电：0.05C）
+     eta  = 电网侧到电池的总效率（充进 1 度大约要买 1.15~1.28 度电） */
+  lead: { name: '铅酸', cc: 0.80, termA: 0.5, eta: 0.78 },
+  gra: { name: '石墨烯', cc: 0.82, termA: 0.5, eta: 0.82 },
+  lfp: { name: '磷酸铁锂', cc: 0.75, termC: 0.05, eta: 0.88 },
+  nmc: { name: '三元锂', cc: 0.80, termC: 0.05, eta: 0.88 },
+  na: { name: '钠电', cc: 0.80, termC: 0.05, eta: 0.90 },
+  other: { name: '其他', cc: 0.78, termC: 0.05, eta: 0.85 },
+};
+const EST_DEFAULT = { v: 48, ah: 20, ca: 3, type: 'lead', soc: 0 };
+const EST_LIMIT = { v: [12, 120], ah: [1, 200], ca: [0.1, 20] };
+let estState = { type: EST_DEFAULT.type, soc: EST_DEFAULT.soc };
+/* 电流是不是还跟着容量自动走。用户一旦手改过电流，就不再自动覆盖他的输入。 */
+let estAutoCa = true;
+
+/** 满电续航的每公里耗电（Wh/km），按电压档取。
+    三档由实测续航表反算：48V 车 400W/25km/h ≈ 19、60V 车 600~800W/40km/h ≈ 21、
+    72V 车 1000~1200W/50km/h ≈ 23。验证：48V20Ah→51km（实测 45~55）、
+    60V32Ah→91km（80~90）、72V32Ah→100km（90~120），都在区间里。
+    🔴 别用一个固定系数：12 Wh/km 只对轻便车成立，72V32Ah 会算出 192 公里，
+       实测只有 90~120 —— 这种吹牛比算少了更伤人。 */
+function estWhPerKm(v) {
+  return v <= 48 ? 19 : v <= 60 ? 21 : 23;
+}
+
+/** 按容量给一个「出厂通常配多大电流」的建议值。
+    铅酸/石墨烯：厂家几乎都按「7 小时充满」配（12Ah→1.8A、20Ah→3A），封顶 3A；
+    锂电：14Ah 配 2A、20~24Ah 配 4A（爱玛 218W 就是 4A / 20-24Ah），2~5A；
+    钠电：雅迪快充 9A、超充桩 20A，按 Ah÷2.7 取整。 */
+function estSuggest(ah, type) {
+  const t = EST_TYPES[type] || EST_TYPES.other;
+  if (t.termA != null) return Math.min(3, Math.max(1.8, Math.round((ah / 7) * 2) / 2));
+  if (type === 'na') return Math.min(20, Math.max(4, Math.round(ah / 2.7)));
+  return Math.min(5, Math.max(2, Math.round(ah / 6)));
+}
+
+/** 容量或类型变了以后，把电流跟着改到推荐值 —— 但只在用户没手改过的时候。
+    他一旦自己敲过电流，就再也不动他的输入（谁也不想填完被程序改回去）。 */
+function estSyncCa() {
+  if (!estAutoCa) return;
+  const el = $('est-ca');
+  const ahEl = $('est-ah');
+  if (!el || !ahEl) return;
+  const ah = Number(ahEl.value);
+  if (!Number.isFinite(ah)) return;
+  el.value = estSuggest(ah, estState.type);
+}
+
+/** 两段式估算。返回 null = 输入越界（界面显示「–」，不猜）。 */
+function estCalc(p) {
+  const inRange = (k, x) => Number.isFinite(x) && x >= EST_LIMIT[k][0] && x <= EST_LIMIT[k][1];
+  if (!inRange('v', p.v) || !inRange('ah', p.ah) || !inRange('ca', p.ca)) return null;
+  const t = EST_TYPES[p.type] || EST_TYPES.other;
+  const soc = Math.min(100, Math.max(0, p.soc)) / 100;
+  const need = p.ah * (1 - soc);                                  // 要补进去的 Ah
+  const ccAh = Math.min(need, p.ah * Math.max(0, t.cc - soc));    // 恒流段补得进多少
+  const cvAh = need - ccAh;                                       // 剩下走恒压
+  const term = t.termA != null ? t.termA : t.termC * p.ah;        // 截止电流 A
+  const tCC = ccAh / p.ca;
+  const tCV = cvAh / ((p.ca + term) / 2);
+  const wh = p.v * p.ah;
+  return {
+    hours: tCC + tCV, tCC, tCV, need, term, wh,
+    kwh: (wh * (1 - soc)) / t.eta / 1000,   // 电网侧要买的电（含损耗）
+    km: wh / estWhPerKm(p.v),               // 满电能跑多远（与起始电量无关）
+    name: t.name,
+    float: t.termA != null,                 // 铅酸那类跳灯后还有浮充
+  };
+}
+
+function estRead() {
+  const n = (id) => Number(($(id) || {}).value);
+  return { v: n('est-v'), ah: n('est-ah'), ca: n('est-ca'), type: estState.type, soc: estState.soc };
+}
+
+/** 大数字 / 副标 / 明细 / 设置列表右侧格，四处同源，只有这个函数能写。
+    参数不合法就显示「–」并把取值范围写出来，别硬算。 */
+function estRender() {
+  if (!$('est-time')) return;
+  const p = estRead();
+  const r = estCalc(p);
+  const timeEl = $('est-time');
+  const unitEl = $('est-unit');
+  const subEl = $('est-sub');
+  const metaEl = $('est-meta');
+  const tipEl = $('est-tip');
+  const valEl = $('set-est-val');
+  const caTxt = Number(p.ca.toFixed(1));
+
+  if (!r) {
+    timeEl.textContent = '–';
+    unitEl.textContent = '';
+    subEl.textContent = '电压 12~120V · 容量 1~200Ah · 电流 0.1~20A';
+    metaEl.textContent = '';
+    if (valEl) valEl.textContent = '参数不对';
+    return;
+  }
+  subEl.textContent = `${p.v}V ${p.ah}Ah · ${r.name} · ${caTxt}A`;
+
+  if (r.hours < 0.05) {
+    timeEl.textContent = '0';
+    unitEl.textContent = '小时';
+    metaEl.textContent = '已经满了，不用充';
+    if (valEl) valEl.textContent = '已满';
+    return;
+  }
+  /* 铅酸/石墨烯是「恒流→恒压→浮充」三段，上面算到的是**指示灯转绿**那一刻
+     （恒流段 + 恒压段收尾到 0.5A）。绿灯之后再浮 30~60 分钟才算真满 ——
+     这段时间不给它加进总时长，因为商家说的「6~8 小时充满」就是到绿灯为止；
+     加进去会显得比所有人说的都慢，反而让人不信。提示写在 tip 里。 */
+
+  if (r.hours > 48) {
+    /* 48 小时以上多半不是电池的问题，是电流填小了 —— 给句人话，别甩个「163 小时」 */
+    timeEl.textContent = '>2';
+    unitEl.textContent = '天';
+    metaEl.textContent = '电流填得太小了？充电器背面 Output 那一行才是充电电流';
+    if (valEl) valEl.textContent = '超过 2 天';
+  } else {
+    let hh = Math.floor(r.hours);
+    let mm = Math.round((r.hours - hh) * 60);
+    if (mm === 60) { hh += 1; mm = 0; }
+    timeEl.textContent = r.hours >= 10 ? String(Math.round(r.hours)) : r.hours.toFixed(1);
+    unitEl.textContent = '小时';
+    metaEl.textContent = `充 ${p.soc}% → 100% · 约 ${hh} 小时 ${mm} 分 · 用电 ${r.kwh.toFixed(2)} 度 · 满电约 ${Math.round(r.km)} 公里`;
+    if (valEl) valEl.textContent = `约 ${timeEl.textContent} 小时`;
+  }
+
+  if (tipEl) {
+    tipEl.textContent = r.float
+      ? '铅酸是三段式，上面算到指示灯转绿为止；再浮充 30~60 分钟才算真满，也不容易硫化。'
+      : p.type === 'na'
+        ? '钠电本身吃得住大电流，充得快不快全看配的是几安的充电器 —— 9A 和 20A 差一倍多。'
+        : p.type === 'lfp'
+          ? '磷酸铁锂电压平台平，表显 100% 之后还得补一会儿才均衡，所以它比三元略慢。'
+          : '锂电是恒流→恒压两段：末段电流自己往下掉，最后 20% 往往比前面 80% 还磨人。';
+  }
+}
+
+function estSave() {
+  try { localStorage.setItem('cpk.est', JSON.stringify(estRead())); } catch (e) { /* 无痕模式存不进也不影响算 */ }
+}
+
+function estCommit() { estSave(); estRender(); }
+
+function estLoad() {
+  let raw = null;
+  try { raw = JSON.parse(localStorage.getItem('cpk.est') || 'null'); } catch (e) { raw = null; }
+  if (!raw || typeof raw !== 'object') return Object.assign({}, EST_DEFAULT, { autoCa: true });
+  const num = (k) => (Number.isFinite(Number(raw[k])) ? Number(raw[k]) : EST_DEFAULT[k]);
+  const soc = Number(raw.soc);
+  /* 早先存过 type:'li' 和充电器电压 cv —— 老数据顺手翻译过来，
+     不然升上来的人打开就是一片「–」。锂电当时不分三元/铁锂，按三元接。 */
+  const type = EST_TYPES[raw.type] ? raw.type : raw.type === 'li' ? 'nmc' : EST_DEFAULT.type;
+  const out = {
+    v: num('v'), ah: num('ah'),
+    ca: Number.isFinite(Number(raw.ca)) ? Number(raw.ca) : EST_DEFAULT.ca,
+    type,
+    soc: Number.isFinite(soc) ? Math.min(100, Math.max(0, soc)) : EST_DEFAULT.soc,
+  };
+  /* 存下来的电流正好等于「按容量推荐」的那个值 → 说明用户从没手改过，继续自动跟随。
+     改过就尊重他的输入，别在他动容量时把电流悄悄改回去。 */
+  out.autoCa = Math.abs(out.ca - estSuggest(out.ah, out.type)) < 0.05;
+  return out;
+}
+
+/** boot 时跑一次：灌值 → 绑事件 → 首帧渲染（设置列表右侧那格也要有数）。 */
+(function estInit() {
+  if (!$('est-v')) return;
+  const saved = estLoad();
+  ['v', 'ah', 'ca'].forEach((k) => { const el = $('est-' + k); if (el) el.value = saved[k]; });
+  estState = { type: saved.type, soc: saved.soc };
+  estAutoCa = saved.autoCa !== false;
+
+  /* 两组胶囊（类型 / 剩余电量）共用一套逻辑：点谁谁亮，互斥 */
+  const pickGroup = (boxId, attr, apply) => {
+    const box = $(boxId);
+    if (!box) return;
+    const chips = [].slice.call(box.querySelectorAll('.est-chip'));
+    chips.forEach((b) => {
+      const on = String(b.dataset[attr]) === String(apply.get());
+      b.classList.toggle('on', on);
+      b.addEventListener('click', () => {
+        apply.set(b.dataset[attr]);
+        chips.forEach((x) => x.classList.toggle('on', x === b));
+        estSyncCa();
+        estCommit();
+      });
+    });
+  };
+  pickGroup('est-type', 'estType', {
+    get: () => estState.type,
+    set: (v) => { estState.type = v; },
+  });
+  pickGroup('est-soc', 'estSoc', {
+    get: () => estState.soc,
+    set: (v) => { estState.soc = Number(v); },
+  });
+
+  /* 容量/类型一变就把电流跟着改到「这类电池通常配的那个值」——
+     前提是用户没手改过（estAutoCa）。手改过就只认他的数。 */
+  const onBatteryInput = () => { estSyncCa(); estCommit(); };
+  ['est-v', 'est-ah'].forEach((id) => {
+    const el = $(id);
+    if (el) el.addEventListener('input', onBatteryInput);
+  });
+  const caEl = $('est-ca');
+  if (caEl) {
+    caEl.addEventListener('input', () => { estAutoCa = false; estCommit(); });
+  }
+  estRender();
+})();
 
 /* v2.59：「关于」的版本号在**加载时**就写好，别等点开弹窗 ——
    否则设置列表里「关于本站」右侧会空一格。两个位点同源（#app-ver），

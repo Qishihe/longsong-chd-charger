@@ -967,11 +967,12 @@
       m.on('click', function () {
         var id = m.getExtData().area;
         if (!id) return;
-        /* 2026-10-21 改：在**当前高德底图上**放大到该分区。
-         * 原来这里是 `onPileCb({ type: 'area', id })`，页面收到 area 会
-         * `switchMap('beimen'|'chaohui')` → 切到静态手绘旧图 ——
+        /* 2026-10-21 改：在**当前高德底图上**放大到该分区（不切静态旧图）。
          * 产品方：「去除放大后，点击北门、朝晖体育场的标签会跳转到旧地图的情况」。
-         * 现在与聚合圈点击走同一条路（zoomToArea），不再回调页面。 */
+         * v2.89：**恢复回调，但语义变了** —— 页面收到 `{type:'area'}` 只同步页签
+         * （当前这块地址高亮、刷新键换口径），取景仍由下面这句 `zoomToArea` 负责。
+         * 回调包 try/catch：页面侧出异常不能把「点圈放大」一起废掉。 */
+        if (onPileCb) { try { onPileCb({ type: 'area', id: id }); } catch (e) {} }
         zoomToArea(id);
       });
     });
@@ -1037,7 +1038,10 @@
         // 点聚合圈 → 放大到该分区全景（与分区徽章点击共用 zoomToArea，留白/托底一致）；
         // 放大后 applyZoomTier 会把聚合圈换成逐台点。
         // ⚠️ minZ 必须给到徽章档 —— 见 zoomToArea 里那条「点完还是圈」的说明。
-        zoomToArea(m.getExtData().area);
+        var area = m.getExtData().area;
+        // v2.89：先让页面把页签切到这块地址，再取景（见徽章点击那条注释）。
+        if (onPileCb) { try { onPileCb({ type: 'area', id: area }); } catch (e) {} }
+        zoomToArea(area);
       });
     });
   }

@@ -1533,7 +1533,7 @@
       <div class="foot-line">或加入反馈交流群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a>，一起把它变得更好</div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">本站为只读查询，不涉及账户、订单与支付；数据来自充电平台，出发前请以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.81</div>
+    <div id="app-ver" class="foot-ver">版本 v2.82</div>
   </footer>
 </div>
 
@@ -3575,9 +3575,11 @@ async function pileProxyBatch(items, onChunk, shouldStop, opts = {}) {
 
   /* ② 组内切批，再把批轮着分给两条流水线 —— 每条流水线内部仍然串行。 */
   const chunks = [];
+  /* v2.82：补查/重试走更小的批（PILE_RETRY_CHUNK），正常刷新仍是 12 台一批。 */
+  const chunkSize = Math.max(1, Number(opts && opts.chunkSize) || PILE_PROXY_CHUNK);
   groups.forEach((ids, src) => {
-    for (let k = 0; k < ids.length; k += PILE_PROXY_CHUNK) {
-      chunks.push({ src, ids: ids.slice(k, k + PILE_PROXY_CHUNK) });
+    for (let k = 0; k < ids.length; k += chunkSize) {
+      chunks.push({ src, ids: ids.slice(k, k + chunkSize) });
     }
   });
 
@@ -3663,12 +3665,16 @@ async function pileProxyBatch(items, onChunk, shouldStop, opts = {}) {
   const lanes = Array.from({ length: Math.min(PILE_LANES, chunks.length) }, () => []);
   chunks.forEach((c, i) => lanes[i % lanes.length].push(c));
 
-  await Promise.all(lanes.map(async (list) => {
-    for (const part of list) {
+  await Promise.all(lanes.map(async (list, li) => {
+    /* v2.82：第二队先等一拍再出发（见 PILE_LANE_STAGGER_MS 注释）。 */
+    if (li > 0) await sleep(PILE_LANE_STAGGER_MS * li);
+    for (let k = 0; k < list.length; k += 1) {
       /* 已经判定「整片没响应」就别再打剩下的批 —— 请求越密封得越久，
        * 而且用户此刻最需要的是「赶紧停下来告诉他怎么回事」。 */
       if (shouldStop && shouldStop()) return;
-      const ok = await oneBatch(part);
+      /* v2.82：同一队里批与批之间喘一口，别把 5 批挤在同一秒里发完。 */
+      if (k > 0) await sleep(PILE_BATCH_GAP_MS);
+      const ok = await oneBatch(list[k]);
       if (!ok) return;          // 这条流水线断了，另一条照常跑完
     }
   }));
@@ -6235,7 +6241,7 @@ function hideProgress() {
   setFreeCardState('done');
 }
 
-async function refresh({ force = false, retried = false, only = null } = {}) {
+async function refresh({ force = false, retried = false, only = null, autoRetry = false } = {}) {
   paintCred();
   /* 🔴 2026-10-27：改看 `credState()`。访客手上没有 token，但服务端有 ——
    * 以前这里判 `tokenState()` 就会直接 return，表现是「已取到凭证，正在查询…」
@@ -6520,8 +6526,9 @@ async function refresh({ force = false, retried = false, only = null } = {}) {
         () => aborted,
         /* 🔴 一律 fresh：refresh() 的语义就是「现在要一份新的」。
          * 平台侧不会被这行打爆 —— Worker 有「缓存年龄 60 秒内直接复用」+
-         * 「全站回源预算」两道闸（见 _worker.js 的 PILE_FRESH_MIN / PILE_FRESH_BUDGET）。 */
-        { fresh: true },
+         * 「全站回源预算」两道闸（见 _worker.js 的 PILE_FRESH_MIN / PILE_FRESH_BUDGET）。
+         * v2.82：补查/重试（only）走 6 台一批，见 PILE_RETRY_CHUNK。 */
+        { fresh: true, chunkSize: only ? PILE_RETRY_CHUNK : PILE_PROXY_CHUNK },
       );
       pileMeta = { ...lastPileMeta };
     }
@@ -6683,6 +6690,26 @@ async function refresh({ force = false, retried = false, only = null } = {}) {
   /* 这一轮期间用户又点过「刷新」→ **只补查本轮失败的那几台**（通常 0~4 台，一两秒）。
    * 🔴 不再无条件再跑一整轮：一轮 20 多秒，用户等急了连点几次就会「转完立刻又转」，
    *    永远停不下来 —— 这正是本次线上「一直转圈」的真因。 */
+  /* 🔴 v2.82：**自动补查一次**（2026-11-03 北院截图之后加）。
+   *
+   * 以前「平台没响应」的桩只能停在红色卡片上，等用户自己点那张卡上的「重新查询」；
+   * 北院 57 台一轮里只要尾部几台被平台限流，用户看到的就是一整排红 —— 而他什么都做不了，
+   * 只能再点一次「刷新」，结果要么被「刚更新过」拦住，要么又把 57 台全打一遍。
+   *
+   * 现在：这一轮失败台数不多（≤ AUTO_RETRY_MAX）、不是整片没响应、也不是凭证问题，
+   * 就隔 1.2 秒**只补这几台**（6 台一批，见 PILE_RETRY_CHUNK）。平台抖一下的那几台
+   * 多半这一下就回来了。补查轮自己失败就停手（`autoRetry` 传下去，不再套一层），
+   * 不会出现「转完又转」。
+   *
+   * 只在用户发起的刷新里做（`only` 的补查轮不再触发），也不越过 MIN_PARTIAL_GAP_MS 那道闸 ——
+   * 那条闸只作用于「算 plan 的全量轮」，这里是明确知道要查哪几台。 */
+  if (!autoRetry && !only && !pendingTargets && failedIdx.length && !netAbort
+      && lastError !== AUTH_ERROR && failedIdx.length <= AUTO_RETRY_MAX) {
+    const list = failedIdx.slice();
+    showToast(list.length + ' 台没查通，稍后自动再试一次…');
+    setTimeout(() => refresh({ force: true, only: list, autoRetry: true }), AUTO_RETRY_DELAY_MS);
+  }
+
   if (pendingTargets) {
     pendingTargets = false;
     /* 补查上限 24 台：超过这个数就又是一整轮全量了，等于没修掉「转完又转」。 */
@@ -6692,7 +6719,7 @@ async function refresh({ force = false, retried = false, only = null } = {}) {
       if (left > 0) {
         showToast('先补查这次没查通的 ' + retryList.length + ' 台，还剩 ' + left + ' 台');
       }
-      setTimeout(() => refresh({ force: true, only: retryList }), 0);
+      setTimeout(() => refresh({ force: true, only: retryList, autoRetry: true }), 0);
     } else if (!failedIdx.length && !netAbort && lastError !== AUTH_ERROR) {
       showToast('已经是最新结果了（本轮 ' + done + ' 台全部查通）');
     }
@@ -6966,6 +6993,27 @@ const PILE_PROXY_CHUNK = 12;
  *    （那一轮也可能是平台自己在抖，但那已经是「没有余量」的位置，不值得赌）。 */
 const PILE_LANES = 2;
 const PILE_PROXY_TIMEOUT_MS = 25000;
+
+/* 🔴 v2.82：批与批之间、车道与车道之间各留一点间隔（2026-11-03 北院实测后加）。
+ *
+ * 现场：北院 57 台一轮 = 5 批、两条流水线并行，**4.4 秒内 57 个请求全打出去**
+ * （实测：批1/2 各 2.2 秒 → 批3/4 各 1.1 秒 → 批5 1.0 秒）。
+ * 平台对**同一出口 IP 的请求速率**有软上限，一瞬间全打过去时，尾部批次最容易吃到限流，
+ * 表现就是用户截图那样：前面几十台正常，最后一批整排「平台没响应（8 秒超时）」。
+ *
+ * 这两个间隔不改并发、不改单批台数、不改总请求数 —— 只把「一口气」摊成「匀速」：
+ *   · 车道错峰 800ms：两条线的波峰错开，平台侧同时在飞的从 24 台降到 12 台；
+ *   · 批间 260ms：一批回来喘一口再发下一批，尾部批次不再在最密的时刻撞上去。
+ * 代价：一轮 57 台从 4.4 秒变成 ~6.5 秒（流式回填，第一批照样 2 秒上屏）。 */
+const PILE_BATCH_GAP_MS = 260;
+const PILE_LANE_STAGGER_MS = 800;
+
+/* 补查用的批大小：失败的那几台本来就更难查通，一批 6 台可以让重试更快出结论，
+ * 也不会因为「重试本身又是一大批」把平台刚缓过来的窗口再次填满。 */
+const PILE_RETRY_CHUNK = 6;
+/* 一轮刷新收尾自动补查：失败台数 ≤ 这个数、且不是整片没响应，就自动再试一次。 */
+const AUTO_RETRY_MAX = 18;
+const AUTO_RETRY_DELAY_MS = 1200;
 
 /* 🔴 2026-10-27：**默认值反转成「走 Worker」**。
  *
@@ -9156,7 +9204,13 @@ const CHANGELOG = [
     '「一行两个」的排法不会再空出一大片：桩少的时候（比如雁塔那 3 台），'
       + '第二排原来会被顶到屏幕最下面、看着像少了几台，现在紧跟着第一排',
     '切校区后「共统计 x/（y）插座」跟着一起换：之前它会挂着上一个校区的数'
-      + '（雁塔页面写着 228 个插座，那是北院的），现在和下面的卡片永远是同一个范围'
+      + '（雁塔页面写着 228 个插座，那是北院的），现在和下面的卡片永远是同一个范围',
+    /* v2.82：北院那轮「最后几台一起超时」。用户看到的是「刷新完一片红、还得自己一个个点
+       重新查询」，所以按「刷新体验」写一条，不按「代码里加了两个 sleep」。 */
+    '刷新时「平台没响应」的桩会自己再试一次：以前北院 57 台一轮里尾部几台撞上平台限流，'
+      + '就停在红卡片上等你一个个点「重新查询」；现在一轮结束后会只挑那几台再查一遍，'
+      + '不用你动手。同时把连着的几批查询摊匀了一点，刷新整屏大约多花两秒，' 
+      + '换来的是同一时刻打给平台的请求不再挤在一起'
   ] },
   { v: 'v2.60 – v2.69', d: '2026-10-30 ~ 11-02', items: [
     '新增「住宅」8 台充电桩（Z-01~Z-08）：都在校园北侧尚苑路边的西区住宅小区，地图上沿路边排成一排；这批机器有 2 口、10 口、20 口的，卡片按实际口数铺格子'

@@ -802,7 +802,10 @@ function credTooMany(ip) {
  * 🔴 这几个路径必须同时写进 `_routes.json` 的 `include` —— 不进去的话
  *    请求根本到不了 Worker，会被静态层直接发出去。
  */
-const RETIRED = new Set(['/preview', '/preview.html', '/preview-banner.js', '/map-amap-preview.js']);
+/* 2026-11-03 v2.85：`/help.html`（「怎么抓一串凭证」教程页）也进了退役名单。
+   页面本体还在 `chd-charge/` 里（随时能从 git 恢复），但不再对外提供 ——
+   抓凭证这件事站长自己会，不需要给访客留一份手把手教程。 */
+const RETIRED = new Set(['/preview', '/preview.html', '/preview-banner.js', '/map-amap-preview.js', '/help.html']);
 
 export default {
   async fetch(request, env) {
@@ -810,7 +813,7 @@ export default {
     const path = url.pathname.replace(/\/+$/, '') || '/';
 
     if (RETIRED.has(path)) {
-      return new Response('410 Gone —— 内测版已下线，请回到首页。', {
+      return new Response('410 Gone —— 这个页面已经下线，请回到首页。', {
         status: 410,
         headers: {
           'content-type': 'text/plain; charset=utf-8',

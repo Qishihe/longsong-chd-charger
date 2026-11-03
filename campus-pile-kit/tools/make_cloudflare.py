@@ -44,6 +44,9 @@ EXCLUDE_FILES = {
     "preview.html",
     "preview-banner.js",
     "map-amap-preview.js",
+    # 2026-11-03 v2.85：抓凭证教程页下线（弹窗里那句「第一次弄？看教程」也删了）。
+    # 文件留在 chd-charge/ 里备查，打包这层挡住，别再发出去。
+    "help.html",
     # 对外设备目录是构建产物（不进版本库），打包时现生成，见 _write_catalog
     "catalog.json",
 }

@@ -290,11 +290,15 @@
    index.html 变了 → 换壳名。） */
 /* v179 → v180（2026-11-03 v2.84：设置里「凭证与同步」并入「管理员」，关于页致谢恢复完整文字。
    index.html 变了 → 换壳名。） */
-const CACHE = 'campus-pile-v180';
+/* v180 → v181（2026-11-03 v2.85：「怎么抓一串凭证」教程页下线，SHELL 里去掉
+   `./help.html`；「换一串凭证」弹窗里的教学文字一并清空。
+   index.html 与 sw.js 都变了 → 换壳名。） */
+const CACHE = 'campus-pile-v181';
 const SHELL = [
   './',
   './index.html',
-  './help.html',
+  /* 2026-11-03 v2.85：`./help.html` 从这里去掉 —— 教程页已下线（Worker 那层回 410），
+     再预缓存它会让 `cache.addAll` 整批失败，一条都装不进壳。 */
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',

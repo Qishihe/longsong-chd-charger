@@ -1536,7 +1536,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.83</div>
+    <div id="app-ver" class="foot-ver">版本 v2.84</div>
   </footer>
 </div>
 
@@ -1715,21 +1715,6 @@
          小节标题 + 圆角卡，行 = 图标 + 名称 + 右侧值 + 箭头，点行开**独立子弹窗**。
          🔴 凭证行的右侧值就是 #set-cred-hint（paintCredHint 的写入点没变）；
             显示方式行的右侧值 #set-view-val 由 applyDense() 维护。 -->
-    <div class="set-sec">凭证与同步</div>
-    <div class="set-card">
-      <button class="set-row" type="button" id="set-cred-btn">
-        <span class="set-ico" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="5.5" cy="6.5" r="3"/><path d="M7.7 8.7 13.4 14.4M10.9 11.9l1.6-1.6"/></svg></span>
-        <span class="set-txt">设备凭证</span>
-        <span class="set-val" id="set-cred-hint"></span>
-        <span class="set-caret" aria-hidden="true"></span>
-      </button>
-      <button class="set-row" type="button" id="set-sync-btn">
-        <span class="set-ico" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.6 12.2h7a2.6 2.6 0 0 0 .3-5.2 3.7 3.7 0 0 0-7.1-.8 2.9 2.9 0 0 0-.2 6z"/></svg></span>
-        <span class="set-txt">云端同步</span>
-        <span class="set-caret" aria-hidden="true"></span>
-      </button>
-    </div>
-
     <div class="set-sec">偏好设置</div>
     <div class="set-card">
       <!-- 校区（v2.74，产品方要求）：顶部那颗胶囊的**第二入口**。
@@ -1772,6 +1757,21 @@
 
     <div class="set-sec">管理员</div>
     <div class="set-card">
+      <!-- v2.84：凭证与云端同步原来是独立一节（v2.50 起）。这两件事都要动
+           大家共用的数据（凭证决定谁能查、同步决定别人打开时读到哪一份），
+           和「管理员」是一类，并进来省掉一节标题。
+           🔴 两行的 id 与相对顺序没变，SUB_DLGS 那张表（约 9320 行）不用跟着改。 -->
+      <button class="set-row" type="button" id="set-cred-btn">
+        <span class="set-ico" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="5.5" cy="6.5" r="3"/><path d="M7.7 8.7 13.4 14.4M10.9 11.9l1.6-1.6"/></svg></span>
+        <span class="set-txt">设备凭证</span>
+        <span class="set-val" id="set-cred-hint"></span>
+        <span class="set-caret" aria-hidden="true"></span>
+      </button>
+      <button class="set-row" type="button" id="set-sync-btn">
+        <span class="set-ico" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.6 12.2h7a2.6 2.6 0 0 0 .3-5.2 3.7 3.7 0 0 0-7.1-.8 2.9 2.9 0 0 0-.2 6z"/></svg></span>
+        <span class="set-txt">云端同步</span>
+        <span class="set-caret" aria-hidden="true"></span>
+      </button>
       <!-- 扫码采设备号（v2.69）：把独立 scan.html 工具并进设置。
            放在「管理员后台」上面、但**不要密码**——扫出来的只是编号清单，
            复制走人，不碰任何会推给别人的数据。 -->
@@ -2093,16 +2093,17 @@
     <div class="set-sec">致谢与贡献人员</div>
     <div class="set-card">
       <div class="about-para">
-        <p class="note">实地采集、拍照与桩位核对：<b>F.、ditto、W、元气少女</b>。</p>
-        <p class="note">地图实现思路来自 <b>MyCHU</b>（<b>Rinn</b>）。</p>
-        <p class="note" style="margin-bottom:6px">参考的开源项目：</p>
+        <p class="note">首先感谢参与数据采集、拍摄照片、核对桩位信息的各位同学：<b>F.、ditto、W、元气少女</b>。大家利用课余时间实地走访，为这个校园充电桩项目提供了宝贵的实地数据，让网站能够真实、准确地展示充电桩状态，帮助同学们避免跑空。</p>
+        <p class="note">特别感谢 <b>MyCHU</b> 开发作者 <b>Rinn</b>，为本项目地图开发提供思路与实现方法。</p>
+        <p class="note" style="margin-bottom:6px">同时，本项目在开发过程中参考、使用了优秀的开源项目：</p>
         <ul class="thanks-list">
           <li>MyCHU：<a href="https://github.com/RinnMoe/my_chu" target="_blank" rel="noopener noreferrer">github.com/RinnMoe/my_chu</a></li>
           <li>汕头大学充电：<a href="https://github.com/zhuangchuyuan86-bot/stu-charge-watch" target="_blank" rel="noopener noreferrer">github.com/zhuangchuyuan86-bot/stu-charge-watch</a></li>
         </ul>
+        <p class="note" style="margin-top:8px">在此向所有开源开发者致以感谢。开源社区的共享精神，为本网站的实现提供了重要的技术支撑。</p>
       </div>
     </div>
-    <p class="note">学生公益项目，欢迎反馈。</p>
+    <p class="note">本项目为学生公益项目，持续维护更新中，欢迎大家继续反馈问题、提供数据。</p>
   </div>
 </dialog>
 
@@ -9190,7 +9191,10 @@ const CHANGELOG = [
     /* v2.83：整页提示文案收敛。这是用户看得见的一处变化（页面变「安静」了），
        但**不是新功能**，所以只写一条，别按弹窗一个个列。 */
     '全站提示文案收短了：副标题、页脚和各弹窗里那些解释性的括号、劝告和客套话都删了，'
-      + '刷新类的提示压成一句；「使用说明」只留怎么用，不再讲为什么做这个站'
+      + '刷新类的提示压成一句；「使用说明」只留怎么用，不再讲为什么做这个站',
+    /* v2.84：设置分组调整 + 致谢回退。两件事都发生在设置里，合一句说完。 */
+    '设置里的「设备凭证」「云端同步」并进「管理员」一组了（它们本来就是一回事）；'
+      + '「关于」页的致谢恢复成完整的一段，上一版压得太短，替我们跑过现场的几个人只剩名字了'
   ] },
   { v: 'v2.60 – v2.69', d: '2026-10-30 ~ 11-02', items: [
     '新增「住宅」8 台充电桩（Z-01~Z-08）：都在校园北侧尚苑路边的西区住宅小区，地图上沿路边排成一排；这批机器有 2 口、10 口、20 口的，卡片按实际口数铺格子'

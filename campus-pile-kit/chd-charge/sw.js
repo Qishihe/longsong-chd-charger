@@ -288,7 +288,9 @@
 /* v178 → v179（2026-11-03 v2.83：全站提示文案收敛 —— 副标题、页脚、各弹窗说明、
    刷新提示全部收短，「使用说明」删掉自述段；顺带 `.note:empty` 不再占位。
    index.html 变了 → 换壳名。） */
-const CACHE = 'campus-pile-v179';
+/* v179 → v180（2026-11-03 v2.84：设置里「凭证与同步」并入「管理员」，关于页致谢恢复完整文字。
+   index.html 变了 → 换壳名。） */
+const CACHE = 'campus-pile-v180';
 const SHELL = [
   './',
   './index.html',

@@ -790,29 +790,43 @@ function credTooMany(ip) {
   return rec.n > CRED_RATE;
 }
 
-/* ---- 已退役的内测版（2026-10-29 v2.38）----
+/* ---- 已退役的页面（2026-10-29 v2.38 起，2026-11-04 v2.87 补齐）----
  *
  * `preview.html` / `preview-banner.js` / `map-amap-preview.js` 已从站点目录删除，
  * 但 Cloudflare Pages 是**增量覆盖**：本地删了，云端旧文件还在，直链照样 200
  * （2026-10-25 在 preview-v3.html 上实测过，平台没有「删除远端文件」的接口）。
  * 一个带密码门禁的半成品页对外可达，比删不掉更难看，所以在这层挡死。
  *
- * 🔴 为什么 `preview` 不带 `.html` 也要挡：Pages 的 Pretty URLs 会把
- *    `/preview.html` 308 到 `/preview`，只挡 `.html` 的话请求换个 URL 照样访问得到。
- * 🔴 这几个路径必须同时写进 `_routes.json` 的 `include` —— 不进去的话
+ * 🔴 为什么 `/x` 和 `/x.html` **两种写法都要挡**：Pages 的 Pretty URLs 会把
+ *    `/x.html` 308 到 `/x`，而 **`/x` 本身会直接返回 `x.html` 的静态内容** ——
+ *    只登记 `.html` 那个写法，等于门只锁了一半。
+ *    2026-11-04 v2.87 实测：`/help`、`/admin`、`/preview-v3`、`/redesign-v2`、
+ *    `/redesign-mockup` 线上**全部 200**，只有带 `.html` 的那侧是 410/308。
+ * 🔴 这些路径必须同时写进 `_routes.json` 的 `include` —— 不进去的话
  *    请求根本到不了 Worker，会被静态层直接发出去。
  */
-/* 2026-11-03 v2.85：`/help.html`（「怎么抓一串凭证」教程页）也进了退役名单。
-   页面本体还在 `chd-charge/` 里（随时能从 git 恢复），但不再对外提供 ——
-   抓凭证这件事站长自己会，不需要给访客留一份手把手教程。 */
-const RETIRED = new Set(['/preview', '/preview.html', '/preview-banner.js', '/map-amap-preview.js', '/help.html']);
+/* 2026-11-03 v2.85：`/help`（「怎么抓一串凭证」教程页）进名单 —— 页面本体还在
+   `chd-charge/` 里（随时能从 git 恢复），但不再对外提供。
+   2026-11-04 v2.87 A4：`/admin`（凭证上传占位页）也下线，文件已删；顺带把
+   `EXCLUDE_FILES` 里那几个历史样张（preview-v3 / redesign-*）一起挡住 ——
+   它们从来没进过 RETIRED，打包层早就不发了，线上旧文件却一直是 200。 */
+const RETIRED = new Set([
+  '/preview', '/preview.html', '/preview-banner.js', '/map-amap-preview.js',
+  '/help', '/help.html',
+  '/admin', '/admin.html',
+  '/preview-v3', '/preview-v3.html',
+  '/redesign', '/redesign-mockup', '/redesign-mockup.html',
+  '/redesign-v2', '/redesign-v2.html',
+]);
+/* 目录级：`/redesign/*` 整个都是内部样张，一条前缀挡完比逐个列省心 */
+const RETIRED_PREFIX = ['/redesign/'];
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, '') || '/';
 
-    if (RETIRED.has(path)) {
+    if (RETIRED.has(path) || RETIRED_PREFIX.some((p) => path.startsWith(p))) {
       return new Response('410 Gone —— 这个页面已经下线，请回到首页。', {
         status: 410,
         headers: {

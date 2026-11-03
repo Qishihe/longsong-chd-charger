@@ -142,8 +142,7 @@ PORT=8080 python serve_gzip.py
 campus-pile-kit/
 ├── chd-charge/          站点根目录（会被整包发布，别放私密文件）
 │   ├── index.html       单文件应用（脚本内联）
-│   ├── admin.html       站长上传凭证页
-│   ├── help.html        取凭证的图文教程
+│   ├── help.html        取凭证的图文教程（已下线：不进包、Worker 回 410，仅留档）
 │   ├── map-amap.js      地图引擎
 │   ├── map-data.js      分区登记 + 底图坐标
 │   ├── catalog.json     对外设备目录（构建产物，打包时自动生成）

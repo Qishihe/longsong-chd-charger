@@ -1536,7 +1536,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.86</div>
+    <div id="app-ver" class="foot-ver">版本 v2.87</div>
   </footer>
 </div>
 
@@ -6936,7 +6936,7 @@ async function cloudAutoSync({ force = false } = {}) {
  * 背景：2026-10-21 起原云端（WorkBuddy 云）到期/资源隔离，`cloudSupport()` 恒 false，
  * 「7 天更新一次凭证、别人自动拿到」这条链断了。改造方案不依赖任何云数据库：
  *
- *   站长手机 → admin.html（输写口令）→ POST /api/cred → Cloudflare KV（只存密文）
+ *   站长 → 设置 ›「设备凭证」弹窗（或本机 push-cred.bat）→ POST /api/cred → KV（只存密文）
  *   同学打开 → GET /api/cred → 比本机新就解密 → applyToken() 覆盖 → 刷新
  *
  * 三条硬约束，改动时别破坏：

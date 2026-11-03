@@ -296,7 +296,11 @@
 /* v181 → v182（2026-11-03 v2.86：壳清单瘦身 —— 去掉与 index.html 同内容的 './'，
    赞助码与云同步 SDK 改按需；index.html 的 warmBaseMaps 补上省流判断。
    两个文件都变了 → 换壳名。） */
-const CACHE = 'campus-pile-v182';
+/* v182 → v183（2026-11-04 v2.87）：index.html 只动了凭证信箱那段架构注释
+   （admin.html 已下线，入口改成弹窗 / 本机 push-cred.bat）和页脚版本号，
+   壳清单本身没变 —— 但页面变了就得换壳，否则老用户断网拿到的还是 v2.86 那份。
+   A4 再确认：SHELL 里从来没有 admin.html，这里不需要摘。） */
+const CACHE = 'campus-pile-v183';
 const SHELL = [
   /* v2.86：`'./'` 删了。线上实测 `/` 与 `/index.html` 返回的字节完全相同（md5 一致），
      而 fetch 拦截只把 `'./index.html'` 当主 key，`'./'` 只是回退链的第二顺位 ——

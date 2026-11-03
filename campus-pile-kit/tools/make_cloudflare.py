@@ -47,6 +47,9 @@ EXCLUDE_FILES = {
     # 2026-11-03 v2.85：抓凭证教程页下线（弹窗里那句「第一次弄？看教程」也删了）。
     # 文件留在 chd-charge/ 里备查，打包这层挡住，别再发出去。
     "help.html",
+    # 2026-11-04 v2.87（A4）：凭证上传占位页下线，文件已从站点目录删除。
+    # 留在这里是**防复活** —— 回退老快照会把它带回来，打包这层先挡住。
+    "admin.html",
     # 对外设备目录是构建产物（不进版本库），打包时现生成，见 _write_catalog
     "catalog.json",
 }
@@ -64,10 +67,6 @@ HEADERS = """\
 /
   Cache-Control: no-cache
 /index.html
-  Cache-Control: no-cache
-
-# 凭证上传页（站长手机用），必须 no-cache：改了立刻生效
-/admin.html
   Cache-Control: no-cache
 
 # 高德 Key 文件短缓存（换 Key 后最多 5 分钟生效）

@@ -33,10 +33,26 @@ KIT = Path(__file__).resolve().parent.parent
 SITE = KIT / "chd-charge"
 CF = KIT / "tools" / "cloudflare"
 
-# 2026-10-29 v2.38 退役的三件 + 它们在 URL 上的写法
-# （Pages 的 Pretty URLs 会把 /preview.html 308 到 /preview，只挡一种等于没挡）
-RETIRED_FILES = ("preview.html", "preview-banner.js", "map-amap-preview.js")
-RETIRED_PATHS = ("/preview", "/preview.html", "/preview-banner.js", "/map-amap-preview.js")
+# 退役页面：v2.38 的内测版三件 + v2.87（A4）下线的 admin 占位页与历史样张。
+# 这些文件**站点目录里不该再有**（回退老快照会带回来，靠打包层 + Worker 双挡）。
+# ⚠️ `help.html` 故意不在里面：v2.85 只是下线，文件留在目录里备查。
+RETIRED_FILES = (
+    "preview.html", "preview-banner.js", "map-amap-preview.js",
+    "preview-v3.html", "redesign-v2.html", "redesign-mockup.html",
+    "admin.html",
+)
+# URL 上的两种写法都要列 —— 🔴 Pages 的 Pretty URLs：`/x.html` 308 到 `/x`，
+# 而 `/x` **直接返回 x.html 的静态内容**。只挡 `.html` 等于只锁了半扇门
+# （2026-11-04 实测：`/help`、`/admin`、`/preview-v3`、`/redesign-v2`、
+#  `/redesign-mockup` 线上全部 200）。
+RETIRED_PATHS = (
+    "/preview", "/preview.html", "/preview-banner.js", "/map-amap-preview.js",
+    "/help", "/help.html",
+    "/admin", "/admin.html",
+    "/preview-v3", "/preview-v3.html",
+    "/redesign", "/redesign-mockup", "/redesign-mockup.html",
+    "/redesign-v2", "/redesign-v2.html",
+)
 
 
 def read(name, base=SITE):
@@ -152,16 +168,16 @@ def main():
         print(f"找不到 index.html，站点目录：{SITE}")
         return 1
 
-    # ---------- 1. 单轨：内测版必须彻底不在 ----------
+    # ---------- 1. 单轨：退役页面必须彻底不在 ----------
     left = [n for n in RETIRED_FILES if (SITE / n).exists()]
-    c.check(not left, "站点目录里没有内测版残留文件",
+    c.check(not left, "站点目录里没有退役页面残留",
             ("还在：" + " / ".join(left)) if left else "")
 
     # 只查**会被解析的部分**：注释里提到「map-amap-preview.js 已删」是正常的说明，
     # 拿原文件做子串匹配会把它自己判成违规（第一次就是这么红的）。
     ix_code = code_only(ix)
     gate = [n for n in RETIRED_FILES if n in ix_code]
-    c.check(not gate, "index.html 不再引用内测版文件",
+    c.check(not gate, "index.html 不再引用退役页面",
             ("引用了：" + " / ".join(gate)) if gate else "")
     c.check('id="go-preview"' not in ix, "index.html 没有「查看最新测试版」入口（#go-preview）",
             "入口已删；要加回来先想清楚单轨为什么又变双轨")
@@ -213,8 +229,15 @@ def main():
         if sm:
             c.check(sm.group(1) == ver, f"{name} 页面 ?v={ver} 与 sw.js 一致",
                     "" if sm.group(1) == ver else f"sw.js 里是 ?v={sm.group(1)}")
-    # 壳清单里也不该再缓存内测页：删了还缓存 = 断网时点开一个已下线的页面
-    c.check(not any(n in shell_body for n in RETIRED_FILES), "sw.js 的 SHELL 里没有内测版文件")
+    # 壳清单里也不该再缓存退役页：删了还缓存 = 断网时点开一个已下线的页面
+    c.check(not any(n in shell_body for n in RETIRED_FILES), "sw.js 的 SHELL 里没有退役页面")
+
+    # 🔴 Pretty URLs 完整性：每个退役的 `.html` 都必须有去掉后缀的那条路径。
+    # 只登记一种写法等于只锁半扇门（`/x.html` 会 308 到 `/x`，而 `/x` 直接出内容）。
+    pretty_missing = [p for p in RETIRED_PATHS if p.endswith(".html") and p[:-5] not in RETIRED_PATHS]
+    c.check(not pretty_missing, "每个退役 .html 都登记了无后缀变体",
+            ("缺：" + " / ".join(pretty_missing)) if pretty_missing
+            else f"{len(RETIRED_PATHS)} 条路径全部成对")
 
     # ---------- 3. 地图页签 ----------
     ix_tabs = re.findall(r'class="map-tab(?:\s+on)?"\s+data-map="([a-z0-9]+)"\s+role="tab">([^<]*)</button>', ix)
@@ -261,15 +284,28 @@ def main():
     # 只删文件等于线上还能访问（2026-10-25 在 preview-v3.html 上实测过）。
     c.check("RETIRED" in worker and all(p in worker for p in RETIRED_PATHS),
             "_worker.js 把退役路径挡住（线上旧文件删不掉，只能挡）")
+    c.check("RETIRED_PREFIX" in worker and "'/redesign/'" in worker,
+            "_worker.js 有目录级拦截（/redesign/* 整个是内部样张）")
     c.check(all(p in routes for p in RETIRED_PATHS),
             "_routes.json 把退役路径纳入 Worker 路由",
             "不写进去的话请求到不了 Worker，静态层直接发出去")
+    c.check('"/redesign/*"' in routes,
+            "_routes.json 有一条 /redesign/* 通配",
+            "目录里任何一页都不该被静态层直接发出去")
+    # ⚠️ serve_gzip 是**精确路径**匹配：pretty 变体（`/admin`）在磁盘上找不到文件，
+    #    本来就是 404，不需要（也不该）写进 SELF_BLOCK。只查 `.html` 那侧。
     srv_src = read("serve_gzip.py")
-    c.check(all(p in srv_src for p in RETIRED_PATHS),
-            "serve_gzip.py 的 SELF_BLOCK 里有退役路径（本地开发一致）")
-    c.check('"preview.html"' in packer,
-            "make_cloudflare.py 的 EXCLUDE_FILES 里有 preview.html（防复活）",
-            "回退老快照会把文件带回来，打包这一层要挡住")
+    srv_need = [p for p in RETIRED_PATHS if p.endswith(".html")]
+    miss_srv = [p for p in srv_need if p not in srv_src]
+    c.check(not miss_srv,
+            "serve_gzip.py 的 SELF_BLOCK 里有退役页面（本地开发一致）",
+            ("缺：" + " / ".join(miss_srv)) if miss_srv else "")
+    pack_need = list(RETIRED_FILES) + ["help.html"]
+    miss_pack = [n for n in pack_need if f'"{n}"' not in packer]
+    c.check(not miss_pack,
+            "make_cloudflare.py 的 EXCLUDE_FILES 里有全部退役页面（防复活）",
+            ("缺：" + " / ".join(miss_pack)) if miss_pack
+            else "回退老快照会把文件带回来，打包这一层要挡住")
 
     # ---------- 6. 站点目录保洁 ----------
     c.check(not (SITE / "versions").exists(),

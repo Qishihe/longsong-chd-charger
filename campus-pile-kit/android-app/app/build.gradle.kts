@@ -12,6 +12,12 @@ val appVersionName = (project.findProperty("APP_VERSION_NAME") as String?) ?: "1
 val appUrl = (project.findProperty("APP_URL") as String?) ?: "https://chd-charge.pages.dev/"
 val appHost = (project.findProperty("APP_HOST") as String?) ?: "chd-charge.pages.dev"
 
+// 🔴 GitHub Actions 把**没配置**的 secret 注入成空字符串，不是 null —— `?:` 兜不住空串。
+//    2026-11-04 头一次配正式签名就踩了：KEY_ALIAS 未建 → keyAlias 变成 ""，
+//    Gradle 报 `No key with alias '' found in keystore`，构建 17 秒红。
+//    所以凡是从环境变量取的可选值，一律先 takeIf 再兜底。
+fun envOrNull(name: String): String? = System.getenv(name)?.takeIf { it.isNotBlank() }
+
 android {
     namespace = "cn.edu.chd.charge"
     compileSdk = 35
@@ -40,9 +46,10 @@ android {
                 // MimeDecoder 容忍换行 —— 从网页上复制 base64 很容易带进折行
                 ks.writeBytes(Base64.getMimeDecoder().decode(b64.trim()))
                 storeFile = ks
-                storePassword = System.getenv("KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("KEY_ALIAS") ?: "chdcharge"
-                keyPassword = System.getenv("KEY_PASSWORD") ?: System.getenv("KEYSTORE_PASSWORD")
+                storePassword = envOrNull("KEYSTORE_PASSWORD")
+                // 下面两个 secret 是可选的，空串会被当成「真的叫这个名字」→ 见 envOrNull 上面那段
+                keyAlias = envOrNull("KEY_ALIAS") ?: "chdcharge"
+                keyPassword = envOrNull("KEY_PASSWORD") ?: envOrNull("KEYSTORE_PASSWORD")
             }
         }
     }

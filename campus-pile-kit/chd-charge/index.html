@@ -639,10 +639,32 @@
     position:relative; z-index:5; background:var(--card); gap:10px;
   }
   .map-dialog .map-head h2{font-size:16px; font-weight:600; margin:0; white-space:nowrap}
-  .map-dialog .map-head .map-sub{
-    font-size:12px; color:var(--hint); margin-left:auto; text-align:right;
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:56%;
+  /* v2.89：状态文字独占一行（放在标题行与页签之间）。原来是标题行里的 flex 项，
+     加了刷新键之后被挤到只剩一半宽度，只能截断。 */
+  .map-dialog .map-sub{
+    display:block; flex:none; margin:0; padding:0 14px 6px;
+    font-size:12px; color:var(--hint); text-align:left;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    background:var(--card);
   }
+  /* v2.89：地址视图的刷新键（圆形箭头）。与 `.x-btn` 同尺寸，视觉上并排不打架。 */
+  .map-refresh{
+    /* margin-left:auto：状态文字搬走以后，标题行只剩「标题 / 校区 / ⟳ / ×」，
+       靠 auto 把两个按钮一起推到右边。 */
+    flex:none; width:30px; height:30px; padding:0; margin:-4px 0 -4px auto;
+    display:inline-flex; align-items:center; justify-content:center;
+    border-radius:50%; border:1px solid var(--line-strong);
+    background:var(--card); color:var(--muted); cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+    transition:background .15s, border-color .15s, color .15s;
+  }
+  .map-refresh svg{width:14px; height:14px; display:block}
+  .map-refresh:hover, .map-refresh:active{background:var(--pressed); color:var(--text)}
+  .map-refresh[hidden]{display:none}
+  .map-refresh[disabled]{opacity:.5; cursor:default}
+  /* 查询中就转起来：这是「点下去有没有反应」的唯一反馈（没有进度条）。 */
+  .map-refresh.spin svg{animation:map-spin .9s linear infinite}
+  @keyframes map-spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
   .map-stage{
     position:relative; width:100%; flex:1; min-height:0;
     overflow:hidden; background:#EDEBE3; touch-action:none;
@@ -1536,7 +1558,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.88</div>
+    <div id="app-ver" class="foot-ver">版本 v2.89</div>
   </footer>
 </div>
 
@@ -1558,9 +1580,20 @@
       </button>
       <div class="rv-bubble" id="map-campus-bubble" role="listbox" aria-label="切换校区" hidden></div>
     </div>
-    <span class="map-sub" id="map-sub"></span>
+    <!-- v2.89：刷新「当前这块地址」的充电桩。
+         为什么不塞进 `#map-tabs` 那排页签：390px 下 6 颗已经贴着右边缘，
+         再往后加就等于「加了但看不见」（v2.65 在回顾筛选条上踩过一次）。
+         口径与首页刷新一致 —— 只查当前地址，别的地址一个请求都不发。 -->
+    <button class="map-refresh" id="map-refresh" type="button" aria-label="刷新当前地址" title="刷新当前地址">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.1 8A5.1 5.1 0 1 1 11.5 4.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M13.3 1.8v3.4H9.9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
     <button class="x-btn" id="map-close" aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
   </div>
+  <!-- v2.89：状态文字从标题行搬到这里，独占一行。
+       加了刷新键之后，390px 下「标题 + 校区胶囊 + 数量 + 刷新 + 关闭」五个元素挤一行，
+       「36 个点位 · 31 个有空位」被压成「36 个点位 · 31 …」（线上实测）。
+       搬到页签上方以后宽度够了，也顺手把标题行还给「标题 + 校区 + 两个按钮」。 -->
+  <span class="map-sub" id="map-sub"></span>
   <!-- 当前校区的地址胶囊。点哪一颗就跳到那一块的分布（全部走在线地图的分区视图，
        看 `switchMap()` —— 手绘静态图只在高德加载不出来时兜底，不在这里出现）。
        ⚠️ 文案不带「渭水-」前缀：上面那颗校区胶囊已经写了校区，重复一遍只会让
@@ -5039,7 +5072,7 @@ function warmAMap() {
         return loadScriptOnce('https://webapi.amap.com/maps?v=2.0&key='
           + encodeURIComponent(window.CHD_AMAP_KEY));
       })
-      .then(() => loadScriptOnce('map-amap.js?v=149'))
+      .then(() => loadScriptOnce('map-amap.js?v=150'))
       .catch(() => { /* 预热失败：点开时 ensureAMap() 会重新拉 */ });
   };
   if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 4000 });
@@ -5670,7 +5703,7 @@ function ensureAMap() {
 //    并入本站唯一那份 map-amap.js。改了 js 一定要同时改 ?v（SW 缓存优先）。
 //    2026-10-29 v2.38：内测版退役 —— `map-amap-preview.js` 已删，以后只有一份引擎、一份 HTML，
 //    不再存在「改了 js 要两边同步」这件事。
-      .then(() => loadScriptOnce('map-amap.js?v=149'))
+      .then(() => loadScriptOnce('map-amap.js?v=150'))
       .then(boot)
       .catch(() => done(false));
   });
@@ -5703,13 +5736,37 @@ function amapDevices() {
     && (!campus || (campusOfLocation(x.location) || campus) === campus));
 }
 
+/** 当前这块图上有哪些桩（地图刷新键的查询范围）。
+ *  口径与 `amapApplyView()` 喂给引擎的一致：有 `area` 取该分区，校区全图取整个校区。
+ *  ⚠️ 别用 `mapScope`：那是**静态 SVG** 的渲染索引（弧线/车位号过滤后才填），
+ *     高德图打开时它可能是上一张图的旧值。 */
+function mapViewDevices() {
+  const area = (curMap && curMap.area) || '';
+  const campus = mapCampusScope();
+  return mapDevices.filter((d) => {
+    const loc = mapAreaOf(d);
+    if (!loc) return false;
+    if (area) return loc === area;
+    return !campus || (campusOfLocation(loc) || campus) === campus;
+  });
+}
+
 function onAMapPileClick(ev) {
   if (ev.type === 'area') {
-    /* 2026-10-21 改：**不再 switchMap 到静态旧图**。
+    /* 2026-10-21 定下的红线：**不能 switchMap 到静态旧图**。
      * 产品方：「去除放大后，点击北门、朝晖体育场的标签会跳转到旧地图的情况。」
-     * 现在 map-amap.js 的分区徽章点击内部就走 `zoomToArea()`（在高德底图上放大），
-     * 根本不会再发 `{type:'area'}` 过来；这里保留分支只作兜底，
-     * 万一还有旧路径发过来，**什么都不做**也比把人甩到旧图好。 */
+     * 所以这里不重灌数据、不动镜头 —— 取景由引擎的 `zoomToArea()` 自己完成。
+     *
+     * v2.89：只同步「当前页签」这一件事。原来整支是空的，于是点圈放大进了朝晖、
+     * 页签还亮着「校区全图」、刷新键按整个校区算 —— 屏幕、页签、查询范围三处不一致。
+     * `buildScope()` 顺带把 `mapScope` 收窄到这块地址（静态兜底图重画时要用）。 */
+    const m = MAP_ORDER.find((x) => x.area === ev.id && x.campus === (curMap && curMap.campus))
+      || MAP_ORDER.find((x) => x.area === ev.id);
+    if (m && (!curMap || m.id !== curMap.id)) {
+      curMap = m;
+      syncMapTabs();
+      buildScope();
+    }
     return;
   }
   const i = mapDevices.findIndex((x) => String(x.id).toUpperCase() === String(ev.id).toUpperCase());
@@ -5738,9 +5795,14 @@ function paintMapSub(v) {
      「0」读起来像「全占满了」或「查询失败」，而实际情况是**还没有采集对象**。
      同时在舞台正中放一句说明：没有那句话，一张干净的底图看起来就是加载失败。 */
   const empty = !(v.piles > 0);
+  /* v2.89：**分区视图不再重复地名** —— 页签那排已经高亮着「朝晖」，表头再写一遍
+     「朝晖体育场南 · 36 个点位 · 36 个有空位」，390px 下就被挤成「朝晖体育场南 · 3…」
+     （加了刷新键之后更窄，实测）。总览仍写校区名：页签那里写的是「校区全图」，
+     不写名字就不知道是哪个校区。空态也保留名字（「雁塔校区 · 暂无点位」）。 */
+  const head = v.school ? nm + ' · ' : '';
   $('map-sub').textContent = (empty
     ? `${nm} · 暂无点位`
-    : `${nm} · ${v.piles} 个点位 · ${v.free} 个有空位`)
+    : head + `${v.piles} 个点位 · ${v.free} 个有空位`)
     + (mapMarkedCode ? ` · 已标出 ${mapMarkedCode}` : '');
   const back = $('map-back');
   if (back) back.hidden = !!v.school;
@@ -5842,6 +5904,108 @@ function maybeWarnMapStale() {
   showToast('当前状态未更新，请手动刷新', 3600);
 }
 
+/* ---------- 地图里刷新「这块地址」（v2.89） ----------
+ *
+ * 与首页那颗「刷新」的关系：**同一套取数链路（`pileProxyBatch`）、同一个缓存**，
+ * 区别只在本轮查谁 —— 首页按 `getFilter()`（地址下拉），这里按当前地图视图。
+ * 不调 `refresh()` 的原因：它的范围是列表筛选，和用户正看着的这块图不是一回事
+ * （在朝晖里点刷新却去查住宅，比没有这个按钮更糟）。
+ *
+ * 写缓存后**立刻重画列表**（`render`）：关掉地图回到首页时数字必须是刚查到的，
+ * 否则「地图新、卡片旧」两套数据并存，用户会以为地图在胡说。
+ */
+let mapRefreshBusy = false;
+let mapLastRefreshAt = 0;
+
+/** 数据变了 → 只重画地图这一层（不动相机、不动页签）。 */
+function repaintMapData() {
+  if (amapActive && window.CHD_AMAP && window.CHD_AMAP.setPiles) {
+    const areaKey = (curMap && curMap.area) || '';
+    const all = amapDevices();
+    const inView = areaKey ? all.filter((d) => d.location === areaKey) : all;
+    /* keepCamera：刷新不该把用户正拖到的位置拽回全景。 */
+    window.CHD_AMAP.setPiles(inView, { keepCamera: true });
+    paintMapSub(window.CHD_AMAP.viewInfo ? window.CHD_AMAP.viewInfo() : null);
+    return;
+  }
+  buildScope();
+  renderMapMarkers();
+}
+
+async function refreshMapView() {
+  if (mapRefreshBusy) return;
+  /* 首页正在刷新时不并发打平台（一轮 100 多台，两路并上就是双倍请求），
+     但也不能静默 —— 给一句和首页那颗一样的提示。 */
+  if (busyFlag) { showToast('正在更新…'); return; }
+  const targets = mapViewDevices();
+  if (!targets.length) {
+    showToast(((curMap && curMap.name) || '这里') + '还没有接入充电桩');
+    return;
+  }
+  const gap = Date.now() - mapLastRefreshAt;
+  if (gap < MIN_PARTIAL_GAP_MS) {
+    showToast(Math.ceil((MIN_PARTIAL_GAP_MS - gap) / 1000) + ' 秒后再试');
+    return;
+  }
+  mapLastRefreshAt = Date.now();
+  mapRefreshBusy = true;
+  const btn = $('map-refresh');
+  if (btn) { btn.classList.add('spin'); btn.disabled = true; }
+
+  const idToIdx = new Map();
+  mapDevices.forEach((d, i) => idToIdx.set(d.id, i));
+  const all = getDevices();
+  let got = 0;              // 本轮拿到合法插座数据的台数
+  let doneCount = 0;        // 代理给出结论（成功或失败）的台数
+
+  try {
+    await pileProxyBatch(targets, (rows) => {
+      const cache = readCache();
+      let touched = 0;
+      for (const id of Object.keys(rows)) {
+        const i = idToIdx.get(id);
+        if (i === undefined) continue;
+        const pre = rows[id];
+        /* 平台回源预算用完（throttled）当「这轮没查」，保留原记录 ——
+           与 `refresh()` 里同一口径，不能记成失败。 */
+        if (pre && (pre.locked || pre.throttled)) continue;
+        let record;
+        if (pre && Array.isArray(pre.ports) && pre.ports.length) {
+          record = { at: Number(pre.at) || Date.now(), ports: pre.ports, error: null, cached: false };
+          got += 1;
+        } else {
+          record = {
+            at: Date.now(),
+            ports: [],
+            error: (pre && pre.error) || '平台没响应（代理没返回这台）',
+            auth: !!(pre && pre.auth),
+          };
+        }
+        cache[id] = record;
+        mapResults[i] = record;
+        doneCount += 1;
+        touched += 1;
+      }
+      if (!touched) return;
+      store.set(KEY_CACHE, cache);
+      repaintMapData();
+    }, () => false, { fresh: true, chunkSize: PILE_PROXY_CHUNK });
+  } finally {
+    mapRefreshBusy = false;
+    if (btn) { btn.classList.remove('spin'); btn.disabled = false; }
+  }
+
+  /* 列表与地图用的是同一份缓存 → 收尾统一重画一次（chunk 里只重画了地图）。 */
+  const snapshot = readCache();
+  render(all, all.map((d) => snapshot[d.id] || { at: 0, ports: [], error: null }));
+  repaintMapData();
+
+  const total = targets.length;
+  if (!doneCount) showToast('没拿到数据，稍后再试');
+  else if (got < total) showToast(`已更新 ${got}/${total} 台，其余没响应`);
+  else showToast(`已更新 ${total} 台`);
+}
+
 /** 同步顶部筛选按钮的选中态 */
 function syncMapTabs() {
   const dlg = $('map-dialog');
@@ -5886,6 +6050,16 @@ function syncMapTabs() {
   if (!bar.dataset.scrollBound) {
     bar.dataset.scrollBound = '1';
     bar.addEventListener('scroll', () => paintScrollHint(bar), { passive: true });
+  }
+  /* v2.89：刷新键跟着「这一块有没有桩」显隐 —— 小寨（0 台）藏起来，
+     免得用户点下去只得到一句「还没有接入充电桩」。title 顺手写清会刷哪儿。 */
+  const rf = $('map-refresh');
+  if (rf) {
+    const n = mapViewDevices().length;
+    const nm = (curMap && curMap.name) || '当前地址';
+    rf.hidden = n === 0;
+    rf.title = n ? `刷新${nm}的 ${n} 台充电桩` : '刷新当前地址';
+    rf.setAttribute('aria-label', rf.title);
   }
 }
 
@@ -6269,6 +6443,12 @@ async function refresh({ force = false, retried = false, only = null, autoRetry 
   const state = credState();
   const credMissing = state.status === 'none';
   if (credMissing && !getDevices().some((d) => isLvccDevice(d) && inFilterScope(d))) return;
+  /* v2.89：地图那颗刷新键正在查同一批桩时，别再起一轮 —— 两路并发就是双倍平台请求。
+     自动刷新（force=false）静默跳过；手点的给一句提示，和「正在更新」同一句话。 */
+  if (mapRefreshBusy) {
+    if (force) showToast('正在更新…');
+    return;
+  }
   if (busyFlag) {
     /* 忙时点击：只记一笔，收尾时补查失败的几台（见 pendingTargets 上方注释） */
     pendingTargets = true;
@@ -8471,7 +8651,10 @@ function renderReview() {
      地图顶上那颗（#map-campus-label）一直是跟着当前图走的，回顾这边漏了同一件事。
      `all` 没有具体校区 → 写「全部」，与下拉里的那一项同名。 */
   const cLab = $('rv-campus-label');
-  if (cLab) cLab.textContent = campus ? (campusName(campus) || '选择校区') : '全部';
+  /* v2.89：这颗胶囊只写**两字**（渭水 / 北院 / 雁塔 / 小寨），与地图顶上那颗
+     （写「渭水校区」）刻意不同 —— 回顾这一行左边是日期胶囊、右边要排地址胶囊，
+     四字名一进来就把地址行挤掉一颗。`CAMPUSES` 里本来就有 `short`，不必另建表。 */
+  if (cLab) cLab.textContent = campus ? (campusName(campus, true) || '选择校区') : '全部';
   const locBox = $('rv-loc');
   /* v2.88：地址胶囊**有就显示**（原来是 ≥2 个才显示）。
      换了校区却看不到这个校区有哪些地址，用户得回首页确认 —— 而这排胶囊本来就
@@ -9255,13 +9438,18 @@ const CHANGELOG = [
       + '开着省流模式的话，也不再多花 145KB 预载地图底图了',
     /* v2.88：回顾的校区胶囊 + 地址胶囊。和 v2.76 那条是同一块界面，但那条讲「能看哪些校区」，
        这条讲「现在这颗胶囊写着谁」+ 地址行多了一颗「全校区」—— 用户看到的东西不同。 */
-    '「一周回顾」左上那颗胶囊，现在写着你正在看的校区（以前永远写着「选择校区」，'
-      + '选完也看不出到底落在哪）。它右边那排跟着换成当前校区的地址，还多一颗「全校区」——'
+    '「一周回顾」左上那颗胶囊，现在写着你正在看的校区，只写两字（渭水 / 北院 / 雁塔 / 小寨）'
+      + '—— 以前永远写着「选择校区」，选完也看不出到底落在哪。它右边那排跟着换成当前校区的地址，'
+      + '还多一颗「全校区」——'
       + '想单独看一个车棚的曲线，点那颗地址就行，不必回首页改筛选',
     /* v2.88：地图「← 总览」按校区 + 状态过期提示。两件都发生在看地图的时候，合成一条。 */
     '地图里的「← 总览」现在回的是**当前**校区的整张图：在北院、雁塔放大过之后点它，'
       + '不会再被甩回渭水那张全校总图。另外，图上状态超过 5 分钟没更新会弹一句'
-      + '「当前状态未更新，请手动刷新」—— 看到它就点一下刷新再出门'
+      + '「当前状态未更新，请手动刷新」—— 看到它就点一下刷新再出门',
+    /* v2.89：地图点分区圈进地址视图 + 该视图的刷新键。 */
+    '地图上点某个分区的圈、或者它的名字，下面那排页签会跟着切到那块地址 —— 以前只放大镜头、'
+      + '页签还停在「校区全图」，看着像没切过去。页签右边还多了个圆形箭头，点它只重查这块地址的桩，'
+      + '别处的数字不会跟着乱跳'
   ] },
   { v: 'v2.60 – v2.69', d: '2026-10-30 ~ 11-02', items: [
     '新增「住宅」8 台充电桩（Z-01~Z-08）：都在校园北侧尚苑路边的西区住宅小区，地图上沿路边排成一排；这批机器有 2 口、10 口、20 口的，卡片按实际口数铺格子'
@@ -9964,6 +10152,8 @@ $('map-back').addEventListener('click', () => {
   const home = MAP_ORDER.find((m) => m.campus === mapCampusScope()) || AMAP_MAP;
   switchMap(home.id);
 });
+/* v2.89：地址视图的刷新键 —— 只查当前这块地址（见 refreshMapView）。 */
+$('map-refresh').addEventListener('click', () => { refreshMapView(); });
 bindMapGestures();
 
 $('devices-reset').addEventListener('click', () => {

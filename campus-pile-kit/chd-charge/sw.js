@@ -281,7 +281,11 @@
    ② render() 里补写 `#s-free-sub` —— 原来只有 refresh() 的 paintRolling 会写，
       切校区后副标还挂着上一个校区的「共统计 x/（y）插座」（雁塔写着北院的 228）。
    index.html 变了 → 换壳名。） */
-const CACHE = 'campus-pile-v177';
+/* v177 → v178（2026-11-03 v2.82：「刷新时没查通的桩会自己再试一次」——
+   ① 一轮结束后若失败台不多（≤18）且不是整片没响应，隔 1.2 秒只补这几台（6 台一批）；
+   ② 批与批之间留 260ms、两条流水线错峰 800ms，57 台不再 4.4 秒内全打出去；
+   都是 index.html 的改动 → 换壳名。） */
+const CACHE = 'campus-pile-v178';
 const SHELL = [
   './',
   './index.html',

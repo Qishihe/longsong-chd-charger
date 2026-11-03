@@ -13,7 +13,7 @@ export const PARTITIONS = {
   "schema": 1,
   "source": "chd-charge/index.html#DEFAULT_DEVICES",
   "generator": "tools/gen_snapshot_partitions.py",
-  "total": 174,
+  "total": 177,
   "subrequestLimit": 50,
   "areas": [
     {
@@ -238,6 +238,17 @@ export const PARTITIONS = {
         "XLA80065"
       ],
       "count": 57
+    },
+    {
+      "key": "shuiyuan",
+      "name": "水利与环境学院",
+      "location": "雁塔-水利与环境学院",
+      "ids": [
+        "XLA29643",
+        "XLA32300",
+        "XLA29734"
+      ],
+      "count": 3
     }
   ]
 };

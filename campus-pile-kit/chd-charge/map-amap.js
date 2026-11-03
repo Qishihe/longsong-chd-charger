@@ -43,6 +43,10 @@
   var onFailCb = null, onPileCb = null, onViewCb = null;
   var PIN_POS = {};             // id -> [lng, lat]（供 focusPile 用）
   var PIN_MARK = {};            // id -> { m: Marker, p: pile, on: bool }（供 highlightPile 用）
+  /* v2.80：被「定位图标」点中的那台（sticky）。以前只给 marker 换一次内容 ——
+     数据二次到位触发 rebuildPins() 会把内容重置回普通样式，高亮连同表头的「已标出」
+     一起消失（线上冷开实测约 1/3 次数复现）。现在 id 记在引擎里，每次重建都自己带上。 */
+  var HL_ID = null;
   var BADGE_POS = {};           // 分区 -> [lng, lat]（取景要把徽章也算进去，否则会被裁掉）
   var CLUSTER_POS = {};         // 分区 -> [lng, lat]（缩小时的聚合圈位置）
   var syncTimer = null, syncPending = false;
@@ -243,6 +247,31 @@
     [108.95898, 34.23394], [108.95898, 34.233993], [108.95898, 34.234047], [108.95898, 34.2341],
     [108.95898, 34.234153],
   ];
+  /* 2026-11-03 v2.79 新增「雁塔-水利与环境学院」3 台（雁塔校区）——
+   * **第二个不在渭水校区的分区**。形态和物业（W_GEO）一样是一条竖线，
+   * 只是点数少、间距大，所以没有 `rows`（那套是给北院 7×8~9 的二维阵用的）。
+   *
+   * 📐 这三个坐标是**从产品方那张手机高德截图反算**的，不是手拖的：
+   *   · 截图 882×1920，方框描边（粗灰线）外沿 x 257~481、y 917~1107，
+   *     即框内约 **25.1m × 21.3m**（换算见下），框就是产品方圈出来的「这几台在这」；
+   *   · 比例尺：在高德上查了框周围 4 个 POI 的真实坐标，与截图像素做最小二乘
+   *     （等高墨卡托，局部线性）→ **8.918 px/m**，四点残差 ≤1.4px（≈0.16m）：
+   *       农机公司小区 108.958346/34.226002 → (196,308)
+   *       雁塔区机关家属院 108.95832/34.225652 → (174,653)
+   *       长安大学水利与环境学院 108.958428/34.225063 → (262,1235)
+   *       长大地学科技大厦 108.959021/34.224945 → (748,1351)
+   *     ⚠️ 别用「看比例尺估算」那一套（北院那次按图上的 50 米条算错了 45%）：
+   *        高德手机版这里根本不显示比例尺条，只有 POI 坐标是可信的锚点。
+   *   · 排布：产品方原话「从下到上」报了三台（XLA29643 / XLA32300 / XLA29734），
+   *     即 **Y-01 在南、Y-03 在北**，一条竖线、间距 5.16m（框内均分 3 份）。
+   *     横坐标取方框中心 x=369px，换算后 lon 恒为 108.958558。
+   *   ⚠️ 现场摆位若与图不符，**只改这三个坐标**；`LINE_AREAS` 那行和桩号不用动。
+   *   ⚠️ 这串必须与 index.html 的 Y-01~Y-03 数量一致（3 个）。 */
+  var Y_GEO = [
+    [108.958558, 34.225242],   // Y-01（最南 / 下）
+    [108.958558, 34.225288],   // Y-02（中）
+    [108.958558, 34.225335],   // Y-03（最北 / 上）
+  ];
   var LINE_AREAS = [
     { loc: '渭水-20号楼',       prefix: 'E', geo: E_GEO },
     { loc: '渭水-物业服务中心', prefix: 'W', geo: W_GEO },
@@ -265,6 +294,10 @@
        末尾那个 5（那会落到第 5 个点上，而不是第 21 个），要先按 `rows` 换算 ——
        见 `bySeq()`。这是 LINE_AREAS 里唯一一条二维的。 */
     { loc: '北院-体育馆北停车场', prefix: 'B', geo: BY_GEO, rows: BY_ROWS },
+    /* 2026-11-03 v2.79 雁塔校区的水院（3 台）。前缀 'Y' 不会和别的分区抢：
+       `lineSeq('Y-01','E'|'W'|'Z'|'B')` 全都不匹配（正则要求前缀字母本身出现），
+       唯一要防的是 `arcSeq()` 那条「末尾数字 1~36 就算朝晖」—— 这一行就是那道闸。 */
+    { loc: '雁塔-水利与环境学院', prefix: 'Y', geo: Y_GEO },
   ];
   function lineAreaOf(loc) {
     for (var i = 0; i < LINE_AREAS.length; i++) {
@@ -1026,7 +1059,8 @@
         PIN_POS[p.id] = pos;
         var mk = new AMap.Marker({
           position: pos, anchor: 'center',
-          content: pileContent(p.code, p.free, p.total),
+          content: pileContent(p.code, p.free, p.total,
+            HL_ID != null && String(p.id) === String(HL_ID)),
           extData: { id: p.id },
           title: p.code + ' · ' + (p.total ? p.free + '/' + p.total + ' 空闲' : '无数据'),
         });
@@ -1145,9 +1179,24 @@
   /** 四个分区的总览外接框 = 各分区桩阵外接框的并集 ∪ 分区徽章位置。
    *  ⚠️ 用 `areaBBoxWithPiles` 而不是 `areaBBox`：桩点是沿线自适应排出来的，
    *     会溢出排布线两端（2026-10-21 朝晖实测差 21px），只按排布线取景会裁掉最外侧的桩。
-   *  ⚠️ 徽章/标签挂在桩阵外缘，取景时也要算进去，否则名字会被顶到画面外。 */
+   *  ⚠️ 徽章/标签挂在桩阵外缘，取景时也要算进去，否则名字会被顶到画面外。
+   *
+   *  🔴 v2.79：只并「**当前这批桩里真的存在**的分区」，不再并 `D.areas` 的全部键。
+   *    老写法在只有渭水一个校区时恰好等价，但 v2.72 加北院、v2.78 加雁塔/小寨之后，
+   *    `D.areas` 里躺着 10 km 外的几个框 —— 渭水「校区全图」的取景框被撑成
+   *    108.89~108.96 / 34.22~34.38，**线上实测相机落在 (108.9277, 34.2990)、zoom 14，
+   *    一张渭水的桩都看不见**（表头却诚实写着「117 个点位」，2026-11-03 截图确认）。
+   *    按 piles 取并集自然就成了「当前校区的全图」：页面传进来的 `setPiles` 本来就是
+   *    按校区筛过的（见 index.html 的 `amapDevices()`）。
+   *    ⚠️ 一个桩都没有时（空校区）退回老口径，别返回空框。 */
   function campusBBox() {
-    var b = unionBBox(Object.keys(D.areas).map(function (k) {
+    var keys = Object.keys(D.areas);
+    var withPiles = keys.filter(function (k) {
+      for (var i = 0; i < piles.length; i++) if (piles[i].location === k) return true;
+      return false;
+    });
+    var use = withPiles.length ? withPiles : keys;
+    var b = unionBBox(use.map(function (k) {
       return areaBBoxWithPiles(k) || areaBBox(k);
     }));
     Object.keys(BADGE_POS).forEach(function (k) {
@@ -1326,6 +1375,8 @@
 
     setPiles: function (list, opts2) {
       piles = list || [];
+      /* 换了分区（这批里没有那台桩）就撤掉 sticky，否则表头会一直挂着「已标出 xx」。 */
+      if (HL_ID != null && !piles.some(function (q) { return String(q.id) === String(HL_ID); })) HL_ID = null;
       if (!ready) return;
       rebuildBadges();
       rebuildPins();
@@ -1400,17 +1451,26 @@
      * 相机、图层显隐、聚合态一概不碰。
      * 返回 false = 这台桩不在这张图里 / 引擎还没 ready，调用方自己决定要不要提示。 */
     highlightPile: function (id) {
+      /* v2.80：改成「粘住」—— 先把 id 记下来（`HL_ID`），无论此刻 ready 与否都算数：
+       *   · ready 之前调进来：PIN_MARK 还没建，返回 false 但 id 已记住，
+       *     等 rebuildPins() 建桩点时会照着 `HL_ID` 直接画出那一圈；
+       *   · 调完之后数据二次到位：rebuildPins() 重建同样带上，不会再被冲掉。
+       * 传 null / undefined = 撤销高亮（切页签、换分区时页面会这么调）。 */
+      var key = (id == null) ? null : String(id);
+      HL_ID = key;
       if (!ready) return false;
-      var hit = PIN_MARK[id];
-      if (!hit) return false;
+      var hit = key == null ? null : PIN_MARK[key];
+      if (key != null && !hit) return false;
       Object.keys(PIN_MARK).forEach(function (k) {
         var it = PIN_MARK[k];
-        if (k === id || !it.on) return;
+        if (!it.on || k === key) return;
         it.m.setContent(pileContent(it.p.code, it.p.free, it.p.total, false));
         it.on = false;
       });
-      hit.m.setContent(pileContent(hit.p.code, hit.p.free, hit.p.total, true));
-      hit.on = true;
+      if (hit) {
+        hit.m.setContent(pileContent(hit.p.code, hit.p.free, hit.p.total, true));
+        hit.on = true;
+      }
       return true;
     },
 

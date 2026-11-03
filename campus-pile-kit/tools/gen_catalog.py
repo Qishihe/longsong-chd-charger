@@ -200,6 +200,8 @@ def parse_geometry():
         # 2026-11-02 v2.72：北院停车场（57 个点，7 排）。它和 E/W/Z 不同 ——
         # 桩号是 `B<排>-<序号>`，要先按 rows 换算成一维下标，见 by_seq()。
         'B': geo_table('BY_GEO'),
+        # 2026-11-03 v2.79：雁塔的水院（3 个点，竖线）。一维分区，没有 rows。
+        'Y': geo_table('Y_GEO'),
     }
 
     # LINE_AREAS：location → (prefix, rows)。rows 只有「二维分区」才有（目前只有北院），

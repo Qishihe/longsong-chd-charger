@@ -294,6 +294,11 @@
      浮按钮会露在后面像个贴纸（390px 截图里很明显）。地图例外：它就该在地图里，
      那时候按钮本身已经被挪进 #map-dialog（见 fabHost）。
      ⚠️ :has 在老浏览器上不认，降级只是「背景里还看得见」，不影响点击 —— 不加 JS 补丁。
+     🔴 v2.95 修：这段注释原来漏了收尾标记，把紧跟着的规则整段吞了 —— 线上 v2.94 的
+        弹窗里其实一直露着按钮，而验收那条断言是绿的（on:false 时按钮本来就有 [hidden]，
+        「看不见」是 hidden 给的，跟这条规则毫无关系）。
+     ⚠️ 注释正文里也**不要**出现收尾标记那两个字符：第一次修这个坑时就因为在正文里
+        引用它，注释提前闭合，规则又被吞了一次。 */
   body:has(dialog[open]:not(.map-dialog)) .scan-fab{display:none}
   @media (prefers-reduced-motion: reduce){
     .scan-fab{transition:none}
@@ -1675,7 +1680,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.94</div>
+    <div id="app-ver" class="foot-ver">版本 v2.95</div>
   </footer>
 </div>
 
@@ -2271,19 +2276,41 @@
     <div class="skin-group" id="fab-app">
       <button class="skin-opt" type="button" data-fabapp="wechat">
         <span class="skin-dot" style="background:#07C160; border-color:#07C160"></span>
-        <span class="skin-txt"><b>微信</b><small>打开微信 › 扫一扫</small></span>
+        <span class="skin-txt"><b>微信</b><small>只能打开微信，扫一扫得自己点</small></span>
       </button>
       <button class="skin-opt" type="button" data-fabapp="alipay">
         <span class="skin-dot" style="background:#1677FF; border-color:#1677FF"></span>
-        <span class="skin-txt"><b>支付宝</b><small>打开支付宝 › 扫一扫</small></span>
+        <span class="skin-txt"><b>支付宝</b><small>直接进支付宝 › 扫一扫</small></span>
       </button>
     </div>
     <div class="note" id="fab-state" style="margin-top:10px">已关闭</div>
     <div class="row" style="margin-top:10px">
       <button class="icon-btn" id="fab-reset" type="button">恢复默认位置</button>
     </div>
-    <p class="note">网页没法直接调起别的 App 的扫码界面，这个按钮只是把它唤到前台、落在「扫一扫」上。扫到什么、付不付钱都在那个 App 里完成，本站不参与。</p>
-    <p class="note">如果你是在微信里打开本站，微信不会让自己再跳一次自己 —— 这种情况会提示你用右上角的「扫一扫」。</p>
+    <p class="note">支付宝的扫一扫对网页开放，一点就到；微信不让网页直接跳扫一扫，只能把微信唤到前台 —— 跳不过去时会给你一个改成支付宝的入口。</p>
+    <p class="note">扫到什么、付不付钱都在那个 App 里完成，本站不参与。如果你本来就在微信里打开本站，微信不会让自己再跳一次自己，会提示你用右上角的「扫一扫」。</p>
+  </div>
+</dialog>
+
+<!-- 微信没跳成时的兜底（v2.95）。为什么要有这张卡：微信不开放网页直达扫一扫，
+     点完按钮大概率什么都不发生。以前只丢一句 toast，用户只能干瞪眼；这里直接给两条
+     走得通的路 —— 换支付宝（能跳），或者只把微信唤到前台自己点。
+     ⚠️ 两个按钮都在自己的点击事件里同步写 location.href，别改成先 await 再跳。
+     ⚠️ 它打开时 #scan-fab 会被 body:has(dialog[open]:not(.map-dialog)) 藏掉，正常。 -->
+<dialog id="dlg-fabfail" class="sub-dlg" aria-label="没能直接进扫一扫">
+  <div class="dlg-body">
+    <div class="dlg-head">
+      <h2>没能直接进扫一扫</h2>
+      <button class="x-btn" data-close aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+    </div>
+    <p class="note" style="margin-top:2px">微信不开放「网页直接跳扫一扫」，最多只能把微信唤到前台。<b>这是微信的规矩，换手机、换浏览器都一样。</b></p>
+    <div class="row" style="margin-top:12px">
+      <button class="icon-btn primary" id="fabfail-ali" type="button" style="background:#1677FF; border-color:#1677FF; color:#fff">改用支付宝扫一扫</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button class="icon-btn" id="fabfail-wx" type="button">只打开微信，扫一扫我自己点</button>
+    </div>
+    <p class="note">选了「改用支付宝」会顺手把设置里的默认品牌换过去，下次点就不会再撞这堵墙。</p>
   </div>
 </dialog>
 
@@ -9682,13 +9709,13 @@ const CHANGELOG = [
       + '四个校区各按自己那片天算 —— 渭水在北郊，另外三个在市区，常常一边下一边不下，'
       + '切校区时提醒跟着换；每次打开都会重新查一次，点掉的「×」只管这一次。'
       + '不想要就在「设置 › 天气提醒」里关掉',
-    /* v2.94：扫码快捷按钮。默认关着，开了才有 —— 所以这条的语气是「有这么个东西」，
-       不是「你一定会看到」。同时把边界写清楚：本站只负责唤起 App，不碰扫码和支付。
-       🔴 单条 ≤200 字（_check_chg_merge 会红），现在 138 字。 */
-    '页面右下多了一颗能拖的扫码按钮：点一下直接进微信或支付宝的「扫一扫」，'
+    /* v2.94 加的扫码快捷按钮；v2.95 又修了两处：默认品牌改支付宝、微信跳不动时给兜底卡片。
+       同话题只写一条 —— 改行为就顺手改描述，不再另起一条。
+       🔴 单条 ≤200 字（_check_chg_merge 会红），现在 129 字。 */
+    '页面右下多了一颗能拖的扫码按钮：点一下直接进支付宝或微信的「扫一扫」，'
       + '不用再从桌面翻。默认是关着的，想用去「设置 › 扫码快捷按钮」打开，'
-      + '并选微信还是支付宝；按住按钮能拖到别处，松手会自己贴边。'
-      + '本站只负责把 App 唤到前台，扫到什么、付不付钱都在那个 App 里，这里不参与',
+      + '并选支付宝还是微信；按住按钮能拖到别处，松手会自己贴边。'
+      + '微信不让网页直接跳扫一扫，跳不过去会给你一个一键改用支付宝的入口',
   ] },
   { v: 'v2.80 – v2.89', d: '2026-11-03 ~ 11-04', items: [
     /* v2.80：定位高亮竞态（线上弱网实测约一半次数补不上）。用户看到的是
@@ -10508,9 +10535,20 @@ function wxBoot() {
 
    🔴 网页打不开「别人的扫码界面」，只能抛一个 URL Scheme 把 App 唤到前台。
       这是浏览器的边界，不是实现取舍：
-        微信扫一扫   weixin://scanqrcode
-        支付宝扫一扫 alipays://platformapi/startapp?saId=10000007
-      所以微信**内**打开本站时唤不起微信自己（同 App 内跳自己的 scheme 无效），
+        微信     weixin://dl/scan（微信早已不认这条路，见下面那段）
+        支付宝   alipays://platformapi/startapp?saId=10000007
+      🔴 v2.95 实测与查证结论（别再折腾了）：
+        · v2.94 用的 `weixin://scanqrcode` 是错的，微信从来没认过这个 path —— 双开的手机会
+          先弹「选择微信版本」，选完落到首页或干脆没反应。
+        · 换成有据可查的 `weixin://dl/scan` 也只是「可能进扫一扫」，多数版本仍然只到首页。
+        · 原生 App 那套能直达扫一扫的做法是 ComponentName("com.tencent.mm",
+          "com.tencent.mm.ui.LauncherUI") + extra `LauncherUI.From.Scaner.Shortcut`。
+          网页**做不到**：Chrome 解析 intent:// 时会把 component 字段直接丢掉（防止网页点名
+          非导出的 Activity），只保留 package 和 S./i./B. 这类 extra。
+        · 唯一「合规且稳定」的微信直达是小程序 URL Scheme `weixin://dl/business/?t=xxx`，
+          得用该小程序的 AppID + AppSecret 走 /wxa/generatescheme 生成，需要运营方配合。
+        → 所以微信这一侧现实目标只是「把微信唤到前台」，跳不动就弹 fabFail 给路，别再承诺直达。
+      微信**内**打开本站时连唤都唤不起自己（同 App 内跳自己的 scheme 无效），
       这种情况直接给一句提示，不让它静默失败（见 fabGo）。
    🔴 Scheme 必须在**用户手势的同步栈**里赋给 location.href：塞进 setTimeout、
       或包在 await 后面，iOS Safari 会当成「脚本自己发起的跳转」直接丢掉。
@@ -10519,13 +10557,18 @@ function wxBoot() {
    位置存 `{x, y}` = 按钮**中心点**占视口的比例。存 px 的话换机型、横竖屏、
    地址栏收起都会把它挤出屏幕；存比例再 clamp 一次，任何视口都落在里面。 */
 const KEY_FAB = 'cpk.scanFab';
-const FAB_DEF = { on: false, app: 'wechat', x: 1, y: 0.7 };
+/* 🔴 v2.95：默认品牌从微信改成支付宝 —— 实测微信那边跳不动（见上面那段），
+   新用户第一次开就该落在能用的那个上。老配置里存着 'wechat' 的照旧。
+   `app` 只认这两个值，其余一律回落 FAB_DEF.app（也走这里，别再写死 'wechat'）。 */
+const FAB_DEF = { on: false, app: 'alipay', x: 1, y: 0.7 };
 const FAB_SIZE = 54;   // 🔴 与 CSS 的 .scan-fab width/height 对齐
 const FAB_EDGE = 12;   // 贴边留的呼吸位
 const FAB_SCHEME = {
-  wechat: 'weixin://scanqrcode',
+  wechat: 'weixin://dl/scan',
   alipay: 'alipays://platformapi/startapp?saId=10000007',
 };
+/* 微信那边的退路：只把微信唤到前台。跳不动时卡片上的「只打开微信」用它。 */
+const FAB_HOME = { wechat: 'weixin://' };
 const FAB_NAME = { wechat: '微信', alipay: '支付宝' };
 
 /** 读配置。任何半截/脏数据都退回默认值 —— 这个功能坏了不能连累首页。 */
@@ -10535,7 +10578,7 @@ function fabCfg() {
   const ratio = (v, d) => (typeof v === 'number' && isFinite(v) ? Math.min(1, Math.max(0, v)) : d);
   return {
     on: c.on === true,
-    app: c.app === 'alipay' ? 'alipay' : 'wechat',
+    app: (c.app === 'alipay' || c.app === 'wechat') ? c.app : FAB_DEF.app,
     x: ratio(c.x, FAB_DEF.x),
     y: ratio(c.y, FAB_DEF.y),
   };
@@ -10608,9 +10651,44 @@ function fabGo() {
     document.removeEventListener('visibilitychange', onVis);
     if (left || document.visibilityState !== 'visible') return;
     if (Date.now() - t0 > 2600) return;
-    showToast('没打开' + FAB_NAME[app] + '？浏览器可能拦了，手动打开它的「扫一扫」也一样');
+    /* v2.95：微信这一侧跳不动是常态（微信压根不开放网页直达扫一扫），
+       别只丢一句 toast 让人干瞪眼 —— 给一张能当场换路的卡片。 */
+    if (app === 'wechat') fabFail();
+    else showToast('没打开' + FAB_NAME[app] + '？浏览器可能拦了，手动打开它的「扫一扫」也一样');
   }, 1400);
 }
+
+/** 微信没跳成时的兜底卡片（v2.95）。
+   🔴 卡片里两个按钮都必须**在各自的点击事件同步栈里**直接写 location.href：
+      先 close() 不要紧（同一栈），但绝不能包 setTimeout、也不能 await 之后再跳 ——
+      手势一断，Android Chrome 就当成「脚本自己发起的跳转」直接丢掉。 */
+function fabFail() {
+  const d = $('dlg-fabfail');
+  if (!d) return;
+  try { d.showModal(); } catch (e) {}
+}
+
+(function bindFabFail() {
+  const d = $('dlg-fabfail');
+  if (!d) return;
+  const ali = $('fabfail-ali');
+  if (ali) {
+    ali.addEventListener('click', () => {
+      /* 顺手把品牌改掉：用户既然点了「改用支付宝」，下次别再让他走这条死路。 */
+      store.set(KEY_FAB, Object.assign(fabCfg(), { app: 'alipay' }));
+      fabPaint();
+      try { d.close(); } catch (e) {}
+      try { window.location.href = FAB_SCHEME.alipay; } catch (e) {}
+    });
+  }
+  const wx = $('fabfail-wx');
+  if (wx) {
+    wx.addEventListener('click', () => {
+      try { d.close(); } catch (e) {}
+      try { window.location.href = FAB_HOME.wechat; } catch (e) {}
+    });
+  }
+})();
 
 (function bindFab() {
   const el = $('scan-fab');

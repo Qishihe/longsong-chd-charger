@@ -1536,7 +1536,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.87</div>
+    <div id="app-ver" class="foot-ver">版本 v2.88</div>
   </footer>
 </div>
 
@@ -5803,6 +5803,43 @@ function amapApplyView(view, opts) {
   /* 表头交给 paintMapSub（引擎回传的 viewInfo）统一画：这样「点分区圈放大」
    * 这种引擎内部行为也能同步表头，不至于两处文案各写一套。 */
   paintMapSub(window.CHD_AMAP.viewInfo ? window.CHD_AMAP.viewInfo() : null);
+  maybeWarnMapStale();
+}
+
+/* ---------- 地图上的「状态过期」提示（v2.88） ----------
+ * 地图显示的是「几分钟前的空闲数」，而平台占位随时在变。超过 5 分钟没更新过，
+ * 这张图讲的只是历史 —— 给一句提示，比让用户照着旧数据跑过去强。
+ *
+ * 判据取该视图里**最新**的一条记录：只要有一台是刚查过的，这片就还是新的。
+ * 一台都没数据（`at=0` / 还没查）时不提示 —— 那是「查询中」，交给表头和空态文案，
+ * 别在用户刚打开地图、一轮刷新还没回来时就喊「过期」。
+ * 去重按**数据版本**（`newest`）而不是按秒：同一批数据反复切页签只提示一次；
+ * 刷新之后 newest 变了，若仍然过期会再提示一次（这是对的，数据确实又旧了）。
+ * 🔴 判据用 `mapDevices` + `mapResults`（未筛选的全量），不是列表里那批 —— 列表被
+ *    地址胶囊筛过之后只剩几台，拿它算「这片新不新」会随筛选结果飘。 */
+const MAP_STALE_MS = 5 * 60 * 1000;
+let mapStaleTipKey = '';
+
+function maybeWarnMapStale() {
+  const campus = mapCampusScope();
+  const areaKey = (curMap && curMap.area) || '';
+  let newest = 0;
+  let seen = 0;
+  mapDevices.forEach((d, i) => {
+    const rec = mapResults[i] || {};
+    if (!rec.at || !(rec.ports || []).length) return;
+    const loc = mapAreaOf(d);
+    const inScope = areaKey ? loc === areaKey : ((campusOfLocation(loc) || campus) === campus);
+    if (!inScope) return;
+    seen += 1;
+    if (rec.at > newest) newest = rec.at;
+  });
+  if (!seen || !newest) return;
+  if (Date.now() - newest <= MAP_STALE_MS) return;
+  const key = (areaKey || campus) + '#' + newest;
+  if (key === mapStaleTipKey) return;
+  mapStaleTipKey = key;
+  showToast('当前状态未更新，请手动刷新', 3600);
 }
 
 /** 同步顶部筛选按钮的选中态 */
@@ -5891,6 +5928,7 @@ function staticApplyView(mapId, focusDeviceId) {
   requestAnimationFrame(() => {
     renderMapMarkers();
     if (focusDeviceId) focusDevice(focusDeviceId);
+    maybeWarnMapStale();
   });
 }
 
@@ -8429,9 +8467,25 @@ function renderReview() {
 
   const campus = rvCampusOfLoc(rvLoc);
   const addrs = campus ? RV_AREAS.filter((a) => a.campus === campus) : [];
+  /* v2.88：校区胶囊写**当前校区名**，不再永远停在「选择校区」——
+     地图顶上那颗（#map-campus-label）一直是跟着当前图走的，回顾这边漏了同一件事。
+     `all` 没有具体校区 → 写「全部」，与下拉里的那一项同名。 */
+  const cLab = $('rv-campus-label');
+  if (cLab) cLab.textContent = campus ? (campusName(campus) || '选择校区') : '全部';
   const locBox = $('rv-loc');
-  locBox.innerHTML = addrs.length > 1
-    ? addrs.map((a) => '<button type="button" class="loc-pill' + (a.key === rvLoc ? ' on' : '')
+  /* v2.88：地址胶囊**有就显示**（原来是 ≥2 个才显示）。
+     换了校区却看不到这个校区有哪些地址，用户得回首页确认 —— 而这排胶囊本来就
+     是「当前范围里的哪一块」，一颗也是有效信息。单地址校区（北院/雁塔）会因此
+     多出一颗，它和左边那颗校区胶囊职责不同：左边换范围，右边选块。
+     「全部」档 addrs 为空 → innerHTML='' → 靠 `.rv-locs:empty` 整条撤掉。 */
+  /* 🔴 多地址校区补一颗「全校区」顶在最前：校区档的 rvLoc 是**校区 id**（weishui），
+     而地址胶囊的 key 是分区键（chaohui…），两边永远对不上 —— 五颗一颗都不亮，
+     看着像「没选中任何一档」。这颗的 key 就是校区 id，`rvSlots` 认它（RV_CAMPUS_AREA）。
+     单地址校区（北院/雁塔）不补：那颗地址和校区是同一个范围，补了等于两颗一样的东西
+     （而且北院的校区 id 和地址 key 本来就是同一串，本来就会亮）。 */
+  const locPills = addrs.length > 1 ? [{ key: campus, name: '全校区' }].concat(addrs) : addrs;
+  locBox.innerHTML = locPills.length
+    ? locPills.map((a) => '<button type="button" class="loc-pill' + (a.key === rvLoc ? ' on' : '')
       + '" data-loc="' + a.key + '">' + escapeHtml(a.name) + '</button>').join('')
     : '';
   /* 滚动监听只绑一次：innerHTML 换了按钮，容器本身没换，绑在容器上不会丢。 */
@@ -9154,7 +9208,7 @@ const CHANGELOG = [
        v2.77 把三颗并列的胶囊改成了下拉，顺手把这句里「顶上那排变成…」的描述
        一起改掉：同一话题只留一条，描述必须和用户现在看到的一致
        （改了文案 = 已读的人会重新亮红点，这是对的，行为确实变了）。 */
-    '「一周回顾」能分校区看了：左上多一颗「选择校区」，点开是全部 / 渭水 / 北院；'
+    '「一周回顾」能分校区看了：左上多一颗校区胶囊，点开是全部 / 渭水 / 北院；'
       + '北院那 57 台从今天起也每小时记一次占用率。刚接进来的头一天，北院那些小时还空着'
       + '（从有数据那一刻才开始画）；渭水这一档不受影响，七天曲线是连着的',
     /* v2.78：雁塔/小寨的**地图**先上（点位还没有）。和上面「校区」是同一条线，
@@ -9198,7 +9252,16 @@ const CHANGELOG = [
     /* v2.86：离线壳瘦身 + 省流修复。用户能感知到的是「第一次打开快一点」，
        内部细节（重复缓存、出壳）不用写进来。 */
     '离线壳瘦了：首次打开少下载约 350KB，赞助二维码和云同步组件改成用到时才取；'
-      + '开着省流模式的话，也不再多花 145KB 预载地图底图了'
+      + '开着省流模式的话，也不再多花 145KB 预载地图底图了',
+    /* v2.88：回顾的校区胶囊 + 地址胶囊。和 v2.76 那条是同一块界面，但那条讲「能看哪些校区」，
+       这条讲「现在这颗胶囊写着谁」+ 地址行多了一颗「全校区」—— 用户看到的东西不同。 */
+    '「一周回顾」左上那颗胶囊，现在写着你正在看的校区（以前永远写着「选择校区」，'
+      + '选完也看不出到底落在哪）。它右边那排跟着换成当前校区的地址，还多一颗「全校区」——'
+      + '想单独看一个车棚的曲线，点那颗地址就行，不必回首页改筛选',
+    /* v2.88：地图「← 总览」按校区 + 状态过期提示。两件都发生在看地图的时候，合成一条。 */
+    '地图里的「← 总览」现在回的是**当前**校区的整张图：在北院、雁塔放大过之后点它，'
+      + '不会再被甩回渭水那张全校总图。另外，图上状态超过 5 分钟没更新会弹一句'
+      + '「当前状态未更新，请手动刷新」—— 看到它就点一下刷新再出门'
   ] },
   { v: 'v2.60 – v2.69', d: '2026-10-30 ~ 11-02', items: [
     '新增「住宅」8 台充电桩（Z-01~Z-08）：都在校园北侧尚苑路边的西区住宅小区，地图上沿路边排成一排；这批机器有 2 口、10 口、20 口的，卡片按实际口数铺格子'
@@ -9890,10 +9953,17 @@ $('map-zones').addEventListener('click', (event) => {
 $('map-zoom-in').addEventListener('click', () => zoomAt(1.3));
 $('map-zoom-out').addEventListener('click', () => zoomAt(1 / 1.3));
 $('map-overview').addEventListener('click', fitOverview);
-/* 「← 总览」：走 switchMap('amap') 而不是直接 CHD_AMAP.setView('campus') ——
+/* 「← 总览」：走 switchMap(<当前校区第一块图>) 而不是直接 CHD_AMAP.setView('campus') ——
  * 如果当前停在「物业服务中心」页签，引擎里只有那 12 台，直接 setView 会得到
- * 「总览视角 + 只有 12 个点」的假象；switchMap 会把全量 109 台重新灌一遍。 */
-$('map-back').addEventListener('click', () => switchMap('amap'));
+ * 「总览视角 + 只有 12 个点」的假象；switchMap 会把该校区的桩重新灌一遍。
+ * 🔴 v2.88：这里原来硬编码 'amap'（渭水）—— 在北院 / 雁塔 / 小寨里点「← 总览」，
+ *    会连校区一起跳回渭水（表头变「渭水校区」、地址胶囊换成渭水那 6 颗），
+ *    等于「回总览」= 「回渭水」。现在按 `mapCampusScope()` 取该校区
+ *    `MAP_ORDER` 里的第一块图：渭水 → amap / 北院 → beiyuan / 雁塔 → shuiyuan。 */
+$('map-back').addEventListener('click', () => {
+  const home = MAP_ORDER.find((m) => m.campus === mapCampusScope()) || AMAP_MAP;
+  switchMap(home.id);
+});
 bindMapGestures();
 
 $('devices-reset').addEventListener('click', () => {

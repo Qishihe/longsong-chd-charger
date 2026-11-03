@@ -388,3 +388,5 @@ Origin（或 Referer）的 host 必须等于站点 host
 | 日期 | 变更 |
 |---|---|
 | 2026-11-01 | 新增 `GET /catalog.json`（设备目录 + 分区 + GCJ-02 坐标）与本文件 |
+| 2026-11-02 | 分区新增 `beiyuan`（本部北院 57 台）—— `/api/stats` 的 `areas` 里多一个键，形状未变（`schema` 仍是 1） |
+| 2026-11-03 | 分区新增 `shuiyuan`（雁塔·水利与环境学院 3 台）—— 同上，只是多一个键；`catalog.json` 里 `areas` 从 6 条变 7 条 |

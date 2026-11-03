@@ -55,8 +55,8 @@ function eq(name, actual, expected) {
 
 /* ── 1. 分区表 ─────────────────────────────────────────────────── */
 console.log('\n1. 分区表');
-ok('总量 174 台', PARTITIONS.total === 174, PARTITIONS.total);
-ok('6 个分区', AREAS.length === 6, AREAS.length);
+ok('总量 177 台', PARTITIONS.total === 177, PARTITIONS.total);
+ok('7 个分区', AREAS.length === 7, AREAS.length);
 ok(
   '每个区都能被 SCAN_CHUNK 拆成 ≤ 5 批',
   AREAS.every((a) => a.count >= 1 && Math.ceil(a.count / TUNING.SCAN_CHUNK) <= 5),
@@ -164,9 +164,9 @@ console.log('\n2b. 配置一致性');
   );
   ok('一跳总台数 ≤ 70（超了要重排，不能硬塞）', heaviest <= 70, `最重一跳 ${heaviest} 台`);
   eq(
-    '北院独占一跳（57 台，谁也别和它挤）',
+    '北院与水院同一跳（v2.79：57+3=60 台 / 6 批，70 台那条线以内）',
     AREA_CRON_GROUPS.find((g) => g.includes('beiyuan')),
-    ['beiyuan'],
+    ['beiyuan', 'shuiyuan'],
   );
 
   /* 在飞判定窗口必须盖得住最坏的一轮扫描，否则自己就会叠。 */
@@ -881,22 +881,26 @@ console.log('\n11. Worker 入口');
     const wuye = await readJson(bucket, KEYS.snap('wuye'));
     eq('偏移 2 里的物业 12 台', wuye && wuye.piles, 12);
 
-    /* 🔴 偏移 3 独占北院 57 台（v2.76）。这是全站最大的一个区 ——
-       实测 5 批 5.3 秒，所以它自己占一跳，谁也不和它挤。 */
+    /* 🔴 偏移 3：北院 57 + 水院 3（v2.76 北院独占，v2.79 把水院塞进来）。
+       57 台实测 5 批 5.3 秒，加一批还能压在 18 秒预算里 —— 所以是两个区同一跳，
+       不是「北院独占」。 */
     Date.now = () => (T0 + 180) * 1000; // 北京 08:03
     batchSizes.length = 0;
     await mod.default.scheduled({ cron: '3-59/5 * * * *' }, env, ctx);
     const beiyuan = await readJson(bucket, KEYS.snap('beiyuan'));
+    const shuiyuan = await readJson(bucket, KEYS.snap('shuiyuan'));
     eq('偏移 3 → 刷北院 57 台', beiyuan && beiyuan.piles, 57);
-    eq('北院拆成 5 批', batchSizes.length, Math.ceil(57 / TUNING.SCAN_CHUNK));
+    eq('偏移 3 → 同时刷水院 3 台', shuiyuan && shuiyuan.piles, 3);
+    eq('两个区拆成 6 批（57 台 5 批 + 3 台 1 批）', batchSizes.length,
+      Math.ceil(57 / TUNING.SCAN_CHUNK) + Math.ceil(3 / TUNING.SCAN_CHUNK));
     ok(
-      '北院每批都 ≤ SCAN_CHUNK',
+      '每批都 ≤ SCAN_CHUNK',
       batchSizes.every((n) => n <= TUNING.SCAN_CHUNK),
       batchSizes,
     );
 
     await mod.default.scheduled({ cron: '9-59/5 * * * *' }, env, ctx);
-    eq('未知偏移不刷任何区', bucket.businessKeys().length, 6);
+    eq('未知偏移不刷任何区', bucket.businessKeys().length, 7);
 
     await mod.default.scheduled({ cron: '2 * * * *' }, env, ctx);
     ok('统计 cron 落点', (await readJson(bucket, KEYS.stats())) !== null);
@@ -921,7 +925,7 @@ console.log('\n11. Worker 入口');
 
     const r3 = await mod.default.fetch(new Request('https://x/api/snap?area=all', { headers }), env);
     const b3 = await r3.json();
-    eq('/api/snap?area=all 汇总', b3.summary.areas, 6);
+    eq('/api/snap?area=all 汇总', b3.summary.areas, 7);
     eq('总览不传 refresh 时没有提示', b3.refresh_ignored, null);
     ok('总览会指认最旧的那个区', typeof b3.oldest_key === 'string', b3.oldest_key);
 

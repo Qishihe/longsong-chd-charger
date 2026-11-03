@@ -263,7 +263,19 @@
    `map-data.js` 的 areas 多了 `雁塔-校区` / `小寨-校区` 两个取景框，所以
    SHELL 里的 `./map-data.js?v=` 跟着 169 → 170（Cache API 按完整 URL 匹配，
    只换壳不动 `?v=` 的话，新页面会去要 `?v=170` 而壳里存的是 `?v=169`，断网就没 CHD_MAP）。 */
-const CACHE = 'campus-pile-v174';
+/* v174 → v175（2026-11-03 v2.79）：雁塔接进 3 台桩（水院 Y-01~Y-03）。
+   `map-data.js` 的 areas 多了 `雁塔-水利与环境学院` 一个取景框，`map-amap.js` 多了
+   `Y_GEO` 与那条 LINE_AREAS —— 两个外链 js 都变了，所以 `?v=` 两个都升
+   （map-data 170 → 171、map-amap 147 → 148），壳里那条 SHELL 也同步到 171。
+   ⚠️ map-amap.js 不进 SHELL（它靠 HTTP 缓存），但 `?v=` 一样要升 ——
+      页面引的是完整 URL，不升就等于让老浏览器继续跑旧的落点表。 */
+/* v175 → v176（2026-11-03 v2.80：「定位图标点完，那颗桩一定会被圈出来」——
+   高亮从「换一次 marker 内容」改成引擎侧 sticky：`highlightPile()` 记下 id，
+   之后每次 rebuildPins()（数据二次到位、切分区）都自己带上那一圈；
+   表头的「已标出 xx」也挪进 paintMapSub，不再被下一次 notifyView 冲掉。
+   线上冷开实测：旧写法约 1/3 次数只切了地图、圈和那句字都没了。
+   index.html + map-amap.js 都变了 → 换壳名，两个 ?v= 也一起升。） */
+const CACHE = 'campus-pile-v176';
 const SHELL = [
   './',
   './index.html',
@@ -284,15 +296,15 @@ const SHELL = [
   './sdk/workbuddy-cloud.global.js',
   /* ⚠️ 必须**带 `?v=167`** —— Cache API 按**完整 URL** 匹配：
      存不带 query 的 `./map-data.js`，断网时那个带 `?v=165` 的请求**命中不了**，等于没存 ✗
-     ⚠️ 而且这个 `?v=` 要与页面里的**静态标签** `<script src="map-data.js?v=170">`
-     和 `loadScriptOnce('map-data.js?v=170')` **保持一致**（升级时要一起改）✗
+     ⚠️ 而且这个 `?v=` 要与页面里的**静态标签** `<script src="map-data.js?v=171">`
+     和 `loadScriptOnce('map-data.js?v=171')` **保持一致**（升级时要一起改）✗
 
      为什么非要缓存它：首访那次导航发生在 SW 接管**之前**，所以它平时进不了缓存 ✗
      而断网时它是 `window.CHD_MAP` 的**唯一来源** —— 取不到就会让
      `mapAreaOf()` 与 `arcArea` 落到**同一个兜底值**，判据恒真，
      朝晖弧于是多画 20号楼(E-*) 与物流(W-*) 的桩（74 个点、24 个重合槽）✗
      （修好后应为 38 个节点 = 36 点 + 2 弧线） */
-  './map-data.js?v=170',
+  './map-data.js?v=171',
 ];
 
 self.addEventListener('install', (event) => {

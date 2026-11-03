@@ -138,6 +138,10 @@ SELF_BLOCK = {
     "/preview.html",
     "/preview-banner.js",
     "/map-amap-preview.js",
+
+    # 2026-11-03 v2.85：抓凭证教程页下线（「换一串凭证」弹窗里不再有入口）。
+    # 文件还在目录里备查，但对内对外都不再提供。
+    "/help.html",
 }
 
 # 目录级屏蔽（这些目录整个都是内部产物）

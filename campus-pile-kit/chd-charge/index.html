@@ -1536,7 +1536,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.84</div>
+    <div id="app-ver" class="foot-ver">版本 v2.85</div>
   </footer>
 </div>
 
@@ -1824,7 +1824,6 @@
       </div>
       <button class="link-btn" id="cred-edit">更新</button>
     </div>
-    <p class="note">全校共享，<b>谁都能更新</b>，不用密码。有效期 7 天，到期前换一串即可。</p>
   </div>
 </dialog>
 
@@ -2192,33 +2191,19 @@
       <h2 data-page-node-id="lkqygmoRxhXWrSrJ0k9mad">换一串凭证</h2>
       <button class="x-btn" data-close data-page-node-id="NTEj2V0cPHy3OJCVPEVOto" aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
     </div>
-    <p class="note" style="margin-top:0" data-page-node-id="sOXgUS4gE9vYF8kWXQgtoA">
-      小程序签发的 <code>eyJ</code> 长串，7 天有效。
-      保存前会实测一台桩。
-    </p>
     <label for="token-input" data-page-node-id="skZzb3rszK7hZ7o0RFz70n">凭证内容</label>
-    <textarea id="token-input" placeholder="整段请求头、cURL、eyJ 开头的长串，粘哪个都行"></textarea>
-    <div class="note" style="margin:-6px 0 10px">
-      请求头或 cURL 整段粘进来，会自动取出 <code>authorization</code>。
-    </div>
+    <textarea id="token-input" placeholder="粘贴凭证"></textarea>
     <!-- 🔴 2026-11-01 v2.67：这里是「让全站用上」的唯一入口。
          10-27 删掉内置同步密钥之后，老的那条 cloudPush 链路恒 null，
          弹窗却一直写着「之后所有打开这个网址的人自动用上」—— 承诺落空，
          用户以为传上去了，其实只写内存，刷新就没了。现在改成显式填口令直传 /api/cred。 -->
-    <label for="token-admin">写口令（填了才会存到服务器）</label>
-    <input type="password" id="token-admin" placeholder="只在本机临时用就留空" autocomplete="off">
-    <div class="note" style="margin:-2px 0 10px">
-      <b>留空</b>：只在本标签页有效，刷新即失效。<br>
-      <b>填口令</b>：写进服务器，所有人都能用。
-    </div>
+    <label for="token-admin">写口令</label>
+    <input type="password" id="token-admin" placeholder="可留空" autocomplete="off">
     <div class="row" data-page-node-id="ojC1CKL1qX6f8MB7feYwl2">
       <button class="icon-btn" id="token-paste" data-page-node-id="JTagd0BRSPfyU03JWoFKV0">粘贴</button>
       <button class="icon-btn primary" id="token-save" data-page-node-id="5HKTbWF2KJL7rAIea8PCZP">校验并保存</button>
     </div>
     <div class="note" id="token-note" data-page-node-id="q16Fi4WMiRs70q0HDzl5ua"></div>
-    <div class="note" style="border-top:1px solid var(--line);padding-top:11px;margin-top:13px">
-      第一次弄？<a href="./help.html">看教程</a>。
-    </div>
   </div>
 </dialog>
 
@@ -4124,7 +4109,9 @@ function paintCred() {
     }
     CRED_MISSING = true;
     $('cred-title').textContent = '还没有凭证';
-    $('cred-sub').textContent = '去「设备凭证」粘一串';
+    /* v2.85：这句原来写「去「设备凭证」粘一串」—— 它本身就在「设备凭证」弹窗里，
+       自我指路。改成指右边那颗按钮。 */
+    $('cred-sub').textContent = '点「更新」粘一串';
     paintCredHint('还没有凭证');
     return;
   }
@@ -9194,7 +9181,11 @@ const CHANGELOG = [
       + '刷新类的提示压成一句；「使用说明」只留怎么用，不再讲为什么做这个站',
     /* v2.84：设置分组调整 + 致谢回退。两件事都发生在设置里，合一句说完。 */
     '设置里的「设备凭证」「云端同步」并进「管理员」一组了（它们本来就是一回事）；'
-      + '「关于」页的致谢恢复成完整的一段，上一版压得太短，替我们跑过现场的几个人只剩名字了'
+      + '「关于」页的致谢恢复成完整的一段，上一版压得太短，替我们跑过现场的几个人只剩名字了',
+    /* v2.85：抓凭证教程整页下线，弹窗里那些教学文字也清掉。用户看得见的是
+       「点开更新只有输入框」，所以只写一条。 */
+    '「怎么抓一串凭证」那页教程下线了。「更新」弹窗里剩下的只有输入框和保存按钮，'
+      + '不再有抓包说明'
   ] },
   { v: 'v2.60 – v2.69', d: '2026-10-30 ~ 11-02', items: [
     '新增「住宅」8 台充电桩（Z-01~Z-08）：都在校园北侧尚苑路边的西区住宅小区，地图上沿路边排成一排；这批机器有 2 口、10 口、20 口的，卡片按实际口数铺格子'

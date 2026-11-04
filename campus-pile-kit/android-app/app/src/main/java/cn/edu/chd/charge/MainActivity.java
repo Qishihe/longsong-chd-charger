@@ -11,6 +11,7 @@ import android.os.Bundle;
 import android.os.Message;
 import android.os.SystemClock;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.webkit.GeolocationPermissions;
 import android.webkit.ValueCallback;
@@ -20,6 +21,7 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.FrameLayout;
 import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
@@ -79,6 +81,8 @@ public class MainActivity extends AppCompatActivity {
             + "<a href=\"__URL__\">重新加载</a></div>";
 
     private WebView web;
+    /** WebView 外面的那一层容器。系统栏留边加在它身上，见 applyInsets() 的注释。 */
+    private FrameLayout root;
     private ValueCallback<Uri[]> fileCallback;
     /** target="_blank" 的接应 WebView，必须持引用，否则可能被回收 */
     private WebView popupHolder;
@@ -98,12 +102,21 @@ public class MainActivity extends AppCompatActivity {
         }
         applyBarIcons();
 
+        /* 🔴 别把 WebView 直接 setContentView —— 必须套一层普通 ViewGroup。
+           v1.0.7 就是把 padding 加在 WebView 自己身上，算出来了、也 setPadding 了，
+           屏幕上照样重叠：WebView 内部是 Chromium 自己画的，padding 不一定能裁剪它的绘制
+           （硬件加速 + 内部 surface 的机型上尤其如此）。padding 加在 FrameLayout 上，
+           WebView 的布局尺寸被真的挤小，它想赖也赖不掉。 */
+        int bg = Color.parseColor(isNight() ? "#171917" : "#F7F6F2");
+        root = new FrameLayout(this);
+        root.setBackgroundColor(bg);       // 冷启动那一下的底色，别留白闪
         web = new WebView(this);
-        // 深色模式下 WebView 默认白底，冷启动会闪一下白
-        web.setBackgroundColor(Color.parseColor(isNight() ? "#171917" : "#F7F6F2"));
-        setContentView(web);
+        web.setBackgroundColor(bg);
+        root.addView(web, new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        setContentView(root);
 
-        applyInsets();
+        applyInsets(root);
         configureWebView(web);
         bindBackKey();
 
@@ -245,9 +258,9 @@ public class MainActivity extends AppCompatActivity {
      * 只能由原生补 —— 否则状态栏会压在标题上、底部导航条会盖住最后一张卡片。
      * 键盘弹出时把底部换成 ime 高度，输入框才不会被挡。
      */
-    private void applyInsets() {
+    private void applyInsets(final View target) {
         final int[] applied = { -1, -1, -1, -1 };
-        ViewCompat.setOnApplyWindowInsetsListener(web, new OnApplyWindowInsetsListener() {
+        ViewCompat.setOnApplyWindowInsetsListener(target, new OnApplyWindowInsetsListener() {
             @Override
             public WindowInsetsCompat onApplyWindowInsets(View v, WindowInsetsCompat insets) {
                 setSafePadding(v, insets, applied);
@@ -258,17 +271,17 @@ public class MainActivity extends AppCompatActivity {
            窗口的 insets 在 setContentView 那一次布局里已经发过了，而 listener 是之后才注册的；
            静态待着时系统不会再来第二次，padding 永远是 0，标题就被状态栏压住、顶部三个按钮点不到。
            必须主动要一次，否则「代码看着没问题，屏幕上是错的」。 */
-        web.requestApplyInsets();
-        web.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+        target.requestApplyInsets();
+        target.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
             @Override public void onViewAttachedToWindow(View v) { v.requestApplyInsets(); }
             @Override public void onViewDetachedFromWindow(View v) { }
         });
         /* 第二道保险：个别 ROM 上 requestApplyInsets 要等下一帧才有结果，也可能一直没人理。
            那就直接问窗口要当前 insets 自己算一遍 —— 反正 setSafePadding 是幂等的，重复调用不出事。 */
-        web.post(new Runnable() {
+        target.post(new Runnable() {
             @Override public void run() {
-                WindowInsetsCompat now = ViewCompat.getRootWindowInsets(web);
-                if (now != null) setSafePadding(web, now, applied);
+                WindowInsetsCompat now = ViewCompat.getRootWindowInsets(target);
+                if (now != null) setSafePadding(target, now, applied);
             }
         });
     }
@@ -287,9 +300,23 @@ public class MainActivity extends AppCompatActivity {
         int t = bars.top;
         int r = bars.right;
         int b = Math.max(bars.bottom, ime.bottom);
+        /* 第三道保险：有些 ROM 在窗口刚建好那几帧里给的 insets 全是 0，可内容明明已经铺到状态栏
+           下面了（这正是「什么都对了，就是没让开」的另一半可能）。这时候直接问系统要状态栏高度，
+           宁可多让一点点，也好过标题压在时钟下面。 */
+        if (t <= 0) t = systemBarHeight();
         if (applied[0] == l && applied[1] == t && applied[2] == r && applied[3] == b) return;
         applied[0] = l; applied[1] = t; applied[2] = r; applied[3] = b;
         v.setPadding(l, t, r, b);
+    }
+
+    /** 状态栏高度：优先问框架资源，拿不到就按 24dp 估一个。 */
+    private int systemBarHeight() {
+        int id = getResources().getIdentifier("status_bar_height", "dimen", "android");
+        if (id > 0) {
+            int h = getResources().getDimensionPixelSize(id);
+            if (h > 0) return h;
+        }
+        return Math.round(24 * getResources().getDisplayMetrics().density);
     }
 
     private void bindBackKey() {
@@ -385,6 +412,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         if (web != null) web.onResume();
+        // 从后台/分屏回来，窗口 insets 可能已经变了（导航方式切换、折叠屏展开），重量一次
+        if (root != null) root.requestApplyInsets();
     }
 
     @Override

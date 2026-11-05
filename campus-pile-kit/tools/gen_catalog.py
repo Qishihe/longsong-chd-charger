@@ -202,6 +202,8 @@ def parse_geometry():
         'B': geo_table('BY_GEO'),
         # 2026-11-03 v2.79：雁塔的水院（3 个点，竖线）。一维分区，没有 rows。
         'Y': geo_table('Y_GEO'),
+        # 2026-11-05 v2.98：雁塔的图书馆（8 个点，竖线，前缀 T-01~T-08）。
+        'T': geo_table('T_GEO'),
     }
 
     # LINE_AREAS：location → (prefix, rows)。rows 只有「二维分区」才有（目前只有北院），
@@ -424,7 +426,7 @@ def build():
         'source': {
             'devices': 'chd-charge/index.html#DEFAULT_DEVICES',
             'areas': 'chd-charge/map-data.js#CHD_MAP.areas',
-            'geometry': 'chd-charge/map-amap.js#BM_GEO/CH_GEO/E_GEO/W_GEO/Z_GEO',
+            'geometry': 'chd-charge/map-amap.js#BM_GEO/CH_GEO/E_GEO/W_GEO/Z_GEO/BY_GEO/Y_GEO/T_GEO',
         },
         'siteVersion': site_version,
         'deviceSchema': device_schema,

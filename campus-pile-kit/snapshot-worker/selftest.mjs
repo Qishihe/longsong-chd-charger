@@ -55,8 +55,8 @@ function eq(name, actual, expected) {
 
 /* ── 1. 分区表 ─────────────────────────────────────────────────── */
 console.log('\n1. 分区表');
-ok('总量 177 台', PARTITIONS.total === 177, PARTITIONS.total);
-ok('7 个分区', AREAS.length === 7, AREAS.length);
+ok('总量 185 台', PARTITIONS.total === 185, PARTITIONS.total);
+ok('8 个分区', AREAS.length === 8, AREAS.length);
 ok(
   '每个区都能被 SCAN_CHUNK 拆成 ≤ 5 批',
   AREAS.every((a) => a.count >= 1 && Math.ceil(a.count / TUNING.SCAN_CHUNK) <= 5),
@@ -167,6 +167,11 @@ console.log('\n2b. 配置一致性');
     '北院与水院同一跳（v2.79：57+3=60 台 / 6 批，70 台那条线以内）',
     AREA_CRON_GROUPS.find((g) => g.includes('beiyuan')),
     ['beiyuan', 'shuiyuan'],
+  );
+  eq(
+    '北门与图书馆同一跳（v2.98：37+8=45 台 / 4 批）',
+    AREA_CRON_GROUPS.find((g) => g.includes('tushuguan')),
+    ['beimen', 'tushuguan'],
   );
 
   /* 在飞判定窗口必须盖得住最坏的一轮扫描，否则自己就会叠。 */
@@ -833,19 +838,21 @@ console.log('\n11. Worker 入口');
     await mod.default.scheduled({ cron: '1-59/5 * * * *' }, env, ctx);
     const beimen = await readJson(bucket, KEYS.snap('beimen'));
     ok('cron 偏移 1 → 刷北门', beimen && beimen.piles === 37, beimen && beimen.piles);
-    eq('刷完只有北门一个快照', bucket.businessKeys(), ['snap/beimen.json']);
-    eq('内部密钥随请求发出', scanner.count, 37);
+    /* v2.98：偏移 1 从「北门独占」变成「北门 37 + 图书馆 8」两个区。 */
+    eq('刷完有北门 + 图书馆两个快照', bucket.businessKeys(),
+      ['snap/beimen.json', 'snap/tushuguan.json']);
+    eq('内部密钥随请求发出', scanner.count, 45);
 
     /* 🔴 分批不是「优化」，是唯一能拿到完整数据的方式：整批 37 台会撞站点
        Worker 的子请求额度，前 11 台成功、其余全「8 秒超时」，而且返回体
        看起来完全正常。所以这里必须验证**真的拆了批、每批都在安全线内**。 */
-    const wantBatches = Math.ceil(37 / TUNING.SCAN_CHUNK);
+    const wantBatches = Math.ceil(37 / TUNING.SCAN_CHUNK) + Math.ceil(8 / TUNING.SCAN_CHUNK);
     ok(
-      `北门 37 台拆成 ${wantBatches} 批，每批 ≤ ${TUNING.SCAN_CHUNK}`,
+      `北门 37 + 图书馆 8 台拆成 ${wantBatches} 批，每批 ≤ ${TUNING.SCAN_CHUNK}`,
       batchSizes.length === wantBatches && batchSizes.every((n) => n <= TUNING.SCAN_CHUNK),
       batchSizes,
     );
-    eq('分批后台数不漏不重（合计 37）', batchSizes.reduce((s, n) => s + n, 0), 37);
+    eq('分批后台数不漏不重（合计 45）', batchSizes.reduce((s, n) => s + n, 0), 45);
 
     /* 🔴 偏移 0 那一跳带两个区（住宅 + 朝晖，v2.76 重排）：免费版一个账号只有
        5 条 cron，4 跳分区 + 1 跳统计已经用满，加北院只能靠重排分组。
@@ -876,7 +883,8 @@ console.log('\n11. Worker 入口');
     eq(
       '偏移 2 → 刷 20号楼 + 物业',
       bucket.businessKeys(),
-      ['snap/b20.json', 'snap/beimen.json', 'snap/chaohui.json', 'snap/wuye.json', 'snap/zhu.json'],
+      ['snap/b20.json', 'snap/beimen.json', 'snap/chaohui.json',
+        'snap/tushuguan.json', 'snap/wuye.json', 'snap/zhu.json'],
     );
     const wuye = await readJson(bucket, KEYS.snap('wuye'));
     eq('偏移 2 里的物业 12 台', wuye && wuye.piles, 12);
@@ -900,7 +908,7 @@ console.log('\n11. Worker 入口');
     );
 
     await mod.default.scheduled({ cron: '9-59/5 * * * *' }, env, ctx);
-    eq('未知偏移不刷任何区', bucket.businessKeys().length, 7);
+    eq('未知偏移不刷任何区', bucket.businessKeys().length, 8);
 
     await mod.default.scheduled({ cron: '2 * * * *' }, env, ctx);
     ok('统计 cron 落点', (await readJson(bucket, KEYS.stats())) !== null);
@@ -925,7 +933,7 @@ console.log('\n11. Worker 入口');
 
     const r3 = await mod.default.fetch(new Request('https://x/api/snap?area=all', { headers }), env);
     const b3 = await r3.json();
-    eq('/api/snap?area=all 汇总', b3.summary.areas, 7);
+    eq('/api/snap?area=all 汇总', b3.summary.areas, 8);
     eq('总览不传 refresh 时没有提示', b3.refresh_ignored, null);
     ok('总览会指认最旧的那个区', typeof b3.oldest_key === 'string', b3.oldest_key);
 
@@ -1281,7 +1289,11 @@ console.log('\n# cron 可靠性');
       logs.filter((l) => l.includes('catch-up')).slice(0, 2),
     );
 
-    /* ④ 补跑之后不该连环补：紧跟的下一跳必须安静跳过 */
+    /* ④ 补跑之后不该连环补。
+       🔴 v2.98：:01 变成两区之后，补跑那一轮会强制占全站分钟锁，
+          第一区（北门）跑完，第二区（图书馆）同一分钟拿到 reason=global，
+          顺延到下一跳补 —— 这是 :03 北院+水院一直在用的既有设计，不是回归。
+          所以下一跳只该补那 8 台，且不能把已经补过的北门再扫一遍。 */
     scanner.reset();
     Date.now = () => (slotSec + 3900 + 300) * 1000;
     await mod.default.scheduled(
@@ -1289,7 +1301,7 @@ console.log('\n# cron 可靠性');
       env,
       ctx,
     );
-    eq('补跑过后不会连环补跑', scanner.count, 0);
+    eq('补跑过后只补第二个区 8 台，不连环重扫北门', scanner.count, 8);
   } finally {
     Date.now = realNow;
     console.log = realLog;

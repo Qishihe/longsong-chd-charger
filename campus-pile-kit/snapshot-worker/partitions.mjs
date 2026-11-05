@@ -13,7 +13,7 @@ export const PARTITIONS = {
   "schema": 1,
   "source": "chd-charge/index.html#DEFAULT_DEVICES",
   "generator": "tools/gen_snapshot_partitions.py",
-  "total": 177,
+  "total": 185,
   "subrequestLimit": 50,
   "areas": [
     {
@@ -249,6 +249,22 @@ export const PARTITIONS = {
         "PILEXXXX"
       ],
       "count": 3
+    },
+    {
+      "key": "tushuguan",
+      "name": "图书馆",
+      "location": "雁塔-图书馆",
+      "ids": [
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX"
+      ],
+      "count": 8
     }
   ]
 };

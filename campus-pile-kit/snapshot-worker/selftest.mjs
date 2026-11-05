@@ -55,8 +55,8 @@ function eq(name, actual, expected) {
 
 /* ── 1. 分区表 ─────────────────────────────────────────────────── */
 console.log('\n1. 分区表');
-ok('总量 185 台', PARTITIONS.total === 185, PARTITIONS.total);
-ok('8 个分区', AREAS.length === 8, AREAS.length);
+ok('总量 200 台', PARTITIONS.total === 200, PARTITIONS.total);
+ok('10 个分区', AREAS.length === 10, AREAS.length);
 ok(
   '每个区都能被 SCAN_CHUNK 拆成 ≤ 5 批',
   AREAS.every((a) => a.count >= 1 && Math.ceil(a.count / TUNING.SCAN_CHUNK) <= 5),
@@ -113,30 +113,21 @@ console.log('\n2b. 配置一致性');
   const tomlCrons = cronsBlock
     ? [...cronsBlock[1].matchAll(/"([^"]+)"/g)].map((m) => m[1])
     : [];
-  eq('wrangler.toml 里有 5 条 cron', tomlCrons.length, 5);
+  /* 🔴 v2.99：五条 cron 收成一条主时钟。wrangler.toml 与 config.mjs
+     仍然没有任何代码上的联系，这条断言直接读文件比对，防止两处漂移。 */
+  eq('wrangler.toml 里只有一条主时钟', tomlCrons, ['* * * * *']);
+  eq('分钟 % 5 的五个槽位都在 AREA_CRON_MINUTES 里', AREA_CRON_MINUTES, [0, 1, 2, 3, 4]);
+  /* 统计不再靠 cron 表达式区分，改由 worker.mjs 按分钟判断。 */
+  eq('统计每小时三跳', STATS_CRON_MINUTES.length, 3);
   eq(
-    '分区 cron 与 AREA_CRON_MINUTES 对齐',
-    AREA_CRON_MINUTES.map((m) => `${m}-59/5 * * * *`),
-    tomlCrons.slice(0, AREA_CRON_MINUTES.length),
-  );
-  eq(
-    '统计 cron 与 STATS_CRON_MINUTES 对齐',
-    tomlCrons[4],
-    `${STATS_CRON_MINUTES.join(',')} * * * *`,
-  );
-  /* 🔴 统计那几跳不能和分区 cron 撞分钟：每分钟只允许一个 cron 在跑，
-     而统计第一件事就是读各区的快照。分区 cron 是 `N-59/5`，也就是
-     「分钟 % 5 ∈ {0,1,2,3}」；统计只能取 % 5 === 4 那一档。 */
-  eq('统计 cron 每小时三跳', STATS_CRON_MINUTES.length, 3);
-  eq(
-    '统计的分钟数取「% 5 === 4」那一档',
+    '统计分钟都落在第 4 槽（分钟 % 5 === 4）',
     STATS_CRON_MINUTES.filter((m) => m % 5 !== 4),
     [],
   );
   ok(
-    '统计 cron 与分区 cron 不共用任何一分钟',
-    STATS_CRON_MINUTES.every((m) => !AREA_CRON_MINUTES.some((o) => o % 5 === m % 5)),
-    `stats=:${STATS_CRON_MINUTES.join('/')} 分区=${AREA_CRON_MINUTES.join('/')}`,
+    '统计分钟会跳过第 4 槽的分区组（worker.mjs 主时钟分支）',
+    STATS_CRON_MINUTES.every((m) => AREA_CRON_MINUTES[m % 5] === 4),
+    `stats=:${STATS_CRON_MINUTES.join('/')} 槽=${AREA_CRON_MINUTES.join('/')}`,
   );
   /* 🔴 分区组（v2.65）：一跳可以刷多个区，但每个区**必须刚好被排到一次**。
      漏一个 = 那个区的快照永远不刷新（一周回顾里那条线永远是空的，不报错）；
@@ -173,6 +164,12 @@ console.log('\n2b. 配置一致性');
     AREA_CRON_GROUPS.find((g) => g.includes('tushuguan')),
     ['beimen', 'tushuguan'],
   );
+  eq(
+    '5号公寓南与停车场出口同一跳（v2.99：12+3=15 台 / 2 批，第 5 槽）',
+    AREA_CRON_GROUPS.find((g) => g.includes('w5')),
+    ['w5', 'park'],
+  );
+  eq('第 5 槽确实在数组末位（下标即分钟槽）', AREA_CRON_GROUPS[4], ['w5', 'park']);
 
   /* 在飞判定窗口必须盖得住最坏的一轮扫描，否则自己就会叠。 */
   ok(
@@ -907,8 +904,34 @@ console.log('\n11. Worker 入口');
       batchSizes,
     );
 
+    /* v2.99 主时钟：分钟 % 5 === 4 取第 5 槽（w5 12 + park 3 = 15 台）。
+       🔴 必须带 scheduledTime —— 主时钟靠「计划时刻的分钟」取槽，
+          不带的话回落 Date.now()，测试里那个固定时刻是 :01，会取到第 1 槽。 */
+    scanner.reset();
+    const mc4 = (T0 + 4 * 60) * 1000;              // UTC 00:04
+    Date.now = () => mc4;
+    await mod.default.scheduled(
+      { cron: '* * * * *', scheduledTime: mc4 }, env, ctx);
+    eq('主时钟 :04 → 第 5 槽刷 15 台', scanner.count, 15);
+    ok('主时钟 :04 写出 w5 / park 两份快照',
+      (await readJson(bucket, KEYS.snap('w5'))) !== null
+        && (await readJson(bucket, KEYS.snap('park'))) !== null);
+    /* 统计分钟（:09）主时钟直接跑统计，不扫分区 —— 第 4 槽每小时少 3 次，
+       但不会把分区刷新和统计揉进同一分钟的 CPU 预算里。 */
+    scanner.reset();
+    const mc9 = (T0 + 9 * 60) * 1000;              // UTC 00:09
+    Date.now = () => mc9;
+    await mod.default.scheduled(
+      { cron: '* * * * *', scheduledTime: mc9 }, env, ctx);
+    eq('主时钟 :09 跑统计、不扫任何分区', scanner.count, 0);
+    ok('主时钟 :09 写出统计点', (await readJson(bucket, KEYS.stats())) !== null);
+    Date.now = () => at;
+
+    /* 不硬编码快照数：前面的用例会陆续把各槽的分区写进 bucket，
+       加区时写死的数字会假红。这条真正要验的是「这一跳没有新增」。 */
+    const beforeUnknown = bucket.businessKeys().length;
     await mod.default.scheduled({ cron: '9-59/5 * * * *' }, env, ctx);
-    eq('未知偏移不刷任何区', bucket.businessKeys().length, 8);
+    eq('未知偏移不刷任何区', bucket.businessKeys().length, beforeUnknown);
 
     await mod.default.scheduled({ cron: '2 * * * *' }, env, ctx);
     ok('统计 cron 落点', (await readJson(bucket, KEYS.stats())) !== null);
@@ -933,7 +956,7 @@ console.log('\n11. Worker 入口');
 
     const r3 = await mod.default.fetch(new Request('https://x/api/snap?area=all', { headers }), env);
     const b3 = await r3.json();
-    eq('/api/snap?area=all 汇总', b3.summary.areas, 8);
+    eq('/api/snap?area=all 汇总', b3.summary.areas, 10);
     eq('总览不传 refresh 时没有提示', b3.refresh_ignored, null);
     ok('总览会指认最旧的那个区', typeof b3.oldest_key === 'string', b3.oldest_key);
 

@@ -193,21 +193,8 @@ def parse_geometry():
             die('%s 是空的' % name)
         return [(float(lng), float(lat)) for lng, lat in pairs]
 
-    tables = {
-        'E': geo_table('E_GEO'),
-        'W': geo_table('W_GEO'),
-        'Z': geo_table('Z_GEO'),
-        # 2026-11-02 v2.72：北院停车场（57 个点，7 排）。它和 E/W/Z 不同 ——
-        # 桩号是 `B<排>-<序号>`，要先按 rows 换算成一维下标，见 by_seq()。
-        'B': geo_table('BY_GEO'),
-        # 2026-11-03 v2.79：雁塔的水院（3 个点，竖线）。一维分区，没有 rows。
-        'Y': geo_table('Y_GEO'),
-        # 2026-11-05 v2.98：雁塔的图书馆（8 个点，竖线，前缀 T-01~T-08）。
-        'T': geo_table('T_GEO'),
-    }
-
-    # LINE_AREAS：location → (prefix, rows)。rows 只有「二维分区」才有（目前只有北院），
-    # 表示每排的点数；一维分区是 None。
+    # LINE_AREAS：location → (prefix, rows, geo 表名)。rows 只有「二维分区」才有
+    # （目前只有北院），表示每排的点数；一维分区是 None。
     line_areas = {}
     lm = re.search(r'var LINE_AREAS = \[', text)
     if not lm:
@@ -216,11 +203,20 @@ def parse_geometry():
         loc_m = re.search(r"loc:\s*'([^']+)'", chunk)
         pre_m = re.search(r"prefix:\s*'([A-Z])'", chunk)
         row_m = re.search(r'rows:\s*\[([\d,\s]+)\]', chunk)
-        if loc_m and pre_m:
+        geo_m = re.search(r'geo:\s*([A-Za-z0-9_]+)', chunk)
+        if loc_m and pre_m and geo_m:
             line_areas.setdefault(loc_m.group(1), (
                 pre_m.group(1),
                 [int(x) for x in re.findall(r'\d+', row_m.group(1))] if row_m else None,
+                geo_m.group(1),
             ))
+
+    # 🔴 按 **geo 变量名** 建落点表，别按 prefix 字母：v2.99 的
+    #    「雁塔-5号学生公寓南部」前缀也是 'W'（与渭水物业 W-01~12 撞名），
+    #    按 prefix 取表会静默拿到物业那串坐标 —— 12 台全跑到渭水去，
+    #    而 `--check` 只看数量、看不出坐标错。新增分区不用在这里登记，
+    #    只要在 LINE_AREAS 那行写了 geo 就会自动进来。
+    tables = {g: geo_table(g) for g in sorted({v[2] for v in line_areas.values()})}
 
     # `rot: 16.7 * Math.PI / 180` —— _numbers 只能抽到 16.7，这里换算成弧度
     bm['rot'] = bm['rot'] * math.pi / 180.0
@@ -325,8 +321,8 @@ def build():
         bucket = used.setdefault(loc, set())
         lng = lat = None
         if loc in line_areas:
-            prefix, rows = line_areas[loc]
-            table = tables[prefix]
+            prefix, rows, geo = line_areas[loc]
+            table = tables[geo]
             seq = by_seq(code, rows) if rows else line_seq(code, prefix)
             if 1 <= seq <= len(table) and seq not in bucket:
                 lng, lat = table[seq - 1]
@@ -426,7 +422,7 @@ def build():
         'source': {
             'devices': 'chd-charge/index.html#DEFAULT_DEVICES',
             'areas': 'chd-charge/map-data.js#CHD_MAP.areas',
-            'geometry': 'chd-charge/map-amap.js#BM_GEO/CH_GEO/E_GEO/W_GEO/Z_GEO/BY_GEO/Y_GEO/T_GEO',
+            'geometry': 'chd-charge/map-amap.js#BM_GEO/CH_GEO/E_GEO/W_GEO/Z_GEO/BY_GEO/Y_GEO/T_GEO/W5_GEO/P_GEO',
         },
         'siteVersion': site_version,
         'deviceSchema': device_schema,

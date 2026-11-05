@@ -338,8 +338,11 @@
    页面变了壳名继续换，SHELL 清单仍没变。 */
 /* v196 → v197（2026-11-05 v2.98）：雁塔校区加了第二个场地「图书馆」8 台
    （T-01~T-08），地图取景框比水院更紧。index.html / map-data.js / map-amap.js
-   三个文件都变了，壳名跟着换；SHELL 仍是 6 项，只把 map-data.js 的 ?v= 升到 172。 */
-const CACHE = 'campus-pile-v197';
+   三个文件都变了，壳名跟着换；SHELL 仍是 6 项，只把 map-data.js 的 ?v= 升到 172。
+   v197 → v198（同日 v2.99）：雁塔再添「5号学生公寓南部」12 台（W-01~W-12）
+   与「停车场出口」3 台（P-01~P-03），四个文件都变了；SHELL 仍是 6 项，
+   map-data.js 的 ?v= 升到 173。 */
+const CACHE = 'campus-pile-v198';
 const SHELL = [
   /* v2.86：`'./'` 删了。线上实测 `/` 与 `/index.html` 返回的字节完全相同（md5 一致），
      而 fetch 拦截只把 `'./index.html'` 当主 key，`'./'` 只是回退链的第二顺位 ——
@@ -369,7 +372,7 @@ const SHELL = [
      `mapAreaOf()` 与 `arcArea` 落到**同一个兜底值**，判据恒真，
      朝晖弧于是多画 20号楼(E-*) 与物流(W-*) 的桩（74 个点、24 个重合槽）✗
      （修好后应为 38 个节点 = 36 点 + 2 弧线） */
-  './map-data.js?v=172',
+  './map-data.js?v=173',
 ];
 
 self.addEventListener('install', (event) => {

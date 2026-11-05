@@ -13,7 +13,7 @@ export const PARTITIONS = {
   "schema": 1,
   "source": "chd-charge/index.html#DEFAULT_DEVICES",
   "generator": "tools/gen_snapshot_partitions.py",
-  "total": 185,
+  "total": 200,
   "subrequestLimit": 50,
   "areas": [
     {
@@ -265,6 +265,37 @@ export const PARTITIONS = {
         "PILEXXXX"
       ],
       "count": 8
+    },
+    {
+      "key": "w5",
+      "name": "5号学生公寓南部",
+      "location": "雁塔-5号学生公寓南部",
+      "ids": [
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX"
+      ],
+      "count": 12
+    },
+    {
+      "key": "park",
+      "name": "停车场出口",
+      "location": "雁塔-停车场出口",
+      "ids": [
+        "PILEXXXX",
+        "PILEXXXX",
+        "PILEXXXX"
+      ],
+      "count": 3
     }
   ]
 };

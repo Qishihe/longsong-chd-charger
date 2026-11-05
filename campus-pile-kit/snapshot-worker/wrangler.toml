@@ -55,12 +55,13 @@ PILE_ORIGIN = "https://chd-charge.pages.dev"
 #    （core.appendStats），愈合后自动补上。
 #
 # 时段表在 config.mjs 里，cron 只是「每 5 分钟敲门一次」，跑不跑由表决定。
+# v2.99：五条收敛成一条主时钟。免费版一个账号只有 5 条 cron trigger，
+# 而第 9、10 个分区让四跳全满，再加一组就要第 6 条（部署不上去）。
+# 分钟 → 任务改由 config.mjs 的 AREA_CRON_GROUPS / STATS_CRON_MINUTES 决定：
+#   :00/:05/... 第 0 槽 … :04/:14/... 第 4 槽；:09/:29/:49 跑统计。
+# worker.mjs 仍兼容旧的 `N-59/5` 与 `9,29,49` 表达式（selftest / 灰度在用）。
 crons = [
-  "0-59/5 * * * *",
-  "1-59/5 * * * *",
-  "2-59/5 * * * *",
-  "3-59/5 * * * *",
-  "9,29,49 * * * *",
+  "* * * * *",
 ]
 
 [observability]

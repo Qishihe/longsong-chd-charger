@@ -13,6 +13,7 @@ import {
   TUNING,
   AREA_CRON_MINUTES,
   AREA_CRON_GROUPS,
+  STATS_CRON_MINUTES,
   shouldRunAt,
   beijingHour,
   intervalFor,
@@ -30,6 +31,8 @@ import { PARTITIONS } from './partitions.mjs';
    warn 然后**什么都不做**，统计从此静默停摆，而且日志里只有一行 warning。 */
 const AREA_CRON_RE = /^(\d{1,2})-59\/\d{1,2}\b/;
 const STATS_CRON_RE = /^\d{1,2}(,\d{1,2})* \* \* \* \*$/;
+/* v2.99 主时钟：wrangler.toml 只留这一条，分钟 → 任务全在代码里排。 */
+const MAIN_CRON_RE = /^\* \* \* \* \*$/;
 
 const DEFAULT_PILE_ORIGIN = 'https://chd-charge.pages.dev';
 
@@ -564,10 +567,18 @@ export default {
       }
 
       const cron = event.cron || '';
+      /* v2.99 主时钟：线上 wrangler.toml 只留一条 `* * * * *`，
+         每分钟一次调用，按「分钟 % 5」取分区组；:09/:29/:49 跑统计。
+         旧的 `N-59/5` 和 `9,29,49` 表达式仍兼容（selftest / 灰度部署在用）。 */
+      const plannedSec = Number.isFinite(event.scheduledTime)
+        ? Math.floor(event.scheduledTime / 1000) : ts;
+      const minute = new Date(plannedSec * 1000).getUTCMinutes();
+      const mainClock = MAIN_CRON_RE.test(cron);
 
       /* 每小时统计：只读快照，不打上游（全量 109 台会超单次子请求上限，
-         而且统计和刷新耦合在一起后，一处慢就两处都慢）。 */
-      if (STATS_CRON_RE.test(cron)) {
+         而且统计和刷新耦合在一起后，一处慢就两处都慢）。
+         主时钟下统计这三分钟直接跑统计、跳过第 4 槽的分区组 —— 见 config.mjs。 */
+      if (STATS_CRON_RE.test(cron) || (mainClock && STATS_CRON_MINUTES.includes(minute))) {
         const r = await appendStats({ bucket, areas: PARTITIONS.areas, now });
         console.log(
           `[snap] stats h=${r.point.h} all=${r.point.all} kept=${r.kept} gaps=${r.gaps} dropped=${r.dropped}`,
@@ -591,12 +602,15 @@ export default {
       }
 
       const m = AREA_CRON_RE.exec(cron);
-      if (!m) {
+      let offset;
+      if (mainClock) {
+        offset = minute % 5;                       // 主时钟：按分钟取槽
+      } else if (m) {
+        offset = Number(m[1]);                     // 旧格式：从 cron 表达式取
+      } else {
         console.warn('[snap] 未知 cron：' + cron);
         return;
       }
-
-      const offset = Number(m[1]);
       /* 一跳可以带多个分区（v2.65 起「住宅」并进 :03 和物业一起刷）。
          按 key 取，不按下标 —— 见 config.mjs 的 AREA_CRON_GROUPS。 */
       const group = AREA_CRON_GROUPS[AREA_CRON_MINUTES.indexOf(offset)] || [];

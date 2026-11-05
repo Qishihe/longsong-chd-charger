@@ -346,7 +346,11 @@
    四个校区都有全图视图了。index.html 与 map-amap.js（聚合圈改用地址短名）都变了，
    页面里两处 `map-amap.js?v=` 跟着 152 → 153；map-amap.js 本来就不进 SHELL，
    map-data.js 也没动 → SHELL 仍是 6 项、`map-data.js?v=173` 不动，只换壳名。 */
-const CACHE = 'campus-pile-v199';
+/* v199 → v200（2026-11-05 v3.01）：地图给四个校区的建筑补名字，
+   并按缩放做分级抽稀（缩小只留地标、不挤字）。改了 index.html 与 map-amap.js，
+   页面里两处 `map-amap.js?v=` 跟着 153 → 154；map-data.js 没动
+   → SHELL 仍是 6 项、`map-data.js?v=173` 不动，只换壳名。 */
+const CACHE = 'campus-pile-v200';
 const SHELL = [
   /* v2.86：`'./'` 删了。线上实测 `/` 与 `/index.html` 返回的字节完全相同（md5 一致），
      而 fetch 拦截只把 `'./index.html'` 当主 key，`'./'` 只是回退链的第二顺位 ——

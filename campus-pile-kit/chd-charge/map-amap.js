@@ -1090,7 +1090,13 @@
         : '<span class="cluster-x">×</span>';
       /* 名字用绝对定位挂在圈外（见上面 CL_LABEL_UP 的说明）——
          这样 marker 盒子仍是 30×30 的圈，圈心不会被名字顶偏。 */
-      var nm = g.name || loc.replace(/^渭水-/, '');
+      /* v3.00：校区全图把该校区所有场地铺满屏宽时，两端那颗圈的名字会被容器裁掉
+         （雁塔全图实测「水利与环境学院」缺两字、「停车场出口」贴着右边缘）。
+         改用首页地址胶囊那套短名（水院 / 5号公寓南 / 停车场），宽度砍半；
+         渭水、北院的短名与分区全名一致，所以老图一个字都不变。
+         独立加载这份 js 时没有 pillAddrLabel，老实退回分区全名。 */
+      var nm = (typeof window.pillAddrLabel === 'function' && window.pillAddrLabel(loc))
+        || g.name || loc.replace(/^渭水-/, '');
       markers.push(new AMap.Marker({
         position: mid, anchor: 'center',
         content: '<div class="cluster-cell' + (CL_LABEL_UP[loc] ? ' lbl-up' : '') + '">'

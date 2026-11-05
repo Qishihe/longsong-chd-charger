@@ -1680,7 +1680,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.99</div>
+    <div id="app-ver" class="foot-ver">版本 v3.00</div>
   </footer>
 </div>
 
@@ -1744,23 +1744,19 @@
     <button class="map-tab" data-map="lou20" role="tab">20 号楼</button>
     <button class="map-tab" data-map="beimen" role="tab">北门</button>
     <button class="map-tab" data-map="chaohui" role="tab">朝晖</button>
-    <!-- v2.72：本部北院的停车场。**它和上面 6 颗不会同时出现** ——
-         `syncMapTabs()` 按 `campus` 藏页签（上面 6 颗是渭水、这颗是北院）。
-         文案只写「北院」：校区胶囊就在旁边写着「本部北院」，重复占宽度。 -->
+    <!-- v2.72：本部北院的停车场。v3.00 前面补了一颗「校区全图」：
+         这排按 campus 过滤，选北院时两颗都在，点全图看整个校区、点北院看那 57 台。 -->
+    <button class="map-tab" data-map="campus-beiyuan" role="tab">校区全图</button>
     <button class="map-tab" data-map="beiyuan" role="tab">北院</button>
-    <!-- v2.78：雁塔 / 小寨 —— 先把地图接进来。
-         v2.79：雁塔接了 3 台（水院），那颗「校区全图」换成真分区「水院」，
-         和北院完全同构 —— 一个校区只有一块场地时，那一排就只有它一颗。
-         小寨仍然只有「校区全图」（0 台），文案写「校区全图」而不是校区名：
-         上面那颗校区胶囊已经写着校区了，重复一遍只会让 390px 下的页签行更挤。 -->
+    <!-- v2.78 雁塔接地图；v2.79 水院 3 台；v2.98 图书馆 8 台；v2.99 两处新场地。
+         v3.00 前面补「校区全图」：选雁塔时一共 5 颗（全图 / 水院 / 图书馆 /
+         5号公寓 / 停车场），横滑能到，文案都压到 4 字以内。 -->
+    <button class="map-tab" data-map="campus-yanta" role="tab">校区全图</button>
     <button class="map-tab" data-map="shuiyuan" role="tab">水院</button>
-    <!-- v2.98：雁塔第二个场地「图书馆」8 台（T-01~T-08）。同一个校区两颗页签，
-         默认仍落在水院（MAP_ORDER 里 yanta 的第一块），点这颗才切到图书馆。 -->
     <button class="map-tab" data-map="tushuguan" role="tab">图书馆</button>
-    <!-- v2.99：雁塔第三、四处场地。这排按 campus 过滤，选雁塔时一共 4 颗
-         （水院 / 图书馆 / 5号公寓 / 停车场），横滑能到，文案都压到 4 字以内。 -->
     <button class="map-tab" data-map="w5" role="tab">5号公寓</button>
     <button class="map-tab" data-map="park" role="tab">停车场</button>
+    <!-- 小寨仍是 0 台，只有「校区全图」一颗（v2.78 起）。 -->
     <button class="map-tab" data-map="xiaozhai" role="tab">校区全图</button>
   </div>
   <!-- 2026-10-30 v2.46：这里原来有一条“空闲数 / 已满 / 离线 / 点分区圈放大”图例，已删。
@@ -5180,6 +5176,36 @@ const PARK_AMAP = {
   campus: 'yanta',
   fallbackStaticId: 'overview',
 };
+/* 2026-11-05 v3.00：四个校区都要有「校区全图」。
+ * 以前只有渭水有（AMAP_MAP，id=amap）：北院 / 雁塔选进去默认落在某个场地的分区视图，
+ * 想一眼看全这个校区有几处充电桩、都挨在哪儿，只能一颗颗页签点过去。
+ *
+ * 做法照抄渭水那颗：`area` 故意不写 —— `amapApplyView(undefined)` 会落到引擎的
+ * `curView='campus'`，而页面 `amapDevices()` 已经按 `curMap.campus` 把桩筛成当前校区，
+ * 引擎 `campusBBox()` 再按这批桩里真实存在的分区取并集 → 镜头自动铺满这个校区的
+ * 全部场地；`rebuildBadges()` / `rebuildClusters()` 也按这批桩分组 → 每个有充电桩的
+ * 地址都带名字出现在图上（徽章写「N 台 · M 空位」，缩小时合成带名字的圈）。
+ * 换句话说：不用改 map-amap.js，也不用给 map-data.js 加校区框。
+ *
+ * ⚠️ 小寨不在这里：它原本那颗 `xiaozhai` 页签就叫「校区全图」，但 0 台桩。
+ *    真改成 campus 视图的话 `campusBBox()` 空桩兜底会并上 `CHD_MAP.areas` 全部 12 个键
+ *    → 镜头飞到 10 km 外。保持 `area:'小寨-校区'` 的分区视图，取景框就是小寨自己，
+ *    表头「小寨校区 · 暂无点位」，行为与「校区全图」一致。
+ *
+ * 🔴 全图放在 MAP_ORDER 里该校区第一块：`pickCampus()` / `openMap()` / 「← 总览」
+ *    都按 `MAP_ORDER.find(m => m.campus === ...)` 找落点，于是选校区默认就是全图
+ *    （和渭水一致），点下面那几颗才进单场地。
+ */
+const BEIYUAN_OVERVIEW = {
+  id: 'campus-beiyuan', label: '本部北院 · 全图', name: '本部北院',
+  layout: 'amap', campus: 'beiyuan',
+  fallbackStaticId: 'overview',
+};
+const YANTA_OVERVIEW = {
+  id: 'campus-yanta', label: '雁塔校区 · 全图', name: '雁塔校区',
+  layout: 'amap', campus: 'yanta',
+  fallbackStaticId: 'overview',
+};
 const XIAOZHAI_AMAP = {
   id: 'xiaozhai', label: '小寨校区', name: '小寨校区',
   layout: 'amap', area: '小寨-校区',
@@ -5188,17 +5214,20 @@ const XIAOZHAI_AMAP = {
 };
 
 /* 地址气泡的顺序（HTML 里 `#map-tabs` 那排按钮要跟这里一一对应）：
-   校区全图 → 住宅 → 物业服务中心 → 20 号楼 → 北门 → 朝晖体育场南（**渭水**）
-   ＋ 北院停车场（**本部北院**，v2.72）＋ 水院（**雁塔**，v2.79）＋ 小寨（v2.78）。
+   渭水：校区全图 → 住宅 → 物业 → 20 号楼 → 北门 → 朝晖（6 颗）
+   北院：校区全图 → 北院（2 颗，v3.00 补的全图）
+   雁塔：校区全图 → 水院 → 图书馆 → 5号公寓 → 停车场（5 颗，v3.00 补的全图）
+   小寨：校区全图（1 颗，0 台桩）
    🔴 新分区**别往队尾塞**：那排是横滑的，390px 下第 6 颗已经贴着右边缘，
       再往后加就等于「加了但看不见」（v2.65 在回顾的筛选条上刚踩过一次）。
-   住宅放第二颗是因为它紧挨校区北沿、又是独立车棚，值得一进来就能点到。
-   ⚠️ 后三颗各属**另一个校区**，不会和渭水那 6 颗同时出现 ——
-      `syncMapTabs()` 会按 `campus` 把别的校区的页签整颗藏掉。
-      所以「队尾看不见」这条对它们不成立：选中那个校区时，那一排只有一颗。 */
+      v3.00 的两颗全图放在各校区**首位**，既是默认视图也不会被裁掉。
+   ⚠️ 后面几颗各属**另一个校区**，不会和渭水那 6 颗同时出现 ——
+      `syncMapTabs()` 会按 `campus` 把别的校区的页签整颗藏掉。 */
 const MAP_ORDER = [
   AMAP_MAP, ZHU_AMAP, WULIU_MAP, LOU20_AMAP, BEIMEN_AMAP, CHAOHUI_AMAP,
-  BEIYUAN_AMAP, SHUIYUAN_AMAP, TUSHUGUAN_AMAP, W5_AMAP, PARK_AMAP, XIAOZHAI_AMAP,
+  BEIYUAN_OVERVIEW, BEIYUAN_AMAP,
+  YANTA_OVERVIEW, SHUIYUAN_AMAP, TUSHUGUAN_AMAP, W5_AMAP, PARK_AMAP,
+  XIAOZHAI_AMAP,
 ];
 // 总览图上的分区锚点（底图像素坐标，底图 9600×3422）
 //   labelSide:'left' 把地址名排到点的左边 —— 北门这个点在图上紧挨着底图自己的红色「北门」二字，
@@ -5500,7 +5529,7 @@ function warmAMap() {
         return loadScriptOnce('https://webapi.amap.com/maps?v=2.0&key='
           + encodeURIComponent(window.CHD_AMAP_KEY));
       })
-      .then(() => loadScriptOnce('map-amap.js?v=152'))
+      .then(() => loadScriptOnce('map-amap.js?v=153'))
       .catch(() => { /* 预热失败：点开时 ensureAMap() 会重新拉 */ });
   };
   if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 4000 });
@@ -6131,7 +6160,7 @@ function ensureAMap() {
 //    并入本站唯一那份 map-amap.js。改了 js 一定要同时改 ?v（SW 缓存优先）。
 //    2026-10-29 v2.38：内测版退役 —— `map-amap-preview.js` 已删，以后只有一份引擎、一份 HTML，
 //    不再存在「改了 js 要两边同步」这件事。
-      .then(() => loadScriptOnce('map-amap.js?v=152'))
+      .then(() => loadScriptOnce('map-amap.js?v=153'))
       .then(boot)
       .catch(() => done(false));
   });
@@ -6218,7 +6247,9 @@ function onAMapPileClick(ev) {
 let mapMarkedCode = '';
 function paintMapSub(v) {
   if (!v) return;
-  const nm = v.school ? '渭水校区' : (v.name || '');
+  /* v3.00：总览不再是渭水专属 —— 北院 / 雁塔各有自己的「校区全图」，
+     表头要写当前校区的名字，否则点北院全图会看到「渭水校区 · 57 个点位」。 */
+  const nm = v.school ? (campusName(mapCampusScope()) || '渭水校区') : (v.name || '');
   /* v2.78：空视图（雁塔/小寨先接地图、点位还没补）不能写「0 个点位 · 0 个有空位」——
      「0」读起来像「全占满了」或「查询失败」，而实际情况是**还没有采集对象**。
      同时在舞台正中放一句说明：没有那句话，一张干净的底图看起来就是加载失败。 */
@@ -9838,6 +9869,13 @@ const CHANGELOG = [
       + '停车场出口 3 台（P-01 到 P-03，自东向西）。'
       + '雁塔地图上多了三颗页签，取景都收得很紧，不会圈进旁边的教学楼和公寓；'
       + '雁塔现在共 26 台，首页地址栏和一周回顾也跟着多出几块',
+    /* v3.00：四个校区都有「校区全图」。和上面「新接三处场地」不是同一件事
+       （一个加场地、一个加视图），所以另写一条；仍归在 v2.90–当前 这一组里，
+       按「每 0.1 级一条」不必新开条目。 */
+    '地图里每个校区都多了「校区全图」：点开一次看全这个校区的所有场地，'
+      + '每处有充电桩的地址都带名字标在图上，还写着几台、几个空位；'
+      + '点那颗地址圈就能放大到那一片。选校区时默认停在全图，'
+      + '想细看某个场地再点下面的页签',
   ] },
   { v: 'v2.80 – v2.89', d: '2026-11-03 ~ 11-04', items: [
     /* v2.80：定位高亮竞态（线上弱网实测约一半次数补不上）。用户看到的是
@@ -11514,7 +11552,8 @@ $('map-overview').addEventListener('click', fitOverview);
  * 🔴 v2.88：这里原来硬编码 'amap'（渭水）—— 在北院 / 雁塔 / 小寨里点「← 总览」，
  *    会连校区一起跳回渭水（表头变「渭水校区」、地址胶囊换成渭水那 6 颗），
  *    等于「回总览」= 「回渭水」。现在按 `mapCampusScope()` 取该校区
- *    `MAP_ORDER` 里的第一块图：渭水 → amap / 北院 → beiyuan / 雁塔 → shuiyuan。 */
+ *    `MAP_ORDER` 里的第一块图：v3.00 起四个校区第一块都是「校区全图」
+ *    （渭水 → amap / 北院 → campus-beiyuan / 雁塔 → campus-yanta / 小寨 → xiaozhai）。 */
 $('map-back').addEventListener('click', () => {
   const home = MAP_ORDER.find((m) => m.campus === mapCampusScope()) || AMAP_MAP;
   switchMap(home.id);

@@ -342,7 +342,11 @@
    v197 → v198（同日 v2.99）：雁塔再添「5号学生公寓南部」12 台（W-01~W-12）
    与「停车场出口」3 台（P-01~P-03），四个文件都变了；SHELL 仍是 6 项，
    map-data.js 的 ?v= 升到 173。 */
-const CACHE = 'campus-pile-v198';
+/* v198 → v199（2026-11-05 v3.00）：地图里给北院 / 雁塔各补一颗「校区全图」，
+   四个校区都有全图视图了。index.html 与 map-amap.js（聚合圈改用地址短名）都变了，
+   页面里两处 `map-amap.js?v=` 跟着 152 → 153；map-amap.js 本来就不进 SHELL，
+   map-data.js 也没动 → SHELL 仍是 6 项、`map-data.js?v=173` 不动，只换壳名。 */
+const CACHE = 'campus-pile-v199';
 const SHELL = [
   /* v2.86：`'./'` 删了。线上实测 `/` 与 `/index.html` 返回的字节完全相同（md5 一致），
      而 fetch 拦截只把 `'./index.html'` 当主 key，`'./'` 只是回退链的第二顺位 ——

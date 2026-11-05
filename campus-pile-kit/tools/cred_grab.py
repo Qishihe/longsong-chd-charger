@@ -62,7 +62,9 @@ ADMIN_FILE = HOME / ".chd_admin_token"        # Cloudflare Worker 的 ADMIN_TOKE
 SITE = "https://chd-charge.pages.dev"
 # 🔴 反代域名 chd-charge.app.workbuddy.host 会丢掉 x-admin-token，写过一次就报 bad_token，
 #    所以这里钉死 pages.dev，别再改成别的。
-PROBE_IDS = ["XLA23805"]        # 真实设备号，用来验证 token 真的能查到东西
+PROBE_IDS = ["XLA29284"]        # 真实设备号（2026-11-05 实测在线），验证 token 用
+# 🔴 XLA23805 曾经是探针号，2026-11-05 发现走 Worker /api/pile 时命中边缘缓存，
+#    垃圾 token 也能拿到 200 → 验证必须直连上游（见 upstream_scan），别改回去。
 PROXY_HOST, PROXY_PORT = "127.0.0.1", 8888
 GRAB_TIMEOUT = 420              # 等用户点小程序的最长时间（秒）
 
@@ -172,21 +174,51 @@ def read_admin():
 
 # ---------------------------------------------------------------- 验证 / 上传
 
+UPSTREAM = "https://union.zhumanggroup.com"
+UPSTREAM_HEADERS = {
+    "content-type": "application/json",
+    "sd-version": "127",
+    "sd-env": "production",
+    "app-source": "jd",
+    "zm-origin": "1",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126.0.0.0 Safari/537.36",
+}
+
+
+def upstream_scan(out_number, tok, timeout=20):
+    """🔴 直连住芒上游验真（/api/rent/scan-code）。
+    走 Worker /api/pile 不行：边缘缓存命中时连垃圾 token 都拿 200（fetched=0），
+    根本到不了上游，401 永远不会出现。必须自己打上游看真回答。
+    返回 (http状态, 解析后的json)。"""
+    req = urllib.request.Request(
+        UPSTREAM + "/api/rent/scan-code",
+        data=json.dumps({"out_number": out_number}).encode("utf-8"),
+        method="POST")
+    for k, v in UPSTREAM_HEADERS.items():
+        req.add_header(k, v)
+    req.add_header("authorization", "Bearer " + tok)
+    try:
+        with _opener().open(req, timeout=timeout) as r:
+            return r.status, _json_or_text(r.read().decode("utf-8", "replace"))
+    except urllib.error.HTTPError as e:
+        return e.code, _json_or_text(e.read().decode("utf-8", "replace"))
+    except Exception as e:                     # 断网 / DNS / 超时
+        return 0, {"ok": False, "error": "net_" + type(e).__name__, "detail": str(e)[:120]}
+
+
 def verify(tok):
-    """拿真设备号打一次 /api/pile。返回 (是否通过, 说明)。"""
-    st, js = api("POST", "/api/pile", body={"ids": PROBE_IDS, "src": "zm", "token": tok})
-    if st != 200 or not js.get("ok"):
-        err = js.get("error") or ("http_%s" % st)
-        hint = js.get("hint") or ""
-        return False, "%s %s" % (err, hint)
-    devs = js.get("devices") or js.get("list") or []
-    if not devs:
-        return False, "接口通了但没返回设备（token 可能没权限 / 设备号失效）"
-    d = devs[0] if isinstance(devs[0], dict) else {}
-    return True, "查到 %d 个插座（%s state=%s）" % (
-        len(d.get("ports") or d.get("sockets") or []) or len(devs),
-        d.get("id") or d.get("deviceId") or PROBE_IDS[0],
-        d.get("state", "?"))
+    """拿真设备号直连上游打一次。返回 (是否通过, 说明)。"""
+    st, js = upstream_scan(PROBE_IDS[0], tok)
+    if st in (401, 403) or (isinstance(js, dict) and js.get("code") in (401, 403)):
+        msg = js.get("message") or "" if isinstance(js, dict) else str(st)
+        return False, "凭证已失效（上游 %s %s）" % (st, msg)
+    if st != 200:
+        err = js.get("error", "") if isinstance(js, dict) else ""
+        return False, "上游没响应 http=%s %s" % (st, err)
+    slots = (js.get("data") or {}).get("slotsData") or []
+    if not slots:
+        return False, "上游 200 但没返回插座数据（设备号可能失效，换 %s）" % PROBE_IDS[0]
+    return True, "查到 %d 个插座（%s）" % (len(slots), PROBE_IDS[0])
 
 
 def upload(tok, exp, note="cred_grab"):

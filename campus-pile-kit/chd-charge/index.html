@@ -974,7 +974,7 @@
      空 div 仍带着 margin-top:10px，看着像漏了一块。空就整块收掉。 */
   .note:empty{display:none}
   /* 充满要多久（v2.91）：管理员后台 › 工具里的独立估算器。
-     纯本地乘法 —— 不读 cpk.cache、不发请求、跟那 177 台桩没有任何关系。 */
+     纯本地乘法 —— 不读 cpk.cache、不发请求、跟那 185 台桩没有任何关系。 */
   .est-card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 14px}
   .est-hero{
     background:var(--free-soft); border:1px solid var(--free-line); border-radius:14px;
@@ -1680,7 +1680,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v2.97</div>
+    <div id="app-ver" class="foot-ver">版本 v2.98</div>
   </footer>
 </div>
 
@@ -1754,6 +1754,9 @@
          小寨仍然只有「校区全图」（0 台），文案写「校区全图」而不是校区名：
          上面那颗校区胶囊已经写着校区了，重复一遍只会让 390px 下的页签行更挤。 -->
     <button class="map-tab" data-map="shuiyuan" role="tab">水院</button>
+    <!-- v2.98：雁塔第二个场地「图书馆」8 台（T-01~T-08）。同一个校区两颗页签，
+         默认仍落在水院（MAP_ORDER 里 yanta 的第一块），点这颗才切到图书馆。 -->
+    <button class="map-tab" data-map="tushuguan" role="tab">图书馆</button>
     <button class="map-tab" data-map="xiaozhai" role="tab">校区全图</button>
   </div>
   <!-- 2026-10-30 v2.46：这里原来有一条“空闲数 / 已满 / 离线 / 点分区圈放大”图例，已删。
@@ -2061,7 +2064,7 @@
       </button>
       <button class="skin-opt" type="button" data-campus="yanta">
         <span class="opt-dot" aria-hidden="true">雁</span>
-        <span class="skin-txt"><b>雁塔校区</b><small>水利与环境学院，3 台</small></span>
+        <span class="skin-txt"><b>雁塔校区</b><small>水院、图书馆，11 台</small></span>
       </button>
       <button class="skin-opt" type="button" data-campus="xiaozhai">
         <span class="opt-dot" aria-hidden="true">小</span>
@@ -2484,7 +2487,7 @@
 
     <h3 class="help-sec">这个站做什么</h3>
     <p class="help-body">
-      全校 177 台桩摊在一屏：哪个区、几号桩、还剩几个位，不用一台台点开。
+      全校 185 台桩摊在一屏：哪个区、几号桩、还剩几个位，不用一台台点开。
       数据来自充电平台，本站<b>只读</b>，不涉及账号与支付。
     </p>
 
@@ -2650,14 +2653,14 @@
         于是"其实没有数据"这件事被掩盖了 —— 判据两边都由同一个常量兜底时，
         它**永远不会为假**，也就等于没有判据。
      所以让数据**先于主脚本就位** ✓
-     `?v=170` 与下面 `loadScriptOnce('map-data.js?v=171')` **保持同一个 URL**，
+     静态标签与下面 `loadScriptOnce` 里的 `map-data.js?v=` **必须是同一个 URL**（升版时一起改），
      免得缓存出两份；那条懒加载链保留，作为"这个静态标签没加载成功"时的兜底
      （`ensureAMap()` 里已有 `window.CHD_MAP` 守卫，不会重复拉）。 -->
 <!-- 🔴 2026-10-25 加 `defer`：这个文件 39KB（gzip 10KB），走 Cloudflare 时单次
      跨境往返就要 1 秒左右 —— 不带 defer 会**阻塞 HTML 解析**，首屏白屏多等一秒。
      安全前提（已核对）：页面只在函数里读 `window.CHD_MAP`（mapAreaOf / buildScope /
      ensureAMap），没有任何顶层同步读；defer 在 DOMContentLoaded 之前执行完，赶得上 boot()。 -->
-<script src="map-data.js?v=171" defer fetchpriority="low"></script>
+<script src="map-data.js?v=172" defer fetchpriority="low"></script>
 <script>
 'use strict';
 
@@ -2848,7 +2851,7 @@ let CRED_MISSING = false;   // 已确认「这一轮拿不到凭证」（见 pai
 const KEY_DEVICES = 'cpk.devices';
 const KEY_DEVICES_SCHEMA = 'cpk.devices.schema';
 const KEY_DEVICES_TS = 'cpk.devices.ts';
-const DEVICE_SCHEMA = 9;   // 清单格式版本：2 = 支持「桩号 名称 @地址」+ 任意编号前缀
+const DEVICE_SCHEMA = 10;  // 清单格式版本：2 = 支持「桩号 名称 @地址」+ 任意编号前缀
 /* schema 3（2026-10-21）= 「**新增分区要能自动补进老浏览器**」。
  * schema 4（2026-10-21）= 再加一个分区（当时的名字是「物流服务中心」）。
  * schema 5（2026-10-24）= 该分区**改名**「物流服务中心」→「物业服务中心」。
@@ -2894,6 +2897,12 @@ const SCHEMA_ADDED_LOCATIONS = {
      真有数据的校区（一周回顾的校区下拉也会自动多一格，见 `RV_AREAS`）。
      ⚠️ 老浏览器不升到 9 就永远只有 174 台：迁移分支只补「本版新增分区」的桩。 */
   9: ['雁塔-水利与环境学院'],
+  /* 10（2026-11-05 v2.98）= 新增「雁塔-图书馆」8 台（T-01~T-08，自南向北）。
+     这是雁塔校区的**第二个场地**：一周回顾的校区档 yanta 从单成员变成双成员，
+     会自动走 RV_CAMPUS_AREA 的加权重算分支（单成员那条别名分支不再适用）；
+     首页地址胶囊也会自动多补一颗「全校区」。
+     ⚠️ 老浏览器不升到 10 就永远只有 185 台：迁移分支只补「本版新增分区」的桩。 */
+  10: ['雁塔-图书馆'],
 };
 
 /* 桩号**改名**表：{ schema 版本: { 设备 id(大写): 新桩号 } }。
@@ -3241,6 +3250,23 @@ const DEFAULT_DEVICES = [
   { id: 'XLA29643', code: 'Y-01', name: '雁塔 Y-01 号桩', location: '雁塔-水利与环境学院' },
   { id: 'XLA32300', code: 'Y-02', name: '雁塔 Y-02 号桩', location: '雁塔-水利与环境学院' },
   { id: 'XLA29734', code: 'Y-03', name: '雁塔 Y-03 号桩', location: '雁塔-水利与环境学院' },
+  /* 2026-11-05 v2.98 雁塔校区「图书馆」8 台（XLB 前缀，与 XLA 同属住芒 zm 平台，
+     接入前逐台直连上游 scan-code 验过，8 台都是 4 口且能读到实时状态）。
+     🔴 产品方给清单时明确「设备顺序是自南向北」，所以 T-01 在最南、T-08 在最北，
+        下面这串顺序就是落点顺序，别按设备号大小重排。
+     ⚠️ 前缀 'T'（图书馆）与朝晖 TY-01~36 的短码 T01~T36 只差一横：
+        `map-amap.js` 的 LINE_AREAS 必须给这个 loc 登记 `prefix:'T'`，
+        否则 lineSeq 认不出 T-01，会掉进 arcSeq 把 8 台全摆到朝晖两条弧上。
+     ⚠️ 地址写全称「雁塔-图书馆」：胶囊短名走 shortAddrLabel 自动得「图书馆」，
+        卡片地址行与地图表头也用它，不必再进 ADDR_PILL_LABEL（那张表是给 7 字长名用的）。 */
+  { id: 'XLB04443', code: 'T-01', name: '雁塔 T-01 号桩', location: '雁塔-图书馆' },
+  { id: 'XLB04358', code: 'T-02', name: '雁塔 T-02 号桩', location: '雁塔-图书馆' },
+  { id: 'XLB04200', code: 'T-03', name: '雁塔 T-03 号桩', location: '雁塔-图书馆' },
+  { id: 'XLB03660', code: 'T-04', name: '雁塔 T-04 号桩', location: '雁塔-图书馆' },
+  { id: 'XLB03551', code: 'T-05', name: '雁塔 T-05 号桩', location: '雁塔-图书馆' },
+  { id: 'XLB03577', code: 'T-06', name: '雁塔 T-06 号桩', location: '雁塔-图书馆' },
+  { id: 'XLB02955', code: 'T-07', name: '雁塔 T-07 号桩', location: '雁塔-图书馆' },
+  { id: 'XLB03439', code: 'T-08', name: '雁塔 T-08 号桩', location: '雁塔-图书馆' },
 ];
 
 const $ = (id) => document.getElementById(id);
@@ -5081,6 +5107,17 @@ const SHUIYUAN_AMAP = {
   campus: 'yanta',
   fallbackStaticId: 'overview',
 };
+/* 2026-11-05 v2.98：雁塔校区第二个场地「图书馆」8 台（T-01~T-08）。
+   · 取景框由 map-data.js 的 areas['雁塔-图书馆'].line 决定：产品方要求「显示范围缩小一点，
+     不要跨越到其他建筑上」，所以这个框只有约 15×20 米，比水院那块（25×21 米）还紧，
+     只压在图书馆楼本体中间；南边的学生公寓、北边的教学楼、东边的运动场都框不进来。
+   · 落点由 map-amap.js 的 T_GEO 决定（8 个点，自南向北，间距 2 米）。 */
+const TUSHUGUAN_AMAP = {
+  id: 'tushuguan', label: '雁塔 · 图书馆', name: '图书馆',
+  layout: 'amap', area: '雁塔-图书馆',
+  campus: 'yanta',
+  fallbackStaticId: 'overview',
+};
 const XIAOZHAI_AMAP = {
   id: 'xiaozhai', label: '小寨校区', name: '小寨校区',
   layout: 'amap', area: '小寨-校区',
@@ -5099,7 +5136,7 @@ const XIAOZHAI_AMAP = {
       所以「队尾看不见」这条对它们不成立：选中那个校区时，那一排只有一颗。 */
 const MAP_ORDER = [
   AMAP_MAP, ZHU_AMAP, WULIU_MAP, LOU20_AMAP, BEIMEN_AMAP, CHAOHUI_AMAP,
-  BEIYUAN_AMAP, SHUIYUAN_AMAP, XIAOZHAI_AMAP,
+  BEIYUAN_AMAP, SHUIYUAN_AMAP, TUSHUGUAN_AMAP, XIAOZHAI_AMAP,
 ];
 // 总览图上的分区锚点（底图像素坐标，底图 9600×3422）
 //   labelSide:'left' 把地址名排到点的左边 —— 北门这个点在图上紧挨着底图自己的红色「北门」二字，
@@ -5401,7 +5438,7 @@ function warmAMap() {
         return loadScriptOnce('https://webapi.amap.com/maps?v=2.0&key='
           + encodeURIComponent(window.CHD_AMAP_KEY));
       })
-      .then(() => loadScriptOnce('map-amap.js?v=150'))
+      .then(() => loadScriptOnce('map-amap.js?v=151'))
       .catch(() => { /* 预热失败：点开时 ensureAMap() 会重新拉 */ });
   };
   if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 4000 });
@@ -5917,7 +5954,7 @@ function ensureTMap() {
       });
     };
     if (window.CHD_TMAP && window.CHD_MAP) { boot(); return; }
-    loadScriptOnce('map-data.js?v=171')
+    loadScriptOnce('map-data.js?v=172')
       .then(() => loadScriptOnce('map-tmap.js?v=172'))
       .then(boot)
       .catch(() => done(false));
@@ -6022,17 +6059,17 @@ function ensureAMap() {
       });
     };
     if (window.CHD_AMAP && window.CHD_MAP) { boot(); return; }
-    /* 正常情况下 `map-data.js` 已由页面顶部的静态 `<script src="map-data.js?v=171">` 加载好
+    /* 正常情况下 `map-data.js` 已由页面顶部的静态 `<script src="map-data.js?v=172">` 加载好
        （见那里的长注释：冷启动没有它 → `mapAreaOf()` 的两个兜底同值 → 弧线判据恒真 ✗）。
        所以这里先看 `window.CHD_MAP` 在不在，在就跳过，避免重复拉一次；
        若那个静态标签**没加载成功**（例如断网中途失败），仍会走 `loadScriptOnce` 重试 ✓ */
-    (window.CHD_MAP ? Promise.resolve(true) : loadScriptOnce('map-data.js?v=171'))
+    (window.CHD_MAP ? Promise.resolve(true) : loadScriptOnce('map-data.js?v=172'))
       .then(loadLocalKeyOnce)
 // 2026-10-25：v2.22/v2.23 的地图改版（飞入动画 + keepCamera + 首帧标志 + 预热）已随 v2.14
 //    并入本站唯一那份 map-amap.js。改了 js 一定要同时改 ?v（SW 缓存优先）。
 //    2026-10-29 v2.38：内测版退役 —— `map-amap-preview.js` 已删，以后只有一份引擎、一份 HTML，
 //    不再存在「改了 js 要两边同步」这件事。
-      .then(() => loadScriptOnce('map-amap.js?v=150'))
+      .then(() => loadScriptOnce('map-amap.js?v=151'))
       .then(boot)
       .catch(() => done(false));
   });
@@ -8562,6 +8599,13 @@ const RV_AREAS = [
         所以会走 `buildReviewModel` 末尾的别名分支 —— 那一段有「先取引用再赋值」的
         陷阱，见 RV_CAMPUS_AREA 上方那条注释。 */
   { key: 'shuiyuan', name: '水院', campus: 'yanta' },
+  /* 2026-11-05 v2.98：雁塔第二个场地「图书馆」8 台进统计，键 tushuguan
+     与快照站 partitions.mjs 那条逐字一致。
+     🔴 从这一版起 yanta 不再是单成员校区：RV_CAMPUS_AREA[yanta] 有两个成员，
+        buildReviewModel 会走「多成员加权重算」而不是单成员别名；首页地址胶囊
+        也会自动补一颗「全校区」（addrs.length > 1 那条分支）。
+        下面那些「单地址校区（北院/雁塔）」的老注释只适用于北院了。 */
+  { key: 'tushuguan', name: '图书馆', campus: 'yanta' },
 ];
 
 /* 「全部地址」改成按校区看（v2.76），校区从三颗并列胶囊收成一颗下拉（v2.77）。
@@ -9720,6 +9764,10 @@ const CHANGELOG = [
       + '不用再从桌面翻。默认是关着的，想用去「设置 › 扫码快捷按钮」打开，'
       + '并选支付宝还是微信；按住按钮能拖到别处，松手会自己贴边。'
       + '微信不让网页直接跳扫一扫，选了微信只会帮你打开微信，进去自己点右上角的「扫一扫」',
+    /* v2.98：雁塔图书馆 8 台接入。同话题只写一条 —— 取景收紧也并在这里说，不另起一条。 */
+    '雁塔校区图书馆的 8 台充电桩接进来了，桩号 T-01 到 T-08，按从南到北排；'
+      + '地图上多一颗「图书馆」页签，取景只框住图书馆这一小片，不会把旁边的教学楼和学生公寓圈进来。'
+      + '雁塔现在共 11 台，首页地址栏和一周回顾都跟着多了一块',
   ] },
   { v: 'v2.80 – v2.89', d: '2026-11-03 ~ 11-04', items: [
     /* v2.80：定位高亮竞态（线上弱网实测约一半次数补不上）。用户看到的是
@@ -9955,7 +10003,7 @@ const SET_ENTRIES = [
 ];
 
 /* ── 充满要多久（v2.91）────────────────────────────────────────
-   和站里别的功能**没有关系**：不读 cpk.cache、不打 /api/pile、不碰那 177 台桩，
+   和站里别的功能**没有关系**：不读 cpk.cache、不打 /api/pile、不碰那 185 台桩，
    纯本地乘法 + 一个 localStorage 记住你填过什么。断网也能用。
 
    🔴 模型 2026-11-04 重做（v2.91）：按「电流积分」算，不是「电量÷功率」那把除法。

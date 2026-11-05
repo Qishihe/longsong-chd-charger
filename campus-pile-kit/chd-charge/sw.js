@@ -336,7 +336,10 @@
    （小程序首页还得再点一次扫码，不如扫一扫直扫桩上的码）；微信那一路从实测失效的
    `weixin://dl/scan` 降级成只把微信叫到前台 `weixin://`，扫一扫由用户自己点。
    页面变了壳名继续换，SHELL 清单仍没变。 */
-const CACHE = 'campus-pile-v196';
+/* v196 → v197（2026-11-05 v2.98）：雁塔校区加了第二个场地「图书馆」8 台
+   （T-01~T-08），地图取景框比水院更紧。index.html / map-data.js / map-amap.js
+   三个文件都变了，壳名跟着换；SHELL 仍是 6 项，只把 map-data.js 的 ?v= 升到 172。 */
+const CACHE = 'campus-pile-v197';
 const SHELL = [
   /* v2.86：`'./'` 删了。线上实测 `/` 与 `/index.html` 返回的字节完全相同（md5 一致），
      而 fetch 拦截只把 `'./index.html'` 当主 key，`'./'` 只是回退链的第二顺位 ——
@@ -356,17 +359,17 @@ const SHELL = [
      出壳不影响可用性：`<img>` 与 `<script src>` 照样发请求，SW 的
      stale-while-revalidate 会给它们进缓存；代价是断网状态下第一次打开「关于」
      时赞助图是破图。 */
-  /* ⚠️ 必须**带 `?v=167`** —— Cache API 按**完整 URL** 匹配：
-     存不带 query 的 `./map-data.js`，断网时那个带 `?v=165` 的请求**命中不了**，等于没存 ✗
-     ⚠️ 而且这个 `?v=` 要与页面里的**静态标签** `<script src="map-data.js?v=171">`
-     和 `loadScriptOnce('map-data.js?v=171')` **保持一致**（升级时要一起改）✗
+  /* ⚠️ 必须带 `?v=` —— Cache API 按**完整 URL** 匹配：
+     存不带 query 的 `./map-data.js`，断网时那个带 `?v=xxx` 的请求**命中不了**，等于没存 ✗
+     ⚠️ 而且这个 `?v=` 要与页面里的**静态标签** `<script src="map-data.js?v=...">`
+     和 `loadScriptOnce('map-data.js?v=...')` **保持一致**（升级时要一起改）✗
 
      为什么非要缓存它：首访那次导航发生在 SW 接管**之前**，所以它平时进不了缓存 ✗
      而断网时它是 `window.CHD_MAP` 的**唯一来源** —— 取不到就会让
      `mapAreaOf()` 与 `arcArea` 落到**同一个兜底值**，判据恒真，
      朝晖弧于是多画 20号楼(E-*) 与物流(W-*) 的桩（74 个点、24 个重合槽）✗
      （修好后应为 38 个节点 = 36 点 + 2 弧线） */
-  './map-data.js?v=171',
+  './map-data.js?v=172',
 ];
 
 self.addEventListener('install', (event) => {

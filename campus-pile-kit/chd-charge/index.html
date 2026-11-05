@@ -1680,7 +1680,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v3.00</div>
+    <div id="app-ver" class="foot-ver">版本 v3.01</div>
   </footer>
 </div>
 
@@ -5529,7 +5529,7 @@ function warmAMap() {
         return loadScriptOnce('https://webapi.amap.com/maps?v=2.0&key='
           + encodeURIComponent(window.CHD_AMAP_KEY));
       })
-      .then(() => loadScriptOnce('map-amap.js?v=153'))
+      .then(() => loadScriptOnce('map-amap.js?v=154'))
       .catch(() => { /* 预热失败：点开时 ensureAMap() 会重新拉 */ });
   };
   if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 4000 });
@@ -6160,7 +6160,7 @@ function ensureAMap() {
 //    并入本站唯一那份 map-amap.js。改了 js 一定要同时改 ?v（SW 缓存优先）。
 //    2026-10-29 v2.38：内测版退役 —— `map-amap-preview.js` 已删，以后只有一份引擎、一份 HTML，
 //    不再存在「改了 js 要两边同步」这件事。
-      .then(() => loadScriptOnce('map-amap.js?v=153'))
+      .then(() => loadScriptOnce('map-amap.js?v=154'))
       .then(boot)
       .catch(() => done(false));
   });
@@ -9876,6 +9876,11 @@ const CHANGELOG = [
       + '每处有充电桩的地址都带名字标在图上，还写着几台、几个空位；'
       + '点那颗地址圈就能放大到那一片。选校区时默认停在全图，'
       + '想细看某个场地再点下面的页签',
+    /* v3.01：给四个校区的建筑补名字 + 缩放抽稀。和上面「全图」不是同一件事
+       （一个加视图、一个加注记），另写一条；仍归在 v2.90–当前 这一组里。 */
+    '地图里四个校区的建筑现在都有名字了：教学楼、图书馆、体育馆、公寓楼、'
+      + '食堂和湖都标在图上。缩到看全校时只留几处显眼的地标，彼此拉开距离，'
+      + '放大后再一层层把楼名放出来 —— 不会缩小就没字、一放大就糊成一片',
   ] },
   { v: 'v2.80 – v2.89', d: '2026-11-03 ~ 11-04', items: [
     /* v2.80：定位高亮竞态（线上弱网实测约一半次数补不上）。用户看到的是

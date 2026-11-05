@@ -30,9 +30,98 @@
    * 并把校外调成留白后，把下面这行换成 `'amap://styles/<你的styleId>'` 即可 —— 代码不用再动。
    * 详见 `buildLayers()` 里那段说明。 */
   var MAP_STYLE = 'amap://styles/fresh';
+
+  /* ---------- 2026-11-05 v3.01：校区建筑名（四校区都有，缩小自动抽稀） ----------
+   * 来源：渭水用 D.buildings / D.venues / D.water 的形心（83+8+4 个，本来就有名字）；
+   *   另外三个校区没有轮廓数据 —— 用高德 JS API PlaceSearch 在白名单域名下查了主要建筑 POI，
+   *   人工剔掉店铺 / 快递 / 停车场 / 配电室 / 外校同名结果，压成短名后固化在这里。
+   *   🔴 刻意做成**静态数据**：地图打开时不发任何额外请求，凭证 / 限流都跟它无关。
+   * 每项 = [短名, 经度, 纬度, 重要度]；3 = 地标（缩到最小也尽量留）、
+   *   2 = 学院楼 / 公寓 / 食堂（中等缩放才放出来）、1 = 一般附属建筑（放大才显示）。
+   * 短名别超过 6 个字：标签宽度直接参与屏幕碰撞计算，越长越容易被抽掉。 */
+  var CAMPUS_POI = {
+    beiyuan: [
+      ['体育馆', 108.958576, 34.233329, 3],
+      ['学生公寓', 108.960425, 34.232925, 2],
+      ['专家楼', 108.956127, 34.233463, 1],
+      ['国际教育学院', 108.956151, 34.233102, 2],
+      ['学生三餐厅', 108.959762, 34.231920, 2],
+      ['经管学院', 108.958283, 34.231602, 2],
+      ['理学院', 108.956075, 34.232616, 2],
+      ['教学主楼', 108.956491, 34.230895, 3],
+      ['图书馆', 108.955140, 34.231429, 3],
+      ['交通科技大厦', 108.955095, 34.232078, 1],
+      ['学术交流中心', 108.957656, 34.230887, 1],
+      ['测析中心', 108.959566, 34.231101, 1],
+      ['研究生院', 108.956433, 34.230334, 1],
+    ],
+    yanta: [
+      ['图书馆', 108.960791, 34.225449, 3],
+      ['地测学院', 108.961318, 34.225917, 3],
+      ['运动场', 108.962321, 34.225611, 3],
+      ['教学区', 108.959575, 34.226425, 2],
+      ['资源学院', 108.962435, 34.226267, 2],
+      ['研究生院', 108.960064, 34.225717, 2],
+      ['东家属区', 108.960622, 34.226954, 2],
+      ['西家属区', 108.959302, 34.226954, 2],
+      ['学生公寓', 108.958449, 34.226985, 2],
+      ['学生餐厅', 108.959195, 34.225659, 2],
+      ['地质博物馆', 108.959028, 34.225098, 2],
+      ['环境学院', 108.958310, 34.225090, 2],
+      ['餐饮中心', 108.962579, 34.226622, 1],
+      ['春华园', 108.962497, 34.226250, 1],
+    ],
+    xiaozhai: [
+      ['材料学院', 108.948479, 34.224265, 2],
+      ['建筑工程学院', 108.948352, 34.224303, 2],
+      ['建筑馆', 108.948120, 34.224984, 2],
+      ['科技综合楼', 108.948315, 34.223896, 2],
+      ['继续教育学院', 108.949558, 34.224984, 2],
+      ['校本部西院', 108.949858, 34.223047, 2],
+      ['留学生公寓', 108.948506, 34.225055, 1],
+      ['公寓8号楼', 108.947371, 34.224994, 1],
+      ['研究生院', 108.948279, 34.224261, 1],
+    ],
+  };
+  /* 缩放分级：越缩小 → 标签之间要求的最小空白越大、名额越少、重要度门槛越高。
+   * 这张表 + 下面 applyLabelLod() 的屏幕空间贪心，就是「缩小后不要挤成一团」的全部答案：
+   * 不是按个数硬截断（那样仍会留下挨在一起的两个），而是先按重要度排序，
+   * 再逐个投影到屏幕，跟已选标签 / 地址聚合圈比矩形，压到了就整颗不显示。 */
+  /* pad = **两个标签之间**要求的最小空白（px），不是单侧外扩量 ——
+     首版把它当成单侧外扩，双向各扩 52px 后全校只剩 1 个楼名（实测 z14.6），
+     稀到看不出「给建筑加了名字」。现在 labelRect() 里只扩 pad/2，
+     于是中心距要求 ≈ 平均文字宽 + pad，390px 屏上一档能匀开 8~10 个。 */
+  var LABEL_LOD = [
+    { min: 0,    pad: 12, cap: 12, minW: 3 },
+    { min: 15.5, pad: 10, cap: 18, minW: 2 },
+    { min: 16.5, pad: 8,  cap: 28, minW: 1 },
+    { min: 17.5, pad: 6,  cap: 48, minW: 1 },
+    { min: 18.5, pad: 4,  cap: 99, minW: 1 },
+  ];
+  var LABEL_H = 15;
+  /* 原始地名里有几个长到占半屏（「水与环境原位试验场」「朝晖园学生社区示范性园区」），
+   * 缩小态一颗就能把周围三颗挤掉。统一换成现场惯用的短名，宽度砍掉一半以上。
+   * 只改显示，不动 map-data.js（也就不必升 map-data.js?v= / SHELL）。 */
+  var LABEL_ALIAS = {
+    '水与环境原位试验场': '原位试验场',
+    '长安大学汽车试验场': '汽车试验场',
+    '朝晖园学生社区示范性园区': '朝晖园学生社区',
+    '现代工程训练中心': '工程训练中心',
+    '大学生活动中心': '活动中心',
+    '长安大学医院': '校医院',
+    '弘毅园道路实验中心': '道路实验中心',
+    '弘毅园桥结实验中心': '桥结实验中心',
+    '弘毅园岩隧实验中心': '岩隧实验中心',
+    '明德园智通大厦': '智通大厦',
+    '明德园创新大厦': '创新大厦',
+    '明德园扶轮大厦': '扶轮大厦',
+  };
   var map = null, host = null;
   var bldLayer = null, venueLayer = null, waterLayer = null, campusLayer = null;
-  var labelLayer = null;        // 楼名 / 地标名 / 水域名（HTML Marker 数组，缩放够近才显）
+  var labelLayer = null;        // 楼名 / 地标名 / 水域名（HTML Marker 数组）
+  var labelMeta = null;         // v3.01：与 labelLayer 平行的元数据，供屏幕空间 LOD 用
+  var labelVisible = 0;         // 当前真正挂在 map 上的楼名数（debug / 验收读它）
+  var labelTierNow = null;      // 本轮 LOD 实际用的档位（别在 debug 里重算：getZoom 会滞后）
   var badgeLayer = null;        // 总览的分区气泡
   var pinLayer = null;          // 桩层（点内直接写桩号，不再单独挂文字标签）
   var clusterLayer = null;      // 缩小时的「分区聚合圈」层（绿圈=可用数，红圈=×）
@@ -673,7 +762,11 @@
             return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
           })
         + '</div>',
-      zIndex: 60,
+      /* v3.01：楼名是**背景注记**，不该压在桩号 / 地址圈上面。
+         以前 zIndex=60，放大到图书馆那 8 台时「图书馆」三个字正好盖在 T04/T05
+         的桩号列上（截图实测）。降到 20 后前景标记（桩点、聚合圈 90、徽章）
+         盖在楼名之上，重叠时先保证数据可读。 */
+      zIndex: 20,
       // 标签只作显示用，别挡住底下的桩点点击
       clickable: false,
     });
@@ -742,20 +835,32 @@
      * 主干路名不在这里 —— 我们**没有道路数据**（`D.roads` 不存在），
      * 靠高德自己的注记出：见 `new AMap.Map` 里的 `showLabel: true`。 */
     var labels = [];
+    function addLabel(n0, c, kind, w, area) {
+      if (!c || !n0) return;
+      var n = LABEL_ALIAS[n0] || n0;
+      labels.push({ m: labelMarker(n, c, kind), pos: c, name: n, w: w,
+                    textW: labelTextWidth(n), area: area || 0 });
+    }
     (D.buildings || []).forEach(function (b) {
-      var c = centroidOf(b.p);
-      if (c && b.n) labels.push(labelMarker(b.n, c, 'bld'));
+      addLabel(b.n, centroidOf(b.p), 'bld', labelRank(b.n), ringArea(b.p));
     });
     (D.venues || []).forEach(function (v) {
-      var c = centroidOf(v.p);
-      if (c && v.n) labels.push(labelMarker(v.n, c, 'venue'));
+      addLabel(v.n, centroidOf(v.p), 'venue', 3, ringArea(v.p));
     });
     (D.water || []).forEach(function (w) {
-      var c = centroidOf(w.p);
-      if (c && w.n) labels.push(labelMarker(w.n, c, 'water'));
+      addLabel(w.n, centroidOf(w.p), 'water', 3, ringArea(w.p));
     });
-    labelLayer = labels;
-    labels.forEach(function (m) { m.setMap(map); });
+    /* v3.01：北院 / 雁塔 / 小寨没有轮廓数据，补静态 POI 点位。
+     * 它们和渭水那 95 个一起进 LOD，靠视口裁剪自然分开（渭水距市区 16 km）。 */
+    Object.keys(CAMPUS_POI).forEach(function (cid) {
+      CAMPUS_POI[cid].forEach(function (it) {
+        addLabel(it[0], [it[1], it[2]], 'bld', it[3], 0);
+      });
+    });
+    labelMeta = labels;
+    labelLayer = labels.map(function (it) { return it.m; });
+    /* 🔴 显隐完全交给 applyLabelLod()：build() 里的 applyZoomTier() 会立刻调一次。
+     *    以前这里一建就全挂，再靠 z>=16.3 一刀切 —— 于是「缩小全没、放大全糊」。 */
 
     /* 🔴 2026-10-21：缩放分级**不再在这里绑**。
      *
@@ -829,6 +934,121 @@
    *   `fitBBox(..., animate)` 的分支留着没删，但当前没有任何调用点传 true。 */
   var FLY_MS = 700;
   var firstCamera = true;
+
+  /* ---------- 2026-11-05 v3.01：楼名的屏幕空间分级 ----------
+   * 为什么不用「z < 16.3 全藏」那种一刀切：产品方 2026-10-25 加这条是因为总览上
+   * 几十个楼名糊住底图，但代价是**缩小后一个楼名都没有**。现在改成：
+   *   ① 按 zoom 选档（LABEL_LOD）：缩得越狠，要求的最小空白越大、名额越少、门槛越高；
+   *   ② 按重要度（地标 > 学院/公寓 > 附属）和大楼面积排序；
+   *   ③ 逐个用 map.lngLatToContainer() 投影到容器像素，跟已选标签 + 地址聚合圈
+   *      比矩形，压到就整颗不显示；边缘放不下的也整颗不显示（v3.00 名字被裁的教训）。
+   * 结果是「缩小只剩几处地标且彼此留白，放大逐步把每栋楼的名字放出来」，
+   * 而且和用户怎么拖拽、容器多宽多高都无关 —— 判据是真实像素，不是写死的 zoom。
+   *
+   * ⚠️ 投影 API 已在 2026-11-05 实测存在（AMap 2.0：`lngLatToContainer` / `getSize`
+   *    都是 function）。#44 的教训是别用没验过的类，这里先验过再上。 */
+
+  /** 中文按 11.4px、ASCII 按 6.5px 估算标签宽度（.campus-label 是 11px + .2px 字距） */
+  function labelTextWidth(s) {
+    var w = 8;
+    for (var i = 0; i < s.length; i++) w += s.charCodeAt(i) < 256 ? 6.5 : 11.4;
+    return w;
+  }
+  /** 渭水那 83 栋按名字分重要度；场地 / 水域在 buildLayers 里直接给 3 */
+  function labelRank(n) {
+    if (/图书馆|体育场|体育馆|游泳馆|教学楼|主楼|食堂|餐厅|医院|大厦|湖|北辰楼|活动中心|训练中心/.test(n)) return 3;
+    if (/学院|公寓|实验|大楼|中心|馆|园/.test(n)) return 2;
+    return 1;
+  }
+  /** 轮廓面积（鞋带公式，只为同档排序用，单位无所谓） */
+  function ringArea(p) {
+    var r = (p && p[0]) || [];
+    if (r.length < 3) return 0;
+    var a = 0;
+    for (var i = 0; i < r.length; i++) {
+      var q = r[(i + 1) % r.length];
+      a += r[i][0] * q[1] - q[0] * r[i][1];
+    }
+    return Math.abs(a / 2);
+  }
+  function labelProject(pos) {
+    if (!map || !map.lngLatToContainer) return null;
+    try {
+      var px = map.lngLatToContainer(LL(pos));
+      if (!px) return null;
+      var x = typeof px.getX === 'function' ? px.getX() : Number(px.x);
+      var y = typeof px.getY === 'function' ? px.getY() : Number(px.y);
+      return (isFinite(x) && isFinite(y)) ? { x: x, y: y } : null;
+    } catch (e) { return null; }
+  }
+  function labelRect(p, w, h, gap) {
+    /* gap 是「两标签之间」的空白，单侧只扩一半 —— 两边各扩一半才等于 gap。 */
+    var g = gap / 2;
+    return { l: p.x - w / 2 - g, r: p.x + w / 2 + g,
+             t: p.y - h / 2 - g, b: p.y + h / 2 + g };
+  }
+  function labelHit(a, c) {
+    return a.l < c.r && c.l < a.r && a.t < c.b && c.t < a.b;
+  }
+
+  function applyLabelLod(z) {
+    if (!map || !labelMeta || !labelMeta.length) return;
+    var zz = (typeof z === 'number') ? z : (map.getZoom ? map.getZoom() : 0);
+    var tier = LABEL_LOD[0];
+    for (var i = 1; i < LABEL_LOD.length; i++) if (zz >= LABEL_LOD[i].min) tier = LABEL_LOD[i];
+    labelTierNow = { z: zz, pad: tier.pad, cap: tier.cap, minW: tier.minW };
+    var W = 0, H = 0;
+    try {
+      var sz = map.getSize();
+      W = typeof sz.getWidth === 'function' ? sz.getWidth() : Number(sz.width);
+      H = typeof sz.getHeight === 'function' ? sz.getHeight() : Number(sz.height);
+    } catch (e) {}
+    if (!(W > 0 && H > 0) && host) { W = host.clientWidth; H = host.clientHeight; }
+    if (!(W > 0 && H > 0)) return;
+
+    labelMeta.forEach(function (it) { try { it.m.setMap(null); } catch (e) {} });
+    var taken = [];
+    /* 总览的聚合圈（带「水院 / 图书馆」这类地址名）先占住位置，楼名别贴上去。
+     * 只在真的显示聚合圈时占位，放大到某个场地后就不该再挡住那一片的楼名。 */
+    if (clustered && curView === 'campus') {
+      Object.keys(CLUSTER_POS || {}).forEach(function (loc) {
+        var p = labelProject(CLUSTER_POS[loc]);
+        if (p) taken.push(labelRect(p, 46, 32, tier.pad));
+      });
+    }
+    var list = labelMeta.slice().sort(function (a, c) {
+      return (c.w - a.w) || (c.area - a.area) || (a.textW - c.textW) || (a.pos[0] - c.pos[0]);
+    });
+    var shown = 0;
+    for (var k = 0; k < list.length; k++) {
+      var it = list[k];
+      if (it.w < tier.minW || shown >= tier.cap) continue;
+      var p = labelProject(it.pos);
+      if (!p) continue;
+      if (p.x - it.textW / 2 < 6 || p.x + it.textW / 2 > W - 6
+          || p.y - LABEL_H / 2 < 6 || p.y + LABEL_H / 2 > H - 6) continue;
+      var box = labelRect(p, it.textW, LABEL_H, tier.pad);
+      var clash = false;
+      for (var q = 0; q < taken.length; q++) if (labelHit(box, taken[q])) { clash = true; break; }
+      if (clash) continue;
+      taken.push(box);
+      try { it.m.setMap(map); } catch (e) {}
+      shown++;
+    }
+    labelVisible = shown;
+  }
+  var labelMoveTimer = 0;
+  function onLabelMoveEnd() {
+    if (labelMoveTimer) return;
+    labelMoveTimer = setTimeout(function () {
+      labelMoveTimer = 0;
+      /* 程序化取景期间 getZoom 会长期滞后（实测 2.7s），别拿假档位刷标签；
+       * fitBBox 自己的两枪带显式目标 zoom，会走 applyZoomTier → applyLabelLod。 */
+      if (!map || Date.now() - progZoomAt < 1200) return;
+      applyLabelLod();
+    }, 140);
+  }
+
   function applyZoomTier(z, allowViewReset) {
     if (!host) return;
     if (typeof z !== 'number') z = map ? map.getZoom() : 0;
@@ -867,22 +1087,19 @@
     // 小点大小**随 gap 自适应**：gap 越小点越小，缩到很小时不会糊成一坨。
     // 上限 13px（再大就退回徽章档了），下限 5px（保证还看得见）。
     host.style.setProperty('--pile-gap', gap.toFixed(2) + 'px');
-    /* 建筑层 + 楼名标签随缩放显隐（阈值 16.3）。
-     * ⚠️ 2026-10-25 从 onZoomTier 挪到这里：那边只有**用户手势缩放**才会跑到，
-     *   而「打开地图的第一帧」是程序化取景（fitBBox → 本函数），**永远不经过它**。
-     *   于是 z≈15 的总览上几十个楼名全铺着，把四个分区圈和底图都糊住（截图实测）。
-     *   放在这里以后，程序化取景与手势缩放**共用同一条阈值**，不会再出现两套口径。
-     *   `bldLayer` 自 2026-10-21 起是 AMap.Polygon 数组（#44 修掉 GeoJSON），
-     *   不能调 .show()/.setOptions()，只能逐元素 setMap(map|null)。 */
+    /* 建筑**轮廓**仍按 16.3 一刀切（缩到全校时几十块灰面会糊住底图，2026-10-25 实测）。
+     * 🔴 v3.01：楼**名**不再跟着一起藏 —— 以前缩小到全图一个楼名都没有，
+     *    放大又 95 个一起铺开。现在交给 applyLabelLod() 做分级 + 屏幕碰撞抽稀，
+     *    仍然放在这里（程序化取景第一帧也会跑到），口径只有一套。
+     *    `bldLayer` 是 AMap.Polygon 数组（#44 修掉 GeoJSON），不能调 .show()，
+     *    只能逐元素 setMap(map|null)。 */
     var showDetail = z >= 16.3;
-    [bldLayer, labelLayer].forEach(function (arr) {
-      if (!arr) return;
-      arr.forEach(function (m) {
-        try { m.setMap(showDetail ? map : null); } catch (e) {}
-      });
+    (bldLayer || []).forEach(function (m) {
+      try { m.setMap(showDetail ? map : null); } catch (e) {}
     });
     // 显隐统一交给 syncLayers 裁决（它同时感知分区过滤 + 缩放态），这里只负责定态
     syncLayers();
+    applyLabelLod(z);
   }
 
   /* 缩放分级的**唯一入口**（2026-10-21 新增）。
@@ -1428,6 +1645,8 @@
           //    那里第一个 AMap.GeoJSON 就会抛错，绑在函数末尾等于永不绑定（v1.67~v2.00 的 P0）。
           map.on('zoomend', onZoomTier);
           map.on('zoomchange', onZoomTier);
+          /* v3.01：楼名按屏幕位置抽稀，平移后可见集合会变，必须重算一次。 */
+          map.on('moveend', onLabelMoveEnd);
           ready = true;
           try { map.resize(); } catch (e) {}
           try { applyCamera(); } catch (e) { console.warn('[CHD_AMAP] 相机失败', e); }
@@ -1597,6 +1816,9 @@
         venue: venueLayer ? venueLayer.length : 0,
         water: waterLayer ? waterLayer.length : 0,
         labels: labelLayer ? labelLayer.length : 0,
+        /* v3.01：真正挂在图上的楼名数与本轮实际档位，验收直接读它 */
+        labelsVisible: labelVisible,
+        labelTier: labelTierNow,
         mapStyle: (map && map.getMapStyle) ? (function () {
           try {
             var st = map.getMapStyle();
@@ -1622,6 +1844,7 @@
         host.classList.remove('zoom-cluster', 'zoom-dot');
         host.style.removeProperty('--pile-gap');
       }
+      labelMeta = null; labelLayer = null; labelVisible = 0; labelTierNow = null;
       map = null; ready = false;
       if (host) host.innerHTML = '';
     },

@@ -79,6 +79,13 @@ HEADERS = """\
   Cache-Control: public, max-age=300
   Access-Control-Allow-Origin: *
 
+# README 配图（仓库根 README.md 用绝对地址引用本站，见 img/ 目录）
+# 为什么不走 GitHub 自己的图片代理：camo.githubusercontent.com 国内基本打不开，
+# README 里的图在网页上全是破图。挂在自己的域名下，能打开本站就能看到图。
+# 图很少变，一天缓存；换图时改文件名（带版本号）比刷 CDN 靠谱。
+/img/*
+  Cache-Control: public, max-age=86400
+
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer-when-downgrade

@@ -3,7 +3,7 @@
 > 一个页面看清校园里每台共享充电桩还剩几个空位 —— 不用装 App、不用登录、不用扫码。
 
 <p align="center">
-  <img src="docs/screenshots/home.png" width="285" alt="主界面：天气提醒、空闲插座统计与每台桩的实时空位">
+  <img src="https://chd-charge.pages.dev/img/home.png" width="285" alt="主界面：天气提醒、空闲插座统计与每台桩的实时空位">
 </p>
 
 <p align="center">
@@ -43,17 +43,17 @@
 ## 界面
 
 <p align="center">
-  <img src="docs/screenshots/map.png" width="215" alt="地图：校区全图，建筑名、地址聚合圈与空位数">
-  <img src="docs/screenshots/review.png" width="215" alt="一周回顾：七天各时段占用率柱状图与热力图">
-  <img src="docs/screenshots/admin.png" width="215" alt="管理员后台：快照新鲜度、设备凭证、自动续期与密码解锁">
+  <img src="https://chd-charge.pages.dev/img/map.png" width="215" alt="地图：校区全图，建筑名、地址聚合圈与空位数">
+  <img src="https://chd-charge.pages.dev/img/review.png" width="215" alt="一周回顾：七天各时段占用率柱状图与热力图">
+  <img src="https://chd-charge.pages.dev/img/admin.png" width="215" alt="管理员后台：快照新鲜度、设备凭证、自动续期与密码解锁">
 </p>
 
 <p align="center"><sub>校区全图 · 一周回顾 · 管理员后台</sub></p>
 
 <p align="center">
-  <img src="docs/screenshots/settings.png" width="215" alt="设置：校区、排序、显示方式、皮肤、字体、天气提醒、扫码快捷按钮">
-  <img src="docs/screenshots/share.png" width="215" alt="分享本站：指向本站的二维码、复制链接与分享给同学">
-  <img src="docs/screenshots/dark.png" width="215" alt="暗色主题下的首页">
+  <img src="https://chd-charge.pages.dev/img/settings.png" width="215" alt="设置：校区、排序、显示方式、皮肤、字体、天气提醒、扫码快捷按钮">
+  <img src="https://chd-charge.pages.dev/img/share.png" width="215" alt="分享本站：指向本站的二维码、复制链接与分享给同学">
+  <img src="https://chd-charge.pages.dev/img/dark.png" width="215" alt="暗色主题下的首页">
 </p>
 
 <p align="center"><sub>设置 · 分享本站 · 暗色主题</sub></p>

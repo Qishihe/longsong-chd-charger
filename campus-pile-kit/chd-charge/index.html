@@ -139,10 +139,10 @@
   .about-para{padding:13px 14px}
   .about-para .note{margin:0 0 8px; font-size:12.5px; line-height:1.65}
   .about-para .note:last-child{margin-bottom:0}
-  /* 分享本站（v3.03）—— 「设置 › 关于」底部的二维码卡片。
+  /* 分享本站（v3.04）—— 从「关于」里拆出来的独立弹窗。
      二维码必须是黑码点 + 白底：反色的码相机承不了（实测扫不出来），
      所以 `.share-qr` 的白底是**写死**的，不跟暗色皮肤 / 本机暗色模式走。 */
-  .share-box{text-align:center; padding:15px 14px 13px}
+  .share-box{text-align:center; padding:2px 0 2px}
   .share-qr{
     display:block; width:168px; height:168px; margin:0 auto;
     border-radius:10px; background:#fff;
@@ -153,20 +153,18 @@
     text-decoration-thickness:1px; word-break:break-all;
   }
   .share-hint{font-size:11.5px; color:var(--hint); line-height:1.6; margin:6px 0 0}
-  .share-btns{display:flex; gap:8px; padding:0 14px 14px}
-  .share-btns .icon-btn{flex:1; justify-content:center; min-width:0}
   /* 主按钮用「实底强调色 + 对应字色」，照的是 .loc-pill.on / .map-tab.on 那套既有写法。
      ⚠️ 不能直接套 .icon-btn.primary —— 它的底是 `var(--accent,var(--free-soft))`、字是
      `var(--on-accent)`，而**默认皮肤根本没定义 --accent**（回退成 #E1F5EE 淡绿底），
      字却仍是 --on-accent 的白色 → 白字淡绿底，几乎看不见（v3.03 截图实测）。
      这里回退到 `--free` (#1D9E75)，亮/暗两种都是绿底+白字；开了皮肤则跟着 --accent / --on-accent 走。 */
-  .share-btns .icon-btn.share-go{
+  .icon-btn.share-go{
     background:var(--accent,var(--free)); border-color:var(--accent,var(--free));
     color:var(--on-accent,#fff);
   }
   /* ⚠️ `.icon-btn` 自带 `display:inline-flex`，UA 的 `[hidden]{display:none}` 盖不住它，
      所以 JS 把「分享」按钮藏掉时这条要在场。 */
-  .share-btns .icon-btn[hidden]{display:none}
+  .icon-btn[hidden]{display:none}
 
   /* 「版本更新」弹窗（2026-10-29）：左侧竖条 + 版本 / 「最新」标签 / 日期 + 条目。
      数据在脚本里的 CHANGELOG 常量，纯本地、不联网 —— 所以它永远能打开，
@@ -1708,7 +1706,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v3.03</div>
+    <div id="app-ver" class="foot-ver">版本 v3.04</div>
   </footer>
 </div>
 
@@ -2008,6 +2006,12 @@
          这里**不要**再手写一个 v 号，否则两处迟早对不上。 -->
     <div class="set-sec">关于</div>
     <div class="set-card">
+      <!-- v3.04：分享从「关于」里拆出来单列一颗 —— 想推荐给同学的人不用先翻进关于页。 -->
+      <button class="set-row" type="button" id="set-share-btn">
+        <span class="set-ico" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 10V2.8M5.3 5.5 8 2.8l2.7 2.7"/><path d="M3.4 9.9v2.3a1.2 1.2 0 0 0 1.2 1.2h6.8a1.2 1.2 0 0 0 1.2-1.2V9.9"/></svg></span>
+        <span class="set-txt">分享本站</span>
+        <span class="set-caret" aria-hidden="true"></span>
+      </button>
       <button class="set-row" type="button" id="set-about-btn">
         <span class="set-ico" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="6.2"/><path d="M8 7.3v4.1"/><circle cx="8" cy="4.9" r=".85" fill="currentColor" stroke="none"/></svg></span>
         <span class="set-txt">关于本站</span>
@@ -2482,25 +2486,31 @@
         <p class="note" style="margin-top:8px">在此向所有开源开发者致以感谢。开源社区的共享精神，为本网站的实现提供了重要的技术支撑。</p>
       </div>
     </div>
-    <div class="set-sec">分享本站</div>
-    <div class="set-card">
-      <!-- v3.03：二维码是 share-qr.png（从成品宣传图里裁出码心、二值化后补 4 个模块的白边）。
-           剪完用 zxing 解一遍校验，内容必须是 https://chd-charge.pages.dev/ ——
-           以后换图也要重解一次，别直接扛一张不知道指向哪的码。
-           ⚠️ 带 `?v=1`：图片名固定，不带查询参数的话以后换码会被浏览器 / CDN 缓存钉住。
-           不进 SHELL（只在这个弹窗里看得见，不值得让首装先付 6KB）。 -->
-      <div class="share-box">
-        <img class="share-qr" src="./share-qr.png?v=1" alt="长安大学充电桩查询网址二维码：chd-charge.pages.dev" width="168" height="168" loading="lazy" decoding="async">
-        <div><a class="share-url" href="https://chd-charge.pages.dev/" target="_blank" rel="noopener noreferrer">chd-charge.pages.dev</a></div>
-        <p class="share-hint">扫一扫或转发给同学，用浏览器打开就能用，不用装 App</p>
-      </div>
-      <div class="share-btns">
-        <button class="icon-btn" type="button" id="share-copy-btn">复制链接</button>
-        <button class="icon-btn share-go" type="button" id="share-send-btn">分享给同学</button>
-      </div>
-    </div>
-
     <p class="note">本项目为学生公益项目，持续维护更新中，欢迎大家继续反馈问题、提供数据。</p>
+  </div>
+</dialog>
+
+<!-- 分享本站（v3.04）：从「关于」里拆出来，入口 = 设置 › 分享本站。
+     ❤️ 二维码是 share-qr.png（从成品宣传图里裁出码心、二值化后补 4 个模块的白边）。
+        剪完用 zxing 解一遍校验，内容必须是 https://chd-charge.pages.dev/ ——
+        以后换图也要重解一次，别直接扛一张不知道指向哪的码。
+     ⚠️ 带 `?v=1`：图片名固定，不带查询参数的话以后换码会被浏览器 / CDN 缓存钉住。
+        不进 SHELL（只在这个弹窗里看得见，不值得让首装先付 6KB）。 -->
+<dialog id="dlg-share" class="sub-dlg" aria-label="分享本站">
+  <div class="dlg-body">
+    <div class="dlg-head">
+      <h2>分享本站</h2>
+      <button class="x-btn" data-close aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+    </div>
+    <div class="share-box">
+      <img class="share-qr" src="./share-qr.png?v=1" alt="长安大学充电桩查询网址二维码：chd-charge.pages.dev" width="168" height="168" loading="lazy" decoding="async">
+      <div><a class="share-url" href="https://chd-charge.pages.dev/" target="_blank" rel="noopener noreferrer">chd-charge.pages.dev</a></div>
+      <p class="share-hint">扫一扫或转发给同学，用浏览器打开就能用，不用装 App</p>
+    </div>
+    <div class="row">
+      <button class="icon-btn" type="button" id="share-copy-btn">复制链接</button>
+      <button class="icon-btn share-go" type="button" id="share-send-btn">分享给同学</button>
+    </div>
   </div>
 </dialog>
 
@@ -9931,12 +9941,14 @@ const CHANGELOG = [
     '地图里四个校区的建筑现在都有名字了：教学楼、图书馆、体育馆、公寓楼、'
       + '食堂和湖都标在图上。缩到看全校时只留几处显眼的地标，彼此拉开距离，'
       + '放大后再一层层把楼名放出来 —— 不会缩小就没字、一放大就糊成一片',
-    /* v3.03：关于页加「分享本站」。和上面三条都不是同一件事（一个加视图、一个加注记、
-       这条是新增分享入口），另写一条；仍归在 v2.90–当前 这一组。
+    /* v3.03/04：新增分享入口。和上面三条都不是同一件事（一个加视图、一个加注记、
+       这条是分享入口），另写一条；仍归在 v2.90–当前 这一组。
+       v3.04 又从「关于」里拆出来单列一颗按钮 —— 同话题只写一条，原地改写。
        ⚠️ 文案里别出现「源水校区」与「皮肤」—— _check_chg_merge 对这两个词有专项计数断言。 */
-    '「设置 › 关于」底部多了一块「分享本站」：一张指向本站的二维码，'
-      + '配「复制链接」和「分享给同学」两个按钮。想推荐给室友又懒得讲网址，'
-      + '直接把码转发或截图过去，对方扫一下就能打开，不用装任何东西',
+    '设置里多了一颗「分享本站」（就在「关于本站」上面）：'
+      + '点开是一张指向本站的二维码，配「复制链接」和「分享给同学」两个按钮。'
+      + '想推荐给室友又懒得讲网址，直接把码转发或截图过去，'
+      + '对方扫一下就能打开，不用装任何东西',
   ] },
   { v: 'v2.80 – v2.89', d: '2026-11-03 ~ 11-04', items: [
     /* v2.80：定位高亮竞态（线上弱网实测约一半次数补不上）。用户看到的是
@@ -10162,6 +10174,8 @@ const SET_ENTRIES = [
   /* 天气提醒（v2.92）：开关 + 状态 + 立即检查。onOpen 里补当前开关与上次结果 ——
      弹窗是静态 DOM，不补的话第二次打开会显示上一次的状态。 */
   { btn: 'set-wx-btn', dlg: 'dlg-wx', onOpen: () => wxOpenDlg() },
+  /* v3.04：分享单列一颗，在「关于本站」上方。 */
+  { btn: 'set-share-btn', dlg: 'dlg-share' },
   { btn: 'set-about-btn', dlg: 'dlg-about' },
   /* v2.91：管理员后台 › 工具 › 充满要多久。没有 onOpen —— 打开就是上次填的那组数，
      值在 boot 时已经灌进输入框了（见下面 estInit()）。 */
@@ -11735,7 +11749,7 @@ document.querySelectorAll('[data-close]').forEach((btn) => {
 })();
 
 /* ---------------- 分享本站（v3.03） ----------------
-   「设置 › 关于」底部那块：二维码 + 复制链接 / 系统分享。
+   「设置 › 分享本站」弹窗：二维码 + 复制链接 / 系统分享。
    两条注意：
    1. 分享地址**固定写主域**，别用 location.href —— 页面可能开在快照站（workbuddy.host）
       或本地调试地址上，发出去的东西必须是对的入口。

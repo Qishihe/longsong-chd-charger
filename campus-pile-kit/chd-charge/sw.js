@@ -350,7 +350,10 @@
    并按缩放做分级抽稀（缩小只留地标、不挤字）。改了 index.html 与 map-amap.js，
    页面里两处 `map-amap.js?v=` 跟着 153 → 154；map-data.js 没动
    → SHELL 仍是 6 项、`map-data.js?v=173` 不动，只换壳名。 */
-const CACHE = 'campus-pile-v200';
+/* v200 → v201（2026-11-06 v3.02）：只改「设置 › 关于」里的致谢名单 ——
+   按校区拆分（渭水 / 本部北院 / 雁塔），并给「采集设备编码功能」单列一句感谢。
+   纯文案，没有新增或删除资源 → 页面里 ?v= 全不动、SHELL 仍是 6 项，只换壳名。 */
+const CACHE = 'campus-pile-v201';
 const SHELL = [
   /* v2.86：`'./'` 删了。线上实测 `/` 与 `/index.html` 返回的字节完全相同（md5 一致），
      而 fetch 拦截只把 `'./index.html'` 当主 key，`'./'` 只是回退链的第二顺位 ——

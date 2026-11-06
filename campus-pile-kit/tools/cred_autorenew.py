@@ -103,6 +103,33 @@ def applet_pids():
     return pids
 
 
+def report(ok, err="", phase="", exp_before=0, exp_after=0):
+    """把这一轮的结果推给 Worker，让「设置 › 设备凭证」里那张「自动续期」卡有内容。
+
+    为什么要有它：换证是无人值守跑的，成功了 exp 会变新、页面一眼看得出；
+    **失败却只剩一个 expired**，分不清「刚过期、任务还没轮到」和「已经连败三天」。
+
+    三条红线：
+      1. 必须在 **Fiddler 收尾之后** 调用 —— 代理还挂在 8888 时，这个请求要多走一跳 Fiddler。
+      2. **不能调 cg.read_admin()**：它在文件缺失时 sys.exit()，会把计划任务判成失败。
+      3. 任何异常都吞掉。这只是可观测性，不能反过来影响换证本身。
+    """
+    try:
+        f = cg.ADMIN_FILE
+        admin = f.read_text(encoding="utf-8", errors="ignore").strip() if f.exists() else ""
+        if len(admin) < 8:
+            return
+        st, js = cg.api("POST", "/api/cred/renew",
+                        headers={"x-admin-token": admin},
+                        body={"ok": bool(ok), "phase": phase, "err": err,
+                              "expBefore": exp_before, "expAfter": exp_after},
+                        timeout=15)
+        if st != 200 or not js.get("ok"):
+            log("  上报续期状态失败 http=%s %s" % (st, js))
+    except Exception as e:
+        log("  上报续期状态异常：%s: %s" % (type(e).__name__, e))
+
+
 def renew(force_note=""):
     """跑一轮换证。返回 (ok, 说明)。"""
     tok_before, exp_before = token_status()
@@ -192,6 +219,11 @@ def main():
         ok, msg = False, "异常：%s: %s" % (type(e).__name__, e)
 
     log(("✓ " if ok else "✗ ") + msg)
+    # 换证结果上报（v3.05）：让页面能说清「续期到底在不在跑」。
+    # exp_after 重新读文件 —— renew() 里的新 exp 没透出来，重读比改签名更小。
+    _, exp_after = token_status()
+    report(ok, err=("" if ok else msg), phase=("force" if a.force else "expired"),
+           exp_before=exp, exp_after=exp_after)
     if ok:
         save_state(last_ts=datetime.now().isoformat(timespec="seconds"),
                    last_result=msg, last_fail_ts=0)

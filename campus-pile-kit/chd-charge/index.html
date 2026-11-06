@@ -343,6 +343,11 @@
   .cred-text{min-width:0}
   .cred-text b{font-weight:500}
   .cred-text small{display:block; color:var(--hint); font-size:11.5px; margin-top:1px}
+  /* 自动续期结果（v3.05）—— 复用 .cred 的卡片 / 圆点 / 文本样式，
+     只把下边距归零：它是弹窗里的第二张卡，下面没东西了。
+     失败时标题跟着变红（只限这一块，不动全局 .cred.expired）。 */
+  .cred-renew{margin-bottom:0}
+  .cred-renew.expired .cred-text b{color:var(--busy)}
   .link-btn{
     font:inherit; font-size:12.5px; color:var(--free-deep); background:none; border:none;
     padding:6px 4px; cursor:pointer; text-decoration:underline; flex:none;
@@ -1706,7 +1711,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v3.04</div>
+    <div id="app-ver" class="foot-ver">版本 v3.05</div>
   </footer>
 </div>
 
@@ -2043,6 +2048,19 @@
         </div>
       </div>
       <button class="link-btn" id="cred-edit">更新</button>
+    </div>
+    <!-- 自动续期的运行结果（v3.05）。换证是本机计划任务无人值守跑的：
+         成功了 exp 会变新、一眼看得出；失败却只剩一个「已过期」，
+         分不清「刚过期、还没轮到」和「已经连败三天」。这一块就是把它摆出来。
+         没有记录时整块 hidden（老版本、或者从没跑过）。 -->
+    <div class="cred cred-renew" id="cred-renew" hidden>
+      <div class="cred-main">
+        <span class="dot-status"></span>
+        <div class="cred-text">
+          <b id="cred-renew-title">自动续期</b>
+          <small id="cred-renew-sub"></small>
+        </div>
+      </div>
     </div>
   </div>
 </dialog>
@@ -2906,6 +2924,11 @@ let MEM_TOKEN = '';
 /* 🔴 2026-10-27：服务端凭证的元数据。`/api/cred` 现在只回 `{updatedAt, expiresAt}`，
  * 凭证本身留在 Worker 里。访客手上没有 token，界面上的「到期 / 还剩几天」只能靠这里。 */
 let SERVER_CRED = { exp: 0, stamp: 0 };
+/* 自动续期的最近一次运行结果（v3.05）。来源：GET /api/cred 的 renew 字段，
+ * 由本机 tools/cred_autorenew.py 每次跑完 POST /api/cred/renew 写入。
+ * ⚠️ **故意不持久化**（不存 localStorage）：这个值说的是「现在还算不算数」，
+ * 上一次跐的「成功」一存下来就会在下一次失败时继续报喜 —— 宁可不显示。 */
+let SERVER_RENEW = null;
 let CLOUD_TOKEN_TRIED = false;   // 本次会话是否已经问过信箱（paintCred 靠它决定要不要保持占位）
 let CRED_MISSING = false;   // 已确认「这一轮拿不到凭证」（见 paintCred）：主界面照旧显示旧数据，只是在顶部如实标注
 const KEY_DEVICES = 'cpk.devices';
@@ -4562,6 +4585,7 @@ document.addEventListener('close', (e) => {
 function paintCred() {
   const state = credState();
   const box = $('cred');
+  paintCredRenew();
 
   if (state.status === 'none') {
     /* 还没问过信箱（boot 里 remoteAutoSync 之前）。
@@ -4612,11 +4636,44 @@ function paintCred() {
    *   本机粘贴的 → 邀请他再抓一串（把单点供血分散掉的关键一句）；
    *   服务端的   → 换证由站长的自动续期负责，访客插不上手，别给徒劳的指引。 */
   if (state.status === 'soon' && state.server) parts.push('到期前自动换新');
-  if (state.status === 'expired') parts.push(state.server ? '等站长换证' : '换一串就恢复');
+  if (state.status === 'expired') parts.push(state.server ? renewLine('等站长换证') : '换一串就恢复');
   $('cred-sub').textContent = parts.join(' · ') || '无法判断有效期';
-  paintCredHint(Number.isFinite(state.days)
+
+  /* 小字那行在「设置」列表里，过期时顺手把续期状态也带上 ——
+     否则只能看到「已过期」，而真正要知道的是「自动续期到底在不在跑」。 */
+  const base = Number.isFinite(state.days)
     ? $('cred-title').textContent + (state.days > 0 ? ' · 还剩 ' + state.days.toFixed(1) + ' 天' : ' · 已过期')
-    : $('cred-title').textContent);
+    : $('cred-title').textContent;
+  paintCredHint(state.status === 'expired' ? base + ' · ' + renewLine('') : base);
+}
+
+/** 自动续期的一句话描述（v3.05）。没有记录时回退到传入的兜底文案。 */
+function renewLine(fallback) {
+  const r = SERVER_RENEW;
+  if (!r || !r.ts) return fallback;
+  return '上次续期' + (r.ok ? '成功 ' : '失败 ') + relTime(r.ts);
+}
+
+/** 把「自动续期」那张卡画出来（v3.05）。没有记录就整块藏掉。 */
+function paintCredRenew() {
+  const box = $('cred-renew');
+  if (!box) return;
+  const r = SERVER_RENEW;
+  if (!r || !r.ts) { box.hidden = true; return; }
+  box.hidden = false;
+  box.className = 'cred cred-renew' + (r.ok ? '' : ' expired');
+  $('cred-renew-title').textContent = r.ok ? '自动续期：上次成功' : '自动续期：上次失败';
+  const parts = [relTime(r.ts)];
+  if (r.ok) {
+    const after = Number(r.expAfter) || 0;
+    if (after) {
+      /* 单位跟 credState() 一样用 1e11 分界（秒 / 毫秒都能吃）。 */
+      parts.push('续到 ' + fmtTime(new Date(after > 1e11 ? after : after * 1000)));
+    }
+  } else if (r.err) {
+    parts.push(r.err);
+  }
+  $('cred-renew-sub').textContent = parts.join(' · ');
 }
 
 /** 设置弹窗「设备凭证」那颗按钮上的小字（v2.35）。不展开也能一眼看出还能不能用。 */
@@ -7802,6 +7859,7 @@ async function credBoxPull(opts) {
   const stamp = Number(data.updatedAt) || 0;
   const exp = Number(data.expiresAt) || 0;
   SERVER_CRED = { exp, stamp };
+  SERVER_RENEW = (data && data.renew && data.renew.ts) ? data.renew : null;   // v3.05
   store.set(KEY_BOX_TS, stamp);
   store.set(KEY_BOX_EXP, exp);   // v2.60：持久化到期时间，下次首屏能立即恢复 credState
   return { applied: true, stamp, exp, note: data.note || '', source: 'box' };

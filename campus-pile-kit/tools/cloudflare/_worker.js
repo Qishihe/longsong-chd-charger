@@ -27,6 +27,12 @@
 
 const KEY = 'cred';           // KV 里的键名（元数据 + 密文，可公开读）
 const KEY_TOK = 'cred_tok';   // 明文凭证，**只在 Worker 内部读**，绝不出现在任何响应里
+/* 自动续期的**运行结果**（2026-11-06 v3.05）。单独一个键，不塞进 `cred`：
+ *   · `cred` 每次换证整体覆盖，续期结果夹在里面会被顺手抹掉；
+ *   · 这个键要让页面读得到（区分「过期了但续期正在处理」和「过期了、续期一直失败」），
+ *     一旦混进 `cred`，改返回体时很容易连密文一起带出去。
+ * 写入频率很低：未过期时 cred_autorenew 静默退出、根本不上报，只有真过期那几天才写。 */
+const KEY_RENEW = 'cred_renew';
 const MAX_BODY = 64 * 1024;   // 密文上限 64 KB，够放巨长的凭证串
 const MAX_FAILS = 10;         // 每窗口最多失败次数
 const FAIL_WINDOW_MS = 10 * 60 * 1000;
@@ -857,6 +863,46 @@ export default {
     // ---- 一周回顾 / 快照：反代快照 Worker ----
     if (path === '/api/stats' || path === '/api/snap') return proxySnap(path, url, env);
 
+    // ---- 自动续期的运行结果上报（v3.05，只写；读走 GET /api/cred 的 renew 字段） ----
+    /* 为什么要有这条：换证是**无人值守**的（见本机 tools/cred_autorenew.py），
+       成功了页面靠 exp 变新能看出来，**失败了却只有一个 `expired`**，分不清
+       「刚过期、任务还没轮到」和「连续失败三天了」。所以让脚本每跑一次就报一次。 */
+    if (path === '/api/cred/renew') {
+      if (request.method !== 'POST') return json({ ok: false, error: 'method_not_allowed' }, 405);
+      if (!env.CHD_CRED) return json({ ok: false, error: 'kv_not_bound' }, 501);
+      if (!env.ADMIN_TOKEN) return json({ ok: false, error: 'token_not_set' }, 501);
+
+      /* 鉴权与 POST /api/cred **逐字一致**（同一口令、同一个失败计数），
+         否则这条新入口就是绕开口令的侧门。 */
+      const ip = clientIp(request);
+      if (tooMany(ip)) return json({ ok: false, error: 'too_many_attempts' }, 429);
+      const given = request.headers.get('x-admin-token') || '';
+      if (!(await safeEqual(given, env.ADMIN_TOKEN))) {
+        bumpFail(ip);
+        return json({ ok: false, error: 'bad_token' }, 401);
+      }
+      fails.delete(ip);
+
+      let body;
+      try {
+        body = await request.json();
+      } catch (e) {
+        return json({ ok: false, error: 'bad_json' }, 400);
+      }
+      /* 全部字段先截断再存：这份数据是给页面看的，宁可少显示也不存超长垃圾。
+         `err` 只允许是「一句话原因」（Fiddler 没起来 / 等不到新凭证），**不许放凭证串**。 */
+      const rec = {
+        ts: Date.now(),
+        ok: !!(body && body.ok === true),
+        phase: typeof body.phase === 'string' ? body.phase.slice(0, 40) : '',
+        err: typeof body.err === 'string' ? body.err.slice(0, 240) : '',
+        expBefore: Number(body.expBefore) || 0,
+        expAfter: Number(body.expAfter) || 0,
+      };
+      await env.CHD_CRED.put(KEY_RENEW, JSON.stringify(rec));
+      return json({ ok: true, rec });
+    }
+
     if (path !== '/api/cred') return json({ ok: false, error: 'not_found' }, 404);
 
     if (!env.CHD_CRED) return json({ ok: false, error: 'kv_not_bound' }, 501);
@@ -867,7 +913,14 @@ export default {
         return json({ ok: false, error: 'rate_limited' }, 429);
       }
       const raw = await env.CHD_CRED.get(KEY);
-      if (!raw) return json({ ok: true, exists: false });
+      /* 续期结果是旁路数据：读失败就降级成 null（纯展示用，不该让整个读接口 500）。
+         凭证本身没有时也照样带出去 —— 那种情况更需要知道「续期到底在不在跑」。 */
+      let renew = null;
+      try {
+        const rraw = await env.CHD_CRED.get(KEY_RENEW);
+        if (rraw) renew = JSON.parse(rraw);
+      } catch (e) { renew = null; }
+      if (!raw) return json({ ok: true, exists: false, renew });
       let parsed;
       try {
         parsed = JSON.parse(raw);
@@ -883,6 +936,7 @@ export default {
         updatedAt: parsed.updatedAt || 0,
         expiresAt: Number(parsed.exp) || 0,
         note: parsed.note || '',
+        renew,
       });
     }
 

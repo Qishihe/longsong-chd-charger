@@ -211,7 +211,11 @@
     min-height:38px; display:inline-flex; align-items:center; gap:6px;
   }
   .icon-btn:active{background:var(--pressed)}
-  .icon-btn.primary{background:var(--accent,var(--free-soft)); border-color:var(--accent,var(--free-line)); color:var(--on-accent,var(--free-deep))}
+  /* 主按钮（v3.06 修）：默认皮肤**没有定义 --accent**，原来底色回退到 --free-soft（#E1F5EE 淡绿），
+     字却仍是 --on-accent 的白色（第 38 行全局固定 #FFFFFF）→ 白字淡绿底，几乎看不见。
+     现在底色回退到 --free（#1D9E75），和 .loc-pill.on / .map-tab.on 同一套写法；
+     换了皮肤就跟着 --accent / --on-accent 走，那 7 套皮肤一个像素不变。 */
+  .icon-btn.primary{background:var(--accent,var(--free)); border-color:var(--accent,var(--free)); color:var(--on-accent,#fff)}
   .icon-btn.ghost{border-color:transparent; background:transparent; color:var(--muted)}
   .icon-btn[disabled]{opacity:.5; cursor:default}
   /* 查询中：**只做视觉提示，不禁用**。
@@ -348,6 +352,11 @@
      失败时标题跟着变红（只限这一块，不动全局 .cred.expired）。 */
   .cred-renew{margin-bottom:0}
   .cred-renew.expired .cred-text b{color:var(--busy)}
+  /* 管理员后台顶部两张状态卡（v3.06）：复用 .cred 的卡片 / 圆点 / 文本样式，
+     只把下边距收到 10px（下面紧接着是密码框，不需要 12px 那么松）。
+     圆点的「偏旧」（.soon / 琥珀）和「失败」（.expired / 红）直接吃 .cred 那两条规则。 */
+  .adm-stat{margin-bottom:10px}
+  .adm-stat.expired .cred-text b{color:var(--busy)}
   .link-btn{
     font:inherit; font-size:12.5px; color:var(--free-deep); background:none; border:none;
     padding:6px 4px; cursor:pointer; text-decoration:underline; flex:none;
@@ -1711,7 +1720,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v3.05</div>
+    <div id="app-ver" class="foot-ver">版本 v3.06</div>
   </footer>
 </div>
 
@@ -2163,6 +2172,28 @@
       <button class="x-btn" data-close aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
     </div>
     <p class="note" style="margin-top:0">改动会推给所有人，需要密码。</p>
+    <!-- 两张状态卡（v3.06）：都**免密可读** —— /api/stats 和 /api/cred 本来就是公开接口，
+         管理员还没输密码就能先看清「快照站是否还在采数、凭证还能用几天」。
+         ⚠️ 主域**没有 /api/health**（https://chd-charge.pages.dev/api/health 是 404），
+            别拿它当探活地址；快照新鲜度只能读 /api/stats 的 updated 字段。 -->
+    <div class="cred adm-stat" id="adm-snap" hidden>
+      <div class="cred-main">
+        <span class="dot-status"></span>
+        <div class="cred-text">
+          <b id="adm-snap-title">快照数据</b>
+          <small id="adm-snap-sub"></small>
+        </div>
+      </div>
+    </div>
+    <div class="cred adm-stat" id="adm-cred" hidden>
+      <div class="cred-main">
+        <span class="dot-status"></span>
+        <div class="cred-text">
+          <b id="adm-cred-title">设备凭证</b>
+          <small id="adm-cred-sub"></small>
+        </div>
+      </div>
+    </div>
     <input type="password" id="password-input" placeholder="请输入管理员密码" autocomplete="off">
     <div class="row">
       <button class="icon-btn" id="password-cancel">取消</button>
@@ -4680,6 +4711,118 @@ function paintCredRenew() {
 function paintCredHint(text) {
   const el = $('set-cred-hint');
   if (el) el.textContent = text;
+}
+
+/* ═════════════ 管理员后台状态卡（v3.06） ═════════════
+   两张卡都免密可读：/api/stats 与 /api/cred 本来就是公开接口，管理员还没输密码时
+   就能先看清「快照站还在不在采数、凭证还能撑几天」，不用为了看一眼就输一遍密码。
+
+   🔴 主域**没有 /api/health**（实测 https://chd-charge.pages.dev/api/health → 404
+      {"ok":false,"error":"not_found"}），别拿它探活；新鲜度只能读 /api/stats 的 updated。
+   🔴 updated 和 points[].h 都是**秒**，喂 relTime / Date 之前要乘 1000。 */
+const ADM_STATS_TTL = 60000;   // 一分钟内重复打开不重复打接口
+let admStatsCache = null;
+let admStatsAt = 0;
+
+/** 第一张卡：快照站（/api/stats）。raw 为 null 表示这一轮读失败。 */
+function paintAdminSnap(raw, err) {
+  const box = $('adm-snap');
+  if (!box) return;
+  const title = $('adm-snap-title');
+  const sub = $('adm-snap-sub');
+  box.hidden = false;
+  if (err || !raw) {
+    box.className = 'cred adm-stat expired';
+    title.textContent = '快照数据：读取失败';
+    /* 说清「不影响查桩」：这张卡挂了只是看不到统计，首页那 200 台照旧能查。 */
+    sub.textContent = String((err && (err.message || err)) || '没有响应') + ' · 不影响查桩';
+    return;
+  }
+  const pts = Array.isArray(raw.points) ? raw.points : [];
+  const last = pts.length ? pts[pts.length - 1] : null;
+  const updSec = Number(raw.updated) || (last ? Number(last.h) : 0);
+  const ageSec = updSec ? (Date.now() / 1000 - updSec) : Infinity;
+  /* 3 小时算「偏旧」：快照是每分钟一跳的 cron（见 AREA_CRON_GROUPS），
+     真断了两三个小时就不是抖动，得让人看见。 */
+  const stale = !(ageSec <= 3 * 3600);
+  box.className = 'cred adm-stat' + (stale ? ' soon' : '');
+  title.textContent = stale ? '快照数据：偏旧' : '快照数据：正常';
+  const parts = [];
+  if (updSec) parts.push('更新于 ' + relTime(updSec * 1000));
+  if (last && last.areas) parts.push('覆盖 ' + Object.keys(last.areas).length + ' 个分区');
+  if (pts.length) parts.push('已存 ' + pts.length + ' 个点');
+  sub.textContent = parts.join(' · ') || '暂无统计点';
+}
+
+/** 第二张卡：设备凭证。数据来自 credState()，与设置列表里那条同源，不额外请求。 */
+function paintAdminCred() {
+  const box = $('adm-cred');
+  if (!box) return;
+  const st = credState();
+  const title = $('adm-cred-title');
+  const sub = $('adm-cred-sub');
+  box.hidden = false;
+
+  /* 本机没粘过、服务端那份也没取到 —— 这时得先分清「压根没接信箱」和「接上了但真没有」。
+     isLocalPreview / 白名单外（比如 workbuddy.host 快照站）根本不会去取，说「还没有凭证」
+     是误导：那不是凭证缺失，是这个域名读不到。 */
+  if (st.status === 'none' && !credBoxAvailable()) {
+    box.className = 'cred adm-stat';
+    title.textContent = '设备凭证：本机读不到';
+    sub.textContent = '凭证共享只认线上域名 · 不影响查桩';
+    return;
+  }
+
+  /* 还没问过凭证信箱（boot 里 credBoxPull 之前）→ 先占位，别急着说「还没有」。 */
+  if (st.status === 'none' && !CLOUD_TOKEN_TRIED) {
+    box.className = 'cred adm-stat';
+    title.textContent = '设备凭证：确认中…';
+    sub.textContent = '';
+    return;
+  }
+
+  box.className = 'cred adm-stat'
+    + (st.status === 'expired' ? ' expired' : st.status === 'soon' ? ' soon' : '');
+  const titles = {
+    ok: '设备凭证：正常', soon: '设备凭证：快到期', expired: '设备凭证：已过期',
+    opaque: '设备凭证：已导入', none: '设备凭证：还没有',
+  };
+  title.textContent = titles[st.status] || '设备凭证';
+  const parts = [];
+  if (st.expiresAt) parts.push('到期 ' + fmtTime(st.expiresAt));
+  if (Number.isFinite(st.days)) {
+    parts.push(st.days > 0 ? '还剩 ' + st.days.toFixed(1) + ' 天' : '已过期');
+  }
+  const rl = renewLine('');       // v3.05 的自动续期记录，没有就空串
+  if (rl) parts.push(rl);
+  sub.textContent = parts.join(' · ') || '点「更新」粘一串';
+}
+
+/** 打开管理员后台时铺这两张卡。force=true 忽略一分钟缓存。 */
+async function paintAdminStat(force) {
+  paintAdminCred();               // 本机已有什么就先画什么，不等网络
+  if (!force && admStatsCache && Date.now() - admStatsAt < ADM_STATS_TTL) {
+    paintAdminSnap(admStatsCache, null);
+    return;
+  }
+  const box = $('adm-snap');
+  if (box && !admStatsCache) {
+    box.hidden = false;
+    box.className = 'cred adm-stat';
+    $('adm-snap-title').textContent = '快照数据：读取中…';
+    $('adm-snap-sub').textContent = '';
+  }
+  try {
+    const res = await fetch('/api/stats', { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const body = await res.json();
+    if (!body || body.ok !== true) throw new Error((body && body.error) || 'ok=false');
+    admStatsCache = body;
+    admStatsAt = Date.now();
+    paintAdminSnap(body, null);
+  } catch (e) {
+    paintAdminSnap(null, e);
+  }
 }
 
 function relTime(ms) {
@@ -10219,7 +10362,9 @@ $('changelog-open').addEventListener('click', openChangelog);
 const SET_ENTRIES = [
   { btn: 'set-cred-btn', dlg: 'dlg-cred', onOpen: () => paintCred() },
   { btn: 'set-sync-btn', dlg: 'dlg-sync', focus: 'sync-password-input' },
-  { btn: 'set-admin-btn', dlg: 'dlg-admin', focus: 'password-input' },
+  /* v3.06：后台顶部两张状态卡（快照站 / 设备凭证），免密可读。onOpen 在 showModal
+     **前**触发，但卡片 DOM 是静态的，先铺内容再显示不会闪；接口慢也不挡弹窗。 */
+  { btn: 'set-admin-btn', dlg: 'dlg-admin', focus: 'password-input', onOpen: () => { paintAdminStat(); } },
   /* 扫码（v2.69）：showModal 之后再启动摄像头 —— dialog 还没显示时 video
      在不可见子树里，个别浏览器不给播放；onOpen 在 showModal **前**触发，
      所以这里用 80ms 的 setTimeout 隔开。 */

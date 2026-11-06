@@ -350,7 +350,7 @@
   /* 自动续期结果（v3.05）—— 复用 .cred 的卡片 / 圆点 / 文本样式，
      只把下边距归零：它是弹窗里的第二张卡，下面没东西了。
      失败时标题跟着变红（只限这一块，不动全局 .cred.expired）。 */
-  .cred-renew{margin-bottom:0}
+  .cred-renew{margin-bottom:10px}
   .cred-renew.expired .cred-text b{color:var(--busy)}
   /* 管理员后台顶部两张状态卡（v3.06）：复用 .cred 的卡片 / 圆点 / 文本样式，
      只把下边距收到 10px（下面紧接着是密码框，不需要 12px 那么松）。
@@ -1720,7 +1720,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v3.06</div>
+    <div id="app-ver" class="foot-ver">版本 v3.07</div>
   </footer>
 </div>
 
@@ -1985,16 +1985,16 @@
 
     <div class="set-sec">管理员</div>
     <div class="set-card">
-      <!-- v2.84：凭证与云端同步原来是独立一节（v2.50 起）。这两件事都要动
-           大家共用的数据（凭证决定谁能查、同步决定别人打开时读到哪一份），
-           和「管理员」是一类，并进来省掉一节标题。
-           🔴 两行的 id 与相对顺序没变，SUB_DLGS 那张表（约 9320 行）不用跟着改。 -->
-      <button class="set-row" type="button" id="set-cred-btn">
-        <span class="set-ico" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="5.5" cy="6.5" r="3"/><path d="M7.7 8.7 13.4 14.4M10.9 11.9l1.6-1.6"/></svg></span>
-        <span class="set-txt">设备凭证</span>
-        <span class="set-val" id="set-cred-hint"></span>
-        <span class="set-caret" aria-hidden="true"></span>
-      </button>
+      <!-- 🔴 v3.07：「设备凭证」这一行整颗搬到「管理员后台」弹窗里（#dlg-admin）。
+           理由：换证要抓微信 token，访客根本插不上手，挂在设置里只是占一行噪音，
+           点进去还容易误以为「这台机器查不了」。搬过去之后
+           `#cred` / `#cred-title` / `#cred-edit` / `#cred-renew` 的 id 一个没改，
+           `paintCred()` 与 `$('cred-edit')` 的绑定都不用动。
+           ⚠️ 这是一次**搬移**不是复制：旧处（这里）必须彻底删掉。
+              2026-10-21 那回只加不删，页面上出现两个 #cred，getElementById 认了靠前的
+              那个，弹窗里那块永远 hidden、按钮也是死的（详见上面 1640 行那段的教训）。
+           `#set-cred-hint` 随行走（paintCredHint 已判空）；v2.84 起归类的这张
+           「管理员」卡现在只剩 云端同步 / 扫码采设备号 / 管理员后台 三行。 -->
       <button class="set-row" type="button" id="set-sync-btn">
         <span class="set-ico" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.6 12.2h7a2.6 2.6 0 0 0 .3-5.2 3.7 3.7 0 0 0-7.1-.8 2.9 2.9 0 0 0-.2 6z"/></svg></span>
         <span class="set-txt">云端同步</span>
@@ -2036,44 +2036,13 @@
   </div>
 </dialog>
 
-<!-- 四个独立子弹窗（v2.50）。🔴 里面的 DOM/ID 与老手风琴面板**逐字一致**
-     （#cred / #cred-edit / #sync-password-input / #sync-ok / #sync-cancel /
-       #sync-note / #password-input / #password-ok / #password-cancel /
-       #password-note / #dense-cards）—— 所以 paintCred、密码校验、同步、
-       一行两桩的全部绑定都不用改。主面板 showModal 在下面，子弹窗盖在上面，
-       关掉子弹窗就回到设置列表。 -->
-<dialog id="dlg-cred" class="sub-dlg" aria-label="设备凭证">
-  <div class="dlg-body">
-    <div class="dlg-head">
-      <h2>设备凭证</h2>
-      <button class="x-btn" data-close aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
-    </div>
-    <div class="cred" id="cred" hidden>
-      <div class="cred-main">
-        <span class="dot-status"></span>
-        <div class="cred-text">
-          <b id="cred-title">凭证状态</b>
-          <small id="cred-sub"></small>
-        </div>
-      </div>
-      <button class="link-btn" id="cred-edit">更新</button>
-    </div>
-    <!-- 自动续期的运行结果（v3.05）。换证是本机计划任务无人值守跑的：
-         成功了 exp 会变新、一眼看得出；失败却只剩一个「已过期」，
-         分不清「刚过期、还没轮到」和「已经连败三天」。这一块就是把它摆出来。
-         没有记录时整块 hidden（老版本、或者从没跑过）。 -->
-    <div class="cred cred-renew" id="cred-renew" hidden>
-      <div class="cred-main">
-        <span class="dot-status"></span>
-        <div class="cred-text">
-          <b id="cred-renew-title">自动续期</b>
-          <small id="cred-renew-sub"></small>
-        </div>
-      </div>
-    </div>
-  </div>
-</dialog>
-
+<!-- 独立子弹窗（v2.50）。🔴 里面的 DOM/ID 与老手风琴面板**逐字一致**
+     （#sync-password-input / #sync-ok / #sync-cancel / #sync-note /
+       #password-input / #password-ok / #password-cancel / #password-note /
+       #dense-cards）—— 所以 密码校验、同步、一行两桩的全部绑定都不用改。
+     主面板 showModal 在下面，子弹窗盖在上面，关掉子弹窗就回到设置列表。
+     v3.07：「设备凭证」不再是子弹窗，「#cred / #cred-edit / #cred-renew」
+       整块并进了 #dlg-admin（见上面 2003 行那段说明），本文件里每个 id 仍然唯一。 -->
 <dialog id="dlg-sync" class="sub-dlg" aria-label="云端同步">
   <div class="dlg-body">
     <div class="dlg-head">
@@ -2185,12 +2154,30 @@
         </div>
       </div>
     </div>
-    <div class="cred adm-stat" id="adm-cred" hidden>
+    <!-- 设备凭证（v3.07）：整块从「设置 › 管理员 › 设备凭证」搬进来，id 一个没改。
+         免密可读 —— 状态来自 /api/cred，本来就是公开接口；「更新」才是要抓 token 的那步。
+         🔴 这块**任何时候都不能藏**：「更新」按钮（#cred-edit）长在它里面，
+            藏起来等于把唯一的入口也关上（见 paintCred 里的长注释）。 -->
+    <div class="cred" id="cred" hidden>
       <div class="cred-main">
         <span class="dot-status"></span>
         <div class="cred-text">
-          <b id="adm-cred-title">设备凭证</b>
-          <small id="adm-cred-sub"></small>
+          <b id="cred-title">凭证状态</b>
+          <small id="cred-sub"></small>
+        </div>
+      </div>
+      <button class="link-btn" id="cred-edit">更新</button>
+    </div>
+    <!-- 自动续期的运行结果（v3.05）。换证是本机计划任务无人值守跑的：
+         成功了 exp 会变新、一眼看得出；失败却只剩一个「已过期」，
+         分不清「刚过期、还没轮到」和「已经连败三天」。这一块就是把它摆出来。
+         没有记录时整块 hidden（老版本、或者从没跑过）。 -->
+    <div class="cred cred-renew" id="cred-renew" hidden>
+      <div class="cred-main">
+        <span class="dot-status"></span>
+        <div class="cred-text">
+          <b id="cred-renew-title">自动续期</b>
+          <small id="cred-renew-sub"></small>
         </div>
       </div>
     </div>
@@ -4635,6 +4622,16 @@ function paintCred() {
      *       顶部由 render() 补一句说清它为什么不再变新（见 CRED_HINT）。 */
     box.hidden = false;
     box.className = 'cred' + (CLOUD_TOKEN_TRIED ? ' expired' : '');
+    /* v3.07：本机没粘过、服务端那份也没取到 —— 先分清「压根没接信箱」和「接上了但真没有」。
+       本地预览 / 白名单外（比如 workbuddy.host 快照站）根本不会去取，这时说「还没有凭证」
+       是误导：那不是凭证缺失，是这个域名读不到。 */
+    if (!credBoxAvailable()) {
+      CRED_MISSING = false;
+      $('cred-title').textContent = '本机读不到凭证';
+      $('cred-sub').textContent = '凭证共享只认线上域名 · 不影响查桩';
+      paintCredHint('本机读不到');
+      return;
+    }
     if (!CLOUD_TOKEN_TRIED) {
       CRED_MISSING = false;
       $('cred-title').textContent = '正在确认凭证状态…';
@@ -4754,53 +4751,13 @@ function paintAdminSnap(raw, err) {
   sub.textContent = parts.join(' · ') || '暂无统计点';
 }
 
-/** 第二张卡：设备凭证。数据来自 credState()，与设置列表里那条同源，不额外请求。 */
-function paintAdminCred() {
-  const box = $('adm-cred');
-  if (!box) return;
-  const st = credState();
-  const title = $('adm-cred-title');
-  const sub = $('adm-cred-sub');
-  box.hidden = false;
+/* v3.07：原来这里有个 paintAdminCred()（v3.06 自己拼的「设备凭证」卡）。
+   凭证整块搬进 #dlg-admin 之后它就成了重复实现 —— 直接复用 paintCred()，
+   状态文案、红黄档、「更新」按钮的绑定全都还是原来那一套，不会再有两份口径。 */
 
-  /* 本机没粘过、服务端那份也没取到 —— 这时得先分清「压根没接信箱」和「接上了但真没有」。
-     isLocalPreview / 白名单外（比如 workbuddy.host 快照站）根本不会去取，说「还没有凭证」
-     是误导：那不是凭证缺失，是这个域名读不到。 */
-  if (st.status === 'none' && !credBoxAvailable()) {
-    box.className = 'cred adm-stat';
-    title.textContent = '设备凭证：本机读不到';
-    sub.textContent = '凭证共享只认线上域名 · 不影响查桩';
-    return;
-  }
-
-  /* 还没问过凭证信箱（boot 里 credBoxPull 之前）→ 先占位，别急着说「还没有」。 */
-  if (st.status === 'none' && !CLOUD_TOKEN_TRIED) {
-    box.className = 'cred adm-stat';
-    title.textContent = '设备凭证：确认中…';
-    sub.textContent = '';
-    return;
-  }
-
-  box.className = 'cred adm-stat'
-    + (st.status === 'expired' ? ' expired' : st.status === 'soon' ? ' soon' : '');
-  const titles = {
-    ok: '设备凭证：正常', soon: '设备凭证：快到期', expired: '设备凭证：已过期',
-    opaque: '设备凭证：已导入', none: '设备凭证：还没有',
-  };
-  title.textContent = titles[st.status] || '设备凭证';
-  const parts = [];
-  if (st.expiresAt) parts.push('到期 ' + fmtTime(st.expiresAt));
-  if (Number.isFinite(st.days)) {
-    parts.push(st.days > 0 ? '还剩 ' + st.days.toFixed(1) + ' 天' : '已过期');
-  }
-  const rl = renewLine('');       // v3.05 的自动续期记录，没有就空串
-  if (rl) parts.push(rl);
-  sub.textContent = parts.join(' · ') || '点「更新」粘一串';
-}
-
-/** 打开管理员后台时铺这两张卡。force=true 忽略一分钟缓存。 */
+/** 打开管理员后台时铺好卡。force=true 忽略一分钟缓存。 */
 async function paintAdminStat(force) {
-  paintAdminCred();               // 本机已有什么就先画什么，不等网络
+  paintCred();                    // 凭证 + 自动续期两张卡，本机已有什么就先画什么，不等网络
   if (!force && admStatsCache && Date.now() - admStatsAt < ADM_STATS_TTL) {
     paintAdminSnap(admStatsCache, null);
     return;
@@ -10360,7 +10317,8 @@ $('changelog-open').addEventListener('click', openChangelog);
    —— 不再是原地展开的手风琴。子弹窗的 DOM/ID 与老面板逐字一致，
    所以 paintCred / 密码校验 / 同步流程的绑定一行没改。 */
 const SET_ENTRIES = [
-  { btn: 'set-cred-btn', dlg: 'dlg-cred', onOpen: () => paintCred() },
+  /* v3.07：「设备凭证」这条目已删 —— #cred 整块并进 #dlg-admin，
+     重画由 set-admin-btn 的 onOpen（paintAdminStat）负责。 */
   { btn: 'set-sync-btn', dlg: 'dlg-sync', focus: 'sync-password-input' },
   /* v3.06：后台顶部两张状态卡（快照站 / 设备凭证），免密可读。onOpen 在 showModal
      **前**触发，但卡片 DOM 是静态的，先铺内容再显示不会闪；接口慢也不挡弹窗。 */

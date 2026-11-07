@@ -86,6 +86,11 @@ HEADERS = """\
 /img/*
   Cache-Control: public, max-age=86400
 
+# 识图引擎（v3.15）：核心 wasm 4MB + 中文语言包 1.7MB，只有点「导入」选图片时才下载。
+# 这几个文件随 tesseract 版本固定，缓存一周；升级引擎时换文件名，别指望刷缓存。
+/ocr/*
+  Cache-Control: public, max-age=604800
+
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer-when-downgrade

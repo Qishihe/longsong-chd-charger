@@ -1804,7 +1804,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v3.11</div>
+    <div id="app-ver" class="foot-ver">版本 v3.12</div>
   </footer>
 </div>
 
@@ -2066,10 +2066,10 @@
         <span class="set-caret" aria-hidden="true"></span>
       </button>
       <!-- 充电记录（v3.08 建，v3.09 补日期 / 时长 / 趋势，v3.10 补登与手填电量）。
-           整行点一下 = **直接记一次**（用户要的就是这个手感）；
-           只有点最右边那颗箭头才打开明细。
-           两条路分别走 chgAdd() / chgOpenDlg()，别再额外绑一个整行 click，
-           否则点箭头会记完又开弹窗。
+           v3.12：整行点一下 = 打开充电记录页面（和其它设置行一致）。
+           🔴 别再改回「整行点一下就直接记一笔、只有箭头才开页面」——
+              那样点完界面没有任何切换，用户以为没进去（11-07 的反馈就是这个）；
+              而且想看看记录却莫名多记一条。记录动作只留给弹窗里的「记一次」。
            数据只落 localStorage('cpk.charge.log')：不读 /api、不写 KV、不同步云端。 -->
       <button class="set-row" type="button" id="set-charge-btn">
         <span class="set-ico" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.3" y="4.9" width="9.4" height="6.2" rx="1.7"/><path d="M13.4 6.9v2.2"/><path d="M7.1 6.2 5.8 8.5h1.7l-.5 2 1.9-2.6H7.3z" fill="currentColor" stroke="none"/></svg></span>
@@ -2646,7 +2646,7 @@
   </div>
 </dialog>
 
-<!-- 充电记录（v3.08 建，v3.10 扩）。入口是设置 ›「记一次充电」行末尾的箭头。
+<!-- 充电记录（v3.08 建，v3.10 扩）。入口是设置 ›「记一次充电」那一行，点一下就进来。
      这一屏干五件事：看次数 / 累计、记一次、补登、给某次补上时长与电量、
      看趋势折线、删单条或清空。
      🔴 全部数据只在本机 localStorage 里，页面不发任何请求 —— 关掉网络、
@@ -10308,9 +10308,12 @@ const CHANGELOG = [
       + '想推荐给室友又懒得讲网址，直接把码转发或截图过去，'
       + '对方扫一下就能打开，不用装任何东西',
     /* v3.08：充电记录。这是访客能自己动手用的一件新事（且涉及「数据存哪」），
-       必须写清楚「只在本机」。仍归在 v2.90–当前 这一组，不必新开条目。 */
-    '设置里多了「记一次充电」：点一下就把现在的时间记下来，右侧那个数字会变成'
-      + '「共几次 · 上次什么时候」；点行尾的箭头能看全部记录、删单条或者清空。'
+       必须写清楚「只在本机」。仍归在 v2.90–当前 这一组，不必新开条目。
+       v3.12：入口从「行身直接记一笔」改成「点整行进页面」，文案跟着改 ——
+       同一件事只留一条，不再另起「入口变好点了」。 */
+    '设置里多了「记一次充电」，点开就是充电记录：按一下「记一次」记下现在的时间，'
+      + '右侧那一行会变成「共几次 · 上次什么时候」；漏了几次还能补登，'
+      + '填过时长和电量会画成折线。'
       + '记录只存在这台设备的浏览器里 —— 不上传、不同步，换台手机或者清了浏览器数据就没了',
     /* v3.09：日期 / 补时长 / 电量。与 v3.08 同一件事的延伸，原地续写两条：
        一条讲「记得更全了」，一条讲「能看出走势了」。仍归 v2.90–当前 这一组。
@@ -12026,13 +12029,10 @@ function chgOpenDlg() {
 (function bindCharge() {
   const row = $('set-charge-btn');
   if (row) {
-    /* 🔴 整行是**一个** button，点哪儿都走这条 handler：
-       点在右箭头 → 看明细；点其它地方 → 直接记一次（这就是产品要的手感）。
-       不要在 SET_ENTRIES 里再登记这一行，那个 forEach 会整行绑成「打开弹窗」。 */
-    row.addEventListener('click', (e) => {
-      if (e.target.closest('.set-caret')) { chgOpenDlg(); return; }
-      chgAdd();
-    });
+    /* 🔴 整行都是「进页面」这一个动作（v3.12）。以前是「点行身记一次、点箭头开页面」，
+       实际用起来点完没有任何界面切换，看着像没反应；而且想翻记录时会多记一条。
+       现在记录只由弹窗里的 #chg-add 触发。 */
+    row.addEventListener('click', () => chgOpenDlg());
   }
   const addBtn = $('chg-add');
   if (addBtn) addBtn.addEventListener('click', () => chgAdd());

@@ -363,7 +363,7 @@
 /* v203 → v204（2026-11-06 v3.05）：「设置 › 设备凭证」里多了一张「自动续期」卡。
    页面 DOM 变了就得换壳，否则老离线副本里没这一块。
    SHELL 仍是 6 项：那张卡的数据跟凭证元数据同路径（GET /api/cred 的 renew 字段），零新增请求。 */
-const CACHE = 'campus-pile-v209';
+const CACHE = 'campus-pile-v210';
 const SHELL = [
   /* v2.86：`'./'` 删了。线上实测 `/` 与 `/index.html` 返回的字节完全相同（md5 一致），
      而 fetch 拦截只把 `'./index.html'` 当主 key，`'./'` 只是回退链的第二顺位 ——

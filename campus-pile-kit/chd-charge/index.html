@@ -1089,6 +1089,35 @@
   .clog-foot{margin-top:10px}
   .clog-foot .icon-btn{padding:11px 6px; font-size:13px}
 
+  /* 识图确认（v3.15）。每行两排：上排时间（可改）+ 勾选，下排三个数字。
+     390 宽的手机上四个字段硬挤成一行，每个都窄到看不全数字，只能分排。 */
+  .cocr-row{display:block; padding:10px 11px; margin-bottom:8px; border:1px solid var(--line);
+    border-radius:12px; background:var(--card)}
+  .cocr-row.bad{border-color:var(--warn)}
+  .cocr-row.off{opacity:.55}
+  .cocr-h{display:flex; align-items:center; gap:9px}
+  .cocr-h input[type=checkbox]{width:17px; height:17px; flex:none; accent-color:var(--free)}
+  .cocr-when{flex:1; min-width:0; font-size:13px; padding:7px 9px; border:1px solid var(--line);
+    border-radius:9px; background:var(--bg); color:var(--text); font-variant-numeric:tabular-nums}
+  .cocr-when:focus{outline:none; border-color:var(--free)}
+  .cocr-nums{display:flex; gap:7px; margin-top:8px}
+  .cocr-n{flex:1; min-width:0}
+  .cocr-n span{display:block; font-size:10.5px; color:var(--hint); margin-bottom:3px}
+  .cocr-n input{width:100%; box-sizing:border-box; font-size:13px; padding:6px 7px;
+    border:1px solid var(--line); border-radius:9px; background:var(--bg); color:var(--text);
+    font-variant-numeric:tabular-nums}
+  .cocr-n input:focus{outline:none; border-color:var(--free)}
+  .cocr-warn{margin-top:7px; font-size:11px; line-height:1.5; color:var(--warn-fg)}
+  .cocr-ok{margin-top:7px; font-size:11px; line-height:1.5; color:var(--hint)}
+  /* 「按电费和服务费分开填」——默认收起，只有账单上写了明细的人才需要展开 */
+  .cocr-split-btn{margin-top:9px; padding:0; border:none; background:none; font:inherit;
+    font-size:12px; color:var(--free-deep); text-decoration:underline; cursor:pointer}
+  .cocr-split-btn[aria-expanded=true]{color:var(--hint); text-decoration:none}
+  /* 列表自己滚，标题和底部按钮留在原地 —— 一次识别四五条时，
+     按钮会被顶到屏幕外，用户得先滑到底才能点「导入」。 */
+  #chg-ocr-list{max-height:48vh; overflow-y:auto; -webkit-overflow-scrolling:touch;
+    padding-right:2px}
+
   /* 趋势卡：手写 SVG 双线（左轴时长、右轴电量）。两条线各自的量纲差得远，
      必须分轴 —— 共用一根轴的话电量 12kWh 和时长 90 分钟会被压成两条贴底直线。 */
   .clog-card{margin-top:14px; padding:12px 12px 6px; border:1px solid var(--line);
@@ -1809,7 +1838,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v3.14</div>
+    <div id="app-ver" class="foot-ver">版本 v3.15</div>
   </footer>
 </div>
 
@@ -2690,7 +2719,7 @@
       <button class="icon-btn primary" type="button" id="chg-add">记一次</button>
       <button class="icon-btn" type="button" id="chg-back-btn">补登</button>
     </div>
-    <p class="note" id="chg-note">记录只存本机，不上传。换设备用「导出」和「导入」搬过去。</p>
+    <p class="note" id="chg-note">记录只存本机，不上传。图片也是在本机识别，不会传出去。换设备用「导出」和「导入」搬过去。</p>
 
     <!-- 趋势：填了时长或电量的记录才进图（两者都没填就只有一个点，画不出变化）。
          两条线分左右轴，理由见上面 .clog-card 的注释。 -->
@@ -2720,7 +2749,7 @@
       <button class="icon-btn" type="button" id="chg-export">导出</button>
       <button class="icon-btn" type="button" id="chg-clear">清空记录</button>
     </div>
-    <input type="file" id="chg-import-file" accept=".json,application/json" hidden>
+    <input type="file" id="chg-import-file" accept=".json,application/json,image/*" multiple hidden>
   </div>
 </dialog>
 
@@ -2770,12 +2799,44 @@
                placeholder="自己查小程序账单" aria-label="这次充电花了多少钱">
         <span class="u">元</span>
       </div>
+      <button class="cocr-split-btn" type="button" id="chg-fill-split-btn"
+              aria-expanded="false">按电费和服务费分开填</button>
+      <div class="clog-two" id="chg-fill-split" hidden>
+        <div class="est-inwrap">
+          <input id="chg-fill-ce" type="number" min="0" max="999" step="0.01" inputmode="decimal"
+                 placeholder="电费" aria-label="其中电费多少元">
+          <span class="u">电费</span>
+        </div>
+        <div class="est-inwrap">
+          <input id="chg-fill-cs" type="number" min="0" max="999" step="0.01" inputmode="decimal"
+                 placeholder="服务费" aria-label="其中服务费多少元">
+          <span class="u">服务费</span>
+        </div>
+      </div>
     </div>
 
     <div class="note" id="chg-fill-hint">时长、电量、电费至少填一个。</div>
     <div class="row">
       <button class="icon-btn" type="button" id="chg-fill-clear" hidden>清空数值</button>
       <button class="icon-btn primary" type="button" id="chg-fill-save">保存</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- 识图确认（v3.15）：从截图里读出来的记录先在这里过一遍，勾上的才写入。
+     🔴 绝不静默落库 —— OCR 一定会看错，而认错的数字只有本人对着账单能看出来。
+     读不准的项标黄，并在下面写清「为什么觉得不对」；改完数字直接勾上就行。 -->
+<dialog id="dlg-chg-ocr" class="sub-dlg" aria-label="识别结果确认">
+  <div class="dlg-body">
+    <div class="dlg-head">
+      <h2 id="chg-ocr-title">识别到 0 条</h2>
+      <button class="x-btn" data-close aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+    </div>
+    <p class="note" id="chg-ocr-sub">对着账单核一眼，改掉不对的数字，勾上再导入。</p>
+    <div id="chg-ocr-list"></div>
+    <div class="row">
+      <button class="icon-btn" type="button" id="chg-ocr-cancel">取消</button>
+      <button class="icon-btn primary" type="button" id="chg-ocr-ok">导入</button>
     </div>
   </div>
 </dialog>
@@ -10386,6 +10447,13 @@ const CHANGELOG = [
     '充电记录底下多了「导入」和「导出」：导出一个 JSON 备份文件，'
       + '换手机、重装浏览器或者清了数据之后，点「导入」选那个文件，记录就回来了；'
       + '同一时间的那条会自动合并，不会变成两条',
+    /* v3.15：截图识别。用户最担心的是「我的截图传哪儿去了」，所以第一句先讲这个。 */
+    '「导入」现在也能直接选订单截图：时间、时长、电量、电费自己读出来，'
+      + '读完先列一遍让你核，改完勾上才记进去。图片只在这台设备上读，不往外传。'
+      + '第一次用要下 3MB 左右的识别包，之后不用再下',
+    /* v3.15：电费明细。默认收起，只提一句怎么用，别把它写成必填。 */
+    '电费可以只填总数，也可以按账单拆成「电费 + 服务费」分开填，'
+      + '两个数加起来就是总额',
   ] },
   { v: 'v2.80 – v2.89', d: '2026-11-03 ~ 11-04', items: [
     /* v2.80：定位高亮竞态（线上弱网实测约一半次数补不上）。用户看到的是
@@ -11532,8 +11600,11 @@ function fabBoot() {
      ③ 存不进去要明说 → 无痕模式、禁用站点数据都会让 setItem 抛异常，
         全部 try/catch，失败时老实说「这台设备存不了」，不许假装记上了。
 
-   数据结构 v4（v1 只有 t+loc，v2 有 t/d/loc/dur，v3 有 t/loc/dur/kwh，读的时候自动升级）：
-     { v: 4, items: [ { t:<毫秒>, loc:'<地址>', dur:<分钟>, kwh:<度>, cost:<元> } ] }
+   数据结构 v5（v1 只有 t+loc，v2 有 t/d/loc/dur，v3 有 t/loc/dur/kwh，v4 加了 cost）：
+     { v: 5, items: [ { t:<毫秒>, loc:'<地址>', dur:<分钟>, kwh:<度>, cost:<元>, ce?, cs? } ] }
+     · v5（v3.15）新增 ce / cs：账单上写明了「电费 x 元 + 服务费 y 元」时才存，
+       两者相加应当等于 cost（导入时会校验，对不上就只留总额）；
+       不填的时候没有这两个字段，旧记录与旧导出文件照常读。
      · t 负责排序 / 显示 / 「多久以前」；日历日由 t 现算（chgStamp），
        不再单独存 d —— 存一份冗余字段，改了时间就会和 t 对不上；
      · dur 是分钟整数，0 或缺失 = 没填；kwh 一位小数、cost 元一位小数，0 或缺失 = 没填；
@@ -11544,7 +11615,7 @@ function fabBoot() {
    容量：上限 200 条；顺序：**降序**存，最新一条永远是 items[0]。
    导入 / 导出（v3.14）：整份 JSON 走本机 Blob + FileReader，仍然一个请求都不发。 */
 const CHG_KEY = 'cpk.charge.log';
-const CHG_VER = 4;           // 每加一次字段就 +1，导出文件里也写这个号
+const CHG_VER = 5;           // 每加一次字段就 +1，导出文件里也写这个号
 const CHG_MAX = 200;
 const CHG_COST_MAX = 999;    // 单次电费上限，纯粹挡手滑多打两个 0
 const CHG_DUP_MS = 60000;    // 手抖连点：60 秒内不重复记一条
@@ -11598,12 +11669,16 @@ function chgNorm(x) {
   const dur = Math.round(Number(x.dur));
   const kwh = Number(x.kwh);
   const cost = Number(x.cost);
+  const ce = Number(x.ce);
+  const cs = Number(x.cs);
   return {
     t,
     loc: typeof x.loc === 'string' ? x.loc.slice(0, 40) : '',
     dur: Number.isFinite(dur) && dur > 0 ? Math.min(1440, dur) : 0,
     kwh: Number.isFinite(kwh) && kwh > 0 ? Math.min(99, Math.round(kwh * 10) / 10) : 0,
-    cost: Number.isFinite(cost) && cost > 0 ? Math.min(CHG_COST_MAX, Math.round(cost * 10) / 10) : 0,
+    cost: Number.isFinite(cost) && cost > 0 ? Math.min(CHG_COST_MAX, Math.round(cost * 100) / 100) : 0,
+    ce: Number.isFinite(ce) && ce > 0 ? Math.min(CHG_COST_MAX, Math.round(ce * 100) / 100) : 0,
+    cs: Number.isFinite(cs) && cs > 0 ? Math.min(CHG_COST_MAX, Math.round(cs * 100) / 100) : 0,
   };
 }
 
@@ -11628,6 +11703,8 @@ function chgSave(items) {
       if (x.dur > 0) o.dur = x.dur;
       if (x.kwh > 0) o.kwh = x.kwh;
       if (x.cost > 0) o.cost = x.cost;
+      if (x.ce > 0) o.ce = x.ce;
+      if (x.cs > 0) o.cs = x.cs;
       return o;
     });
     localStorage.setItem(CHG_KEY, JSON.stringify({ v: CHG_VER, items: slim }));
@@ -11702,9 +11779,11 @@ function chgHrs(min) {
   return (min / 60).toFixed(2).replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
 }
 
-/* 元：一位小数，整数不带 .0（6.5 → '6.5'、12 → '12'）。前面自己加 ¥。 */
+/* 元：两位小数，末尾的 0 去掉（1.99 → '1.99'、1.9 → '1.9'、12 → '12'）。
+   🔴 不能只保留一位：账单上就是 1.99、0.88 这种数，抹成 2 和 0.9 之后
+      跟实际扣款对不上，累计也会偏。前面自己加 ¥。 */
 function chgYuan(v) {
-  return (Math.round(v * 10) / 10).toFixed(1).replace(/\.0$/, '');
+  return String(parseFloat(Number(v || 0).toFixed(2)));
 }
 
 /* 趋势折线：手写 SVG，不引图表库（这一个弹窗值不上 30KB 的依赖）。
@@ -11727,7 +11806,7 @@ function chgDrawTrend(items) {
     empty.hidden = canShow;
     if (!canShow) {
       if (!all.length) {
-        empty.textContent = '点「记一次」记下现在，「补登」补以前的；有备份就点「导入」。';
+        empty.textContent = '点「记一次」记下现在，「补登」补以前的；有订单截图或者备份，点「导入」就行。';
       } else if (pts.length === 1) {
         empty.textContent = '再补一条就能连成线。';
       } else {
@@ -11979,6 +12058,728 @@ function chgClear(btn) {
   showToast(n ? '清空了 ' + n + ' 条' : '本来就是空的');
 }
 
+/* 充电小票截图 → 记录：解析与校验核心。
+   设计前提：OCR 一定会错，错的类型是固定的三类 ——
+     ① ¥ 符号被认成「羊/着/站/半/#/Y」（数字往往还对）
+     ② 小数点丢失（1.9 → 19、1.10 → 110、0.56 → 0.50）
+     ③ 日期/时间多一位或少一位（2026-10-30 → 2026-10-350、19:01 → 198:01）
+   所以这里不做「猜得更准」，而是：抽出所有候选 → 用业务关系判真假 → 判不了就标黄交给人。
+   可用业务关系：起止时间差 = 时长、电费 + 服务费 = 总额、¥/小时 区间、电量/小时 区间、
+   订单号里内嵌着下单时间。 */
+
+var OCR_PRICE_MIN = 0.10;   // 元/小时 下限（按你这几笔实测 0.24~0.27 留了余量）
+var OCR_PRICE_MAX = 0.80;   // 元/小时 上限
+var OCR_POW_MIN = 0.02;     // kW 下限（便携桩实测 0.14）
+var OCR_POW_MAX = 0.60;     // kW 上限
+var OCR_DUR_MAX = 24 * 60;  // 一次充电不可能超过一天
+
+/* 全角转半角 + 清掉零宽字符。中文标点保留（后面靠关键词定位，不依赖它们）。 */
+function ocrNorm(s) {
+  return String(s || '')
+    .replace(/[\uFF01-\uFF5E]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); })
+    .replace(/\uFFE5/g, '\u00A5')
+    .replace(/[\u3000\t]/g, ' ')
+    .replace(/[\u200B-\u200F\uFEFF]/g, '')
+    .replace(/[·・]/g, '');
+}
+
+/* 时间短格式，只给提示语用。🔴 必须带年份：两遍识别最常见的分歧就是年份读错
+   （2026 → 2025），不带年份时两条提示看起来一模一样，用户根本没法判断。 */
+function ocrWhenText(t) {
+  if (!t) return '';
+  var d = new Date(t);
+  var p = function (n) { return (n < 10 ? '0' : '') + n; };
+  return String(d.getFullYear()).slice(2) + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate())
+    + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+
+/* 数字后面按 10 的幂试一遍，挑落在 [lo,hi] 区间的那个。
+   用于救「小数点丢了」：19 元 / 7.87 小时 = 2.4 元每小时（超限）→ 试 1.9 → 0.24（合法）。
+   返回 { v, moved }，moved=true 表示改过位数，调用方要标黄。 */
+function ocrFitNum(v, per, lo, hi) {
+  if (!(v > 0) || !(per > 0)) return { v: v, moved: false };
+  var cands = [v, v / 10, v / 100, v / 1000, v * 10];
+  for (var i = 0; i < cands.length; i++) {
+    var r = cands[i] / per;
+    if (r >= lo && r <= hi) {
+      return { v: Math.round(cands[i] * 100) / 100, moved: i !== 0 };
+    }
+  }
+  return { v: v, moved: false, bad: true };
+}
+
+/* 时间戳。容忍 30 被认成 350：日期段拿不出合法值时返回 bad，
+   但「时分秒多一位」可以截前两位救回来（198:01:44 → 19:01:44）。 */
+function ocrStamp(s) {
+  var m = /(\d{4})\s*-\s*(\d{1,3})\s*-\s*(\d{1,3})\D{0,4}(\d{1,3})\s*:\s*(\d{1,2})\s*:\s*(\d{1,2})/.exec(s);
+  if (!m) return null;
+  var y = +m[1], mo = +m[2], d = +m[3];
+  var hh = m[4], mi = +m[5], ss = +m[6];
+  var moved = false;
+  if (hh.length > 2) { hh = hh.slice(0, 2); moved = true; }
+  var h = +hh;
+  var okDate = mo >= 1 && mo <= 12 && d >= 1 && d <= 31;
+  var okTime = h <= 23 && mi <= 59 && ss <= 59;
+  if (!okDate) {
+    /* 350 → 无法还原成 30，不放宽，交给人改 */
+    return { t: null, bad: true, raw: m[0] };
+  }
+  if (!okTime) return { t: null, bad: true, raw: m[0] };
+  if (y < 2015 || y > 2100) return { t: null, bad: true, raw: m[0] };
+  return { t: new Date(y, mo - 1, d, h, mi, ss).getTime(), bad: false, moved: moved };
+}
+
+/* 订单号里内嵌下单时间：SD261030220950Q3919 = SD + 26/10/30 + 22:09:50 + Q + 序号。
+   这是比 OCR 文字更硬的锚点 —— 数字被认错时还能反推。 */
+function ocrOrderNo(s) {
+  var m = /SD\s*(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*Q\s*(\d{0,6})/.exec(s);
+  if (!m) return null;
+  var y = 2000 + +m[1], mo = +m[2], d = +m[3], h = +m[4], mi = +m[5], ss = +m[6];
+  if (mo < 1 || mo > 12 || d < 1 || d > 31 || h > 23 || mi > 59 || ss > 59) return null;
+  return {
+    no: 'SD' + m[1] + m[2] + m[3] + m[4] + m[5] + m[6] + 'Q' + m[7],
+    t: new Date(y, mo - 1, d, h, mi, ss).getTime(),
+  };
+}
+
+function ocrDur(s) {
+  var m = /(\d{1,2})\s*小时\s*(?:(\d{1,2})\s*分)?/.exec(s);
+  if (!m) return null;
+  var min = (+m[1]) * 60 + (+(m[2] || 0));
+  if (!(min > 0) || min > OCR_DUR_MAX) return null;
+  return min;
+}
+
+/* 金额：¥ 被认成什么都不重要，只认关键词后面第一个数。 */
+function ocrMoney(s, key) {
+  var re = new RegExp(key + '[^0-9\\n]{0,80}(\\d{1,4}(?:[.,]\\d{1,2})?)');
+  var m = re.exec(s);
+  if (!m) return null;
+  return +m[1].replace(',', '.');
+}
+
+/* 站点：优先取「站点名称」右侧，退而求其次认「XX校区」。 */
+function ocrSite(s) {
+  var m = /站点名称\s*([^\s]{2,12})/.exec(s);
+  if (m && /校区|大学|学院|站/.test(m[1])) return m[1].slice(0, 12);
+  m = /(长安大学\s*\S{1,4}校区)/.exec(s);
+  if (m) return m[1].replace(/\s/g, '').slice(0, 12);
+  m = /([\u4e00-\u9fa5]{2,6}校区)/.exec(s);
+  return m ? m[1] : '';
+}
+
+/* 把一整块文本里的字段尽可能全部抽出来（不做取舍，取舍在 ocrJudge 里）。 */
+function ocrFields(block) {
+  var o = {
+    t: null, tBad: false, tRaw: '',
+    dur: null,
+    kwh: null,
+    cost: null, ce: null, cs: null,
+    loc: '',
+    order: null,
+    hasEnd: /结束时间/.test(block),
+  };
+
+  var st = ocrStamp(block);
+  if (st) {
+    if (st.bad) { o.tBad = true; o.tRaw = st.raw || ''; }
+    else { o.t = st.t; if (st.moved) o.tMoved = true; }
+  }
+
+  o.order = ocrOrderNo(block);
+  o.dur = ocrDur(block);
+
+  var k = ocrMoney(block, '充电电量');
+  if (k === null) {
+    var md = /(\d{1,3}(?:[.,]\d{1,2})?)\s*度/.exec(block);
+    if (md) k = +md[1].replace(',', '.');
+  }
+  o.kwhRaw = k;
+
+  o.cost = ocrMoney(block, '订单总额');
+  if (o.cost === null) o.cost = ocrMoney(block, '订单金额');
+  if (o.cost === null) o.cost = ocrMoney(block, '支付金额');
+
+  o.ce = ocrMoney(block, '电费(?!单价)');
+  o.cs = ocrMoney(block, '服务费');
+  o.paid = ocrMoney(block, '支付金额');
+
+  o.loc = ocrSite(block);
+  return o;
+}
+
+/* 把原始字段判成一条可用记录，并记下所有「我改过」和「我不确定」。 */
+function ocrJudge(f, nowMs) {
+  var warn = [];
+  var fix = [];
+  var rec = { t: 0, loc: f.loc || '', dur: 0, kwh: 0, cost: 0 };
+
+  /* 时长：读不到就用结束 - 下单算，算出来的比读出来的更可信 */
+  var dur = f.dur || 0;
+  if (f.hasEnd) {
+    var all = [];
+    var re = /(?:下单|结束|开始)时间[:：]?\s*(\d{4}\s*-\s*\d{1,3}\s*-\s*\d{1,3}\D{0,4}\d{1,3}\s*:\s*\d{1,2}\s*:\s*\d{1,2})/g;
+    var mm;
+    while ((mm = re.exec(f.block || ''))) {
+      var s1 = ocrStamp(mm[1]);
+      if (s1 && s1.t) all.push({ t: s1.t, key: mm[0].slice(0, 2) });
+    }
+    if (all.length >= 2) {
+      var start = all[0], end = all[1];
+      var span = Math.round((end.t - start.t) / 60000);
+      if (span > 0 && span <= OCR_DUR_MAX) {
+        if (!dur) { dur = span; fix.push('时长按起止时间算出 ' + Math.round(span / 6) / 10 + ' 小时'); }
+        else if (Math.abs(span - dur) > 1) {
+          fix.push('时长与起止时间差 ' + Math.abs(span - dur) + ' 分钟，按起止时间算');
+          dur = span;
+        }
+      }
+      if (!rec.t) { rec.t = start.t; }
+    }
+  }
+  rec.dur = dur;
+
+  /* 时间：订单号内嵌时间 > 识别到的时间 */
+  if (f.order && f.order.t) {
+    if (!rec.t) { rec.t = f.order.t; fix.push('时间按订单号还原'); }
+    else if (Math.abs(rec.t - f.order.t) > 60000) {
+      fix.push('时间与订单号不一致，按订单号');
+      rec.t = f.order.t;
+    }
+  } else if (!rec.t && f.t) {
+    rec.t = f.t;
+  }
+
+  if (!rec.t) { warn.push('时间读不出'); }
+  else if (rec.t > nowMs + 24 * 3600e3) { warn.push('时间在未来'); }
+
+  /* 金额：先修小数位，再拿「电费 + 服务费 = 总额」对账 */
+  var hours = dur > 0 ? dur / 60 : 0;
+  var cost = f.cost;
+  if (cost !== null && hours > 0) {
+    var fit = ocrFitNum(cost, hours, OCR_PRICE_MIN, OCR_PRICE_MAX);
+    if (fit.moved) { cost = fit.v; fix.push('金额按单价区间修正为 ' + cost.toFixed(2)); }
+  }
+
+  var ce = f.ce, cs = f.cs;
+  if (ce !== null && hours > 0) {
+    var fe = ocrFitNum(ce, hours, OCR_PRICE_MIN / 4, OCR_PRICE_MAX / 4);
+    if (fe.moved) { ce = fe.v; }
+  }
+  if (cs !== null && hours > 0) {
+    var fs = ocrFitNum(cs, hours, OCR_PRICE_MIN / 4, OCR_PRICE_MAX / 4);
+    if (fs.moved) { cs = fs.v; }
+  }
+
+  if (ce !== null && cs !== null) {
+    var sum = Math.round((ce + cs) * 100) / 100;
+    if (cost === null) {
+      cost = sum; fix.push('总额按电费 + 服务费相加');
+    } else if (Math.abs(sum - cost) > 0.02) {
+      /* 三者对不上：总额来自「订单总额」字样，可信度更高；拆分丢掉只留总额 */
+      warn.push('电费 + 服务费 = ' + sum.toFixed(2) + '，与总额 ' + cost.toFixed(2) + ' 对不上，只保留总额');
+      ce = null; cs = null;
+    }
+  } else if ((ce !== null || cs !== null) && cost === null) {
+    cost = Math.round(((ce || 0) + (cs || 0)) * 100) / 100;
+  }
+
+  if (cost !== null && cost > 0) rec.cost = Math.round(cost * 100) / 100;
+  if (ce !== null && ce > 0) rec.ce = Math.round(ce * 100) / 100;
+  if (cs !== null && cs > 0) rec.cs = Math.round(cs * 100) / 100;
+
+  /* 电量：先修小数位，再用功率区间兜底 */
+  var kwh = f.kwhRaw;
+  if (kwh !== null && hours > 0) {
+    var fk = ocrFitNum(kwh, hours, OCR_POW_MIN, OCR_POW_MAX);
+    if (fk.moved) { kwh = fk.v; fix.push('电量按功率区间修正为 ' + kwh.toFixed(2) + ' 度'); }
+    else if (fk.bad) { warn.push('电量 ' + f.kwhRaw + ' 度不像慢充读数'); kwh = null; }
+  }
+  if (kwh !== null && kwh > 0 && kwh <= 30) rec.kwh = Math.round(kwh * 100) / 100;
+
+  /* 单价复核（只在金额没被修过时提示，避免重复喊） */
+  if (rec.cost > 0 && hours > 0 && !fix.length) {
+    var price = rec.cost / hours;
+    if (price < OCR_PRICE_MIN || price > OCR_PRICE_MAX) {
+      warn.push('单价 ' + price.toFixed(2) + ' 元每小时，偏离常见区间');
+    }
+  }
+
+  if (!rec.dur && !rec.kwh && !rec.cost) warn.push('这一条没读出有效数据');
+
+  rec.fix = fix;
+  rec.warn = warn;
+  rec.order = f.order ? f.order.no : '';
+  return rec;
+}
+
+/* 切块：详情页整篇一块（一屏一条），列表页按「充电桩」卡片切。
+   列表页同一张图里可能夹着广告，靠「充电时长」判断这块像不像记录。 */
+function ocrSplit(text) {
+  var lines = ocrNorm(text).split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean);
+  var whole = lines.join('\n');
+  if (/订单编号|订单总额|充电信息/.test(whole)) {
+    return [{ kind: 'detail', block: whole }];
+  }
+  var blocks = [];
+  var cur = [];
+  var flush = function () {
+    var b = cur.join('\n');
+    if (/充电时长|订单金额/.test(b)) blocks.push({ kind: 'list', block: b });
+    cur = [];
+  };
+  lines.forEach(function (l) {
+    if (/便携式充电桩|订单记录|已支付/.test(l) && cur.length) flush();
+    if (/便携式充电桩|充电时长|订单金额|长安大学|^\d{4}\s*-/.test(l) || cur.length) {
+      cur.push(l);
+    } else {
+      cur.push(l);
+    }
+  });
+  if (cur.length) flush();
+  return blocks;
+}
+
+/* 单张图的完整流水线 */
+function ocrParseOne(text, nowMs) {
+  var blocks = ocrSplit(text);
+  var out = [];
+  blocks.forEach(function (b) {
+    var f = ocrFields(b.block);
+    f.block = b.block;
+    f.kind = b.kind;
+    var r = ocrJudge(f, nowMs || Date.now());
+    r.kind = b.kind;
+    out.push(r);
+  });
+  return out;
+}
+
+/* 双通路合并：同一张图识别两遍（原图 / 缩到 960），字段级投票。
+   规则：合法值优先；都合法但不一致取第一路并标黄；都不合法保留第一路原值。 */
+function ocrPickNum(a, b, okFn) {
+  var oa = okFn(a), ob = okFn(b);
+  if (oa && ob) return { v: a, tie: a !== b };
+  if (oa) return { v: a };
+  if (ob) return { v: b, fromB: true };
+  return { v: a, bad: true };
+}
+
+function ocrMergeTwo(A, B) {
+  if (!A.length) return B;
+  if (!B.length) return A;
+  var n = Math.min(A.length, B.length);
+  var out = [];
+  for (var i = 0; i < n; i++) {
+    var a = A[i], b = B[i];
+    var r = { t: 0, loc: a.loc || b.loc || '', dur: 0, kwh: 0, cost: 0, fix: a.fix.slice(), warn: a.warn.slice(), order: a.order || b.order, kind: a.kind };
+    var notes = [];
+
+    var tOk = function (v) { return v && v > 1e12 && v < Date.now() + 864e5; };
+    var tp = ocrPickNum(a.t, b.t, tOk);
+    /* 秒级差异不算打架：两遍识别对「7 小时 52 分」这种往往只差几秒，
+       显示出来却是同一个 21:00，用户看到「不一致」只会困惑。 */
+    if (tp.tie && Math.abs(a.t - b.t) < 60e3) tp.tie = false;
+    r.t = tp.v || 0;
+    if (tp.fromB) notes.push('时间取自第二遍识别');
+    /* 不一致时把另一遍的读数也说出来 —— 只写「不一致」，用户没法判断该信哪个 */
+    if (tp.tie) notes.push('两遍读出的时间不同（另一遍是 ' + ocrWhenText(b.t) + '），按原图取值');
+    if (!tp.v && r.warn.indexOf('时间读不出') < 0) r.warn.push('时间读不出');
+
+    var dOk = function (v) { return v > 0 && v <= OCR_DUR_MAX; };
+    var dp = ocrPickNum(a.dur, b.dur, dOk);
+    /* 一路读出「8 小时 9 分」、另一路只读出「8 小时」时，取带分钟的那个，不算打架 */
+    if (a.dur && b.dur && a.dur !== b.dur) {
+      if (a.dur % 60 !== 0 && b.dur % 60 === 0) dp = { v: a.dur };
+      else if (b.dur % 60 !== 0 && a.dur % 60 === 0) dp = { v: b.dur, fromB: true };
+    }
+    r.dur = dp.v || 0;
+    if (dp.fromB && a.dur !== b.dur) notes.push('时长取自第二遍识别');
+    if (dp.tie) notes.push('两遍读出的时长不同（另一遍是 ' + (b.dur / 60).toFixed(2) + ' 小时），按原图取值');
+
+    var kOk = function (v) { return v > 0 && v <= 30; };
+    var kp = ocrPickNum(a.kwh, b.kwh, kOk);
+    r.kwh = kp.v || 0;
+    if (kp.fromB) notes.push('电量取自第二遍识别');
+    if (kp.tie) notes.push('两遍读出的电量不同（另一遍是 ' + b.kwh + ' 度），按原图取值');
+
+    var cOk = function (v) { return v > 0 && v <= 999; };
+    var cp = ocrPickNum(a.cost, b.cost, cOk);
+    r.cost = cp.v || 0;
+    if (cp.fromB) notes.push('金额取自第二遍识别');
+    if (cp.tie) notes.push('两遍读出的金额不同（另一遍是 ' + b.cost + ' 元），按原图取值');
+
+    /* 电费明细：两路里挑「电费 + 服务费 正好等于总额」的那一份。
+       这条加法本身就是最硬的校验 —— 第四张图原图把 0.56 读成 0.50（和 1.34 相加只有 1.84），
+       缩小图读对了（0.56 + 1.34 = 1.90），于是取后者。 */
+    var sumOk = function (x) {
+      return x.ce > 0 && x.cs > 0 && x.cost > 0 && Math.abs(x.ce + x.cs - x.cost) < 0.02;
+    };
+    var sa = sumOk(a), sb = sumOk(b);
+    if (sb && !sa) {
+      r.ce = b.ce; r.cs = b.cs; r.cost = b.cost;
+      notes.push('电费明细取自第二遍识别');
+    } else if (sa) {
+      r.ce = a.ce; r.cs = a.cs;
+      if (Math.abs(a.ce - (b.ce || 0)) > 0.02) notes.push('两遍读出的电费不一致，取与总额对得上的那份');
+    } else if (a.ce && !b.ce) {
+      r.ce = a.ce; r.cs = a.cs;
+    } else if (b.ce && !a.ce) {
+      r.ce = b.ce; r.cs = b.cs;
+    }
+    if (r.ce && r.cs && r.cost && Math.abs(r.ce + r.cs - r.cost) > 0.02) {
+      r.ce = null; r.cs = null;
+      r.warn.push('电费明细与总额对不上，已丢弃明细');
+    } else if (r.ce && r.cs) {
+      /* 明细最终对上了，就抹掉任何一路留下的「对不上」旧提示 ——
+         那句话说的是被淘汰的那一路，留着只会让人以为还有问题 */
+      r.warn = r.warn.filter(function (w) { return w.indexOf('对不上') < 0; });
+    }
+
+    /* 「取自第二遍识别」只是交代来源，不算问题：进 fix（灰字说明），
+       不然整行会被标黄、默认不勾，用户每次都得自己点一下。 */
+    notes.forEach(function (n) {
+      var box = n.indexOf('取自第二遍') >= 0 ? r.fix : r.warn;
+      if (box.indexOf(n) < 0) box.push(n);
+    });
+    out.push(r);
+  }
+  for (var j = n; j < A.length; j++) out.push(A[j]);
+  for (var k = n; k < B.length; k++) out.push(B[k]);
+  return out;
+}
+
+/* ── 截图识图（v3.15）──────────────────────────────────────────────
+   点「导入」选一张或几张充电小程序截图，识别出时间 / 时长 / 电量 / 电费，
+   过一遍确认页再写进记录。
+
+   三条设计约束：
+   ① **图片不出本机**。识别跑在浏览器里（tesseract.js + wasm），不发一个请求，
+      跟「记录只存本机」是同一个承诺。代价是首次要下约 3MB 引擎，之后走缓存。
+   ② **两遍识别**。原图与缩到 960 宽各跑一次：原图认结构字段（编号、时间）更准，
+      缩小图认金额和小数点更准，交集按字段投票（ocrMergeTwo）。
+   ③ **绝不静默落库**。识别结果一律先进确认页，勾选后才写；
+      存疑项标黄并写明原因 —— 认错的数字只有本人对着账单能看出来。 */
+
+var OCR_DIR = '/ocr/';
+var ocrState = { worker: null, pending: null, busy: false };
+var ocrOnProgress = null;
+var chgOcrItems = [];
+
+function chgOcrStage(txt) {
+  var b = $('chg-import');
+  if (b) { b.textContent = txt; b.disabled = true; }
+}
+
+function chgOcrIdle() {
+  var b = $('chg-import');
+  if (b) { b.textContent = '导入'; b.disabled = false; }
+}
+
+/* 引擎脚本按需加载一次。放 /ocr/ 自托管：jsDelivr 在国内基本打不开，
+   而且从第三方拉 3MB 的 wasm 也不该出现在这个站点上。 */
+function chgOcrScript() {
+  if (window.Tesseract) return Promise.resolve();
+  if (chgOcrScript.p) return chgOcrScript.p;
+  chgOcrScript.p = new Promise(function (resolve, reject) {
+    var s = document.createElement('script');
+    s.src = OCR_DIR + 'tesseract.min.js';
+    s.onload = function () { resolve(); };
+    s.onerror = function () { chgOcrScript.p = null; reject(new Error('script')); };
+    document.head.appendChild(s);
+  });
+  return chgOcrScript.p;
+}
+
+function chgOcrWorker() {
+  if (ocrState.worker) return Promise.resolve(ocrState.worker);
+  if (ocrState.pending) return ocrState.pending;
+  ocrState.pending = chgOcrScript().then(function () {
+    return Tesseract.createWorker('chi_sim', 1, {
+      workerPath: OCR_DIR + 'worker.min.js',
+      /* 🔴 必须指到具体文件。指目录的话 worker 会按设备能力挑 relaxedsimd 变体，
+         而那个文件我们没放（又多 3.9MB），结果直接 importScripts 失败。 */
+      corePath: OCR_DIR + 'core/tesseract-core-simd-lstm.wasm.js',
+      langPath: OCR_DIR + 'lang',
+      workerBlobURL: false,
+      logger: function (m) {
+        if (ocrOnProgress) ocrOnProgress(m.status, m.progress || 0);
+      },
+    });
+  }).then(function (w) {
+    ocrState.worker = w;
+    ocrState.pending = null;
+    return w;
+  }, function (e) {
+    ocrState.pending = null;
+    throw e;
+  });
+  return ocrState.pending;
+}
+
+/* 缩到 960 宽 + 灰度 + 对比度拉伸，作为第二遍的输入。
+   为什么是 960：手机截屏一般 1080~1440 宽，缩到这个尺寸后字体约 20px，
+   正好落在 tesseract 的舒适区；金额与小数点的识别率明显好于原图。 */
+function chgOcrShrink(img, w) {
+  var c = document.createElement('canvas');
+  var k = Math.min(1, w / (img.naturalWidth || img.width));
+  c.width = Math.max(1, Math.round((img.naturalWidth || img.width) * k));
+  c.height = Math.max(1, Math.round((img.naturalHeight || img.height) * k));
+  var g = c.getContext('2d');
+  g.drawImage(img, 0, 0, c.width, c.height);
+  try {
+    var d = g.getImageData(0, 0, c.width, c.height);
+    var p = d.data;
+    var i, v, min = 255, max = 0;
+    for (i = 0; i < p.length; i += 4) {
+      v = (p[i] * 0.299 + p[i + 1] * 0.587 + p[i + 2] * 0.114) | 0;
+      p[i] = p[i + 1] = p[i + 2] = v;
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+    var span = max - min;
+    if (span > 20) {
+      for (i = 0; i < p.length; i += 4) {
+        v = ((p[i] - min) * 255 / span) | 0;
+        p[i] = p[i + 1] = p[i + 2] = v;
+      }
+    }
+    g.putImageData(d, 0, 0);
+  } catch (e) { /* 读不到像素就用纯缩放的结果，不影响主流程 */ }
+  return c;
+}
+
+/* 一张图：解码 → 两遍识别 → 解析 → 字段投票 */
+function chgOcrReadFile(file) {
+  var url = '';
+  var pass = 0;
+  return Promise.resolve().then(function () {
+    url = URL.createObjectURL(file);
+    return new Promise(function (resolve, reject) {
+      var img = new Image();
+      img.onload = function () { resolve(img); };
+      img.onerror = function () { reject(new Error('img')); };
+      img.src = url;
+    });
+  }).then(function (img) {
+    return chgOcrWorker().then(function (w) {
+      ocrOnProgress = function (st, p) {
+        if (st !== 'recognizing text') return;
+        chgOcrStage((pass ? '复核 ' : '识别 ') + Math.round(p * 100) + '%');
+      };
+      pass = 0;
+      return w.recognize(file).then(function (r1) {
+        pass = 1;
+        var c = chgOcrShrink(img, 960);
+        return w.recognize(c).then(function (r2) {
+          return ocrMergeTwo(ocrParseOne(r1.data.text, Date.now()),
+            ocrParseOne(r2.data.text, Date.now()));
+        });
+      });
+    });
+  }).then(function (items) {
+    try { URL.revokeObjectURL(url); } catch (e) { }
+    return items;
+  }, function (e) {
+    try { URL.revokeObjectURL(url); } catch (e2) { }
+    throw e;
+  });
+}
+
+/* 多张图依次识别（列表页 + 详情页一起传时，详情页会把电量补上，靠 t 合并） */
+function chgOcrFiles(files) {
+  if (ocrState.busy) return;
+  var imgs = [].slice.call(files || []).filter(function (f) { return /^image\//.test(f.type); });
+  if (!imgs.length) { showToast('没认出图片，换个文件试试'); return; }
+
+  ocrState.busy = true;
+  var all = [];
+  var idx = 0;
+  var fail = 0;
+
+  var step = function () {
+    if (idx >= imgs.length) {
+      ocrState.busy = false;
+      chgOcrIdle();
+      if (!all.length) {
+        showToast(fail ? '这几张图没读出记录' : '没读出记录，换张清楚点的');
+        return;
+      }
+      chgOcrOpen(all);
+      return;
+    }
+    var f = imgs[idx++];
+    chgOcrStage('识别 ' + idx + '/' + imgs.length);
+    chgOcrReadFile(f).then(function (items) {
+      all = all.concat(items);
+      step();
+    }, function () {
+      fail++;
+      step();
+    });
+  };
+  step();
+}
+
+function chgOcrNum(label, cls, val) {
+  var d = document.createElement('div');
+  d.className = 'cocr-n';
+  var s = document.createElement('span');
+  s.textContent = label;
+  var i = document.createElement('input');
+  i.type = 'number';
+  i.className = cls;
+  i.inputMode = 'decimal';
+  i.min = '0';
+  i.step = 'any';
+  i.value = val;
+  d.appendChild(s);
+  d.appendChild(i);
+  return d;
+}
+
+function chgOcrOpen(items) {
+  chgOcrItems = items;
+  chgOcrPaint();
+  var d = $('dlg-chg-ocr');
+  if (d && !d.open) d.showModal();
+}
+
+function chgOcrPaint() {
+  var list = $('chg-ocr-list');
+  if (!list) return;
+  list.replaceChildren();
+
+  chgOcrItems.forEach(function (r) {
+    /* 没有任何存疑、且至少有一个有效数字的，默认勾上；其余留给用户先改 */
+    var auto = !!(!r.warn.length && r.t && (r.dur || r.kwh || r.cost));
+    var row = document.createElement('div');
+    row.className = 'cocr-row' + (r.warn.length ? ' bad' : '') + (auto ? '' : ' off');
+
+    var h = document.createElement('div');
+    h.className = 'cocr-h';
+    var cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = auto;
+    cb.addEventListener('change', function () {
+      row.classList.toggle('off', !cb.checked);
+      chgOcrCount();
+    });
+    h.appendChild(cb);
+
+    var when = document.createElement('input');
+    when.type = 'datetime-local';
+    when.className = 'cocr-when';
+    when.step = 60;
+    when.value = r.t ? chgLocalInput(r.t) : '';
+    h.appendChild(when);
+    row.appendChild(h);
+
+    var nums = document.createElement('div');
+    nums.className = 'cocr-nums';
+    nums.appendChild(chgOcrNum('时长（小时）', 'cocr-dur',
+      r.dur ? (r.dur / 60).toFixed(2).replace(/\.?0+$/, '') : ''));
+    nums.appendChild(chgOcrNum('电量（度）', 'cocr-kwh', r.kwh ? String(r.kwh) : ''));
+    nums.appendChild(chgOcrNum('电费（元）', 'cocr-cost', r.cost ? String(r.cost) : ''));
+    row.appendChild(nums);
+
+    var note = null;
+    if (r.warn.length) {
+      note = document.createElement('div');
+      note.className = 'cocr-warn';
+      note.textContent = r.warn.join('；') + '。';
+    } else if (r.fix.length) {
+      note = document.createElement('div');
+      note.className = 'cocr-ok';
+      note.textContent = r.fix.join('；') + '。';
+    }
+    if (note) row.appendChild(note);
+
+    if (r.loc) {
+      var loc = document.createElement('div');
+      loc.className = 'cocr-ok';
+      loc.textContent = r.loc + (r.order ? ' · ' + r.order : '');
+      row.appendChild(loc);
+    }
+
+    list.appendChild(row);
+  });
+
+  var bad = chgOcrItems.filter(function (r) { return r.warn.length; }).length;
+  var sub = $('chg-ocr-sub');
+  if (sub) {
+    sub.textContent = bad
+      ? bad + ' 条有读不准的地方（黄框），改完再勾。'
+      : '对着账单核一眼，改掉不对的数字，勾上再导入。';
+  }
+  chgOcrCount();
+}
+
+function chgOcrCount() {
+  var list = $('chg-ocr-list');
+  var n = 0;
+  if (list) {
+    [].forEach.call(list.children, function (row) {
+      var cb = row.querySelector('input[type=checkbox]');
+      if (cb && cb.checked) n++;
+    });
+  }
+  var title = $('chg-ocr-title');
+  if (title) title.textContent = '识别到 ' + chgOcrItems.length + ' 条';
+  var okBtn = $('chg-ocr-ok');
+  if (okBtn) {
+    okBtn.textContent = n ? '导入 ' + n + ' 条' : '导入';
+    okBtn.disabled = !n;
+  }
+}
+
+function chgOcrCollect() {
+  var list = $('chg-ocr-list');
+  var out = [];
+  if (!list) return out;
+  [].forEach.call(list.children, function (row, i) {
+    var cb = row.querySelector('input[type=checkbox]');
+    if (!cb || !cb.checked) return;
+    var src = chgOcrItems[i] || {};
+    var when = row.querySelector('.cocr-when');
+    var t = chgParseInput(when ? when.value : '');
+    if (!t) return;
+    var hrs = Number((row.querySelector('.cocr-dur') || {}).value) || 0;
+    var kwh = Number((row.querySelector('.cocr-kwh') || {}).value) || 0;
+    var cost = Number((row.querySelector('.cocr-cost') || {}).value) || 0;
+    var rec = {
+      t: t,
+      loc: src.loc || '',
+      dur: hrs > 0 ? Math.min(1440, Math.round(hrs * 60)) : 0,
+      kwh: kwh > 0 ? Math.min(99, Math.round(kwh * 10) / 10) : 0,
+      cost: cost > 0 ? Math.min(CHG_COST_MAX, Math.round(cost * 100) / 100) : 0,
+    };
+    /* 拆分不在确认页里改（一行塞不下），只有总额没被动过、且两项相加还对得上才带过去 */
+    if (src.ce > 0 && src.cs > 0 && Math.abs(src.cost - rec.cost) < 0.01
+      && Math.abs(src.ce + src.cs - rec.cost) < 0.02) {
+      rec.ce = src.ce;
+      rec.cs = src.cs;
+    }
+    out.push(rec);
+  });
+  return out;
+}
+
+function chgOcrCommit() {
+  var picked = chgOcrCollect();
+  if (!picked.length) { showToast('一条都没勾，或者时间没填'); return; }
+  var r = chgMerge(chgLoad(), picked);
+  if (!chgSave(r.items)) { showToast('存不下。无痕模式或浏览器禁用了存储'); return; }
+  chgPaint();
+  var d = $('dlg-chg-ocr');
+  if (d && d.open) d.close();
+  var tail = [];
+  if (r.same) tail.push('合并重复 ' + r.same + ' 条');
+  if (r.dropped) tail.push('超出 ' + CHG_MAX + ' 条，最早的没进来');
+  showToast('导入 ' + r.fresh + ' 条' + (tail.length ? ' · ' + tail.join(' · ') : '')
+    + ' · 现有 ' + r.items.length + ' 条');
+}
+
 /* ── 导入 / 导出（v3.14）────────────────────────────────────────
    导出：一整份 JSON（记录 + 版本号 + 导出时间），换手机、重装浏览器之后导回来。
    导入：只认这一种格式，也接受裸数组。**合并**而不是覆盖 ——
@@ -12047,6 +12848,8 @@ function chgMerge(cur, add) {
       dur: old.dur || x.dur,
       kwh: old.kwh || x.kwh,
       cost: old.cost || x.cost,
+      ce: old.ce || x.ce || 0,
+      cs: old.cs || x.cs || 0,
     });
   });
   const merged = Array.from(map.values()).sort((a, b) => b.t - a.t);
@@ -12129,6 +12932,12 @@ function chgFillPaint() {
   if (kEl) kEl.value = it && it.kwh ? String(it.kwh) : '';
   const cEl = $('chg-fill-cost');
   if (cEl) cEl.value = it && it.cost ? chgYuan(it.cost) : '';
+  const ceEl = $('chg-fill-ce');
+  if (ceEl) ceEl.value = it && it.ce ? chgYuan(it.ce) : '';
+  const csEl = $('chg-fill-cs');
+  if (csEl) csEl.value = it && it.cs ? chgYuan(it.cs) : '';
+  /* 这条记录本来就带明细，就默认展开 —— 否则用户会以为明细丢了 */
+  chgSplitShow(!!(it && (it.ce || it.cs)));
 
   const clr = $('chg-fill-clear');
   if (clr) clr.hidden = isNew;
@@ -12168,6 +12977,31 @@ function chgFillOpen(it) {
   if (dlg && !dlg.open) dlg.showModal();
 }
 
+/* 电费明细（v3.15）：绝大多数人只填一个总额，所以两项输入默认收起。
+   🔴 展开时总额框是**跟着算的**，不是各填各的 —— 两个数相加才是账单上的总额，
+      让用户手算第三个数只会多一处对不上的地方。 */
+function chgSplitShow(on) {
+  const box = $('chg-fill-split');
+  const btn = $('chg-fill-split-btn');
+  if (box) box.hidden = !on;
+  if (btn) {
+    btn.setAttribute('aria-expanded', on ? 'true' : 'false');
+    btn.textContent = on ? '收起明细' : '按电费和服务费分开填';
+  }
+  if (on) chgSplitSync();
+  chgFillHint();
+}
+
+function chgSplitSync() {
+  const box = $('chg-fill-split');
+  if (!box || box.hidden) return;
+  const ce = Number(($('chg-fill-ce') || {}).value) || 0;
+  const cs = Number(($('chg-fill-cs') || {}).value) || 0;
+  const cEl = $('chg-fill-cost');
+  if (cEl && ce + cs > 0) cEl.value = chgYuan(ce + cs);
+  chgFillHint();
+}
+
 function chgFillClear() {
   const dEl = $('chg-fill-dur');
   if (dEl) dEl.value = '';
@@ -12175,6 +13009,10 @@ function chgFillClear() {
   if (kEl) kEl.value = '';
   const cEl = $('chg-fill-cost');
   if (cEl) cEl.value = '';
+  const ceEl = $('chg-fill-ce');
+  if (ceEl) ceEl.value = '';
+  const csEl = $('chg-fill-cs');
+  if (csEl) csEl.value = '';
   chgFillHint();
 }
 
@@ -12190,7 +13028,17 @@ function chgFillSave() {
   const hrs = Number(dEl ? dEl.value : 0) || 0;   // 输入框是小时，存库换算成分钟
   const dur = Math.round(hrs * 60);
   const kwh = Math.round((Number(kEl ? kEl.value : 0) || 0) * 10) / 10;
-  const cost = Math.round((Number(cEl ? cEl.value : 0) || 0) * 10) / 10;
+  /* 明细展开时总额取两项之和：总额框本来就被 chgSplitSync() 写成了和，
+     这里再算一遍是为了防「改了明细但没触发的 input 事件」这种边角情况。 */
+  const splitBox = $('chg-fill-split');
+  const useSplit = !!splitBox && !splitBox.hidden;
+  const ceV = Math.round((Number(($('chg-fill-ce') || {}).value) || 0) * 100) / 100;
+  const csV = Math.round((Number(($('chg-fill-cs') || {}).value) || 0) * 100) / 100;
+  const ce = useSplit ? ceV : 0;
+  const cs = useSplit ? csV : 0;
+  const cost = useSplit && (ce > 0 || cs > 0)
+    ? Math.round((ce + cs) * 100) / 100
+    : Math.round((Number(cEl ? cEl.value : 0) || 0) * 100) / 100;
 
   const bad = (msg) => {
     if (hint) { hint.textContent = msg; hint.classList.add('bad'); }
@@ -12214,9 +13062,9 @@ function chgFillSave() {
 
   let next;
   if (isNew) {
-    next = [{ t, loc: chgSpot(), dur, kwh, cost }].concat(items);
+    next = [{ t, loc: chgSpot(), dur, kwh, cost, ce, cs }].concat(items);
   } else {
-    next = items.map((x) => (x.t === chgEditing ? { t, loc: x.loc, dur, kwh, cost } : x));
+    next = items.map((x) => (x.t === chgEditing ? { t, loc: x.loc, dur, kwh, cost, ce, cs } : x));
   }
   next.sort((a, b) => b.t - a.t);
   next = next.slice(0, CHG_MAX);
@@ -12262,9 +13110,18 @@ function chgOpenDlg() {
   if (impBtn) impBtn.addEventListener('click', () => chgImportPick());
   const expBtn = $('chg-export');
   if (expBtn) expBtn.addEventListener('click', () => chgExport());
+  /* 导入控件（v3.15）：同一个按钮吃两种东西 ——
+     图片走识图，JSON 走原来的备份还原。按 MIME 分流，用户不用先想「我该点哪个」。 */
   const impFile = $('chg-import-file');
   if (impFile) {
-    impFile.addEventListener('change', () => chgImportFile(impFile.files && impFile.files[0]));
+    impFile.addEventListener('change', () => {
+      const fs = [].slice.call(impFile.files || []);
+      if (!fs.length) return;
+      const imgs = fs.filter((f) => /^image\//.test(f.type));
+      if (imgs.length) { chgOcrFiles(imgs); return; }
+      if (fs.length > 1) { showToast('备份文件一次导一份'); return; }
+      chgImportFile(fs[0]);
+    });
   }
 
   const durIn = $('chg-fill-dur');
@@ -12281,6 +13138,28 @@ function chgOpenDlg() {
       if (e.key === 'Enter') { e.preventDefault(); chgFillSave(); }
     });
   }
+  const splitBtn = $('chg-fill-split-btn');
+  if (splitBtn) {
+    splitBtn.addEventListener('click', () => {
+      const box = $('chg-fill-split');
+      chgSplitShow(!!(box && box.hidden));
+    });
+  }
+  ['chg-fill-ce', 'chg-fill-cs'].forEach((id) => {
+    const el = $(id);
+    if (el) el.addEventListener('input', () => chgSplitSync());
+  });
+
+  const ocrOk = $('chg-ocr-ok');
+  if (ocrOk) ocrOk.addEventListener('click', () => chgOcrCommit());
+  const ocrNo = $('chg-ocr-cancel');
+  if (ocrNo) {
+    ocrNo.addEventListener('click', () => {
+      const d = $('dlg-chg-ocr');
+      if (d) d.close();
+    });
+  }
+
   const costIn = $('chg-fill-cost');
   if (costIn) {
     costIn.addEventListener('input', () => chgFillHint());

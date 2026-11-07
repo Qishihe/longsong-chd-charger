@@ -1060,6 +1060,76 @@
     font-size:12px; color:var(--hint); line-height:1.62;
   }
   .est-brand b{display:block; font-weight:500; color:var(--muted); margin-bottom:3px}
+
+  /* ---- 充电记录（v3.08 建，v3.09 补日期 / 时长 / 趋势图）----
+     纯本机功能：只读写 localStorage('cpk.charge.log')，一个请求都不发。
+     🔴 类名一律 clog-*，**别用 chg-***：「版本更新」弹窗（本文件 170 行起）已经占了
+        .chg-list 与 .chg-item。v3.08 撞过一次 —— 那边条目被染成 flex、这边每行
+        多出一条橙色左边框，两边都错，而断言全绿（断言不看样式）。
+        id 仍沿用 chg-*，id 不参与样式，不冲突。
+     --free-deep 是深绿档，浅底与暗色皮肤都够对比度，别拿 --free 当正文色。 */
+  .clog-hero{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:13px 14px}
+  .clog-num{font-size:30px; font-weight:700; color:var(--free-deep); line-height:1.15; letter-spacing:-.5px}
+  .clog-num small{font-size:13px; font-weight:500; margin-left:3px; letter-spacing:0}
+  .clog-sub{font-size:12.5px; color:var(--muted); margin-top:6px}
+  .clog-meta{font-size:12px; color:var(--hint); margin-top:4px; line-height:1.55}
+  /* 累计三格：次数 / 小时 / 电量。数值用 tabular-nums，位数变化时不跳。 */
+  .clog-sum{display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; padding-top:9px;
+    border-top:1px solid var(--line); font-size:11.5px; color:var(--hint)}
+  .clog-sum[hidden]{display:none}
+  .clog-sum b{font-weight:600; color:var(--text); font-variant-numeric:tabular-nums; margin-left:2px}
+  .clog-add{display:block; width:100%; margin-top:12px; padding:12px 14px; font-size:14px}
+
+  /* 趋势卡：手写 SVG 双线（左轴时长、右轴电量）。两条线各自的量纲差得远，
+     必须分轴 —— 共用一根轴的话电量 12kWh 和时长 90 分钟会被压成两条贴底直线。 */
+  .clog-card{margin-top:14px; padding:12px 12px 6px; border:1px solid var(--line);
+    border-radius:14px; background:var(--card)}
+  .clog-card[hidden]{display:none}
+  .clog-card-h{display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:2px}
+  .clog-card-h b{font-size:12.5px; font-weight:600; color:var(--text)}
+  .clog-legend{display:flex; gap:9px; font-size:10.5px; color:var(--hint); flex:none}
+  .clog-legend i{display:inline-block; width:12px; height:3px; border-radius:2px;
+    vertical-align:middle; margin-right:3px}
+  .clog-chart{display:block; width:100%; height:auto}
+  .clog-chart .g-line{stroke:var(--free); stroke-width:1.9; fill:none; stroke-linejoin:round; stroke-linecap:round}
+  .clog-chart .k-line{stroke:var(--warn); stroke-width:1.9; fill:none; stroke-linejoin:round; stroke-linecap:round}
+  .clog-chart .g-dot{fill:var(--free); stroke:var(--card); stroke-width:1.2}
+  .clog-chart .k-dot{fill:var(--warn); stroke:var(--card); stroke-width:1.2}
+  .clog-chart .grid{stroke:var(--line); stroke-width:1; stroke-dasharray:3 4}
+  .clog-chart .ax{fill:var(--hint); font-size:8.5px}
+  .clog-chart .ax-l{fill:var(--free-deep); font-size:8.5px; font-weight:600}
+  .clog-chart .ax-r{fill:var(--warn-fg); font-size:8.5px; font-weight:600}
+  .clog-empty{margin-top:12px; padding:11px 13px; border:1px dashed var(--line-strong);
+    border-radius:12px; font-size:12px; color:var(--hint); line-height:1.62}
+  .clog-empty[hidden]{display:none}
+  /* 规则行：功率是**估算参数**，不是会员功能 —— 谁都能改，改完立刻重算。 */
+  .clog-rule{display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:8px;
+    padding-top:9px; border-top:1px dashed var(--line); font-size:11px; color:var(--hint)}
+  .clog-rule .est-chip{font-size:11px; padding:4px 9px; min-height:26px; border-radius:999px}
+  .clog-rule .est-chip.on{background:var(--free); border-color:var(--free); color:var(--on-free,#fff)}
+
+  /* 记录列表：上下两行（时间 + 时长 / 位置 + 操作）。单行塞不下
+     390px 里的「11-07 19:56」「渭水-朝晖体育场南」「补充」「删除」四样。 */
+  .clog-list{margin-top:14px; max-height:254px; overflow-y:auto; overscroll-behavior:contain;
+    border:1px solid var(--line); border-radius:14px; background:var(--card)}
+  .clog-list[hidden]{display:none}
+  .clog-item{padding:10px 13px}
+  .clog-item + .clog-item{border-top:1px solid var(--line)}
+  .clog-top{display:flex; align-items:baseline; gap:8px}
+  .clog-top time{flex:none; font-variant-numeric:tabular-nums; font-weight:600;
+    font-size:13px; color:var(--text)}
+  .clog-dur{flex:1; min-width:0; font-size:11.5px; color:var(--free-deep);
+    font-variant-numeric:tabular-nums; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .clog-dur.none{color:var(--hint)}
+  .clog-bot{display:flex; align-items:center; gap:6px; margin-top:3px}
+  .clog-loc{flex:1; min-width:0; font-size:11.5px; color:var(--hint); line-height:1.9;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .clog-mini{flex:none; background:none; border:1px solid var(--line); border-radius:8px;
+    color:var(--muted); font:inherit; font-size:11.5px; padding:2px 8px; cursor:pointer;
+    -webkit-tap-highlight-color:transparent}
+  .clog-mini:active{background:var(--row-active)}
+  .clog-mini.fill{border-color:var(--free-line); color:var(--free-deep)}
+
   .cloud-block{margin-top:16px; border-top:1px solid var(--line); padding-top:13px}
   .cloud-block>b{display:block; font-size:13.5px}
   .cloud-block .fingerprint{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -1720,7 +1790,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v3.07</div>
+    <div id="app-ver" class="foot-ver">版本 v3.09</div>
   </footer>
 </div>
 
@@ -1979,6 +2049,17 @@
         <span class="set-ico" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 5.6V3.9a1.3 1.3 0 0 1 1.3-1.3h1.7M13.4 5.6V3.9a1.3 1.3 0 0 0-1.3-1.3h-1.7M2.6 10.4v1.7a1.3 1.3 0 0 0 1.3 1.3h1.7M13.4 10.4v1.7a1.3 1.3 0 0 1-1.3 1.3h-1.7M2.4 8h11.2"/></svg></span>
         <span class="set-txt">扫码快捷按钮</span>
         <span class="set-val" id="set-fab-val">关闭</span>
+        <span class="set-caret" aria-hidden="true"></span>
+      </button>
+      <!-- 充电记录（v3.08 建，v3.09 补日期 / 时长 / 趋势）。整行点一下 = **直接记一次**
+           （用户要的就是这个手感）；只有点最右边那颗箭头才打开明细。
+           两条路分别走 chgAdd() / chgOpenDlg()，别再额外绑一个整行 click，
+           否则点箭头会记完又开弹窗。
+           数据只落 localStorage('cpk.charge.log')：不读 /api、不写 KV、不同步云端。 -->
+      <button class="set-row" type="button" id="set-charge-btn">
+        <span class="set-ico" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.3" y="4.9" width="9.4" height="6.2" rx="1.7"/><path d="M13.4 6.9v2.2"/><path d="M7.1 6.2 5.8 8.5h1.7l-.5 2 1.9-2.6H7.3z" fill="currentColor" stroke="none"/></svg></span>
+        <span class="set-txt">记一次充电</span>
+        <span class="set-val" id="set-charge-val">还没记过</span>
         <span class="set-caret" aria-hidden="true"></span>
       </button>
     </div>
@@ -2546,6 +2627,96 @@
     <div class="row">
       <button class="icon-btn" type="button" id="share-copy-btn">复制链接</button>
       <button class="icon-btn share-go" type="button" id="share-send-btn">分享给同学</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- 充电记录（v3.08 建，v3.09 扩）。入口是设置 ›「记一次充电」行末尾的箭头。
+     这一屏干五件事：看次数 / 累计、记一次、给某次补上「充了多久」、
+     看时长与电量的趋势折线、删单条或清空。
+     🔴 全部数据只在本机 localStorage 里，页面不发任何请求 —— 关掉网络、
+        换台手机、重装浏览器，记录都不会跟着走，也不会出现在任何服务端。
+     🔴 电量是**本地按功率折算**的估算值，不是从平台读的读数：
+        平台接口不返回 kWh，这条线只能靠「时长 × 功率 × 效率」，见 chgKwh()。 -->
+<dialog id="dlg-charge" class="sub-dlg" aria-label="充电记录">
+  <div class="dlg-body">
+    <div class="dlg-head">
+      <h2>充电记录</h2>
+      <button class="x-btn" data-close aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+    </div>
+
+    <div class="clog-hero">
+      <div class="clog-num"><span id="chg-count">0</span><small>次</small></div>
+      <div class="clog-sub" id="chg-sub">还没有记录</div>
+      <div class="clog-meta" id="chg-meta">点下面那颗按钮，记下现在这一次</div>
+      <div class="clog-sum" id="chg-sum" hidden>
+        <span>累计<b id="chg-sum-n">0</b>次</span>
+        <span>已补时长<b id="chg-sum-d">0</b>次</span>
+        <span>共<b id="chg-sum-h">0</b>小时</span>
+        <span>约<b id="chg-sum-k">0</b>kWh</span>
+      </div>
+    </div>
+
+    <button class="icon-btn primary clog-add" type="button" id="chg-add">记一次 · 现在</button>
+    <p class="note" id="chg-note">只存在这台设备的浏览器里，不上传、不同步；换设备或清浏览器数据就没了。</p>
+
+    <!-- 趋势：只有**补过时长**的记录才进图（没时长就算不出电量，画上去只能是断点）。
+         两条线分左右轴，理由见上面 .clog-card 的注释。 -->
+    <div class="clog-card" id="clog-trend" hidden>
+      <div class="clog-card-h">
+        <b>每次的时长与电量</b>
+        <span class="clog-legend">
+          <span><i style="background:var(--free)"></i>时长</span>
+          <span><i style="background:var(--warn)"></i>电量</span>
+        </span>
+      </div>
+      <svg class="clog-chart" id="clog-svg" viewBox="0 0 340 158" role="img"
+           aria-label="每次充电的时长与电量变化折线图"></svg>
+      <div class="clog-rule">
+        <span>按</span>
+        <button class="est-chip" type="button" data-kw="3.3">3.3kW</button>
+        <button class="est-chip" type="button" data-kw="7">7kW</button>
+        <button class="est-chip" type="button" data-kw="11">11kW</button>
+        <button class="est-chip" type="button" data-kw="22">22kW</button>
+        <span>折算 · 效率 92%</span>
+      </div>
+    </div>
+    <div class="clog-empty" id="clog-empty" hidden></div>
+
+    <div class="clog-list" id="chg-list" hidden></div>
+
+    <div class="row" id="chg-foot" hidden>
+      <button class="icon-btn" type="button" id="chg-clear">清空记录</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- 补时长（v3.09）。由记录行里的「补充 / 改」按钮打开，chgEditing 记住是哪一条。
+     输入只收「分钟」一个单位：给时+分两个框，手机上要来回切焦点，
+     而 90 分钟写一个数字最快 —— 常用值下面那排 chips 直接点更省事。 -->
+<dialog id="dlg-chg-dur" class="sub-dlg" aria-label="补充充电时长">
+  <div class="dlg-body">
+    <div class="dlg-head">
+      <h2>这次充了多久</h2>
+      <button class="x-btn" data-close aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+    </div>
+    <p class="note" id="chg-dur-when" style="margin-top:0">—</p>
+    <div class="est-chips" id="chg-dur-chips">
+      <button class="est-chip" type="button" data-min="30">30 分钟</button>
+      <button class="est-chip" type="button" data-min="60">1 小时</button>
+      <button class="est-chip" type="button" data-min="90">1.5 小时</button>
+      <button class="est-chip" type="button" data-min="120">2 小时</button>
+      <button class="est-chip" type="button" data-min="180">3 小时</button>
+    </div>
+    <div class="est-inwrap">
+      <input id="chg-dur-in" type="number" min="1" max="1440" step="1" inputmode="numeric"
+             placeholder="或者自己填" aria-label="充电分钟数">
+      <span class="u">分钟</span>
+    </div>
+    <div class="note" id="chg-dur-kwh">填完就能算出这次大概充进去多少电。</div>
+    <div class="row">
+      <button class="icon-btn" type="button" id="chg-dur-clear" hidden>清除时长</button>
+      <button class="icon-btn primary" type="button" id="chg-dur-save">保存</button>
     </div>
   </div>
 </dialog>
@@ -10107,6 +10278,19 @@ const CHANGELOG = [
       + '点开是一张指向本站的二维码，配「复制链接」和「分享给同学」两个按钮。'
       + '想推荐给室友又懒得讲网址，直接把码转发或截图过去，'
       + '对方扫一下就能打开，不用装任何东西',
+    /* v3.08：充电记录。这是访客能自己动手用的一件新事（且涉及「数据存哪」），
+       必须写清楚「只在本机」。仍归在 v2.90–当前 这一组，不必新开条目。 */
+    '设置里多了「记一次充电」：点一下就把现在的时间记下来，右侧那个数字会变成'
+      + '「共几次 · 上次什么时候」；点行尾的箭头能看全部记录、删单条或者清空。'
+      + '记录只存在这台设备的浏览器里 —— 不上传、不同步，换台手机或者清了浏览器数据就没了',
+    /* v3.09：日期 / 补时长 / 电量估算。与 v3.08 同一件事的延伸，原地续写两条：
+       一条讲「记得更全了」，一条讲「能看出走势了」。仍归 v2.90–当前 这一组。
+       ⚠️ 文案里别出现「源水校区」与「皮肤」—— _check_chg_merge 对这两个词有专项计数断言。 */
+    '每条记录现在都带日期了（像「11-07 19:56」），不再只剩一个时间点；'
+      + '记录右侧多了一颗「补充」，点开填上这次充了多久，就能算出大概充进去多少电',
+    '充电记录里多了一张折线图：横轴是每一次，左边看时长、右边看电量，'
+      + '补过两次以上就能连成线，一眼看出哪次充得久、哪次其实没充进去多少。'
+      + '电量是按「时长 × 功率」估的（功率自己能选 3.3 / 7 / 11 / 22 kW），不是平台读数',
   ] },
   { v: 'v2.80 – v2.89', d: '2026-11-03 ~ 11-04', items: [
     /* v2.80：定位高亮竞态（线上弱网实测约一半次数补不上）。用户看到的是
@@ -11241,6 +11425,557 @@ function fabBoot() {
   window.addEventListener('resize', fabPaint);
   window.addEventListener('orientationchange', () => setTimeout(fabPaint, 240));
 }
+
+/* ── 充电记录（v3.08 建，v3.09 扩：日期 / 补时长 / 趋势图）────────
+   把「这次什么时候充的、充了多久」记在**这台设备的浏览器**里。三条硬约束：
+     ① 刷新 / 关标签页 / 重开 App 都还在 → localStorage，不是 sessionStorage
+        （sessionStorage 一关标签页就没了，正好是这里最不想要的行为）；
+     ② 不同步云端 → 整个功能**一个 fetch 都不发**，不碰 /api/cred、/api/stats，
+        也不进 KV。服务端永远不会有第二份，换设备自然也就看不到；
+     ③ 存不进去要明说 → 无痕模式、禁用站点数据都会让 setItem 抛异常，
+        全部 try/catch，失败时老实说「这台设备存不了」，不许假装记上了。
+
+   数据结构 v2（v1 只有 t + loc，读的时候补 d，下次保存自动升级）：
+     { v: 2, items: [ { t:<毫秒>, d:'2026-11-07', loc:'<地址>', dur:<分钟> } ] }
+     · t 负责排序和「多久以前」；d 是本地日历日，跨零点 / 跨时区时比 t 好读；
+     · dur 是**分钟整数**，0 或缺失 = 还没补时长；
+     · 电量**不落库**：由 dur 现算（chgKwh），改功率后整条历史立刻跟着变。
+
+   容量：上限 200 条；顺序：**降序**存，最新一条永远是 items[0]。 */
+const CHG_KEY = 'cpk.charge.log';
+const CHG_RULE_KEY = 'cpk.charge.rule';
+const CHG_MAX = 200;
+const CHG_DUP_MS = 60000;    // 手抖连点：60 秒内不重复记一条
+const CHG_TREND_N = 12;      // 趋势图最多画最近几次
+const CHG_EFF = 0.92;        // 折算效率（校内交流慢充大致值）
+
+function chgKw() {
+  try {
+    const v = Number(JSON.parse(localStorage.getItem(CHG_RULE_KEY) || 'null'));
+    if (Number.isFinite(v) && v >= 0.5 && v <= 60) return v;
+  } catch (e) {}
+  return 7;
+}
+
+function chgSetKw(kw) {
+  if (!Number.isFinite(kw) || kw < 0.5 || kw > 60) return;
+  try { localStorage.setItem(CHG_RULE_KEY, String(kw)); } catch (e) {}
+}
+
+/* 🔴 电量是**估算**，不是从平台读的读数：接口里没有 kWh 字段。
+   现在的规则 = 时长 × 功率 × 效率。正式充电规则给出后，**只改这一个函数**，
+   别把公式再抄到别处（列表、累计、图表三处都调它）。 */
+function chgKwh(dur) {
+  const m = Number(dur) || 0;
+  return m > 0 ? (m / 60) * chgKw() * CHG_EFF : 0;
+}
+
+const chgPad = (n) => (n < 10 ? '0' + n : String(n));
+
+function chgDayStr(t) {
+  const d = new Date(t);
+  return d.getFullYear() + '-' + chgPad(d.getMonth() + 1) + '-' + chgPad(d.getDate());
+}
+
+/* 列表里一律「日期 + 时刻」—— 只给「20:18」的话，记半个月就分不清哪天是哪天。
+   同年省略年份，跨年才把年份带上，宽度省一半。 */
+function chgStamp(t) {
+  const d = new Date(t);
+  const now = new Date();
+  const md = chgPad(d.getMonth() + 1) + '-' + chgPad(d.getDate());
+  const hm = chgPad(d.getHours()) + ':' + chgPad(d.getMinutes());
+  return (d.getFullYear() === now.getFullYear() ? md : d.getFullYear() + '-' + md) + ' ' + hm;
+}
+
+/* 「今天 / 昨天 / 前天 + 时刻」，只用在「上次」这种一眼要读的场景 */
+function chgWhen(t) {
+  const d = new Date(t);
+  const now = new Date();
+  const a = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const b = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diff = Math.round((a - b) / 86400000);
+  const word = diff === 0 ? '今天' : diff === 1 ? '昨天' : diff === 2 ? '前天' : '';
+  return word ? word + ' ' + chgStamp(t).slice(-5) : chgStamp(t);
+}
+
+function chgLoad() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(CHG_KEY) || 'null');
+    const items = raw && Array.isArray(raw.items) ? raw.items : [];
+    /* 脏数据兜底：手改过 localStorage、或者 v1 存量记录都不能把这一屏搞白。
+       v1 没有 d / dur，这里补出来 —— 读完即升到 v2 的形状。 */
+    return items
+      .filter((x) => x && Number.isFinite(x.t) && x.t > 0)
+      .map((x) => {
+        const t = Number(x.t);
+        const dur = Number(x.dur);
+        return {
+          t,
+          d: typeof x.d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x.d) ? x.d : chgDayStr(t),
+          loc: typeof x.loc === 'string' ? x.loc.slice(0, 40) : '',
+          dur: Number.isFinite(dur) && dur > 0 ? Math.min(1440, Math.round(dur)) : 0,
+        };
+      })
+      .sort((a, b) => b.t - a.t);
+  } catch (e) {
+    return [];
+  }
+}
+
+function chgSave(items) {
+  try {
+    /* 存的时候把 dur=0 的字段省掉，一条约 60 字节，200 条也只有 12KB 左右 */
+    const slim = items.slice(0, CHG_MAX).map((x) => {
+      const o = { t: x.t, d: x.d, loc: x.loc };
+      if (x.dur > 0) o.dur = x.dur;
+      return o;
+    });
+    localStorage.setItem(CHG_KEY, JSON.stringify({ v: 2, items: slim }));
+    return true;
+  } catch (e) {
+    return false;   // 无痕 / 配额满 / 被策略禁用，都走这里
+  }
+}
+
+/* 记账时顺手记一下「当时在看哪个地址」。纯辅助信息，取不到就空着 ——
+   绝不能因为取不到位置而少记一条。 */
+function chgSpot() {
+  try {
+    return getFilter() || campusName(getCampus(), true) || '';
+  } catch (e) {
+    return '';
+  }
+}
+
+function chgAgo(t) {
+  const diff = Math.max(0, Date.now() - t);
+  if (diff < 60000) return '刚刚';
+  if (diff < 3600000) return Math.floor(diff / 60000) + ' 分钟前';
+  if (diff < 86400000) return Math.floor(diff / 3600000) + ' 小时前';
+  const d = Math.floor(diff / 86400000);
+  return d < 30 ? d + ' 天前' : Math.floor(d / 30) + ' 个月前';
+}
+
+/* 间隔只按**相邻两次**算平均。中间删过几条也不会算错 ——
+   用「最新 - 最旧 ÷ (n-1)」会把删掉的那段摊进来，数就虚了。 */
+function chgStats(items) {
+  const n = items.length;
+  let avg = 0;
+  let mins = 0;
+  let kwh = 0;
+  let withDur = 0;
+  if (n) {
+    for (let i = 1; i < n; i++) avg += items[i - 1].t - items[i].t;
+    if (n >= 2) avg /= (n - 1);
+    items.forEach((it) => {
+      if (it.dur > 0) { withDur++; mins += it.dur; kwh += chgKwh(it.dur); }
+    });
+  }
+  return { n, avg, last: n ? items[0].t : 0, mins, kwh, withDur };
+}
+
+function chgFmtGap(ms) {
+  if (!ms) return '';
+  const m = ms / 60000;
+  if (m < 90) return Math.round(m) + ' 分钟';
+  const h = m / 60;
+  if (h < 36) return (h < 10 ? h.toFixed(1).replace(/\.0$/, '') : String(Math.round(h))) + ' 小时';
+  const d = h / 24;
+  return (d < 10 ? d.toFixed(1).replace(/\.0$/, '') : String(Math.round(d))) + ' 天';
+}
+
+/* 分钟数转人话：90 → 1.5 小时。和 chgFmtGap 分开写原因不同：
+   那个算的是「两次之间隔了多久」，这个算的是「这一次充了多久」。 */
+function chgFmtMin(m) {
+  if (!m) return '';
+  if (m < 60) return Math.round(m) + ' 分钟';
+  const h = m / 60;
+  return (h < 10 ? h.toFixed(1).replace(/\.0$/, '') : String(Math.round(h))) + ' 小时';
+}
+
+/* 轴上限取整到 1 / 1.2 / 1.5 / 2 / 2.5 / 3 / 4 / 5 / 6 / 8 / 10 这几档 ——
+   不然刻度会变成 87.3 这种数。档位不能太粗：只留 1/2/5/10 的话，
+   120 分钟会被抬到 200，整条线挤在下半截。 */
+function chgNiceMax(v) {
+  if (!(v > 0)) return 1;
+  const p = Math.pow(10, Math.floor(Math.log10(v)));
+  const f = v / p;
+  const m = f <= 1 ? 1 : f <= 1.2 ? 1.2 : f <= 1.5 ? 1.5 : f <= 2 ? 2
+    : f <= 2.5 ? 2.5 : f <= 3 ? 3 : f <= 4 ? 4 : f <= 5 ? 5 : f <= 6 ? 6 : f <= 8 ? 8 : 10;
+  return m * p;
+}
+
+/* 趋势折线：手写 SVG，不引图表库（这一个弹窗值不上 30KB 的依赖）。
+   左轴 = 时长（分钟），右轴 = 电量（kWh），两条线各自的量纲差一个数量级，
+   共用一根轴的话电量会被压成贴底的一条直线。 */
+function chgDrawTrend(items) {
+  const svg = $('clog-svg');
+  const card = $('clog-trend');
+  const empty = $('clog-empty');
+  const all = items || chgLoad();
+
+  /* 只有补过时长的记录才进图：没时长就算不出电量，画上去只能是断点 */
+  const pts = all.filter((x) => x.dur > 0).slice(0, CHG_TREND_N).reverse();   // 升序
+  const canShow = pts.length >= 2;
+
+  if (card) card.hidden = !canShow;
+  if (empty) {
+    empty.hidden = canShow;
+    if (!canShow) {
+      if (!all.length) {
+        empty.textContent = '先记几次，再给每次补上「充了多久」，这里就会出现时长和电量的走势。';
+      } else if (pts.length === 1) {
+        empty.textContent = '已经补了 1 次时长 —— 再补一次就能连成折线，看出每次的变化。';
+      } else {
+        empty.textContent = '点任意一条记录右侧的「补充」，填上充了多久，就能算出这次大概充进去多少电，并画进这张图。';
+      }
+    }
+  }
+
+  /* 功率 chips 的选中态跟着存下来的值走，卡片藏起来时也保持一致 */
+  const kwNow = chgKw();
+  const ruleChips = document.querySelectorAll('.clog-rule .est-chip');
+  for (let i = 0; i < ruleChips.length; i++) {
+    ruleChips[i].classList.toggle('on', Number(ruleChips[i].dataset.kw) === kwNow);
+  }
+
+  if (!canShow || !svg) return;
+
+  const W = 340;
+  const H = 158;
+  const L = 26;    // 左轴刻度宽
+  const R = 32;    // 右轴刻度宽
+  const T = 20;    // 顶上要留够：单位标注 + 最高一条刻度，两层各 8.5px 字号
+  const B = 22;    // 留出日期标签
+  const iw = W - L - R;
+  const ih = H - T - B;
+  const n = pts.length;
+  const maxD = chgNiceMax(Math.max.apply(null, pts.map((p) => p.dur)));
+  const maxK = chgNiceMax(Math.max.apply(null, pts.map((p) => chgKwh(p.dur))));
+  const xOf = (i) => (n === 1 ? L + iw / 2 : L + (i / (n - 1)) * iw);
+  const yD = (v) => T + ih - (v / maxD) * ih;
+  const yK = (v) => T + ih - (v / maxK) * ih;
+  const f1 = (v) => v.toFixed(1);
+
+  const out = [];
+  out.push('<text class="ax ax-l" x="' + (L - 5) + '" y="' + (T - 8) + '" text-anchor="end">分钟</text>');
+  out.push('<text class="ax ax-r" x="' + (L + iw + 5) + '" y="' + (T - 8) + '" text-anchor="start">kWh</text>');
+
+  /* 网格：0 / 中 / 顶三条。左轴写整数分钟，右轴写一位小数电量 */
+  [0, 0.5, 1].forEach((f) => {
+    const y = T + ih - f * ih;
+    out.push('<line class="grid" x1="' + L + '" y1="' + f1(y) + '" x2="' + (L + iw) + '" y2="' + f1(y) + '"/>');
+    out.push('<text class="ax ax-l" x="' + (L - 5) + '" y="' + f1(y + 3) + '" text-anchor="end">'
+      + Math.round(maxD * f) + '</text>');
+    out.push('<text class="ax ax-r" x="' + (L + iw + 5) + '" y="' + f1(y + 3) + '" text-anchor="start">'
+      + (maxK * f).toFixed(1).replace(/\.0$/, '') + '</text>');
+  });
+
+  /* 日期标签最多 4 个 + 最后一个必标：12 条全标会糊成一片 */
+  const step = Math.max(1, Math.ceil(n / 4));
+  pts.forEach((p, i) => {
+    if (i % step !== 0 && i !== n - 1) return;
+    const d = new Date(p.t);
+    const md = chgPad(d.getMonth() + 1) + '/' + chgPad(d.getDate());
+    out.push('<text class="ax" x="' + f1(xOf(i)) + '" y="' + (H - 6) + '" text-anchor="middle">' + md + '</text>');
+  });
+
+  /* 线：先绿（实线）后橙（虚线）—— 万一两条比值刚好一样、位置重合，
+     虚线会从实线的间隙里透出来，不至于看成一根线 */
+  const gPts = pts.map((p, i) => f1(xOf(i)) + ',' + f1(yD(p.dur))).join(' ');
+  const kPts = pts.map((p, i) => f1(xOf(i)) + ',' + f1(yK(chgKwh(p.dur)))).join(' ');
+  out.push('<polyline class="g-line" points="' + gPts + '"/>');
+  out.push('<polyline class="k-line" points="' + kPts + '"/>');
+
+  /* 点 + 原生 title（桌面 hover 可见；移动端靠下面的列表看明细） */
+  pts.forEach((p, i) => {
+    const kwh = chgKwh(p.dur);
+    out.push('<circle class="g-dot" cx="' + f1(xOf(i)) + '" cy="' + f1(yD(p.dur)) + '" r="2.5">'
+      + '<title>' + chgStamp(p.t) + ' · ' + chgFmtMin(p.dur) + '</title></circle>');
+    out.push('<circle class="k-dot" cx="' + f1(xOf(i)) + '" cy="' + f1(yK(kwh)) + '" r="2.1">'
+      + '<title>' + chgStamp(p.t) + ' · 约 ' + kwh.toFixed(1) + ' kWh</title></circle>');
+  });
+
+  /* 里面只有本轮算出来的数字和时间，没有用户可编辑的字符串 —— 拼 innerHTML 是安全的 */
+  svg.innerHTML = out.join('');
+}
+
+/* 设置行的右侧值和弹窗内容一起重画 —— 两处都读同一份 chgLoad()，
+   不存在「行上显示 3 次、弹窗里 4 条」这种对不上的情况。 */
+function chgPaint() {
+  const items = chgLoad();
+  const st = chgStats(items);
+
+  const valEl = $('set-charge-val');
+  if (valEl) valEl.textContent = st.n ? '共 ' + st.n + ' 次 · ' + chgStamp(st.last) : '还没记过';
+
+  const countEl = $('chg-count');
+  if (!countEl) return;   // 这一版把弹窗裁了也不会连带报错
+
+  countEl.textContent = String(st.n);
+  const subEl = $('chg-sub');
+  const metaEl = $('chg-meta');
+  if (!st.n) {
+    subEl.textContent = '还没有记录';
+    metaEl.textContent = '点下面那颗按钮，记下现在这一次';
+  } else {
+    subEl.textContent = '上次 ' + chgWhen(st.last) + ' · ' + chgAgo(st.last);
+    metaEl.textContent = st.n >= 2
+      ? '平均 ' + chgFmtGap(st.avg) + ' 充一次 · 最早 ' + chgStamp(items[items.length - 1].t)
+      : '再记一次就能算出平均间隔';
+  }
+
+  const sumEl = $('chg-sum');
+  if (sumEl) {
+    sumEl.hidden = !st.withDur;
+    if (st.withDur) {
+      $('chg-sum-n').textContent = String(st.n);
+      $('chg-sum-d').textContent = String(st.withDur);
+      $('chg-sum-h').textContent = (st.mins / 60).toFixed(1).replace(/\.0$/, '');
+      $('chg-sum-k').textContent = st.kwh.toFixed(1);
+    }
+  }
+
+  const addBtn = $('chg-add');
+  if (addBtn) addBtn.textContent = '记一次 · 现在 ' + chgStamp(Date.now()).slice(-5);
+
+  const list = $('chg-list');
+  const foot = $('chg-foot');
+  if (!list) return;
+  list.replaceChildren();
+  list.hidden = !st.n;
+  if (foot) foot.hidden = !st.n;
+
+  /* 逐条用 createElement + textContent 拼，不拼 innerHTML —— loc 是本地字符串，
+     理论上能被手改 localStorage 注入，别给它执行的机会。 */
+  items.forEach((it) => {
+    const row = document.createElement('div');
+    row.className = 'clog-item';
+
+    const top = document.createElement('div');
+    top.className = 'clog-top';
+    const time = document.createElement('time');
+    time.dateTime = new Date(it.t).toISOString();
+    time.textContent = chgStamp(it.t);   // 日期 + 时刻，不是只有几点几分
+    const dur = document.createElement('span');
+    dur.className = 'clog-dur' + (it.dur ? '' : ' none');
+    dur.textContent = it.dur
+      ? chgFmtMin(it.dur) + ' · 约 ' + chgKwh(it.dur).toFixed(1) + ' kWh'
+      : '时长未填';
+    top.append(time, dur);
+
+    const bot = document.createElement('div');
+    bot.className = 'clog-bot';
+    const loc = document.createElement('span');
+    loc.className = 'clog-loc';
+    loc.textContent = it.loc || '没记下位置';
+
+    const fill = document.createElement('button');
+    fill.type = 'button';
+    fill.className = 'clog-mini' + (it.dur ? '' : ' fill');
+    fill.textContent = it.dur ? '改' : '补充';
+    fill.title = '补充这次充电了多久';
+    fill.addEventListener('click', () => chgDurOpen(it));
+
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'clog-mini';
+    del.textContent = '删除';
+    del.addEventListener('click', () => chgDrop(it.t));
+
+    bot.append(loc, fill, del);
+    row.append(top, bot);
+    list.append(row);
+  });
+
+  chgDrawTrend(items);
+}
+
+function chgAdd() {
+  const items = chgLoad();
+  const now = Date.now();
+  if (items.length && now - items[0].t < CHG_DUP_MS) {
+    showToast('刚刚记过了 · ' + chgWhen(items[0].t));
+    return false;
+  }
+  const next = [{ t: now, d: chgDayStr(now), loc: chgSpot(), dur: 0 }].concat(items).slice(0, CHG_MAX);
+  if (!chgSave(next)) {
+    showToast('这台设备存不了记录（无痕模式？）');
+    return false;
+  }
+  chgPaint();
+  showToast('已记下 ' + chgStamp(now) + ' · 共 ' + next.length + ' 次');
+  return true;
+}
+
+function chgDrop(t) {
+  const left = chgLoad().filter((x) => x.t !== t);
+  if (!chgSave(left)) { showToast('这台设备存不了记录（无痕模式？）'); return; }
+  chgPaint();
+  showToast('已删除一条');
+}
+
+/* 清空用「再点一次」二次确认，不上 window.confirm：原生弹窗在 PWA 里丑、
+   而且会阻塞渲染；这个功能数据量小、误删也只丢几条，犯不上开模态。 */
+let chgClearTimer = 0;
+function chgClear(btn) {
+  if (!chgClearTimer) {
+    btn.textContent = '再点一次清空';
+    chgClearTimer = setTimeout(() => {
+      chgClearTimer = 0;
+      btn.textContent = '清空记录';
+    }, 3000);
+    return;
+  }
+  clearTimeout(chgClearTimer);
+  chgClearTimer = 0;
+  btn.textContent = '清空记录';
+  const n = chgLoad().length;
+  chgSave([]);
+  chgPaint();
+  showToast(n ? '已清空 ' + n + ' 条记录' : '本来就是空的');
+}
+
+/* ── 补时长（v3.09）────────────────────────────────────────────
+   chgEditing 存的是「正在补的那一条的 t」。用 t 而不是索引：
+   补的过程中列表可能被别的标签页改掉，索引会指到别人身上，t 不会。 */
+let chgEditing = 0;
+
+function chgDurPaint() {
+  const it = chgLoad().filter((x) => x.t === chgEditing)[0];
+  const inEl = $('chg-dur-in');
+  if (!it || !inEl) return;
+  const whenEl = $('chg-dur-when');
+  if (whenEl) whenEl.textContent = chgWhen(it.t) + (it.loc ? ' · ' + it.loc : '');
+  inEl.value = it.dur ? String(it.dur) : '';
+  const clr = $('chg-dur-clear');
+  if (clr) clr.hidden = !it.dur;
+  chgDurChips();
+  chgDurHint();
+}
+
+function chgDurChips() {
+  const inEl = $('chg-dur-in');
+  const v = inEl ? Number(inEl.value) : 0;
+  const box = $('chg-dur-chips');
+  if (!box) return;
+  const btns = box.querySelectorAll('.est-chip');
+  for (let i = 0; i < btns.length; i++) {
+    btns[i].classList.toggle('on', Number(btns[i].dataset.min) === v);
+  }
+}
+
+function chgDurHint() {
+  const inEl = $('chg-dur-in');
+  const el = $('chg-dur-kwh');
+  if (!el) return;
+  const v = inEl ? Number(inEl.value) : 0;
+  el.classList.remove('bad');
+  if (Number.isFinite(v) && v >= 1 && v <= 1440) {
+    el.textContent = '约 ' + chgKwh(v).toFixed(1) + ' kWh · 按 ' + chgKw() + ' kW × '
+      + Math.round(CHG_EFF * 100) + '% 折算';
+  } else if (v > 1440) {
+    el.textContent = '最长按 24 小时（1440 分钟）算';
+    el.classList.add('bad');
+  } else {
+    el.textContent = '填完就能算出这次大概充进去多少电。';
+  }
+}
+
+function chgDurOpen(it) {
+  chgEditing = it.t;
+  chgDurPaint();
+  const dlg = $('dlg-chg-dur');
+  if (dlg && !dlg.open) dlg.showModal();
+}
+
+function chgDurSave() {
+  const inEl = $('chg-dur-in');
+  const v = Math.round(Number(inEl ? inEl.value : 0));
+  const el = $('chg-dur-kwh');
+  if (!Number.isFinite(v) || v < 1 || v > 1440) {
+    if (el) { el.textContent = '填 1~1440 之间的分钟数（最长 24 小时）'; el.classList.add('bad'); }
+    return;
+  }
+  const items = chgLoad().map((x) => (x.t === chgEditing ? Object.assign({}, x, { dur: v }) : x));
+  if (!chgSave(items)) { showToast('这台设备存不了记录（无痕模式？）'); return; }
+  chgPaint();
+  const dlg = $('dlg-chg-dur');
+  if (dlg) dlg.close();
+  showToast('已补上 ' + chgFmtMin(v) + ' · 约 ' + chgKwh(v).toFixed(1) + ' kWh');
+}
+
+function chgDurClear() {
+  const items = chgLoad().map((x) => (x.t === chgEditing ? Object.assign({}, x, { dur: 0 }) : x));
+  if (!chgSave(items)) { showToast('这台设备存不了记录（无痕模式？）'); return; }
+  chgPaint();
+  const dlg = $('dlg-chg-dur');
+  if (dlg) dlg.close();
+  showToast('已清除这次的时长');
+}
+
+function chgOpenDlg() {
+  chgPaint();
+  const dlg = $('dlg-charge');
+  if (dlg && !dlg.open) dlg.showModal();
+}
+
+(function bindCharge() {
+  const row = $('set-charge-btn');
+  if (row) {
+    /* 🔴 整行是**一个** button，点哪儿都走这条 handler：
+       点在右箭头 → 看明细；点其它地方 → 直接记一次（这就是产品要的手感）。
+       不要在 SET_ENTRIES 里再登记这一行，那个 forEach 会整行绑成「打开弹窗」。 */
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('.set-caret')) { chgOpenDlg(); return; }
+      chgAdd();
+    });
+  }
+  const addBtn = $('chg-add');
+  if (addBtn) addBtn.addEventListener('click', () => chgAdd());
+  const clr = $('chg-clear');
+  if (clr) clr.addEventListener('click', () => chgClear(clr));
+
+  const durIn = $('chg-dur-in');
+  if (durIn) {
+    durIn.addEventListener('input', () => { chgDurChips(); chgDurHint(); });
+    durIn.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); chgDurSave(); }
+    });
+  }
+  const durChips = $('chg-dur-chips');
+  if (durChips) {
+    durChips.addEventListener('click', (e) => {
+      const b = e.target.closest('.est-chip');
+      if (!b || !durIn) return;
+      durIn.value = b.dataset.min;
+      chgDurChips();
+      chgDurHint();
+    });
+  }
+  const durSave = $('chg-dur-save');
+  if (durSave) durSave.addEventListener('click', () => chgDurSave());
+  const durClr = $('chg-dur-clear');
+  if (durClr) durClr.addEventListener('click', () => chgDurClear());
+
+  /* 功率 chips：估算参数，存本机。换桩功率的人（宿舍 3.3、快充 22）自己点一下 */
+  const trend = $('clog-trend');
+  if (trend) {
+    trend.addEventListener('click', (e) => {
+      const b = e.target.closest('.clog-rule .est-chip');
+      if (!b) return;
+      chgSetKw(Number(b.dataset.kw));
+      chgPaint();
+      showToast('按 ' + chgKw() + ' kW 折算');
+    });
+  }
+
+  /* 另一个标签页记了一笔 / 改了功率，这一页要跟上（storage 只在**别的**页触发） */
+  window.addEventListener('storage', (e) => {
+    if (e.key === CHG_KEY || e.key === CHG_RULE_KEY) chgPaint();
+  });
+  chgPaint();
+})();
 
 SET_ENTRIES.forEach((e) => {
   const btn = $(e.btn);

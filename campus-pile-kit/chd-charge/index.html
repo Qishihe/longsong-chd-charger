@@ -1804,7 +1804,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v3.12</div>
+    <div id="app-ver" class="foot-ver">版本 v3.13</div>
   </footer>
 </div>
 
@@ -2047,6 +2047,13 @@
         <span class="set-val" id="set-font-val">默认</span>
         <span class="set-caret" aria-hidden="true"></span>
       </button>
+    </div>
+
+    <!-- 实用功能（v3.13）：天气提醒 / 扫码快捷按钮 / 记一次充电。
+         这三件都是「打开就能用」的小工具，之前混在偏好设置里和皮肤字体挤在一起，
+         不好找。整块搬出来放在偏好设置后面，id 与已有绑定一个没动。 -->
+    <div class="set-sec">实用功能</div>
+    <div class="set-card">
       <!-- 天气提醒（v2.92）：未来 24 小时有雨雪/雷暴时在首页顶部提醒一句。
            默认**开**（这东西只有下雨才出现，不存在打扰）；关掉之后既不出横幅、
            也不再向气象服务发请求。右侧值由 wxPaintRow() 写。 -->
@@ -2921,7 +2928,13 @@
     <p class="note" style="margin-top:0">
       改动都记在这里。<span style="white-space:nowrap">当前版本 <b id="chg-cur">–</b></span>
     </p>
-    <div class="chg-list" id="chg-list"></div>
+    <!-- 🔴 id 必须是 chglog-list（v3.13 修）。
+         v3.08 加充电记录时那边也用了 id="chg-list"，而它在文档里更靠前，
+         于是 renderChangelog() 的 $('chg-list') 一直拿到充电记录那个容器，
+         公告 HTML 写进去又被 chgPaint() 的 replaceChildren 清掉，
+         结果公告页永远空白（用户 11-07 反馈「更新都看不到」）。
+         getElementById 只认第一个，同 id 不报错、只是静默写错地方。 -->
+    <div class="chg-list" id="chglog-list"></div>
   </div>
 </dialog>
 
@@ -10323,6 +10336,7 @@ const CHANGELOG = [
       + '记录右侧多了一颗「补充」，点开填上这次充了多久、充进去多少电',
     '充电记录里多了一张折线图：横轴是每一次，左边看时长、右边看电量，'
       + '填过两次以上就能连成线，一眼看出哪次充得久、哪次其实没充进去多少。'
+      + '左右两根轴按同一个比例排，两条线谁高谁低可以直接比；'
       + '电量按你填的读数画，不按功率折算',
     /* v3.10：补登过去的记录 + 电量手填。是同一件事的第三个话题（「以前的也能补」），
        单独一条；仍归 v2.90–当前 这一组，不新开区间。 */
@@ -10332,6 +10346,13 @@ const CHANGELOG = [
     /* v3.11：按钮并排 + 时长改填小时。属于操作手感，一条说清即可。 */
     '「记一次」和「补登」放到同一行了；补登的时长改成直接填小时，'
       + '不用再从几个固定档里挑',
+    /* v3.13：设置重新分组。用户能看到的只是「换了位置」，一条说清搬了哪三行。 */
+    '设置里多了一栏「实用功能」，就在「偏好设置」下面：天气提醒、扫码快捷按钮、'
+      + '记一次充电都挪过去了，不用再和外观设置挤在一张卡里翻',
+    /* v3.13：公告页曾经空白（列表 id 和充电记录撞了，内容写进了别人家）。
+       用户看到的就是「更新说明打不开」，如实写一条。 */
+    '「版本更新」这一页之前是空白的，现在能正常看到上面这些记录了'
+      + '（原因是我们自己两个列表用了同一个名字，改开了）',
   ] },
   { v: 'v2.80 – v2.89', d: '2026-11-03 ~ 11-04', items: [
     /* v2.80：定位高亮竞态（线上弱网实测约一半次数补不上）。用户看到的是
@@ -10503,7 +10524,8 @@ function changelogVersion() {
 
 function renderChangelog() {
   const cur = changelogVersion();
-  $('chg-list').innerHTML = CHANGELOG.map((e, i) => {
+  /* 🔴 写公告自己的 #chglog-list。以前写的 #chg-list 被充电记录列表占着。 */
+  $('chglog-list').innerHTML = CHANGELOG.map((e, i) => {
     /* 第一条的版本号**跟随页脚**，不写死 `CHANGELOG[0].v` ——
        发版时改的是页脚（`#app-ver`），公告对象里的 `v` 字段常常忘了同步；
        两头不一致时用户看到「当前版本 v2.38」而第一条写 v2.37，只会以为公告过期了。
@@ -11632,18 +11654,6 @@ function chgHrs(min) {
   return (min / 60).toFixed(2).replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
 }
 
-/* 轴上限取整到 1 / 1.2 / 1.5 / 2 / 2.5 / 3 / 4 / 5 / 6 / 8 / 10 这几档 ——
-   不然刻度会变成 87.3 这种数。档位不能太粗：只留 1/2/5/10 的话，
-   120 分钟会被抬到 200，整条线挤在下半截。 */
-function chgNiceMax(v) {
-  if (!(v > 0)) return 1;
-  const p = Math.pow(10, Math.floor(Math.log10(v)));
-  const f = v / p;
-  const m = f <= 1 ? 1 : f <= 1.2 ? 1.2 : f <= 1.5 ? 1.5 : f <= 2 ? 2
-    : f <= 2.5 ? 2.5 : f <= 3 ? 3 : f <= 4 ? 4 : f <= 5 ? 5 : f <= 6 ? 6 : f <= 8 ? 8 : 10;
-  return m * p;
-}
-
 /* 趋势折线：手写 SVG，不引图表库（这一个弹窗值不上 30KB 的依赖）。
    左轴 = 时长（分钟），右轴 = 电量（kWh），两条线各自的量纲差一个数量级，
    共用一根轴的话电量会被压成贴底的一条直线。
@@ -11689,30 +11699,36 @@ function chgDrawTrend(items) {
      免得出现一根 0/0.5/1 的空轴，看着像数据都是 0。 */
   const durs = pts.map((p) => p.dur).filter((v) => v > 0);
   const kwhs = pts.map((p) => p.kwh).filter((v) => v > 0);
-  const maxD = durs.length ? chgNiceMax(Math.max.apply(null, durs)) : 0;
-  const maxK = kwhs.length ? chgNiceMax(Math.max.apply(null, kwhs)) : 0;
+  /* 🔴 两轴用**同一个比例**：各自的数据最大值都画到图顶（y = T）。
+     以前各取一个圆整档位（130 抬到 150、11.2 抬到 12），两个都是各自最大值，
+     却因为抬升幅度不同落在两个高度上，看着像左右刻度对不上。
+     取实际最大值后，任一高度上的两个读数都满足 时长/时长max == 电量/电量max，
+     两条线的高矮可以直接比。代价是刻度可能出现 47.5，用 axTxt() 处理小数。 */
+  const maxD = durs.length ? Math.max.apply(null, durs) : 0;
+  const maxK = kwhs.length ? Math.max.apply(null, kwhs) : 0;
 
   /** 只有一个点时没有折线可言，居中摆 */
   const xOf = (i) => (n === 1 ? L + iw / 2 : L + (i / (n - 1)) * iw);
   const yD = (v) => T + ih - (v / maxD) * ih;
   const yK = (v) => T + ih - (v / maxK) * ih;
   const f1 = (v) => v.toFixed(1);
+  const axTxt = (v) => (Math.abs(v - Math.round(v)) < 0.05 ? String(Math.round(v)) : v.toFixed(1));
 
   const out = [];
   if (maxD) out.push('<text class="ax ax-l" x="' + (L - 5) + '" y="' + (T - 8) + '" text-anchor="end">分钟</text>');
   if (maxK) out.push('<text class="ax ax-r" x="' + (L + iw + 5) + '" y="' + (T - 8) + '" text-anchor="start">kWh</text>');
 
-  /* 网格：0 / 中 / 顶三条。左轴写整数分钟，右轴写一位小数电量 */
+  /* 网格：0 / 中 / 顶三条。两侧读数是同一比例下的两个刻度，位置天然对齐 */
   [0, 0.5, 1].forEach((f) => {
     const y = T + ih - f * ih;
     out.push('<line class="grid" x1="' + L + '" y1="' + f1(y) + '" x2="' + (L + iw) + '" y2="' + f1(y) + '"/>');
     if (maxD) {
       out.push('<text class="ax ax-l" x="' + (L - 5) + '" y="' + f1(y + 3) + '" text-anchor="end">'
-        + Math.round(maxD * f) + '</text>');
+        + axTxt(maxD * f) + '</text>');
     }
     if (maxK) {
       out.push('<text class="ax ax-r" x="' + (L + iw + 5) + '" y="' + f1(y + 3) + '" text-anchor="start">'
-        + (maxK * f).toFixed(1).replace(/\.0$/, '') + '</text>');
+        + axTxt(maxK * f) + '</text>');
     }
   });
 

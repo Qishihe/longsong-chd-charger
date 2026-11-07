@@ -202,9 +202,6 @@
      搬进说明弹窗后邮箱会被切成 `@qq.co` / `m` 两行 —— 这里把它掰回来：
      normal 优先按空格断，anywhere 只在实在放不下时才硬断。 */
   .help-body .foot-link{word-break:normal; overflow-wrap:anywhere}
-  .sponsor-box{margin-top:12px; padding:12px 12px 10px; border:1px dashed var(--line-strong); border-radius:12px; text-align:center; background:var(--bg)}
-  .sponsor-qr{display:block; width:150px; height:auto; margin:0 auto; border-radius:8px}
-  .sponsor-note{font-size:11.5px; color:var(--hint); line-height:1.7; margin:8px 0 0}
   .icon-btn{
     font:inherit; font-size:13px; padding:8px 14px; border-radius:10px; cursor:pointer;
     border:1px solid var(--line-strong); background:var(--card); color:var(--text);
@@ -1073,7 +1070,7 @@
   .clog-num small{font-size:13px; font-weight:500; margin-left:3px; letter-spacing:0}
   .clog-sub{font-size:12.5px; color:var(--muted); margin-top:6px}
   .clog-meta{font-size:12px; color:var(--hint); margin-top:4px; line-height:1.55}
-  /* 累计四格：次数 / 已填 / 小时 / 电量 / 电费。数值用 tabular-nums，位数变化时不跳。 */
+  /* 累计四格：次数 / 小时 / 电量 / 电费。数值用 tabular-nums，位数变化时不跳。 */
   .clog-sum{display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; padding-top:9px;
     border-top:1px solid var(--line); font-size:11.5px; color:var(--hint)}
   .clog-sum[hidden]{display:none}
@@ -1107,6 +1104,8 @@
     border:1px solid var(--line); border-radius:9px; background:var(--bg); color:var(--text);
     font-variant-numeric:tabular-nums}
   .cocr-n input:focus{outline:none; border-color:var(--free)}
+  /* 没认出来的数字：框自己先亮起来，别让用户以为那是 0 */
+  .cocr-n input.cocr-miss{border-color:#d99a2b; background:rgba(217,154,43,.10)}
   .cocr-warn{margin-top:7px; font-size:11px; line-height:1.5; color:var(--warn-fg)}
   .cocr-ok{margin-top:7px; font-size:11px; line-height:1.5; color:var(--hint)}
   /* 「按电费和服务费分开填」——默认收起，只有账单上写了明细的人才需要展开 */
@@ -1118,32 +1117,33 @@
   #chg-ocr-list{max-height:48vh; overflow-y:auto; -webkit-overflow-scrolling:touch;
     padding-right:2px}
 
-  /* 趋势卡：手写 SVG 双线（左轴时长、右轴电量）。两条线各自的量纲差得远，
-     必须分轴 —— 共用一根轴的话电量 12kWh 和时长 90 分钟会被压成两条贴底直线。 */
+  /* 趋势卡：手写 SVG 三线（时长 / 电量 / 电费）。三者量纲差得远，
+     各自取实际最大值归一化到图顶，左侧标时长、右侧两列分别标电量和电费。
+     同一比例下三条线的高矮能直接比；哪条中间缺值就在那里断开。 */
   .clog-card{margin-top:14px; padding:12px 12px 6px; border:1px solid var(--line);
     border-radius:14px; background:var(--card)}
   .clog-card[hidden]{display:none}
   .clog-card-h{display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:2px}
   .clog-card-h b{font-size:12.5px; font-weight:600; color:var(--text)}
-  .clog-legend{display:flex; gap:9px; font-size:10.5px; color:var(--hint); flex:none}
+  .clog-legend{display:flex; gap:8px; flex-wrap:wrap; font-size:10.5px; color:var(--hint); flex:none}
   .clog-legend i{display:inline-block; width:12px; height:3px; border-radius:2px;
     vertical-align:middle; margin-right:3px}
   .clog-chart{display:block; width:100%; height:auto}
   .clog-chart .g-line{stroke:var(--free); stroke-width:1.9; fill:none; stroke-linejoin:round; stroke-linecap:round}
   .clog-chart .k-line{stroke:var(--warn); stroke-width:1.9; fill:none; stroke-linejoin:round; stroke-linecap:round}
+  /* 第三条用紫，和「空闲绿 / 告警琥珀」都不撞；固定色值在深浅皮肤上都够亮 */
+  .clog-chart .c-line{stroke:#8A63D2; stroke-width:1.9; fill:none; stroke-linejoin:round; stroke-linecap:round}
   .clog-chart .g-dot{fill:var(--free); stroke:var(--card); stroke-width:1.2}
   .clog-chart .k-dot{fill:var(--warn); stroke:var(--card); stroke-width:1.2}
+  .clog-chart .c-dot{fill:#8A63D2; stroke:var(--card); stroke-width:1.2}
   .clog-chart .grid{stroke:var(--line); stroke-width:1; stroke-dasharray:3 4}
   .clog-chart .ax{fill:var(--hint); font-size:8.5px}
   .clog-chart .ax-l{fill:var(--free-deep); font-size:8.5px; font-weight:600}
   .clog-chart .ax-r{fill:var(--warn-fg); font-size:8.5px; font-weight:600}
+  .clog-chart .ax-c{fill:var(--hint); font-size:8.5px; font-weight:600}
   .clog-empty{margin-top:12px; padding:11px 13px; border:1px dashed var(--line-strong);
     border-radius:12px; font-size:12px; color:var(--hint); line-height:1.62}
   .clog-empty[hidden]{display:none}
-  /* 图下面那句说明（v3.10 起不再有功率折算 chips）——电量是手填的读数，
-     这里只负责解释「为什么有的点是断的」，别写成操作入口的样子。 */
-  .clog-tip{margin-top:7px; padding-top:8px; border-top:1px dashed var(--line);
-    font-size:11px; color:var(--hint); line-height:1.55}
 
   /* 补登 / 补充表单（v3.10）。三个字段各配一行小标题：时间、时长、电量。
      手机键盘弹起时字段顺序必须和时间顺序一致（先填时间再填数值），
@@ -1838,7 +1838,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v3.15</div>
+    <div id="app-ver" class="foot-ver">版本 v3.17</div>
   </footer>
 </div>
 
@@ -2708,7 +2708,6 @@
       <div class="clog-meta" id="chg-meta">点下面那颗按钮，记下现在这一次</div>
       <div class="clog-sum" id="chg-sum" hidden>
         <span>累计<b id="chg-sum-n">0</b>次</span>
-        <span>已填<b id="chg-sum-d">0</b>次</span>
         <span id="chg-sum-hh">共<b id="chg-sum-h">0</b>小时</span>
         <span id="chg-sum-kk">共<b id="chg-sum-k">0</b>kWh</span>
         <span id="chg-sum-cc">共<b id="chg-sum-c">0</b>元</span>
@@ -2719,21 +2718,21 @@
       <button class="icon-btn primary" type="button" id="chg-add">记一次</button>
       <button class="icon-btn" type="button" id="chg-back-btn">补登</button>
     </div>
-    <p class="note" id="chg-note">记录只存本机，不上传。图片也是在本机识别，不会传出去。换设备用「导出」和「导入」搬过去。</p>
+    <p class="note" id="chg-note">记录只存本机，不上传。换设备用「导出」和「导入」搬过去。</p>
 
-    <!-- 趋势：填了时长或电量的记录才进图（两者都没填就只有一个点，画不出变化）。
-         两条线分左右轴，理由见上面 .clog-card 的注释。 -->
+    <!-- 趋势：填了时长、电量或电费的记录才进图，三项都没填只是一次打卡。
+         三条线各自按实际最大值归一化，理由见上面 .clog-card 的注释。 -->
     <div class="clog-card" id="clog-trend" hidden>
       <div class="clog-card-h">
-        <b>每次的时长与电量</b>
+        <b>每次的时长 / 电量 / 电费</b>
         <span class="clog-legend">
           <span><i style="background:var(--free)"></i>时长</span>
           <span><i style="background:var(--warn)"></i>电量</span>
+          <span><i style="background:#8A63D2"></i>电费</span>
         </span>
       </div>
       <svg class="clog-chart" id="clog-svg" viewBox="0 0 340 158" role="img"
-           aria-label="每次充电的时长与电量变化折线图"></svg>
-      <div class="clog-tip" id="clog-tip">电量用你填的读数。</div>
+           aria-label="每次充电的时长、电量与电费变化折线图"></svg>
     </div>
     <div class="clog-empty" id="clog-empty" hidden></div>
 
@@ -2859,10 +2858,9 @@
   </div>
 </dialog>
 
-<!-- 使用说明（2026-10-25）。入口在 head-actions 末尾的「使用说明」按钮（id=help-open）。
+<!-- 使用说明（2026-10-25；v3.17 补齐记充电一节、撤掉赞助二维码）。
+     入口在 head-actions 末尾的「使用说明」按钮（id=help-open）。
      ⚠️ 和「一周数据」按钮只差一个字，所以原来那个「使用情况」已改名 —— 两个名字并排会点错。
-     ⚠️ 赞助码是 sponsor-qr.png：从支付宝收款海报里裁出白卡部分（原图是 1350×2025 的蓝色海报，
-        蓝底跟站点浅色风格不搭）。二维码本身一个像素没动，只裁掉了外框和「推荐使用支付宝」标题。
      ⚠️ 群号链接带 data-qq-open，复用页脚那套「唤起 QQ 失败就弹兜底」的逻辑，
         不要在别处另写一份。 -->
 <dialog id="help-dialog" aria-label="使用说明">
@@ -2889,6 +2887,19 @@
       卡片上每个格子是一个插座：<b>绿色空闲、红色占用</b>。
     </p>
 
+    <h3 class="help-sec">记充电</h3>
+    <ol class="help-steps">
+      <li><b>进页面</b>　设置 › 实用功能 › 记一次充电。</li>
+      <li><b>记一次 / 补登</b>　「记一次」记下现在；漏了的那次点「补登」，把时间改成当时那天。</li>
+      <li><b>补充</b>　记录右侧「补充」里填时长（小时）、电量和电费；电费也能按账单拆成电费和服务费。</li>
+      <li><b>导截图</b>　底部「导入」可以直接选订单截图，本机认完先列出来逐条核，勾上的才记进去；标黄的照账单改。</li>
+      <li><b>备份</b>　「导出」存一个 JSON 文件，换手机用「导入」选回来，同一条不会变成两条。</li>
+    </ol>
+    <p class="help-body">
+      折线图里时长、电量、电费各一条线，用同一个比例；哪项没填就在那里断开。
+      记录只存这台设备，不上传。
+    </p>
+
     <h3 class="help-sec">卡住了怎么办</h3>
     <ul class="help-list">
       <li>先换成手机流量：校园网出口共享，服务器在境外，绕一圈更慢</li>
@@ -2903,16 +2914,10 @@
       　邮箱 <a href="mailto:2742973313@qq.com" class="foot-link">2742973313@qq.com</a>
     </p>
 
-    <h3 class="help-sec">开源与赞助</h3>
-    <p class="help-body">
+    <h3 class="help-sec">开源</h3>
+    <p class="help-body" style="margin-bottom:0">
       代码：<a href="https://github.com/Qishihe/longsong-chd-charger" target="_blank" rel="noopener noreferrer" class="foot-link">github.com/Qishihe/longsong-chd-charger</a>。
     </p>
-    <div class="sponsor-box">
-      <img class="sponsor-qr" src="./sponsor-qr.png" alt="支付宝收款二维码" loading="lazy" decoding="async">
-      <p class="sponsor-note">
-        本站无广告、不收费。想请我喝杯水就扫这个支付宝码，完全自愿。
-      </p>
-    </div>
 
     <div class="row">
       <button class="icon-btn primary" data-close>知道了</button>
@@ -10345,115 +10350,74 @@ function openSettingsDialog() {
       就**原地改那条**，不要新增第二条 —— 用户看到的该是「这块变了」，
       不是「这块昨天变过、今天又变了」的流水账。 */
 const CHANGELOG = [
-  /* 2026-10-30 v2.62：公告重排 —— 按「每 0.1 级一条」切分，并把同一话题压成一句。
-     区间：v2.90（open）/ 2.80–2.89 / 2.70–2.79 / 2.60–2.69 / 2.50–2.59 / 2.40–2.49（更早两条不动）。
-     再往前不切了：用户只想知道「我这个星期看到的界面为什么变了」，
-     半年前的一次对齐调整写在最底下没人会往下翻。
-     🔴 最新那条写 `from`、**不写终点**：终点永远跟页脚版本走（见 renderChangelog），
-        否则以后每发一版第一条就停在旧号上 —— 这正是「v 字段忘同步」那个老坑。
-        下面两条写死 `v`（区间已封闭，不会随发版漂移）。
-     🔴 同一件事只写一条：「渭水前缀」以前散在四个版本、「皮肤」散在两条、
-        「刷新」散在三条，这次压回一句话 —— 用户要看到的是「这块变了」，
-        不是同一件事在四个版本里各说一遍。新加条目也照这个来。
-     只写用户看得见的变化：测试版入口、赞赏码措辞、密钥放哪、Worker/接口这类一律不进。 */
-  /* 2026-11-04 v2.93：按「每 0.1 级一条」再切一次 —— 上次切分时最高才 v2.7x，
-     现在页脚已经 v2.93，open 的那条横跨 2.7 / 2.8 / 2.9 三级，翻起来太糊。
-     现在是 v2.90–当前（open，只写 `from`）/ v2.80–2.89 / v2.70–2.79 / 2.60–69 / …
-     🔴 涨到 v3.1 之前不用再切；到 v3.1 时照这个切法把 2.90–2.99 封口。 */
-  { from: 'v2.90', d: '2026-11-04', items: [
-    /* v2.91 的估算器**不公告**：它只挂在管理员后台里，普通访客看不到。
-       等哪天挪到「设置 › 偏好设置」对所有人开放了，再在这里补一条。
-       v2.92：天气提醒 —— 这是访客一进首页就看得见的新东西，必须写一条。 */
+  /* 🔴 公告按「每 0.1 级一组」归档，不许跨级：open 组永远从当前 0.1 级的起点写起
+     （页脚 v3.17 → from:'v3.10'），涨到 v3.20 就要把 v3.10–v3.19 封口、另开一条。
+     2026-11-08 v3.17 重切：原来 open 组从 v2.90 一直挂到 v3.16，横跨 2.9x / 3.0x / 3.1x
+     三级 —— 这正是「每 0.1 合并一版」被反复提醒的原因。现在封口成
+     v3.10–当前(open) / v3.00–v3.09 / v2.90–v2.99，更早的区间原样不动。
+     🔴 最新那条写 from、不写终点：终点跟页脚版本走（见 renderChangelog）。
+     🔴 同一件事只写一条，改了行为就原地改写描述，不另起流水账；单条 ≤200 字。
+     只写用户看得见的变化：测试版入口、赞赏码措辞、密钥放哪、Worker/接口一律不进。
+     _check_chg_merge 会按页脚版本动态校验「每个 0.1 级恰好一组」。 */
+  { from: 'v3.10', d: '2026-11-07 ~ 11-08', items: [
+    /* v3.10 补登过去 / v3.11 按钮并排与时长填小时 / v3.12 整行入口 / v3.13 实用功能栏
+       —— 都是「充电记录更好找、更好填」这一件事，压成一条，不按小版本各写一句。 */
+    '充电记录里漏掉的那次也能补登了：把时间改成当时那天，填上充了多久和多少电，'
+      + '它就会按时间排进列表。「记一次」和「补登」并排一行，时长直接填小时；'
+      + '设置里点「记一次充电」整行就能进页面，这一行归在「实用功能」下面',
+    /* v3.14 能填电费 + v3.15 可拆明细，同一话题合并。 */
+    '每条记录能填这次花了多少电费，顶上会累计总花费；也能照账单拆成「电费 + 服务费」，'
+      + '两个数自己加出总额。金额一律手填，不按电价折算',
+    /* v3.17 费用进折线图：三条线同一比例，缺值断开。 */
+    '折线图里多了一条电费线：时长、电量、电费各一条，三条按同一个比例画，'
+      + '谁高谁低能直接比；哪项没填就在那里断开，不会替你补一段',
+    /* v3.14 导入导出 + v3.15 截图识图 + v3.16 年份纠正与时长复核，合并成一条。 */
+    '充电记录底下「导入」既能选 JSON 备份，也能直接选订单截图：截图只在这台设备上识别，'
+      + '读完先列出来逐条核，改完勾上才入账，年份读偏了会自己改回来、没认准的标黄。'
+      + '换手机用「导出」存一份，导回来按时间合并',
+    /* v3.13 公告页空白 + v3.17 使用说明补齐与文案清理，都算「看得见的界面整理」。 */
+    '「版本更新」这一页之前是空白的，现在能正常看到记录了；'
+      + '「使用说明」补齐了记充电、导截图和备份的用法，页面上几处重复的解释文字也清掉了',
+  ] },
+  { v: 'v3.00 – v3.09', d: '2026-11-05 ~ 11-07', items: [
+    /* v3.00 校区全图。 */
+    '地图里每个校区都多了「校区全图」：点开一次看全这个校区的所有场地，'
+      + '每处有充电桩的地址都带名字标在图上，还写着几台、几个空位；'
+      + '点那颗地址圈就能放大到那一片。选校区时默认停在全图，'
+      + '想细看某个场地再点下面的页签',
+    /* v3.01 楼名 + 缩放抽稀。 */
+    '地图里四个校区的建筑现在都有名字了：教学楼、图书馆、体育馆、公寓楼、'
+      + '食堂和湖都标在图上。缩到看全校时只留几处显眼的地标，彼此拉开距离，'
+      + '放大后再一层层把楼名放出来 —— 不会缩小就没字、一放大就糊成一片',
+    /* v3.03 / 3.04 分享本站。 */
+    '设置里多了一颗「分享本站」（就在「关于本站」上面）：'
+      + '点开是一张指向本站的二维码，配「复制链接」和「分享给同学」两个按钮。'
+      + '想推荐给室友又懒得讲网址，直接把码转发或截图过去，'
+      + '对方扫一下就能打开，不用装任何东西',
+    /* v3.08 记一次充电 + v3.09 日期 / 补充 / 双轴折线，同一话题合并成一条。 */
+    '设置里多了「记一次充电」，点开就是充电记录：按一下「记一次」记下现在的时间，'
+      + '每条都带日期，右侧「补充」能填上充了多久、充了多少电；'
+      + '填过两次以上会画一张折线图，左边看时长、右边看电量。'
+      + '记录只存这台设备的浏览器里，不上传也不同步',
+  ] },
+  { v: 'v2.90 – v2.99', d: '2026-11-04 ~ 11-05', items: [
+    /* v2.92 天气提醒（v2.91 估算器只在管理员后台，不公告）。 */
     '首页顶上会提前提醒天气了：未来 24 小时要下雨、下雪、冻雨或打雷，就挂一句'
       + '「预计约 3 小时后有雨，请合理规划充电时间」；37℃ 以上、-5℃ 以下也提一句。'
       + '四个校区各按自己那片天算 —— 渭水在北郊，另外三个在市区，常常一边下一边不下，'
       + '切校区时提醒跟着换；每次打开都会重新查一次，点掉的「×」只管这一次。'
       + '不想要就在「设置 › 天气提醒」里关掉',
-    /* v2.94 加的扫码快捷按钮；v2.95 修了默认品牌与兜底卡片；v2.96 试过直达街电小程序、
-       v2.97 改回扫一扫，微信那一路降级成「只打开微信」。同话题只写一条 ——
-       改行为就顺手改描述，不再另起一条。
-       🔴 单条 ≤200 字（_check_chg_merge 会红），现在 138 字。 */
+    /* v2.94–2.97 扫码按钮，同话题只一条。 */
     '页面右下多了一颗能拖的扫码按钮：点一下直接进支付宝的「扫一扫」，'
       + '不用再从桌面翻。默认是关着的，想用去「设置 › 扫码快捷按钮」打开，'
       + '并选支付宝还是微信；按住按钮能拖到别处，松手会自己贴边。'
       + '微信不让网页直接跳扫一扫，选了微信只会帮你打开微信，进去自己点右上角的「扫一扫」',
-    /* v2.98 / v2.99：雁塔三处场地接入。v2.98 只打包未上线，与本版一并发布，
-       所以按「同一件事只写一条」原地改写，不新增第二条流水账。 */
+    /* v2.98 / 2.99 雁塔三处场地。 */
     '雁塔校区新接了三处充电桩：图书馆 8 台（T-01 到 T-08，自南向北）、'
       + '5 号学生公寓南部 12 台（W-01 到 W-12，两排都自东向西、北排在前）、'
       + '停车场出口 3 台（P-01 到 P-03，自东向西）。'
       + '雁塔地图上多了三颗页签，取景都收得很紧，不会圈进旁边的教学楼和公寓；'
       + '雁塔现在共 26 台，首页地址栏和一周回顾也跟着多出几块',
-    /* v3.00：四个校区都有「校区全图」。和上面「新接三处场地」不是同一件事
-       （一个加场地、一个加视图），所以另写一条；仍归在 v2.90–当前 这一组里，
-       按「每 0.1 级一条」不必新开条目。 */
-    '地图里每个校区都多了「校区全图」：点开一次看全这个校区的所有场地，'
-      + '每处有充电桩的地址都带名字标在图上，还写着几台、几个空位；'
-      + '点那颗地址圈就能放大到那一片。选校区时默认停在全图，'
-      + '想细看某个场地再点下面的页签',
-    /* v3.01：给四个校区的建筑补名字 + 缩放抽稀。和上面「全图」不是同一件事
-       （一个加视图、一个加注记），另写一条；仍归在 v2.90–当前 这一组里。 */
-    '地图里四个校区的建筑现在都有名字了：教学楼、图书馆、体育馆、公寓楼、'
-      + '食堂和湖都标在图上。缩到看全校时只留几处显眼的地标，彼此拉开距离，'
-      + '放大后再一层层把楼名放出来 —— 不会缩小就没字、一放大就糊成一片',
-    /* v3.03/04：新增分享入口。和上面三条都不是同一件事（一个加视图、一个加注记、
-       这条是分享入口），另写一条；仍归在 v2.90–当前 这一组。
-       v3.04 又从「关于」里拆出来单列一颗按钮 —— 同话题只写一条，原地改写。
-       ⚠️ 文案里别出现「源水校区」与「皮肤」—— _check_chg_merge 对这两个词有专项计数断言。 */
-    '设置里多了一颗「分享本站」（就在「关于本站」上面）：'
-      + '点开是一张指向本站的二维码，配「复制链接」和「分享给同学」两个按钮。'
-      + '想推荐给室友又懒得讲网址，直接把码转发或截图过去，'
-      + '对方扫一下就能打开，不用装任何东西',
-    /* v3.08：充电记录。这是访客能自己动手用的一件新事（且涉及「数据存哪」），
-       必须写清楚「只在本机」。仍归在 v2.90–当前 这一组，不必新开条目。
-       v3.12：入口从「行身直接记一笔」改成「点整行进页面」，文案跟着改 ——
-       同一件事只留一条，不再另起「入口变好点了」。 */
-    '设置里多了「记一次充电」，点开就是充电记录：按一下「记一次」记下现在的时间，'
-      + '右侧那一行会变成「共几次 · 上次什么时候」；漏了几次还能补登，'
-      + '填过时长、电量或电费会画成折线。'
-      + '记录只存在这台设备的浏览器里，不上传也不同步；换手机或者清了浏览器数据会丢，'
-      + '所以底下留了「导出」可以存个备份',
-    /* v3.09：日期 / 补时长 / 电量。与 v3.08 同一件事的延伸，原地续写两条：
-       一条讲「记得更全了」，一条讲「能看出走势了」。仍归 v2.90–当前 这一组。
-       v3.10 把「按功率估电量」换成手填，这几条跟着改了措辞 —— 别让公告还停在估算上。
-       ⚠️ 文案里别出现「源水校区」与「皮肤」—— _check_chg_merge 对这两个词有专项计数断言。 */
-    '每条记录现在都带日期了（像「11-07 19:56」），不再只剩一个时间点；'
-      + '记录右侧多了一颗「补充」，点开填上这次充了多久、充进去多少电',
-    '充电记录里多了一张折线图：横轴是每一次，左边看时长、右边看电量，'
-      + '填过两次以上就能连成线，一眼看出哪次充得久、哪次其实没充进去多少。'
-      + '左右两根轴按同一个比例排，两条线谁高谁低可以直接比；'
-      + '电量按你填的读数画，不按功率折算',
-    /* v3.10：补登过去的记录 + 电量手填。是同一件事的第三个话题（「以前的也能补」），
-       单独一条；仍归 v2.90–当前 这一组，不新开区间。 */
-    '漏记的那次也能补了：充电记录里多了一颗「补登」，'
-      + '把时间改成当时那天、填上充了多久和充了多少电，它就会按时间排进列表和折线图。'
-      + '电量一律照桩上或 App 的读数手填，没有功率折算，也不算电费',
-    /* v3.11：按钮并排 + 时长改填小时。属于操作手感，一条说清即可。 */
-    '「记一次」和「补登」放到同一行了；补登的时长改成直接填小时，'
-      + '不用再从几个固定档里挑',
-    /* v3.13：设置重新分组。用户能看到的只是「换了位置」，一条说清搬了哪三行。 */
-    '设置里多了一栏「实用功能」，就在「偏好设置」下面：天气提醒、扫码快捷按钮、'
-      + '记一次充电都挪过去了，不用再和外观设置挤在一张卡里翻',
-    /* v3.13：公告页曾经空白（列表 id 和充电记录撞了，内容写进了别人家）。
-       用户看到的就是「更新说明打不开」，如实写一条。 */
-    '「版本更新」这一页之前是空白的，现在能正常看到上面这些记录了'
-      + '（原因是我们自己两个列表用了同一个名字，改开了）',
-    /* v3.14：记电费。金额只认手填，不做电价折算 —— 各地峰谷价不一样，
-       折算出来的数还不如让人照账单抄。一条说清「能填 + 会累计」。 */
-    '每条充电记录还能填这次花了多少电费（元），补登的时候一起填；'
-      + '顶上那行累计会把几笔加起来，显示共花了多少钱。'
-      + '金额照小程序账单手填，不按电价替你算',
-    /* v3.14：导入 / 导出。用户真正关心的只有一句：换手机还搬得走。 */
-    '充电记录底下多了「导入」和「导出」：导出一个 JSON 备份文件，'
-      + '换手机、重装浏览器或者清了数据之后，点「导入」选那个文件，记录就回来了；'
-      + '同一时间的那条会自动合并，不会变成两条',
-    /* v3.15：截图识别。用户最担心的是「我的截图传哪儿去了」，所以第一句先讲这个。 */
-    '「导入」现在也能直接选订单截图：时间、时长、电量、电费自己读出来，'
-      + '读完先列一遍让你核，改完勾上才记进去。图片只在这台设备上读，不往外传。'
-      + '第一次用要下 3MB 左右的识别包，之后不用再下',
-    /* v3.15：电费明细。默认收起，只提一句怎么用，别把它写成必填。 */
-    '电费可以只填总数，也可以按账单拆成「电费 + 服务费」分开填，'
-      + '两个数加起来就是总额',
   ] },
   { v: 'v2.80 – v2.89', d: '2026-11-03 ~ 11-04', items: [
     /* v2.80：定位高亮竞态（线上弱网实测约一半次数补不上）。用户看到的是
@@ -11787,18 +11751,19 @@ function chgYuan(v) {
 }
 
 /* 趋势折线：手写 SVG，不引图表库（这一个弹窗值不上 30KB 的依赖）。
-   左轴 = 时长（分钟），右轴 = 电量（kWh），两条线各自的量纲差一个数量级，
-   共用一根轴的话电量会被压成贴底的一条直线。
+   三条线：时长（分钟，左轴）、电量（kWh，右侧内列）、电费（元，右侧外列）。
+   各自量纲差得远，所以每条都按自己的实际最大值归一化到图顶 —— 同一高度上
+   三个读数占各自最大值的比例相同，高矮能直接比，也不必抬到圆整档位。
    🔴 某一条线**中间缺值就在那里断开**，不补直线穿过去 —— 那等于替用户编了一个
-      没记过的数。所以两条线各自分段画（见下面的 seg）。 */
+      没记过的数。所以三条线各自分段画（见下面的 seg）。 */
 function chgDrawTrend(items) {
   const svg = $('clog-svg');
   const card = $('clog-trend');
   const empty = $('clog-empty');
   const all = items || chgLoad();
 
-  /* 填了时长或电量的记录才进图：两者都没填的只是一次打卡，画上去没有信息量 */
-  const pts = all.filter((x) => x.dur > 0 || x.kwh > 0).slice(0, CHG_TREND_N).reverse();   // 升序
+  /* 填了时长、电量或电费的记录才进图：三项都没填的只是一次打卡，画上去没有信息量 */
+  const pts = all.filter((x) => x.dur > 0 || x.kwh > 0 || x.cost > 0).slice(0, CHG_TREND_N).reverse();   // 升序
   const canShow = pts.length >= 2;
 
   if (card) card.hidden = !canShow;
@@ -11820,35 +11785,41 @@ function chgDrawTrend(items) {
   const W = 340;
   const H = 158;
   const L = 26;    // 左轴刻度宽
-  const R = 32;    // 右轴刻度宽
+  const R = 60;    // 右侧两列刻度：电量 + 电费，留够间隔，别糊成一串数字
   const T = 20;    // 顶上要留够：单位标注 + 最高一条刻度，两层各 8.5px 字号
   const B = 22;    // 留出日期标签
   const iw = W - L - R;
   const ih = H - T - B;
   const n = pts.length;
 
-  /* 某一侧全都没填时（比如谁也没记电量），那一侧的轴和刻度整组不画，
+  /* 某一项全都没填时（比如谁也没记电量），那一列的轴和刻度整组不画，
      免得出现一根 0/0.5/1 的空轴，看着像数据都是 0。 */
   const durs = pts.map((p) => p.dur).filter((v) => v > 0);
   const kwhs = pts.map((p) => p.kwh).filter((v) => v > 0);
-  /* 🔴 两轴用**同一个比例**：各自的数据最大值都画到图顶（y = T）。
+  const costs = pts.map((p) => p.cost).filter((v) => v > 0);
+  /* 🔴 三条线用**同一个比例**：各自的数据最大值都画到图顶（y = T）。
      以前各取一个圆整档位（130 抬到 150、11.2 抬到 12），两个都是各自最大值，
-     却因为抬升幅度不同落在两个高度上，看着像左右刻度对不上。
-     取实际最大值后，任一高度上的两个读数都满足 时长/时长max == 电量/电量max，
-     两条线的高矮可以直接比。代价是刻度可能出现 47.5，用 axTxt() 处理小数。 */
+     却因为抬升幅度不同落在两个高度上，看着像刻度对不上。
+     取实际最大值后，任一高度上的读数都满足 v/vmax 相等，三条线的高矮可以直接比。
+     代价是刻度可能出现 47.5，用 axTxt() 处理小数；金额用 chgYuan() 保两位。 */
   const maxD = durs.length ? Math.max.apply(null, durs) : 0;
   const maxK = kwhs.length ? Math.max.apply(null, kwhs) : 0;
+  const maxC = costs.length ? Math.max.apply(null, costs) : 0;
 
   /** 只有一个点时没有折线可言，居中摆 */
   const xOf = (i) => (n === 1 ? L + iw / 2 : L + (i / (n - 1)) * iw);
   const yD = (v) => T + ih - (v / maxD) * ih;
   const yK = (v) => T + ih - (v / maxK) * ih;
+  const yC = (v) => T + ih - (v / maxC) * ih;
   const f1 = (v) => v.toFixed(1);
   const axTxt = (v) => (Math.abs(v - Math.round(v)) < 0.05 ? String(Math.round(v)) : v.toFixed(1));
+  const xK = L + iw + 5;    // 右侧内列（电量）
+  const xC = L + iw + 34;   // 右侧外列（电费），与电量那列拉开
 
   const out = [];
   if (maxD) out.push('<text class="ax ax-l" x="' + (L - 5) + '" y="' + (T - 8) + '" text-anchor="end">分钟</text>');
-  if (maxK) out.push('<text class="ax ax-r" x="' + (L + iw + 5) + '" y="' + (T - 8) + '" text-anchor="start">kWh</text>');
+  if (maxK) out.push('<text class="ax ax-r" x="' + xK + '" y="' + (T - 8) + '" text-anchor="start">kWh</text>');
+  if (maxC) out.push('<text class="ax ax-c" x="' + xC + '" y="' + (T - 8) + '" text-anchor="start">元</text>');
 
   /* 网格：0 / 中 / 顶三条。两侧读数是同一比例下的两个刻度，位置天然对齐 */
   [0, 0.5, 1].forEach((f) => {
@@ -11859,8 +11830,12 @@ function chgDrawTrend(items) {
         + axTxt(maxD * f) + '</text>');
     }
     if (maxK) {
-      out.push('<text class="ax ax-r" x="' + (L + iw + 5) + '" y="' + f1(y + 3) + '" text-anchor="start">'
+      out.push('<text class="ax ax-r" x="' + xK + '" y="' + f1(y + 3) + '" text-anchor="start">'
         + axTxt(maxK * f) + '</text>');
+    }
+    if (maxC) {
+      out.push('<text class="ax ax-c" x="' + xC + '" y="' + f1(y + 3) + '" text-anchor="start">'
+        + chgYuan(maxC * f) + '</text>');
     }
   });
 
@@ -11889,6 +11864,7 @@ function chgDrawTrend(items) {
   };
   if (maxD) seg((p) => p.dur, yD, 'g-line');
   if (maxK) seg((p) => p.kwh, yK, 'k-line');
+  if (maxC) seg((p) => p.cost, yC, 'c-line');
 
   /* 点 + 原生 title（桌面 hover 可见；移动端靠下面的列表看明细） */
   pts.forEach((p, i) => {
@@ -11899,6 +11875,10 @@ function chgDrawTrend(items) {
     if (p.kwh > 0 && maxK) {
       out.push('<circle class="k-dot" cx="' + f1(xOf(i)) + '" cy="' + f1(yK(p.kwh)) + '" r="2.1">'
         + '<title>' + chgStamp(p.t) + ' · ' + p.kwh.toFixed(1) + ' kWh</title></circle>');
+    }
+    if (p.cost > 0 && maxC) {
+      out.push('<circle class="c-dot" cx="' + f1(xOf(i)) + '" cy="' + f1(yC(p.cost)) + '" r="2.1">'
+        + '<title>' + chgStamp(p.t) + ' · ' + chgYuan(p.cost) + ' 元</title></circle>');
     }
   });
 
@@ -11936,7 +11916,6 @@ function chgPaint() {
     sumEl.hidden = !st.filled;
     if (st.filled) {
       $('chg-sum-n').textContent = String(st.n);
-      $('chg-sum-d').textContent = String(st.filled);
       /* 一格数据都没有的那一项整格藏起来，别显示「共 0 小时」 */
       const hh = $('chg-sum-hh');
       const kk = $('chg-sum-kk');
@@ -12109,14 +12088,16 @@ function ocrFitNum(v, per, lo, hi) {
 }
 
 /* 时间戳。容忍 30 被认成 350：日期段拿不出合法值时返回 bad，
-   但「时分秒多一位」可以截前两位救回来（198:01:44 → 19:01:44）。 */
+   但「时分秒多一位」可以截前两位救回来（198:01:44 → 19:01:44）。
+   年份也会被读多一位（2026 → 20206 / 202060）：吃掉多余位，年份再交给 ocrFixYear 纠。 */
 function ocrStamp(s) {
-  var m = /(\d{4})\s*-\s*(\d{1,3})\s*-\s*(\d{1,3})\D{0,4}(\d{1,3})\s*:\s*(\d{1,2})\s*:\s*(\d{1,2})/.exec(s);
+  var m = /(\d{4})\d{0,2}\s*-\s*(\d{1,3})\s*-\s*(\d{1,3})\D{0,4}(\d{1,3})\s*:\s*(\d{1,2})\s*:\s*(\d{1,2})/.exec(s);
   if (!m) return null;
   var y = +m[1], mo = +m[2], d = +m[3];
   var hh = m[4], mi = +m[5], ss = +m[6];
   var moved = false;
   if (hh.length > 2) { hh = hh.slice(0, 2); moved = true; }
+  if (/^\d{5,6}\s*-/.test(m[0])) moved = true;
   var h = +hh;
   var okDate = mo >= 1 && mo <= 12 && d >= 1 && d <= 31;
   var okTime = h <= 23 && mi <= 59 && ss <= 59;
@@ -12127,6 +12108,27 @@ function ocrStamp(s) {
   if (!okTime) return { t: null, bad: true, raw: m[0] };
   if (y < 2015 || y > 2100) return { t: null, bad: true, raw: m[0] };
   return { t: new Date(y, mo - 1, d, h, mi, ss).getTime(), bad: false, moved: moved };
+}
+
+/* 年份纠正。🔴 缩图 / 二值化常把 2026 读成 2020（6 → 0），也读过多一位；
+   用户看到的是「2020/10/30」这种整条被带偏的时间，而旧代码只验年份在 2015~2100，
+   于是 2020 一路绿灯、还被默认勾上。充电订单截图都是近期的，年份离当前年差 2 年以上
+   就按当前年（或上一年，跨年时）重写，并在确认页用灰字写明改了什么 —— 看得见、也改得回去。 */
+function ocrFixYear(t, nowMs) {
+  if (!t) return { t: t };
+  var now = nowMs || Date.now();
+  var d = new Date(t);
+  var y = d.getFullYear(), cy = new Date(now).getFullYear();
+  if (Math.abs(y - cy) < 2) return { t: t };
+  if (y < 2015 || y > cy + 1) return { t: t };
+  /* 若换成今年后落在未来，多半是去年年底的订单（1 月补记 12 月的账） */
+  var target = cy;
+  var guess = new Date(cy, d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds()).getTime();
+  if (guess > now + 864e5) {
+    target = cy - 1;
+    guess = new Date(target, d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds()).getTime();
+  }
+  return { t: guess, fix: '年份 ' + y + ' 看着像读错了，按 ' + target + ' 记' };
 }
 
 /* 订单号里内嵌下单时间：SD261030220950Q3919 = SD + 26/10/30 + 22:09:50 + Q + 序号。
@@ -12238,6 +12240,9 @@ function ocrJudge(f, nowMs) {
     }
   }
   rec.dur = dur;
+  /* 时长读不出时不能静默留空。旧代码只有「三个字段全空」才提示，
+     于是「有时间有金额、唯独时长是空的」被当成干净记录默认勾上。 */
+  if (!dur && (f.cost > 0 || f.kwhRaw > 0)) warn.push('时长没认出来，照账单填一下');
 
   /* 时间：订单号内嵌时间 > 识别到的时间 */
   if (f.order && f.order.t) {
@@ -12249,6 +12254,10 @@ function ocrJudge(f, nowMs) {
   } else if (!rec.t && f.t) {
     rec.t = f.t;
   }
+
+  /* 不管时间来自文字、起止差还是订单号，最后都过一遍年份纠正 */
+  var fy = ocrFixYear(rec.t, nowMs);
+  if (fy.fix) { rec.t = fy.t; fix.push(fy.fix); }
 
   if (!rec.t) { warn.push('时间读不出'); }
   else if (rec.t > nowMs + 24 * 3600e3) { warn.push('时间在未来'); }
@@ -12372,16 +12381,25 @@ function ocrMergeTwo(A, B) {
   var out = [];
   for (var i = 0; i < n; i++) {
     var a = A[i], b = B[i];
-    var r = { t: 0, loc: a.loc || b.loc || '', dur: 0, kwh: 0, cost: 0, fix: a.fix.slice(), warn: a.warn.slice(), order: a.order || b.order, kind: a.kind };
+    /* 年份纠正写在灰字里，两边都做过时别把它丢掉（时间可能取自第二遍） */
+    var fx = a.fix.slice().concat((b.fix || []).filter(function (x) {
+      return /年份/.test(x) && a.fix.indexOf(x) < 0;
+    }));
+    var r = { t: 0, loc: a.loc || b.loc || '', dur: 0, kwh: 0, cost: 0, fix: fx, warn: a.warn.slice(), order: a.order || b.order, kind: a.kind };
     var notes = [];
 
-    var tOk = function (v) { return v && v > 1e12 && v < Date.now() + 864e5; };
+    /* 🔴 年份要合理：2020 这类「6 读成 0」的值不能再算合法。
+       旧版无条件「按原图取值」，于是原图读 2020、缩图读 2026 时反而取了错的那遍。 */
+    var tOk = function (v) {
+      if (!(v && v > 1e12 && v < Date.now() + 864e5)) return false;
+      return Math.abs(new Date(v).getFullYear() - new Date().getFullYear()) <= 1;
+    };
     var tp = ocrPickNum(a.t, b.t, tOk);
     /* 秒级差异不算打架：两遍识别对「7 小时 52 分」这种往往只差几秒，
        显示出来却是同一个 21:00，用户看到「不一致」只会困惑。 */
     if (tp.tie && Math.abs(a.t - b.t) < 60e3) tp.tie = false;
     r.t = tp.v || 0;
-    if (tp.fromB) notes.push('时间取自第二遍识别');
+    if (tp.fromB) notes.push('时间取自第二遍识别（另一遍是 ' + ocrWhenText(a.t) + '）');
     /* 不一致时把另一遍的读数也说出来 —— 只写「不一致」，用户没法判断该信哪个 */
     if (tp.tie) notes.push('两遍读出的时间不同（另一遍是 ' + ocrWhenText(b.t) + '），按原图取值');
     if (!tp.v && r.warn.indexOf('时间读不出') < 0) r.warn.push('时间读不出');
@@ -12447,6 +12465,28 @@ function ocrMergeTwo(A, B) {
   for (var j = n; j < A.length; j++) out.push(A[j]);
   for (var k = n; k < B.length; k++) out.push(B[k]);
   return out;
+}
+
+/* 第三遍（原图二值化）只用来补时长。🔴 实测这一路能把「?小时」认成「9小时」，
+   但它会把年份读得很烂（2026 → 2020 / 20206），所以绝不能拿它当全字段权威：
+   只在卡片数对得上、且同一条的金额也一致时，把空缺的时长补进去。 */
+function ocrFillDurs(merged, text3) {
+  var blocks = ocrSplit(text3);
+  if (blocks.length !== merged.length) return merged;
+  blocks.forEach(function (b, i) {
+    var r = merged[i];
+    if (!r || r.dur) return;
+    var c3 = ocrMoney(b.block, '订单金额');
+    if (c3 === null) c3 = ocrMoney(b.block, '订单总额');
+    /* 金额对不上说明这张图的切块方式不一样，宁可留空也不能把数字张冠李戴 */
+    if (r.cost > 0 && c3 !== null && Math.abs(c3 - r.cost) > 0.02) return;
+    var d = ocrDur(b.block);
+    if (!(d > 0)) return;
+    r.dur = d;
+    r.warn = r.warn.filter(function (w) { return w.indexOf('时长没认出来') < 0; });
+    r.fix.push('时长取自放大复核 ' + (Math.round(d / 6) / 10) + ' 小时');
+  });
+  return merged;
 }
 
 /* ── 截图识图（v3.15）──────────────────────────────────────────────
@@ -12549,7 +12589,30 @@ function chgOcrShrink(img, w) {
   return c;
 }
 
-/* 一张图：解码 → 两遍识别 → 解析 → 字段投票 */
+/* 第三遍：原宽固定阈值二值化。实测「?小时」在这条路上能读成「9小时」。
+   🔴 别换成自适应阈值或放大后拉伸 —— 那样数字是救回来了，年份却会整片读成 2020，
+   而且其它行的分钟数会串（38 → 58）。这一路的产出只喂给 ocrFillDurs。 */
+function chgOcrBinary(img, w) {
+  var c = document.createElement('canvas');
+  var k = w / (img.naturalWidth || img.width);
+  c.width = w;
+  c.height = Math.max(1, Math.round((img.naturalHeight || img.height) * k));
+  var g = c.getContext('2d');
+  g.imageSmoothingQuality = 'high';
+  g.drawImage(img, 0, 0, c.width, c.height);
+  try {
+    var d = g.getImageData(0, 0, c.width, c.height), p = d.data;
+    for (var i = 0; i < p.length; i += 4) {
+      var v = (p[i] * 0.299 + p[i + 1] * 0.587 + p[i + 2] * 0.114) | 0;
+      var b = v > 180 ? 255 : 0;
+      p[i] = p[i + 1] = p[i + 2] = b;
+    }
+    g.putImageData(d, 0, 0);
+  } catch (e) { /* 读不到像素就跳过这一遍 */ }
+  return c;
+}
+
+/* 一张图：解码 → 两遍识别 → 解析 → 字段投票 → 必要时第三遍补时长 */
 function chgOcrReadFile(file) {
   var url = '';
   var pass = 0;
@@ -12572,8 +12635,15 @@ function chgOcrReadFile(file) {
         pass = 1;
         var c = chgOcrShrink(img, 960);
         return w.recognize(c).then(function (r2) {
-          return ocrMergeTwo(ocrParseOne(r1.data.text, Date.now()),
+          var merged = ocrMergeTwo(ocrParseOne(r1.data.text, Date.now()),
             ocrParseOne(r2.data.text, Date.now()));
+          /* 只有确实有时长缺口才多跑一遍，别让每张图都白等 1 秒 */
+          if (!merged.some(function (r) { return !r.dur; })) return merged;
+          pass = 2;
+          var bw = Math.min(1920, Math.max(960, img.naturalWidth || img.width || 1440));
+          return w.recognize(chgOcrBinary(img, bw))
+            .then(function (r3) { return ocrFillDurs(merged, r3.data.text); },
+              function () { return merged; });
         });
       });
     });
@@ -12677,8 +12747,10 @@ function chgOcrPaint() {
 
     var nums = document.createElement('div');
     nums.className = 'cocr-nums';
-    nums.appendChild(chgOcrNum('时长（小时）', 'cocr-dur',
-      r.dur ? (r.dur / 60).toFixed(2).replace(/\.?0+$/, '') : ''));
+    var durBox = chgOcrNum('时长（小时）', 'cocr-dur',
+      r.dur ? (r.dur / 60).toFixed(2).replace(/\.?0+$/, '') : '');
+    if (!r.dur) durBox.querySelector('input').classList.add('cocr-miss');
+    nums.appendChild(durBox);
     nums.appendChild(chgOcrNum('电量（度）', 'cocr-kwh', r.kwh ? String(r.kwh) : ''));
     nums.appendChild(chgOcrNum('电费（元）', 'cocr-cost', r.cost ? String(r.cost) : ''));
     row.appendChild(nums);

@@ -52,6 +52,9 @@ EXCLUDE_FILES = {
     "admin.html",
     # 对外设备目录是构建产物（不进版本库），打包时现生成，见 _write_catalog
     "catalog.json",
+    # 2026-11-08 v3.17：赞助二维码从使用说明里撤掉，文件也从站点目录删除。
+    # 留在这里是防复活 —— 回退老快照会把它带回来，打包这层先挡住。
+    "sponsor-qr.png",
 }
 EXCLUDE_DIRS = {"redesign"}
 

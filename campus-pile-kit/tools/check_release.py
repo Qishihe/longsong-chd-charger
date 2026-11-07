@@ -40,6 +40,7 @@ RETIRED_FILES = (
     "preview.html", "preview-banner.js", "map-amap-preview.js",
     "preview-v3.html", "redesign-v2.html", "redesign-mockup.html",
     "admin.html",
+    "sponsor-qr.png",   # v3.17：说明弹窗里的赞助码，文件已删
 )
 # URL 上的两种写法都要列 —— 🔴 Pages 的 Pretty URLs：`/x.html` 308 到 `/x`，
 # 而 `/x` **直接返回 x.html 的静态内容**。只挡 `.html` 等于只锁了半扇门
@@ -52,6 +53,7 @@ RETIRED_PATHS = (
     "/preview-v3", "/preview-v3.html",
     "/redesign", "/redesign-mockup", "/redesign-mockup.html",
     "/redesign-v2", "/redesign-v2.html",
+    "/sponsor-qr.png",
 )
 
 

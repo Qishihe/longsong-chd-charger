@@ -823,6 +823,9 @@ const RETIRED = new Set([
   '/preview-v3', '/preview-v3.html',
   '/redesign', '/redesign-mockup', '/redesign-mockup.html',
   '/redesign-v2', '/redesign-v2.html',
+  /* 2026-11-08 v3.17：使用说明里的赞助二维码撤掉了，文件也已从站点目录删除。
+     Pages 增量覆盖 + CDN 一周缓存，旧图还会挂在那个 URL 上，登记成退役资源挡住。 */
+  '/sponsor-qr.png',
 ]);
 /* 目录级：`/redesign/*` 整个都是内部样张，一条前缀挡完比逐个列省心 */
 const RETIRED_PREFIX = ['/redesign/'];

@@ -1,5 +1,5 @@
 {
   "version": 1,
-  "include": ["/api/*", "/preview", "/preview.html", "/preview-banner.js", "/map-amap-preview.js", "/help", "/help.html", "/admin", "/admin.html", "/preview-v3", "/preview-v3.html", "/redesign", "/redesign/*", "/redesign-mockup", "/redesign-mockup.html", "/redesign-v2", "/redesign-v2.html"],
+  "include": ["/api/*", "/preview", "/preview.html", "/preview-banner.js", "/map-amap-preview.js", "/help", "/help.html", "/admin", "/admin.html", "/preview-v3", "/preview-v3.html", "/redesign", "/redesign/*", "/redesign-mockup", "/redesign-mockup.html", "/redesign-v2", "/redesign-v2.html", "/sponsor-qr.png"],
   "exclude": []
 }

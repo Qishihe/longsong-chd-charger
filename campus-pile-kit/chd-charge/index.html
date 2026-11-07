@@ -1075,6 +1075,8 @@
     border-top:1px solid var(--line); font-size:11.5px; color:var(--hint)}
   .clog-sum[hidden]{display:none}
   .clog-sum b{font-weight:600; color:var(--text); font-variant-numeric:tabular-nums; margin-left:2px}
+  /* v3.19：电费 / 服务费分开累计。没有明细的记录不显示这两格。 */
+  .clog-sum span[hidden]{display:none}
   /* 「记一次」与「补登」并排一行（v3.11）。沿用 .row 的平分，只让主按钮多占一点；
      两颗都不带副标题 —— 一行本来就窄，再加字就挤成两行了。 */
   .clog-acts{margin-top:12px}
@@ -1117,25 +1119,48 @@
   #chg-ocr-list{max-height:48vh; overflow-y:auto; -webkit-overflow-scrolling:touch;
     padding-right:2px}
 
-  /* 趋势卡：手写 SVG 三线（时长 / 电量 / 电费）。三者量纲差得远，
-     各自取实际最大值归一化到图顶，左侧标时长、右侧两列分别标电量和电费。
-     同一比例下三条线的高矮能直接比；哪条中间缺值就在那里断开。 */
+  /* 趋势卡：手写 SVG，最多五条线（时长 / 电量 / 总电费 / 电费 / 服务费）。
+     时长与电量各按自己的实际最大值画到图顶；金额三项共用一条元刻度，
+     都是钱，摆同一把尺子上才看得出电费和服务费谁占得多。
+     哪条线中间缺值就在那里断开，不替用户补数。
+     v3.19 起右上角「筛选」可任意组合这五项，选择只存本机。 */
   .clog-card{margin-top:14px; padding:12px 12px 6px; border:1px solid var(--line);
     border-radius:14px; background:var(--card)}
   .clog-card[hidden]{display:none}
   .clog-card-h{display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:2px}
   .clog-card-h b{font-size:12.5px; font-weight:600; color:var(--text)}
-  .clog-legend{display:flex; gap:8px; flex-wrap:wrap; font-size:10.5px; color:var(--hint); flex:none}
+  /* 筛选按钮：浅底配深字。别用 --on-accent，默认皮肤它是纯白，浅底上看不见。 */
+  .clog-filter-btn{flex:none; border:1px solid var(--line-strong); background:var(--card);
+    color:var(--muted); font:inherit; font-size:11px; padding:3px 10px; border-radius:999px;
+    cursor:pointer; white-space:nowrap; -webkit-tap-highlight-color:transparent}
+  .clog-filter-btn[aria-expanded=true]{border-color:var(--free-line); color:var(--free-deep)}
+  .clog-legend{display:flex; gap:8px; flex-wrap:wrap; font-size:10.5px; color:var(--hint);
+    margin:2px 0 4px}
   .clog-legend i{display:inline-block; width:12px; height:3px; border-radius:2px;
     vertical-align:middle; margin-right:3px}
+  .clog-filter[hidden]{display:none}
+  .clog-filter{display:flex; flex-wrap:wrap; gap:7px 12px; align-items:center;
+    margin:0 0 7px; padding:8px 10px; border:1px solid var(--line);
+    border-radius:10px; background:var(--card)}
+  .clog-filter-opt{display:inline-flex; align-items:center; gap:5px; font:inherit;
+    font-size:11.5px; color:var(--text); cursor:pointer; white-space:nowrap}
+  .clog-filter-opt input{width:14px; height:14px; margin:0; accent-color:var(--free)}
+  .clog-filter-opt i{width:10px; height:3px; border-radius:2px; flex:none}
+  .clog-filter-note{flex-basis:100%; margin:1px 0 0; font-size:10.5px;
+    color:var(--hint); line-height:1.5}
   .clog-chart{display:block; width:100%; height:auto}
   .clog-chart .g-line{stroke:var(--free); stroke-width:1.9; fill:none; stroke-linejoin:round; stroke-linecap:round}
   .clog-chart .k-line{stroke:var(--warn); stroke-width:1.9; fill:none; stroke-linejoin:round; stroke-linecap:round}
   /* 第三条用紫，和「空闲绿 / 告警琥珀」都不撞；固定色值在深浅皮肤上都够亮 */
   .clog-chart .c-line{stroke:#8A63D2; stroke-width:1.9; fill:none; stroke-linejoin:round; stroke-linecap:round}
+  /* v3.19 两条明细线：蓝 / 玫红，和绿、琥珀、紫都不撞，深浅皮肤上都够亮 */
+  .clog-chart .e-line{stroke:#2E7DD1; stroke-width:1.9; fill:none; stroke-linejoin:round; stroke-linecap:round}
+  .clog-chart .s-line{stroke:#D2648A; stroke-width:1.9; fill:none; stroke-linejoin:round; stroke-linecap:round}
   .clog-chart .g-dot{fill:var(--free); stroke:var(--card); stroke-width:1.2}
   .clog-chart .k-dot{fill:var(--warn); stroke:var(--card); stroke-width:1.2}
   .clog-chart .c-dot{fill:#8A63D2; stroke:var(--card); stroke-width:1.2}
+  .clog-chart .e-dot{fill:#2E7DD1; stroke:var(--card); stroke-width:1.2}
+  .clog-chart .s-dot{fill:#D2648A; stroke:var(--card); stroke-width:1.2}
   .clog-chart .grid{stroke:var(--line); stroke-width:1; stroke-dasharray:3 4}
   .clog-chart .ax{fill:var(--hint); font-size:8.5px}
   .clog-chart .ax-l{fill:var(--free-deep); font-size:8.5px; font-weight:600}
@@ -1177,6 +1202,9 @@
     -webkit-tap-highlight-color:transparent}
   .clog-mini:active{background:var(--row-active)}
   .clog-mini.fill{border-color:var(--free-line); color:var(--free-deep)}
+  /* v3.19：账单里认出电费 / 服务费的，单条记录下面单独写一行 */
+  .clog-split{font-size:11px; color:var(--hint); margin-top:2px;
+    font-variant-numeric:tabular-nums; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 
   .cloud-block{margin-top:16px; border-top:1px solid var(--line); padding-top:13px}
   .cloud-block>b{display:block; font-size:13.5px}
@@ -1838,7 +1866,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v3.18</div>
+    <div id="app-ver" class="foot-ver">版本 v3.19</div>
   </footer>
 </div>
 
@@ -2711,6 +2739,8 @@
         <span id="chg-sum-hh">共<b id="chg-sum-h">0</b>小时</span>
         <span id="chg-sum-kk">共<b id="chg-sum-k">0</b>kWh</span>
         <span id="chg-sum-cc">共<b id="chg-sum-c">0</b>元</span>
+        <span id="chg-sum-ee" hidden>电费<b id="chg-sum-e">0</b>元</span>
+        <span id="chg-sum-ss" hidden>服务费<b id="chg-sum-s">0</b>元</span>
       </div>
     </div>
 
@@ -2720,19 +2750,30 @@
     </div>
     <p class="note" id="chg-note">记录只存本机，不上传。换设备用「导出」和「导入」搬过去。</p>
 
-    <!-- 趋势：填了时长、电量或电费的记录才进图，三项都没填只是一次打卡。
-         三条线各自按实际最大值归一化，理由见上面 .clog-card 的注释。 -->
+    <!-- 趋势：填了勾选项里任意一项的记录才进图，一项都没填只是一次打卡。
+         五项由「筛选」任意组合，时长 / 电量各按自己的最大值、金额三项共用元刻度。
+         默认仍是时长、电量、总电费三条，老用户打开不用重新选。 -->
     <div class="clog-card" id="clog-trend" hidden>
       <div class="clog-card-h">
-        <b>每次的时长 / 电量 / 电费</b>
-        <span class="clog-legend">
-          <span><i style="background:var(--free)"></i>时长</span>
-          <span><i style="background:var(--warn)"></i>电量</span>
-          <span><i style="background:#8A63D2"></i>电费</span>
-        </span>
+        <b>每次充电的变化</b>
+        <button class="clog-filter-btn" id="clog-filter-btn" type="button"
+                aria-expanded="false" aria-controls="clog-filter">筛选</button>
+      </div>
+      <div class="clog-legend" id="clog-legend">
+        <span><i style="background:var(--free)"></i>时长</span>
+        <span><i style="background:var(--warn)"></i>电量</span>
+        <span><i style="background:#8A63D2"></i>总电费</span>
+      </div>
+      <div class="clog-filter" id="clog-filter" hidden>
+        <label class="clog-filter-opt"><input type="checkbox" data-chg-series="dur" checked><i style="background:var(--free)"></i>时长</label>
+        <label class="clog-filter-opt"><input type="checkbox" data-chg-series="kwh" checked><i style="background:var(--warn)"></i>电量</label>
+        <label class="clog-filter-opt"><input type="checkbox" data-chg-series="cost" checked><i style="background:#8A63D2"></i>总电费</label>
+        <label class="clog-filter-opt"><input type="checkbox" data-chg-series="ce"><i style="background:#2E7DD1"></i>电费</label>
+        <label class="clog-filter-opt"><input type="checkbox" data-chg-series="cs"><i style="background:#D2648A"></i>服务费</label>
+        <p class="clog-filter-note">只画勾上的几项。「时长」就是每次充了多久（时间）；金额三项共用元刻度，时长和电量各按自己的最高值画到图顶。</p>
       </div>
       <svg class="clog-chart" id="clog-svg" viewBox="0 0 340 158" role="img"
-           aria-label="每次充电的时长、电量与电费变化折线图"></svg>
+           aria-label="每次充电的时长、电量与各项费用变化折线图"></svg>
     </div>
     <div class="clog-empty" id="clog-empty" hidden></div>
 
@@ -2897,7 +2938,8 @@
     </ol>
     <p class="help-body">
       折线图里时长、电量、电费各一条线，用同一个比例；哪项没填就在那里断开。
-      记录只存这台设备，不上传。
+      点图右上角「筛选」，可以在时长、电量、总电费、电费、服务费里只勾想看的几项；
+      截图里认出电费和服务费的，累计和每条记录都分开写。记录只存这台设备，不上传。
     </p>
 
     <h3 class="help-sec">卡住了怎么办</h3>
@@ -10351,7 +10393,7 @@ function openSettingsDialog() {
       不是「这块昨天变过、今天又变了」的流水账。 */
 const CHANGELOG = [
   /* 🔴 公告按「每 0.1 级一组」归档，不许跨级：open 组永远从当前 0.1 级的起点写起
-     （页脚 v3.17 → from:'v3.10'），涨到 v3.20 就要把 v3.10–v3.19 封口、另开一条。
+     （页脚 v3.19 → from:'v3.10'），涨到 v3.20 就要把 v3.10–v3.19 封口、另开一条。
      2026-11-08 v3.17 重切：原来 open 组从 v2.90 一直挂到 v3.16，横跨 2.9x / 3.0x / 3.1x
      三级 —— 这正是「每 0.1 合并一版」被反复提醒的原因。现在封口成
      v3.10–当前(open) / v3.00–v3.09 / v2.90–v2.99，更早的区间原样不动。
@@ -10367,10 +10409,10 @@ const CHANGELOG = [
       + '设置里点「记一次充电」整行就能进页面，这一行归在「实用功能」下面',
     /* v3.14 能填电费 + v3.15 可拆明细，同一话题合并。 */
     '每条记录能填这次花了多少电费，顶上会累计总花费；也能照账单拆成「电费 + 服务费」，'
-      + '两个数自己加出总额。金额一律手填，不按电价折算',
-    /* v3.17 费用进折线图：三条线同一比例，缺值断开。 */
-    '折线图里多了一条电费线：时长、电量、电费各一条，三条按同一个比例画，'
-      + '谁高谁低能直接比；哪项没填就在那里断开，不会替你补一段',
+      + '两个数自己加出总额。截图里认出这两项的，累计和每条记录都分开写。金额一律手填，不按电价折算',
+    /* v3.17 费用进折线图；v3.19 加五项筛选，同一话题原地改写，不另起一条。 */
+    '折线图右上角多了「筛选」：时长、电量、总电费、电费、服务费五项，想看哪几项就勾哪几项，'
+      + '默认还是时长、电量、电费三条。同一个比例，谁高谁低能直接比；哪项没填就在那里断开',
     /* v3.14 导入导出 + v3.15 截图识图 + v3.16 年份纠正 + v3.18 按账单自证，
        都是「把截图认准」这一件事，原地改写，不另起流水账。 */
     '充电记录底下「导入」既能选 JSON 备份，也能直接选订单截图：截图只在这台设备上识别，'
@@ -11692,7 +11734,8 @@ function chgSpot() {
 
 /* 间隔只按**相邻两次**算平均。中间删过几条也不会算错 ——
    用「最新 - 最旧 ÷ (n-1)」会把删掉的那段摊进来，数就虚了。
-   filled = 填了时长或电量的条数；两个分项各自统计，图表和累计行都读这里。 */
+   filled = 填了任意一项数值的条数；五个分项各自统计，图表和累计行都读这里。
+   v3.19：电费 ce / 服务费 cs 单独合计，不再只报一个总额。 */
 function chgStats(items) {
   const n = items.length;
   let avg = 0;
@@ -11701,7 +11744,11 @@ function chgStats(items) {
   let withDur = 0;
   let withKwh = 0;
   let withCost = 0;
+  let withCe = 0;
+  let withCs = 0;
   let cost = 0;
+  let ce = 0;
+  let cs = 0;
   let filled = 0;
   if (n) {
     for (let i = 1; i < n; i++) avg += items[i - 1].t - items[i].t;
@@ -11710,13 +11757,18 @@ function chgStats(items) {
       const hasD = it.dur > 0;
       const hasK = it.kwh > 0;
       const hasC = it.cost > 0;
+      const hasE = it.ce > 0;
+      const hasS = it.cs > 0;
       if (hasD) { withDur++; mins += it.dur; }
       if (hasK) { withKwh++; kwh += it.kwh; }
       if (hasC) { withCost++; cost += it.cost; }
-      if (hasD || hasK || hasC) filled++;
+      if (hasE) { withCe++; ce += it.ce; }
+      if (hasS) { withCs++; cs += it.cs; }
+      if (hasD || hasK || hasC || hasE || hasS) filled++;
     });
   }
-  return { n, avg, last: n ? items[0].t : 0, mins, kwh, cost, withDur, withKwh, withCost, filled };
+  return { n, avg, last: n ? items[0].t : 0, mins, kwh, cost, ce, cs,
+    withDur, withKwh, withCost, withCe, withCs, filled };
 }
 
 function chgFmtGap(ms) {
@@ -11761,19 +11813,83 @@ function chgKwh(v) {
 }
 
 /* 趋势折线：手写 SVG，不引图表库（这一个弹窗值不上 30KB 的依赖）。
-   三条线：时长（分钟，左轴）、电量（kWh，右侧内列）、电费（元，右侧外列）。
-   各自量纲差得远，所以每条都按自己的实际最大值归一化到图顶 —— 同一高度上
-   三个读数占各自最大值的比例相同，高矮能直接比，也不必抬到圆整档位。
+   v3.19：五项（时长 / 电量 / 总电费 / 电费 / 服务费）由「筛选」任意组合。
+   时长、电量各按自己的实际最大值画到图顶；金额三项共用一条元刻度 ——
+   都是钱，摆同一把尺子上才看得出电费和服务费谁占得多。
    🔴 某一条线**中间缺值就在那里断开**，不补直线穿过去 —— 那等于替用户编了一个
-      没记过的数。所以三条线各自分段画（见下面的 seg）。 */
+      没记过的数。所以每条线各自分段画（见下面的 seg）。 */
+const CHG_SERIES_KEYS = ['dur', 'kwh', 'cost', 'ce', 'cs'];
+const CHG_TREND_DEF = ['dur', 'kwh', 'cost'];
+const CHG_TREND_KEY = 'cpk.chg.trend';
+let chgTrendOn = null;
+
+/* 勾选项只存本机，和充电记录一样不发一个请求。脏数据 / 无痕模式都回默认三项。 */
+function chgTrendKeys() {
+  if (chgTrendOn) return chgTrendOn.slice();
+  let arr = CHG_TREND_DEF.slice();
+  try {
+    const raw = JSON.parse(localStorage.getItem(CHG_TREND_KEY) || 'null');
+    if (Array.isArray(raw)) {
+      const f = raw.filter((k) => CHG_SERIES_KEYS.indexOf(k) >= 0);
+      if (f.length) arr = f;
+    }
+  } catch (e) { /* 读不到就用默认 */ }
+  chgTrendOn = arr.slice();
+  return arr;
+}
+
+function chgTrendSet(keys) {
+  chgTrendOn = keys.slice();
+  try { localStorage.setItem(CHG_TREND_KEY, JSON.stringify(chgTrendOn)); } catch (e) {}
+}
+
+function chgTrendFilterToggle() {
+  const box = $('clog-filter');
+  const btn = $('clog-filter-btn');
+  if (!box || !btn) return;
+  const open = box.hidden;
+  box.hidden = !open;
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  btn.textContent = open ? '收起' : '筛选';
+}
+
 function chgDrawTrend(items) {
   const svg = $('clog-svg');
   const card = $('clog-trend');
   const empty = $('clog-empty');
   const all = items || chgLoad();
 
-  /* 填了时长、电量或电费的记录才进图：三项都没填的只是一次打卡，画上去没有信息量 */
-  const pts = all.filter((x) => x.dur > 0 || x.kwh > 0 || x.cost > 0).slice(0, CHG_TREND_N).reverse();   // 升序
+  const S = [
+    { k: 'dur', name: '时长', unit: '分钟', line: 'g-line', dot: 'g-dot',
+      color: 'var(--free)', fmt: (v) => chgFmtMin(v) },
+    { k: 'kwh', name: '电量', unit: 'kWh', line: 'k-line', dot: 'k-dot',
+      color: 'var(--warn)', fmt: (v) => chgKwh(v) + ' kWh' },
+    { k: 'cost', name: '总电费', unit: '元', line: 'c-line', dot: 'c-dot',
+      color: '#8A63D2', money: true, fmt: (v) => chgYuan(v) + ' 元' },
+    { k: 'ce', name: '电费', unit: '元', line: 'e-line', dot: 'e-dot',
+      color: '#2E7DD1', money: true, fmt: (v) => chgYuan(v) + ' 元' },
+    { k: 'cs', name: '服务费', unit: '元', line: 's-line', dot: 's-dot',
+      color: '#D2648A', money: true, fmt: (v) => chgYuan(v) + ' 元' },
+  ];
+  const on = chgTrendKeys();
+  const active = S.filter((s) => on.indexOf(s.k) >= 0);
+
+  /* 图例跟着勾选项走，不画出来的线不许留在图例里骗人 */
+  const legend = $('clog-legend');
+  if (legend) {
+    legend.replaceChildren();
+    active.forEach((s) => {
+      const sp = document.createElement('span');
+      const bar = document.createElement('i');
+      bar.style.background = s.color;
+      sp.append(bar, document.createTextNode(s.name));
+      legend.append(sp);
+    });
+  }
+
+  /* 只让勾上的项里有值的记录进图：一项都没填的只是一次打卡，画上去没有信息量 */
+  const keys = active.map((s) => s.k);
+  const pts = all.filter((x) => keys.some((k) => x[k] > 0)).slice(0, CHG_TREND_N).reverse();   // 升序
   const canShow = pts.length >= 2;
 
   if (card) card.hidden = !canShow;
@@ -11782,6 +11898,8 @@ function chgDrawTrend(items) {
     if (!canShow) {
       if (!all.length) {
         empty.textContent = '点「记一次」记下现在，「补登」补以前的；有订单截图或者备份，点「导入」就行。';
+      } else if (!pts.length) {
+        empty.textContent = '勾上的这几项还没数据，换个组合，或点记录右侧「补充」。';
       } else if (pts.length === 1) {
         empty.textContent = '再补一条就能连成线。';
       } else {
@@ -11795,7 +11913,7 @@ function chgDrawTrend(items) {
   const W = 340;
   const H = 158;
   const L = 26;    // 左轴刻度宽
-  const R = 60;    // 右侧两列刻度：电量 + 电费，留够间隔，别糊成一串数字
+  const R = 60;    // 右侧两列刻度：电量 + 元，留够间隔，别糊成一串数字
   const T = 20;    // 顶上要留够：单位标注 + 最高一条刻度，两层各 8.5px 字号
   const B = 22;    // 留出日期标签
   const iw = W - L - R;
@@ -11804,32 +11922,32 @@ function chgDrawTrend(items) {
 
   /* 某一项全都没填时（比如谁也没记电量），那一列的轴和刻度整组不画，
      免得出现一根 0/0.5/1 的空轴，看着像数据都是 0。 */
-  const durs = pts.map((p) => p.dur).filter((v) => v > 0);
-  const kwhs = pts.map((p) => p.kwh).filter((v) => v > 0);
-  const costs = pts.map((p) => p.cost).filter((v) => v > 0);
-  /* 🔴 三条线用**同一个比例**：各自的数据最大值都画到图顶（y = T）。
-     以前各取一个圆整档位（130 抬到 150、11.2 抬到 12），两个都是各自最大值，
-     却因为抬升幅度不同落在两个高度上，看着像刻度对不上。
-     取实际最大值后，任一高度上的读数都满足 v/vmax 相等，三条线的高矮可以直接比。
-     代价是刻度可能出现 47.5，用 axTxt() 处理小数；金额用 chgYuan() 保两位。 */
-  const maxD = durs.length ? Math.max.apply(null, durs) : 0;
-  const maxK = kwhs.length ? Math.max.apply(null, kwhs) : 0;
-  const maxC = costs.length ? Math.max.apply(null, costs) : 0;
+  const max = {};
+  active.forEach((s) => {
+    const vals = pts.map((p) => p[s.k]).filter((v) => v > 0);
+    max[s.k] = vals.length ? Math.max.apply(null, vals) : 0;
+  });
+  /* 🔴 时长 / 电量各取自己的实际最大值，任何一条的最高点都落在 y = T；
+     金额三项（总电费、电费、服务费）共用一把尺子，谁占得多一眼能看出来。
+     一律不抬到圆整档位：抬升幅度不同会让两条线的顶端错开，看着像刻度对不上。
+     刻度可能出现 47.5，用 axTxt() 处理小数；金额用 chgYuan() 保两位。 */
+  const maxM = Math.max.apply(null, [0].concat(active.filter((s) => s.money).map((s) => max[s.k])));
+  const maxD = max.dur || 0;
+  const maxK = max.kwh || 0;
+  const scaleOf = (s) => (s.money ? maxM : max[s.k]);
 
   /** 只有一个点时没有折线可言，居中摆 */
   const xOf = (i) => (n === 1 ? L + iw / 2 : L + (i / (n - 1)) * iw);
-  const yD = (v) => T + ih - (v / maxD) * ih;
-  const yK = (v) => T + ih - (v / maxK) * ih;
-  const yC = (v) => T + ih - (v / maxC) * ih;
+  const yAt = (s, v) => T + ih - (v / scaleOf(s)) * ih;
   const f1 = (v) => v.toFixed(1);
   const axTxt = (v) => (Math.abs(v - Math.round(v)) < 0.05 ? String(Math.round(v)) : v.toFixed(1));
   const xK = L + iw + 5;    // 右侧内列（电量）
-  const xC = L + iw + 34;   // 右侧外列（电费），与电量那列拉开
+  const xC = L + iw + 34;   // 右侧外列（元），与电量那列拉开
 
   const out = [];
   if (maxD) out.push('<text class="ax ax-l" x="' + (L - 5) + '" y="' + (T - 8) + '" text-anchor="end">分钟</text>');
   if (maxK) out.push('<text class="ax ax-r" x="' + xK + '" y="' + (T - 8) + '" text-anchor="start">kWh</text>');
-  if (maxC) out.push('<text class="ax ax-c" x="' + xC + '" y="' + (T - 8) + '" text-anchor="start">元</text>');
+  if (maxM) out.push('<text class="ax ax-c" x="' + xC + '" y="' + (T - 8) + '" text-anchor="start">元</text>');
 
   /* 网格：0 / 中 / 顶三条。两侧读数是同一比例下的两个刻度，位置天然对齐 */
   [0, 0.5, 1].forEach((f) => {
@@ -11843,9 +11961,9 @@ function chgDrawTrend(items) {
       out.push('<text class="ax ax-r" x="' + xK + '" y="' + f1(y + 3) + '" text-anchor="start">'
         + axTxt(maxK * f) + '</text>');
     }
-    if (maxC) {
+    if (maxM) {
       out.push('<text class="ax ax-c" x="' + xC + '" y="' + f1(y + 3) + '" text-anchor="start">'
-        + chgYuan(maxC * f) + '</text>');
+        + chgYuan(maxM * f) + '</text>');
     }
   });
 
@@ -11872,24 +11990,20 @@ function chgDrawTrend(items) {
     });
     flush();
   };
-  if (maxD) seg((p) => p.dur, yD, 'g-line');
-  if (maxK) seg((p) => p.kwh, yK, 'k-line');
-  if (maxC) seg((p) => p.cost, yC, 'c-line');
+  active.forEach((s) => {
+    if (!scaleOf(s)) return;
+    seg((p) => p[s.k], (v) => yAt(s, v), s.line);
+  });
 
   /* 点 + 原生 title（桌面 hover 可见；移动端靠下面的列表看明细） */
   pts.forEach((p, i) => {
-    if (p.dur > 0 && maxD) {
-      out.push('<circle class="g-dot" cx="' + f1(xOf(i)) + '" cy="' + f1(yD(p.dur)) + '" r="2.5">'
-        + '<title>' + chgStamp(p.t) + ' · ' + chgFmtMin(p.dur) + '</title></circle>');
-    }
-    if (p.kwh > 0 && maxK) {
-      out.push('<circle class="k-dot" cx="' + f1(xOf(i)) + '" cy="' + f1(yK(p.kwh)) + '" r="2.1">'
-        + '<title>' + chgStamp(p.t) + ' · ' + chgKwh(p.kwh) + ' kWh</title></circle>');
-    }
-    if (p.cost > 0 && maxC) {
-      out.push('<circle class="c-dot" cx="' + f1(xOf(i)) + '" cy="' + f1(yC(p.cost)) + '" r="2.1">'
-        + '<title>' + chgStamp(p.t) + ' · ' + chgYuan(p.cost) + ' 元</title></circle>');
-    }
+    active.forEach((s) => {
+      const v = p[s.k];
+      if (!(v > 0 && scaleOf(s))) return;
+      out.push('<circle class="' + s.dot + '" cx="' + f1(xOf(i)) + '" cy="' + f1(yAt(s, v)) + '" r="'
+        + (s.k === 'dur' ? '2.5' : '2.1') + '">'
+        + '<title>' + chgStamp(p.t) + ' · ' + s.name + ' ' + s.fmt(v) + '</title></circle>');
+    });
   });
 
   /* 里面只有本轮算出来的数字和时间，没有用户可编辑的字符串 —— 拼 innerHTML 是安全的 */
@@ -11937,6 +12051,15 @@ function chgPaint() {
       $('chg-sum-k').textContent = chgKwh(st.kwh);
       const sumC = $('chg-sum-c');
       if (sumC) sumC.textContent = chgYuan(st.cost);
+      /* v3.19：截图认出或手填了电费 / 服务费的，额外报两格分开的累计 */
+      const ee = $('chg-sum-ee');
+      const ss = $('chg-sum-ss');
+      if (ee) ee.hidden = !st.withCe;
+      if (ss) ss.hidden = !st.withCs;
+      const sumE = $('chg-sum-e');
+      const sumS = $('chg-sum-s');
+      if (sumE) sumE.textContent = chgYuan(st.ce);
+      if (sumS) sumS.textContent = chgYuan(st.cs);
     }
   }
 
@@ -11973,6 +12096,18 @@ function chgPaint() {
     dur.className = 'clog-dur' + (bits.length ? '' : ' none');
     dur.textContent = bits.length ? bits.join(' · ') : '三项都没填';
     top.append(time, dur);
+    row.append(top);
+
+    /* v3.19：账单明细单独一行，跟总额分开写；只有一项也照实写，不硬凑另一项 */
+    if (it.ce > 0 || it.cs > 0) {
+      const parts = [];
+      if (it.ce > 0) parts.push('电费 ' + chgYuan(it.ce) + ' 元');
+      if (it.cs > 0) parts.push('服务费 ' + chgYuan(it.cs) + ' 元');
+      const split = document.createElement('div');
+      split.className = 'clog-split';
+      split.textContent = parts.join(' + ');
+      row.append(split);
+    }
 
     const bot = document.createElement('div');
     bot.className = 'clog-bot';
@@ -11994,7 +12129,7 @@ function chgPaint() {
     del.addEventListener('click', () => chgDrop(it.t));
 
     bot.append(loc, fill, del);
-    row.append(top, bot);
+    row.append(bot);
     list.append(row);
   });
 
@@ -12848,6 +12983,18 @@ function chgOcrPaint() {
     nums.appendChild(chgOcrNum('电费（元）', 'cocr-cost', r.cost ? String(r.cost) : ''));
     row.appendChild(nums);
 
+    /* v3.19：账单上两项都认出来了就明确写出来，入账后累计和列表都会分开算。
+       确认页一行塞不下两个输入框，要改明细就导入后点记录右侧「补充」。 */
+    if (r.ce > 0 || r.cs > 0) {
+      var parts = [];
+      if (r.ce > 0) parts.push('电费 ' + chgYuan(r.ce) + ' 元');
+      if (r.cs > 0) parts.push('服务费 ' + chgYuan(r.cs) + ' 元');
+      var det = document.createElement('div');
+      det.className = 'cocr-ok';
+      det.textContent = '账单明细：' + parts.join(' + ') + '，入账后分开算。';
+      row.appendChild(det);
+    }
+
     var note = null;
     if (r.warn.length) {
       note = document.createElement('div');
@@ -12919,8 +13066,9 @@ function chgOcrCollect() {
       kwh: kwh > 0 ? Math.min(99, Math.round(kwh * 100) / 100) : 0,
       cost: cost > 0 ? Math.min(CHG_COST_MAX, Math.round(cost * 100) / 100) : 0,
     };
-    /* 拆分不在确认页里改（一行塞不下），只有总额没被动过、且两项相加还对得上才带过去 */
-    if (src.ce > 0 && src.cs > 0 && Math.abs(src.cost - rec.cost) < 0.01
+    /* 拆分不在确认页里改（一行塞不下）。只要核对后的总额仍等于两项之和就带过去 ——
+       不再额外要求「识别出来的总额没被改」，否则用户把总额改对反而把明细弄丢了。 */
+    if (src.ce > 0 && src.cs > 0 && rec.cost > 0
       && Math.abs(src.ce + src.cs - rec.cost) < 0.02) {
       rec.ce = src.ce;
       rec.cs = src.cs;
@@ -13314,6 +13462,24 @@ function chgOpenDlg() {
     const el = $(id);
     if (el) el.addEventListener('input', () => chgSplitSync());
   });
+
+  /* v3.19 折线图筛选：五项任意组合，至少留一项；选完只重画图，不动记录。 */
+  const fBtn = $('clog-filter-btn');
+  if (fBtn) fBtn.addEventListener('click', () => chgTrendFilterToggle());
+  const fBox = $('clog-filter');
+  if (fBox) {
+    const boxes = [].slice.call(fBox.querySelectorAll('input[data-chg-series]'));
+    const on = chgTrendKeys();
+    boxes.forEach((cb) => {
+      cb.checked = on.indexOf(cb.getAttribute('data-chg-series')) >= 0;
+      cb.addEventListener('change', () => {
+        const picked = boxes.filter((x) => x.checked).map((x) => x.getAttribute('data-chg-series'));
+        if (!picked.length) { cb.checked = true; showToast('至少留一项，不然图上没线'); return; }
+        chgTrendSet(picked);
+        chgDrawTrend(chgLoad());
+      });
+    });
+  }
 
   const ocrOk = $('chg-ocr-ok');
   if (ocrOk) ocrOk.addEventListener('click', () => chgOcrCommit());

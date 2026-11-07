@@ -1078,7 +1078,11 @@
     border-top:1px solid var(--line); font-size:11.5px; color:var(--hint)}
   .clog-sum[hidden]{display:none}
   .clog-sum b{font-weight:600; color:var(--text); font-variant-numeric:tabular-nums; margin-left:2px}
-  .clog-add{display:block; width:100%; margin-top:12px; padding:12px 14px; font-size:14px}
+  /* 「记一次」与「补登」并排一行（v3.11）。沿用 .row 的平分，只让主按钮多占一点；
+     两颗都不带副标题 —— 一行本来就窄，再加字就挤成两行了。 */
+  .clog-acts{margin-top:12px}
+  .clog-acts .icon-btn{padding:12px 10px; font-size:14px}
+  .clog-acts .icon-btn.primary{flex:1.6}
 
   /* 趋势卡：手写 SVG 双线（左轴时长、右轴电量）。两条线各自的量纲差得远，
      必须分轴 —— 共用一根轴的话电量 12kWh 和时长 90 分钟会被压成两条贴底直线。 */
@@ -1800,7 +1804,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v3.10</div>
+    <div id="app-ver" class="foot-ver">版本 v3.11</div>
   </footer>
 </div>
 
@@ -2643,8 +2647,8 @@
 </dialog>
 
 <!-- 充电记录（v3.08 建，v3.10 扩）。入口是设置 ›「记一次充电」行末尾的箭头。
-     这一屏干五件事：看次数 / 累计、记一次、补登过去的记录、
-     给某次补上时长与电量、看趋势折线、删单条或清空。
+     这一屏干五件事：看次数 / 累计、记一次、补登、给某次补上时长与电量、
+     看趋势折线、删单条或清空。
      🔴 全部数据只在本机 localStorage 里，页面不发任何请求 —— 关掉网络、
         换台手机、重装浏览器，记录都不会跟着走，也不会出现在任何服务端。
      🔴 电量由用户**手填**（v3.10 起）：平台接口不返回 kWh，以前按「时长 × 功率 ×
@@ -2669,11 +2673,11 @@
       </div>
     </div>
 
-    <button class="icon-btn primary clog-add" type="button" id="chg-add">记一次 · 现在</button>
-    <div class="row" style="margin-top:8px">
-      <button class="icon-btn" type="button" id="chg-back-btn">补登过去的记录</button>
+    <div class="row clog-acts">
+      <button class="icon-btn primary" type="button" id="chg-add">记一次</button>
+      <button class="icon-btn" type="button" id="chg-back-btn">补登</button>
     </div>
-    <p class="note" id="chg-note">只存在这台设备的浏览器里，不上传、不同步；换设备或清浏览器数据就没了。</p>
+    <p class="note" id="chg-note">记录只存本机，不上传。换设备或清浏览器数据会丢。</p>
 
     <!-- 趋势：填了时长或电量的记录才进图（两者都没填就只有一个点，画不出变化）。
          两条线分左右轴，理由见上面 .clog-card 的注释。 -->
@@ -2687,7 +2691,7 @@
       </div>
       <svg class="clog-chart" id="clog-svg" viewBox="0 0 340 158" role="img"
            aria-label="每次充电的时长与电量变化折线图"></svg>
-      <div class="clog-tip" id="clog-tip">电量按你填的读数画，不折算、不算电费。</div>
+      <div class="clog-tip" id="clog-tip">电量用你填的读数。</div>
     </div>
     <div class="clog-empty" id="clog-empty" hidden></div>
 
@@ -2699,8 +2703,9 @@
   </div>
 </dialog>
 
-<!-- 补登 / 补充（v3.09 建「补时长」，v3.10 扩成三字段）。两个入口共用一个弹窗：
-     · 补登过去的记录 → chgEditing = 0，时间默认现在，改成过去某天即可；
+<!-- 补登 / 补充（v3.09 建「补时长」，v3.10 扩成三字段，v3.11 时长改填小时）。
+     两个入口共用一个弹窗：
+     · 「补登」→ chgEditing = 0，时间默认现在，改成过去某天即可；
      · 行内「补充 / 改」 → chgEditing = 那条的 t。
      时间只用一个 datetime-local：分两个框填日期和时刻，手机上要来回切焦点，
      而原生控件本来就能一次选完。 -->
@@ -2721,17 +2726,10 @@
 
     <div class="clog-field">
       <b>充了多久</b>
-      <div class="est-chips" id="chg-fill-chips">
-        <button class="est-chip" type="button" data-min="30">30 分钟</button>
-        <button class="est-chip" type="button" data-min="60">1 小时</button>
-        <button class="est-chip" type="button" data-min="90">1.5 小时</button>
-        <button class="est-chip" type="button" data-min="120">2 小时</button>
-        <button class="est-chip" type="button" data-min="180">3 小时</button>
-      </div>
-      <div class="est-inwrap" style="margin-top:9px">
-        <input id="chg-fill-dur" type="number" min="1" max="1440" step="1" inputmode="numeric"
-               placeholder="或者自己填" aria-label="充电分钟数">
-        <span class="u">分钟</span>
+      <div class="est-inwrap">
+        <input id="chg-fill-dur" type="number" min="0.05" max="24" step="0.05" inputmode="decimal"
+               placeholder="比如 1.5" aria-label="充电小时数">
+        <span class="u">小时</span>
       </div>
     </div>
 
@@ -2739,12 +2737,12 @@
       <b>充了多少电</b>
       <div class="est-inwrap">
         <input id="chg-fill-kwh" type="number" min="0" max="99" step="0.1" inputmode="decimal"
-               placeholder="按桩上或 App 的读数填" aria-label="充了多少度电">
+               placeholder="自己查小程序读数" aria-label="充了多少度电">
         <span class="u">kWh</span>
       </div>
     </div>
 
-    <div class="note" id="chg-fill-hint">时长和电量至少填一个；两个都不填，这条就只是一次打卡。</div>
+    <div class="note" id="chg-fill-hint">时长和电量至少填一个。</div>
     <div class="row">
       <button class="icon-btn" type="button" id="chg-fill-clear" hidden>清空数值</button>
       <button class="icon-btn primary" type="button" id="chg-fill-save">保存</button>
@@ -10325,9 +10323,12 @@ const CHANGELOG = [
       + '电量按你填的读数画，不按功率折算',
     /* v3.10：补登过去的记录 + 电量手填。是同一件事的第三个话题（「以前的也能补」），
        单独一条；仍归 v2.90–当前 这一组，不新开区间。 */
-    '漏记的那次也能补了：充电记录里多了一颗「补登过去的记录」，'
+    '漏记的那次也能补了：充电记录里多了一颗「补登」，'
       + '把时间改成当时那天、填上充了多久和充了多少电，它就会按时间排进列表和折线图。'
       + '电量一律照桩上或 App 的读数手填，没有功率折算，也不算电费',
+    /* v3.11：按钮并排 + 时长改填小时。属于操作手感，一条说清即可。 */
+    '「记一次」和「补登」放到同一行了；补登的时长改成直接填小时，'
+      + '不用再从几个固定档里挑',
   ] },
   { v: 'v2.80 – v2.89', d: '2026-11-03 ~ 11-04', items: [
     /* v2.80：定位高亮竞态（线上弱网实测约一半次数补不上）。用户看到的是
@@ -11577,15 +11578,6 @@ function chgSpot() {
   }
 }
 
-function chgAgo(t) {
-  const diff = Math.max(0, Date.now() - t);
-  if (diff < 60000) return '刚刚';
-  if (diff < 3600000) return Math.floor(diff / 60000) + ' 分钟前';
-  if (diff < 86400000) return Math.floor(diff / 3600000) + ' 小时前';
-  const d = Math.floor(diff / 86400000);
-  return d < 30 ? d + ' 天前' : Math.floor(d / 30) + ' 个月前';
-}
-
 /* 间隔只按**相邻两次**算平均。中间删过几条也不会算错 ——
    用「最新 - 最旧 ÷ (n-1)」会把删掉的那段摊进来，数就虚了。
    filled = 填了时长或电量的条数；两个分项各自统计，图表和累计行都读这里。 */
@@ -11621,13 +11613,20 @@ function chgFmtGap(ms) {
   return (d < 10 ? d.toFixed(1).replace(/\.0$/, '') : String(Math.round(d))) + ' 天';
 }
 
-/* 分钟数转人话：90 → 1.5 小时。和 chgFmtGap 分开写原因不同：
-   那个算的是「两次之间隔了多久」，这个算的是「这一次充了多久」。 */
+  /* 分钟数转人话：90 → 1.5 小时。和 chgFmtGap 分开写原因不同：
+     那个算的是「两次之间隔了多久」，这个算的是「这一次充了多久」。 */
 function chgFmtMin(m) {
   if (!m) return '';
   if (m < 60) return Math.round(m) + ' 分钟';
   const h = m / 60;
   return (h < 10 ? h.toFixed(1).replace(/\.0$/, '') : String(Math.round(h))) + ' 小时';
+}
+
+/* 分钟 → 输入框里的小时数：90 → '1.5'、45 → '0.75'、60 → '1'。
+   保留两位小数是为了 45 分钟这类值不来回漂（0.8 小时显示 48 分钟）。
+   🔴 存库仍然是**分钟**，只有这个输入框用小时，换算只在首尾各一次。 */
+function chgHrs(min) {
+  return (min / 60).toFixed(2).replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
 }
 
 /* 轴上限取整到 1 / 1.2 / 1.5 / 2 / 2.5 / 3 / 4 / 5 / 6 / 8 / 10 这几档 ——
@@ -11662,11 +11661,11 @@ function chgDrawTrend(items) {
     empty.hidden = canShow;
     if (!canShow) {
       if (!all.length) {
-        empty.textContent = '先记几次，再给每次补上时长和电量，这里就会出现走势。也可以用「补登过去的记录」把更早的补进来。';
+        empty.textContent = '点「记一次」记下现在，或者「补登」补以前的。';
       } else if (pts.length === 1) {
-        empty.textContent = '只有 1 次填了数值 —— 再补一条（点行尾「补充」或者「补登过去的记录」）就能连成折线。';
+        empty.textContent = '再补一条就能连成线。';
       } else {
-        empty.textContent = '点任意一条记录右侧的「补充」，填上充了多久、充了多少电，就能画进这张图。';
+        empty.textContent = '点记录右侧「补充」，填时长和电量。';
       }
     }
   }
@@ -11773,12 +11772,12 @@ function chgPaint() {
   const metaEl = $('chg-meta');
   if (!st.n) {
     subEl.textContent = '还没有记录';
-    metaEl.textContent = '点下面那颗按钮，记下现在这一次';
+    metaEl.textContent = '点「记一次」记下当前时间';
   } else {
-    subEl.textContent = '上次 ' + chgWhen(st.last) + ' · ' + chgAgo(st.last);
+    subEl.textContent = '上次 ' + chgWhen(st.last);
     metaEl.textContent = st.n >= 2
-      ? '平均 ' + chgFmtGap(st.avg) + ' 充一次 · 最早 ' + chgStamp(items[items.length - 1].t)
-      : '再记一次就能算出平均间隔';
+      ? '平均 ' + chgFmtGap(st.avg) + '一次 · 最早 ' + chgStamp(items[items.length - 1].t)
+      : '再记一次可算平均间隔';
   }
 
   const sumEl = $('chg-sum');
@@ -11796,9 +11795,6 @@ function chgPaint() {
       $('chg-sum-k').textContent = st.kwh.toFixed(1);
     }
   }
-
-  const addBtn = $('chg-add');
-  if (addBtn) addBtn.textContent = '记一次 · 现在 ' + chgStamp(Date.now()).slice(-5);
 
   const list = $('chg-list');
   const foot = $('chg-foot');
@@ -11859,24 +11855,24 @@ function chgAdd() {
   const now = Date.now();
   /* 比「最新一条」判断而不是「最后一条」：补登过更早的记录也不影响防抖 */
   if (items.length && Math.abs(now - items[0].t) < CHG_DUP_MS) {
-    showToast('刚刚记过了 · ' + chgWhen(items[0].t));
+    showToast('刚刚记过一条 · ' + chgWhen(items[0].t));
     return false;
   }
   const next = [{ t: now, loc: chgSpot(), dur: 0, kwh: 0 }].concat(items).slice(0, CHG_MAX);
   if (!chgSave(next)) {
-    showToast('这台设备存不了记录（无痕模式？）');
+    showToast('存不下。无痕模式或浏览器禁用了存储');
     return false;
   }
   chgPaint();
-  showToast('已记下 ' + chgStamp(now) + ' · 共 ' + next.length + ' 次');
+  showToast('记下了 ' + chgStamp(now) + ' · 共 ' + next.length + ' 次');
   return true;
 }
 
 function chgDrop(t) {
   const left = chgLoad().filter((x) => x.t !== t);
-  if (!chgSave(left)) { showToast('这台设备存不了记录（无痕模式？）'); return; }
+  if (!chgSave(left)) { showToast('存不下。无痕模式或浏览器禁用了存储'); return; }
   chgPaint();
-  showToast('已删除一条');
+  showToast('删了一条');
 }
 
 /* 清空用「再点一次」二次确认，不上 window.confirm：原生弹窗在 PWA 里丑、
@@ -11897,12 +11893,12 @@ function chgClear(btn) {
   const n = chgLoad().length;
   chgSave([]);
   chgPaint();
-  showToast(n ? '已清空 ' + n + ' 条记录' : '本来就是空的');
+  showToast(n ? '清空了 ' + n + ' 条' : '本来就是空的');
 }
 
 /* ── 补登 / 补充（v3.10）────────────────────────────────────────
    两个入口共用一个弹窗：
-     · chgEditing = 0  → 新建一条（「补登过去的记录」，时间默认现在，改成过去某天即可）；
+     · chgEditing = 0  → 新建一条（「补登」，时间默认现在，改成过去某天即可）；
      · chgEditing = 某条的 t → 改那一条（时间也能改，改完按新时间重新排序）。
    用 t 不用索引：中间可能被别的标签页增删，索引会指到别人身上，t 不会。 */
 let chgEditing = 0;
@@ -11911,19 +11907,19 @@ function chgFillPaint() {
   const it = chgEditing ? chgLoad().filter((x) => x.t === chgEditing)[0] : null;
   const isNew = !it;
   const title = $('chg-fill-title');
-  if (title) title.textContent = isNew ? '补登一次充电' : '补充这次充电';
+  if (title) title.textContent = isNew ? '补登一次' : '补充这次';
 
   const whenEl = $('chg-fill-when');
   if (whenEl) {
     whenEl.textContent = isNew
-      ? '漏记的那次也能补：把时间改成当时的时间，再填时长和电量'
+      ? '选当时的时间，填时长和电量'
       : chgWhen(it.t) + (it.loc ? ' · ' + it.loc : '');
   }
 
   const tEl = $('chg-fill-time');
   if (tEl) tEl.value = chgLocalInput(it ? it.t : Date.now());
   const dEl = $('chg-fill-dur');
-  if (dEl) dEl.value = it && it.dur ? String(it.dur) : '';
+  if (dEl) dEl.value = it && it.dur ? chgHrs(it.dur) : '';
   const kEl = $('chg-fill-kwh');
   if (kEl) kEl.value = it && it.kwh ? String(it.kwh) : '';
 
@@ -11932,19 +11928,7 @@ function chgFillPaint() {
   const save = $('chg-fill-save');
   if (save) save.textContent = isNew ? '补登' : '保存';
 
-  chgFillChips();
   chgFillHint();
-}
-
-function chgFillChips() {
-  const inEl = $('chg-fill-dur');
-  const v = inEl ? Number(inEl.value) : 0;
-  const box = $('chg-fill-chips');
-  if (!box) return;
-  const btns = box.querySelectorAll('.est-chip');
-  for (let i = 0; i < btns.length; i++) {
-    btns[i].classList.toggle('on', Number(btns[i].dataset.min) === v);
-  }
 }
 
 function chgFillHint() {
@@ -11953,17 +11937,17 @@ function chgFillHint() {
   el.classList.remove('bad');
   const dEl = $('chg-fill-dur');
   const kEl = $('chg-fill-kwh');
-  const d = Math.round(Number(dEl ? dEl.value : 0) || 0);
+  const dur = Math.round((Number(dEl ? dEl.value : 0) || 0) * 60);
   const k = Number(kEl ? kEl.value : 0) || 0;
   const bits = [];
-  if (d > 0 && d <= 1440) bits.push('时长 ' + chgFmtMin(d));
+  if (dur > 0 && dur <= 1440) bits.push('时长 ' + chgFmtMin(dur));
   if (k > 0 && k <= 99) bits.push('电量 ' + k.toFixed(1) + ' kWh');
   if (bits.length) {
-    el.textContent = bits.join(' · ') + ' · 只是记数，不折算、不算电费';
+    el.textContent = bits.join(' · ');
   } else if (chgEditing) {
-    el.textContent = '两个都留空 = 清掉这条的数值，只保留打卡时间。';
+    el.textContent = '两个都留空会清掉数值，只保留时间。';
   } else {
-    el.textContent = '时长和电量至少填一个；两个都不填，这条就只是一次打卡。';
+    el.textContent = '时长和电量至少填一个。';
   }
 }
 
@@ -11979,7 +11963,6 @@ function chgFillClear() {
   if (dEl) dEl.value = '';
   const kEl = $('chg-fill-kwh');
   if (kEl) kEl.value = '';
-  chgFillChips();
   chgFillHint();
 }
 
@@ -11991,7 +11974,8 @@ function chgFillSave() {
   const isNew = !chgEditing;
 
   const t = chgParseInput(tEl ? tEl.value : '');
-  const dur = Math.round(Number(dEl ? dEl.value : 0) || 0);
+  const hrs = Number(dEl ? dEl.value : 0) || 0;   // 输入框是小时，存库换算成分钟
+  const dur = Math.round(hrs * 60);
   const kwh = Math.round((Number(kEl ? kEl.value : 0) || 0) * 10) / 10;
 
   const bad = (msg) => {
@@ -11999,18 +11983,18 @@ function chgFillSave() {
     return false;
   };
 
-  if (!Number.isFinite(t) || t <= 0) return bad('先把时间填上 —— 点一下时间框就能选日期和时刻');
-  if (t > Date.now() + 60000) return bad('还没到的时间记不了；充电时间是过去或者现在');
-  if (dur < 0 || dur > 1440) return bad('时长填 1~1440 分钟（最长 24 小时），不填就留空');
-  if (kwh < 0 || kwh > 99) return bad('电量填 0~99 度，不填就留空');
+  if (!Number.isFinite(t) || t <= 0) return bad('先选时间');
+  if (t > Date.now() + 60000) return bad('不能填将来的时间');
+  if (hrs < 0 || hrs > 24) return bad('时长填 0.1~24 小时，不填就留空');
+  if (kwh < 0 || kwh > 99) return bad('电量填 0~99 kWh，不填就留空');
   if (!dur && !kwh && isNew) {
-    return bad('时长和电量至少填一个；只想打个卡的话，直接点「记一次 · 现在」');
+    return bad('时长和电量至少填一个；只打卡就点「记一次」');
   }
 
   const items = chgLoad();
   /* 同一分钟内已经有记录就不再插一条 —— 补登时忘了改时间最容易踩这个 */
   if (isNew && items.some((x) => Math.abs(x.t - t) < CHG_DUP_MS)) {
-    return bad('这个时间已经有一条了 · 换个时间，或者直接点那条的「补充」');
+    return bad('这个时间已经有记录了');
   }
 
   let next;
@@ -12021,7 +12005,7 @@ function chgFillSave() {
   }
   next.sort((a, b) => b.t - a.t);
   next = next.slice(0, CHG_MAX);
-  if (!chgSave(next)) { showToast('这台设备存不了记录（无痕模式？）'); return false; }
+  if (!chgSave(next)) { showToast('存不下。无痕模式或浏览器禁用了存储'); return false; }
 
   const dlg = $('dlg-chg-fill');
   if (dlg) dlg.close();
@@ -12053,7 +12037,7 @@ function chgOpenDlg() {
   const addBtn = $('chg-add');
   if (addBtn) addBtn.addEventListener('click', () => chgAdd());
 
-  /* 补登过去的记录：同一个弹窗，chgEditing=0 即新建模式 */
+  /* 补登：同一个弹窗，chgEditing=0 即新建模式 */
   const backBtn = $('chg-back-btn');
   if (backBtn) backBtn.addEventListener('click', () => chgFillOpen(null));
 
@@ -12062,7 +12046,7 @@ function chgOpenDlg() {
 
   const durIn = $('chg-fill-dur');
   if (durIn) {
-    durIn.addEventListener('input', () => { chgFillChips(); chgFillHint(); });
+    durIn.addEventListener('input', () => chgFillHint());
     durIn.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { e.preventDefault(); chgFillSave(); }
     });
@@ -12072,16 +12056,6 @@ function chgOpenDlg() {
     kwhIn.addEventListener('input', () => chgFillHint());
     kwhIn.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { e.preventDefault(); chgFillSave(); }
-    });
-  }
-  const chips = $('chg-fill-chips');
-  if (chips) {
-    chips.addEventListener('click', (e) => {
-      const b = e.target.closest('.est-chip');
-      if (!b || !durIn) return;
-      durIn.value = b.dataset.min;
-      chgFillChips();
-      chgFillHint();
     });
   }
   const save = $('chg-fill-save');

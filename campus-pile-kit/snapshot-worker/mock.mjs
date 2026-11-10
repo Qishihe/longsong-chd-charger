@@ -74,6 +74,10 @@ export function createScanner({ mode = 'ok' } = {}) {
       throw e;
     }
     if (mode === 'some-fail' && n % 3 === 0) throw new Error('平台没响应（8 秒超时）');
+    /* 与真实上游一致：离线桩回的是「该设备已断线」，由 classifyError 归到 offline。 */
+    if (mode === 'some-offline' && n % 3 === 0) {
+      throw new Error('该设备已断线，暂时无法使用，请联系对应的设备运营商');
+    }
     const ports = [1, 2, 3, 4].map((num) => ({ num, state: (n + num) % 3 === 0 ? 0 : 1 }));
     return { ports };
   };

@@ -139,6 +139,14 @@ export function classifyError(msg) {
   if (/认证|凭证|授权|token|jwt|unauthor|401|expired/i.test(s)) return 'auth';
   if (/没拿到|没返回|缺|missing/i.test(s)) return 'missing';
   if (/HTTP 5\d\d/.test(s)) return 'http5xx';
+  /* 🔴 设备离线（上游明确回「该设备已断线，暂时无法使用，请联系对应的设备运营商」）
+     不是「数据残缺」，而是「这台桩本来就不可用」。单列一类，让 appendStats 能把
+     它从分母里剔除后照常记账，而不是因为一台断线桩把整个分区的周回顾整片判灰 ——
+     北门 2026-11-10 07:11 起连续 16 小时空白就是这么来的（PILEXXXX 断线）。
+     ⚠️ 文案若变（「已离线」「设备不可用」「断电」等），把新词补进这条正则；
+        漏了会静默退回 'other'，表现为「一台桩断线又把整区拖黑」。
+     必须放在 missing/http5xx 之后、'other' 之前：上面几条更具体的先命中。 */
+  if (/断线|离线|不在线|未连接|offline|disconnected?/i.test(s)) return 'offline';
   return 'other';
 }
 
@@ -929,7 +937,27 @@ export async function appendStats({ bucket, areas, now, tuning = TUNING }) {
       failedN > 0 &&
       carried >= failedN &&
       carriedAge <= maxAge;
-    if (s.error && !partialHealed) {
+
+    /* 🔴 离线台容忍（2026-11-10）。`refreshArea` 在离线/补不齐时，已经把这台
+     * 排除在 `devices` 之外 —— 也就是说 `total/free` 是「除去不可用台之后、
+     * 仍在用的那批桩」的完整口径，不是残缺口径。只要**所有**失败台都是
+     * 「设备离线」（kinds 只有 offline），这一格就是可信的，应当记账。
+     *
+     * 旧逻辑：离线超过补齐窗口（carryMaxAge，白天约 1 小时）后 carried 归零
+     * → 整区判 partial → 一周回顾整片空白。北门 2026-11-10 07:11 起 16 小时
+     * 空白正是 PILEXXXX 一台断线造成的（36/37 台照常在用，pct 完全算得出来）。
+     *
+     * 仍然留空的情况（守住「宁可空着，不拿残缺数冒充全区」）：失败原因里混入
+     * throttled（限流，60 秒就该重试）、auth（凭证坏）、timeout / other
+     * （原因不明）。那些不是「已知不可用」，拿残缺口径冒充全区会误导。
+     *
+     * 全离线（allFailed）走的是 code='upstream'，不满足这里的 partial 条件，
+     * 依旧是「整区留空」——整区都没读数时不能记账，这条没变。 */
+    const failKinds = s.error && Array.isArray(s.error.kinds) ? s.error.kinds : [];
+    const offlineOnly = failKinds.length > 0 && failKinds.every((k) => k === 'offline');
+    const offlineHealed =
+      !!s.error && s.error.code === 'partial' && offlineOnly && failedN > 0 && !partialHealed;
+    if (s.error && !partialHealed && !offlineHealed) {
       per[a.key] = { pct: null, age, reason: s.error.code || 'upstream' };
       return;
     }
@@ -937,6 +965,9 @@ export async function appendStats({ bucket, areas, now, tuning = TUNING }) {
     /* `est` = 这一格里有多少台是沿用上一份的数（不是本轮新取）。
        前端不拿它改画法，只用于诊断；`all`/`coverage` 已经把这几台算在内。 */
     if (partialHealed) per[a.key].est = carried;
+    /* `offline` = 被排除出分母的离线台数（failed 里没能接上历史的那几台）。
+       只做诊断标注，前端照旧按 pct 画格子；`all`/`coverage` 用的是在线那批。 */
+    else if (offlineHealed) per[a.key].offline = Math.max(0, failedN - carried);
     freeSum += s.free;
     totalSum += s.total;
     coverage += 1;

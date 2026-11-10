@@ -151,7 +151,7 @@ npx wrangler d1 execute chd-snap --remote --command="SELECT COUNT(*) FROM locks"
 node campus-pile-kit/snapshot-worker/selftest.mjs
 ```
 
-177 条断言，覆盖的都是「写错了不报错、只会慢慢烂」的地方：
+267 条断言，覆盖的都是「写错了不报错、只会慢慢烂」的地方：
 
 - 锁的原子性：5 个并发只有 1 个抢到
 - **全站锁**：四个区同一时间片想刷，只放行一个（不然就是 109 台/分）
@@ -165,6 +165,7 @@ node campus-pile-kit/snapshot-worker/selftest.mjs
 - 上游全挂：保留旧数据、`at` 不变、`error.code` 区分 `auth` / `upstream`
 - **auth 退避阶梯**：10 分钟 → 10 分钟 → 6 小时，别把临时限流当成凭证过期
 - **partial 不累加**：一半台失败时只退 5 分钟，别让保护一半数据变成全停
+- **离线台不拖黑整区**（2026-11-10）：失败台全是「设备已断线」时，按**在线桩口径**照常记账（离线台排除出分母，`offline` 记下台数），不再整片判灰 —— 北门因 1 台断线空白 16 小时的根因。混入超时 / 限流 / 未知仍按老口径留空
 - **busy 不算平台故障**：被自己人的回源预算挤掉时只等 60 秒
 - **force 逃生门**：必须持内部密钥，且能绕过锁 / 节流 / 退避（运维要立刻看到结果）
 - **DISABLE_CRON**：多部署互斥开关

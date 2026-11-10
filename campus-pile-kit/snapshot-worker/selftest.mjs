@@ -20,7 +20,7 @@ import {
   AREA_CRON_GROUPS,
   STATS_CRON_MINUTES,
 } from './config.mjs';
-import { KEYS, refreshArea, snapFor, appendStats, sliceOf, WriteGuard, inflightRecently } from './core.mjs';
+import { KEYS, refreshArea, snapFor, appendStats, sliceOf, WriteGuard, inflightRecently, classifyError } from './core.mjs';
 import { PARTITIONS } from './partitions.mjs';
 import { createBucket, createClock, createScanner, asBatch } from './mock.mjs';
 
@@ -679,6 +679,44 @@ console.log('\n8d. 同小时合并');
   eq('补采后 5 区都填上了', healed.point.coverage, AREAS.length);
   eq('仍是一个点', healed.kept, 1);
   ok('all 有值', typeof healed.point.all === 'number', healed.point.all);
+}
+
+/* ── 8e. partial 但失败台全是「设备离线」→ 照常入账（2026-11-10） ── */
+/* 上游明确回「该设备已断线」时，这台桩本就不可用；refreshArea 已把它排除在
+   total 之外，所以这一格是「在线那批桩」的完整口径。此时应当记账，而不是让
+   一台断线桩把整个分区的一周回顾整片判灰 —— 北门 11-10 07:11 起 16 小时
+   空白（PILEXXXX 断线、36/37 台照常在用）就是这个 bug。 */
+console.log('\n8e. 离线台不拖黑整区');
+{
+  eq('classifyError 认得「已断线」', classifyError('该设备已断线，暂时无法使用，请联系对应的设备运营商'), 'offline');
+  eq('普通超时不算离线', classifyError('平台没响应（8 秒超时）'), 'timeout');
+  eq('限流不算离线', classifyError('刚才查询的人太多了，请稍后再试'), 'throttled');
+
+  const bucket = createBucket();
+  const clock = createClock(T0);
+  const scanner = createScanner({ mode: 'some-offline' }); // 每 3 台断线 1 台
+
+  await refreshArea({ bucket, area: AREAS[0], now: clock.now, scanBatch: asBatch(scanner), useGlobalLock: false });
+  const snap = await readJson(bucket, KEYS.snap(AREAS[0].key));
+  ok('这一轮是 partial（不是全挂）', !!snap.error && snap.error.code === 'partial', snap.error);
+  eq('失败原因全是 offline', snap.error && snap.error.kinds, ['offline']);
+
+  const res = await appendStats({ bucket, areas: AREAS, now: clock.now });
+  const c = res.point.areas.chaohui;
+  ok('离线导致的 partial 仍记账（pct 有值）', typeof c.pct === 'number', c);
+  eq('不再标 partial', c.reason, undefined);
+  ok('offline 记下被排除的台数', c.offline > 0, c);
+  eq('计入 coverage', res.point.coverage, 1);
+  ok('all 用在线桩口径算出来', typeof res.point.all === 'number', res.point.all);
+
+  /* 对照组：同样「接不齐」但原因是超时 → 仍按 8b 口径留空，不能被这次放宽波及。 */
+  const b2 = createBucket();
+  const c2 = createClock(T0);
+  const s2 = createScanner({ mode: 'some-fail' });
+  await refreshArea({ bucket: b2, area: AREAS[0], now: c2.now, scanBatch: asBatch(s2), useGlobalLock: false });
+  const r2 = await appendStats({ bucket: b2, areas: AREAS, now: c2.now });
+  eq('对照：超时类接不齐仍留空', r2.point.areas.chaohui.pct, null);
+  eq('对照：仍标 partial', r2.point.areas.chaohui.reason, 'partial');
 }
 
 /* ── 9. 窗口按北京自然日对齐 ───────────────────────────────────── */

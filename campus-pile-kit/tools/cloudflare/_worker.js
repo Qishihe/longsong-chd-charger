@@ -836,9 +836,12 @@ const RETIRED_PREFIX = ['/redesign/'];
  *   PLATE_WINDOW_DAYS = 明细能留多久（过期惰性清理）；
  *   PLATE_QUERY_DAYS  = 普通查询数哪一段（滚动窗口）；
  *   ym               = 排行榜按哪个自然月切（管理员可筛选月份 + 校区）。
+ * 🔴 2026-11-10：按反馈把查询段从 90 天拉到 180 天，与保留窗口对齐 ——
+ *    「库里还留着的记录查询却数不到」对用户没法解释。两个常量仍分开写，
+ *    以后要再改查询段不必动清理逻辑；但两者不同时要同步改所有文案。
  *
  * 存储只放 HMAC 后的车牌哈希和 AES-GCM 密文，明文不落库；查询只读次数。
- * 明细是唯一权威数据：90 天次数、当天已登记几次、按校区分布都由 reports 现算，
+ * 明细是唯一权威数据：180 天次数、当天已登记几次、按校区分布都由 reports 现算，
  * 没冗余计数列就不会出现「撤销后累计没跟着退」这种对不上的情况。
  * 只有排行榜用预汇总表 —— 18 万行明细上做全表分组会撞 10ms CPU 上限。
  *
@@ -855,7 +858,7 @@ const RETIRED_PREFIX = ['/redesign/'];
  *    （计数器若因运维手工删库而虚高，这一次也能自愈，不会误拒）。
  */
 const PLATE_WINDOW_DAYS = 180;
-const PLATE_QUERY_DAYS = 90;
+const PLATE_QUERY_DAYS = 180;     // 查询段 = 保留窗口；改这里也要同步前端文案 / API.md / 回归
 const PLATE_PER_DAY = 2;          // 每个车牌每天最多被登记几次
 const PLATE_REPORT_LIMIT = 5;     // 每个设备每天最多登记几次（挡扫不同车牌刷库）
 const PLATE_QUERY_LIMIT = 3;      // 每个设备每天最多查几次（不累计，日切归零）
@@ -1050,7 +1053,7 @@ async function plateSrcHash(request, env, raw) {
 }
 
 /* GET /api/plate —— 不带 q 时返回配置常量（前端据此显隐入口）；
-   带 q 时返回近 90 天的次数与按校区分布。未命中也扣次，避免额度变成
+   带 q 时返回近 180 天的次数与按校区分布。未命中也扣次，避免额度变成
    「哪些车牌登记过」的枚举探测器。 */
 async function plateQuery(request, url, env) {
   const cfg = plateConfig(env);
@@ -1231,7 +1234,7 @@ async function plateRank(request, url, env) {
 }
 
 /* POST /api/admin/plate/revoke —— 撤销某车牌某月（可限定校区）的全部登记。
-   明细删掉后 90 天查询次数自动变少；预汇总表按删掉的条数逐项回退。
+   明细删掉后 180 天查询次数自动变少；预汇总表按删掉的条数逐项回退。
    这是民法典 1195 通知删除的最低落地形态。 */
 async function plateRevoke(request, env) {
   if (!(await plateAdminOk(request, new URL(request.url), env))) {

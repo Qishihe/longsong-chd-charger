@@ -1190,6 +1190,9 @@ async function plateAdminOk(request, url, env) {
 
 /* GET /api/admin/plate/rank —— 按自然月 + 可选校区出 Top N，并回可筛选的月份列表。
    只走预汇总表的索引，不对 18 万行明细做分组。 */
+/* GET /api/admin/plate/rank —— 按「某一天」或「整月」+ 可选校区出 Top N。
+   🔴 日榜 / 月榜两条路径都不要泄漏 0 次明文车牌：月榜走预汇总表加 AND cnt>0；
+      日榜从 reports 明细现聚、用 HAVING cnt>0。写口令只在 JWT 校验通过后才到这。 */
 async function plateRank(request, url, env) {
   if (!(await plateAdminOk(request, url, env))) {
     return json({ ok: false, error: 'bad_token' }, 401);
@@ -1197,6 +1200,8 @@ async function plateRank(request, url, env) {
   if (!plateEnvReady(env)) return json({ ok: false, error: 'plate_disabled' }, 503);
   const db = env.PLATE_DB;
   await plateInit(db);
+  const dayRaw = url.searchParams.get('day') || '';
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(dayRaw) ? dayRaw.replace(/-/g, '') : '';
   const ymRaw = url.searchParams.get('ym') || '';
   const ym = /^\d{4}-\d{2}$/.test(ymRaw) ? ymRaw : plateYm(Date.now());
   const campusRaw = url.searchParams.get('campus') || '';
@@ -1206,31 +1211,81 @@ async function plateRank(request, url, env) {
   const months = await db.prepare(
     'SELECT DISTINCT ym FROM plate_month ORDER BY ym DESC LIMIT ?')
     .bind(PLATE_MONTHS_KEEP).all();
-  const sql = campus
-    ? 'SELECT m.plate_hash AS ph, m.cnt AS cnt, p.plate_enc AS enc, p.last_at AS last_at '
-      + 'FROM plate_month_campus m JOIN plates p ON p.plate_hash=m.plate_hash '
-      + 'WHERE m.ym=? AND m.campus=? ORDER BY m.cnt DESC LIMIT ?'
-    : 'SELECT m.plate_hash AS ph, m.cnt AS cnt, m.pull AS pull, m.park AS park, '
-      + 'm.other AS other, p.plate_enc AS enc, m.last_at AS last_at '
-      + 'FROM plate_month m JOIN plates p ON p.plate_hash=m.plate_hash '
-      + 'WHERE m.ym=? ORDER BY m.cnt DESC LIMIT ?';
-  const q = db.prepare(sql);
-  const res = campus ? await q.bind(ym, campus, limit).all() : await q.bind(ym, limit).all();
-  const rows = await Promise.all((res.results || []).map(async (r) => ({
+
+  const raw = day
+    ? await plateRankDay(db, day, campus, limit)
+    : await plateRankMonth(db, ym, campus, limit);
+  const rows = await Promise.all(raw.map(async (r) => ({
     plate: await plateDecrypt(r.enc, env.PLATE_AES_KEY),
-    count: Number(r.cnt || 0),
-    pull: Number(r.pull || 0), park: Number(r.park || 0), other: Number(r.other || 0),
-    lastAt: Number(r.last_at || 0),
+    count: r.count, pull: r.pull, park: r.park, other: r.other, lastAt: r.lastAt,
   })));
+
   await db.prepare('INSERT INTO plate_audit(at,action,plate_hash,who) VALUES(?,?,?,?)')
-    .bind(Date.now(), 'rank', ym + (campus ? ':' + campus : ''), 'admin').run();
+    .bind(Date.now(), 'rank', (day ? 'day:' + day : ym) + (campus ? ':' + campus : ''), 'admin').run();
   return json({
-    ok: true, ym, campus,
+    ok: true, mode: day ? 'day' : 'month', ym, day: day || '', campus,
     months: (months.results || []).map((m) => m.ym),
     currentYm: plateYm(Date.now()),
     windowDays: PLATE_WINDOW_DAYS,
     rows,
   });
+}
+
+/* 月榜走预汇总表（只扫索引，不碰 18 万行明细）。
+   🔴 必须 AND m.cnt>0：撤销后 plate_month 仍可能留 cnt=0 的行，不滤就会把
+   「0 次」的明文车牌泄漏到榜单（这就是撤销后榜单出现「0 次」车牌的根因）。 */
+async function plateRankMonth(db, ym, campus, limit) {
+  const sql = campus
+    ? 'SELECT m.plate_hash AS ph, m.cnt AS cnt, p.plate_enc AS enc, p.last_at AS last_at '
+      + 'FROM plate_month_campus m JOIN plates p ON p.plate_hash=m.plate_hash '
+      + 'WHERE m.ym=? AND m.campus=? AND m.cnt>0 ORDER BY m.cnt DESC LIMIT ?'
+    : 'SELECT m.plate_hash AS ph, m.cnt AS cnt, m.pull AS pull, m.park AS park, '
+      + 'm.other AS other, p.plate_enc AS enc, m.last_at AS last_at '
+      + 'FROM plate_month m JOIN plates p ON p.plate_hash=m.plate_hash '
+      + 'WHERE m.ym=? AND m.cnt>0 ORDER BY m.cnt DESC LIMIT ?';
+  const q = db.prepare(sql);
+  const res = campus ? await q.bind(ym, campus, limit).all() : await q.bind(ym, limit).all();
+  return (res.results || []).map((r) => ({
+    enc: r.enc,
+    count: Number(r.cnt || 0),
+    pull: Number(r.pull || 0), park: Number(r.park || 0), other: Number(r.other || 0),
+    lastAt: Number(r.last_at || 0),
+  }));
+}
+
+/* 按天榜直接从 reports 明细聚：某一天的总次数 + 各事由分布 + 最近时间。
+   reports.day 存的是 YYYYMMDD（无横杠），前端传 YYYY-MM-DD，这里去横杠对齐。 */
+async function plateRankDay(db, day, campus, limit) {
+  const agg = 'COUNT(*) AS cnt, '
+    + 'SUM(CASE WHEN r.reason=? THEN 1 ELSE 0 END) AS pull, '
+    + 'SUM(CASE WHEN r.reason=? THEN 1 ELSE 0 END) AS park, '
+    + 'SUM(CASE WHEN r.reason=? THEN 1 ELSE 0 END) AS other, '
+    + 'MAX(r.at) AS last_at ';
+  const sql = campus
+    ? 'SELECT r.plate_hash AS ph, ' + agg
+      + 'FROM reports r WHERE r.day=? AND r.campus=? '
+      + 'GROUP BY r.plate_hash HAVING cnt>0 ORDER BY cnt DESC LIMIT ?'
+    : 'SELECT r.plate_hash AS ph, ' + agg
+      + 'FROM reports r WHERE r.day=? '
+      + 'GROUP BY r.plate_hash HAVING cnt>0 ORDER BY cnt DESC LIMIT ?';
+  const q = db.prepare(sql);
+  const res = campus
+    ? await q.bind('pull', 'park', 'other', day, campus, limit).all()
+    : await q.bind('pull', 'park', 'other', day, limit).all();
+  const rows = res.results || [];
+  if (!rows.length) return [];
+  const phs = rows.map((r) => r.ph);
+  const encs = await db.prepare(
+    'SELECT plate_hash AS ph, plate_enc AS enc FROM plates WHERE plate_hash IN ('
+      + phs.map(() => '?').join(',') + ')').bind(...phs).all();
+  const map = {};
+  (encs.results || []).forEach((e) => { map[e.ph] = e.enc; });
+  return rows.map((r) => ({
+    enc: map[r.ph] || null,
+    count: Number(r.cnt || 0),
+    pull: Number(r.pull || 0), park: Number(r.park || 0), other: Number(r.other || 0),
+    lastAt: Number(r.last_at || 0),
+  }));
 }
 
 /* POST /api/admin/plate/revoke —— 撤销某车牌某月（可限定校区）的全部登记。
@@ -1247,8 +1302,15 @@ async function plateRevoke(request, env) {
   if (!/^[\u4e00-\u9fa5][A-Z0-9]{5,8}$/.test(plate)) {
     return json({ ok: false, error: 'bad_plate' }, 400);
   }
+  /* 🔴 支持按「某一天」撤销（day=YYYY-MM-DD）或按「整月」撤销（ym=YYYY-MM）。
+     day 模式下 day 是 reports.day 的精确值（YYYYMMDD），不需要 LIKE。 */
   const ymRaw = String((body && body.ym) || '');
-  if (!/^\d{4}-\d{2}$/.test(ymRaw)) return json({ ok: false, error: 'bad_ym' }, 400);
+  const dayRaw = String((body && body.day) || '');
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(dayRaw) ? dayRaw.replace(/-/g, '') : '';
+  if (!day && !/^\d{4}-\d{2}$/.test(ymRaw)) {
+    return json({ ok: false, error: day ? 'bad_day' : 'bad_ym' }, 400);
+  }
+  const ymForMonth = day ? dayRaw.slice(0, 7) : ymRaw;
   const campus = String((body && body.campus) || '');
   if (campus && PLATE_CAMPUSES.indexOf(campus) < 0) {
     return json({ ok: false, error: 'bad_campus' }, 400);
@@ -1256,15 +1318,16 @@ async function plateRevoke(request, env) {
   const db = env.PLATE_DB;
   await plateInit(db);
   const ph = await plateHmac(plate, env.PLATE_HMAC_KEY);
-  const like = ymRaw.replace('-', '') + '%';
-  const where = 'plate_hash=? AND day LIKE ?' + (campus ? ' AND campus=?' : '');
+  const dayFilter = day ? 'day=?' : 'day LIKE ?';
+  const dayVal = day ? day : (ymRaw.replace('-', '') + '%');
+  const where = 'plate_hash=? AND ' + dayFilter + (campus ? ' AND campus=?' : '');
   const gq = db.prepare('SELECT campus, reason, COUNT(*) AS n FROM reports WHERE ' + where
     + ' GROUP BY campus, reason');
-  const groups = campus ? await gq.bind(ph, like, campus).all() : await gq.bind(ph, like).all();
+  const groups = campus ? await gq.bind(ph, dayVal, campus).all() : await gq.bind(ph, dayVal).all();
   const rows = groups.results || [];
   if (!rows.length) return json({ ok: false, error: 'not_found' }, 404);
   const dq = db.prepare('DELETE FROM reports WHERE ' + where);
-  const del = campus ? await dq.bind(ph, like, campus).run() : await dq.bind(ph, like).run();
+  const del = campus ? await dq.bind(ph, dayVal, campus).run() : await dq.bind(ph, dayVal).run();
   const removed = Number(del && del.meta && del.meta.changes) || 0;
 
   let pull = 0, park = 0, other = 0;
@@ -1279,7 +1342,7 @@ async function plateRevoke(request, env) {
   const stmts = [
     db.prepare('UPDATE plate_month SET cnt=MAX(0,cnt-?), pull=MAX(0,pull-?), '
       + 'park=MAX(0,park-?), other=MAX(0,other-?) WHERE plate_hash=? AND ym=?')
-      .bind(removed, pull, park, other, ph, ymRaw),
+      .bind(removed, pull, park, other, ph, ymForMonth),
     db.prepare('UPDATE plates SET total_all=MAX(0,total_all-?) WHERE plate_hash=?')
       .bind(removed, ph),
     db.prepare('INSERT INTO plate_audit(at,action,plate_hash,who) VALUES(?,?,?,?)')
@@ -1290,12 +1353,19 @@ async function plateRevoke(request, env) {
   Object.keys(perCampus).forEach((c) => {
     stmts.push(db.prepare(
       'UPDATE plate_month_campus SET cnt=MAX(0,cnt-?) WHERE plate_hash=? AND ym=? AND campus=?')
-      .bind(perCampus[c], ph, ymRaw, c));
+      .bind(perCampus[c], ph, ymForMonth, c));
   });
   await db.batch(stmts);
-  await db.prepare('DELETE FROM plate_month WHERE plate_hash=? AND ym=? AND cnt=0')
-    .bind(ph, ymRaw).run();
-  return json({ ok: true, removed, ym: ymRaw, campus });
+  /* 🔴 撤销末尾收尾：把归零的汇总行删掉，否则月榜即便加了 AND cnt>0 仍可能残留
+     cnt=0 行（个别校区撤销后整行归零）；并回收「彻底没记录」的车牌子，避免
+     plates 表里留明文孤儿（total_all 已归零且无任何 plate_month 行才删）。 */
+  await db.batch([
+    db.prepare('DELETE FROM plate_month WHERE plate_hash=? AND ym=? AND cnt<=0')
+      .bind(ph, ymForMonth),
+    db.prepare('DELETE FROM plate_month_campus WHERE plate_hash=? AND ym=? AND cnt<=0')
+      .bind(ph, ymForMonth),
+  ]);
+  return json({ ok: true, removed, ym: ymForMonth, day: day || '', campus });
 }
 
 export default {

@@ -370,6 +370,34 @@ def main():
     c.check(bool(chg) and not any(w in chg for w in ('排行榜', '月榜', '撤销', '写口令')),
             "公告不宣传管理员专属的排行榜与撤销",
             "按反馈删掉那条，别在版本更新里再补回来")
+    # 2026-11-10：排行榜弹窗重做——先输写口令进主界面，顶部「某一天 / 整月」分段
+    # + 原生日历选择器（date / month）+ 校区下拉；口令只在会话内用一次。
+    c.check('id="rank-gate"' in ix and 'id="rank-main"' in ix
+            and ix.count('id="rank-gate"') == 1 and ix.count('id="rank-main"') == 1,
+            "排行榜弹窗分「口令闸门」与「主界面」两层",
+            "没分两层就是旧版，打开直接露榜单")
+    c.check('id="rank-seg"' in ix and 'data-mode="day"' in ix and 'data-mode="month"' in ix,
+            "顶部分段控件支持「某一天 / 整月」切换")
+    c.check('type="date" id="plate-rank-day"' in ix and 'type="month" id="plate-rank-month"' in ix,
+            "日期用原生日历选择器（date / month），不是手写下拉",
+            "手写下拉在 iOS 上没日历弹层")
+    c.check('id="plate-rank-campus" aria-label="校区"' in ix,
+            "校区用下拉选择（与主页校区选择器同级控件）")
+    c.check('id="plate-rank-enter"' in ix and 'id="plate-rank-token"' in ix,
+            "口令闸门有输入框 + 进入按钮")
+    c.check('plate-rank-load' not in ix and 'plate-rank-ym' not in ix,
+            "旧版「查看」按钮与月份下拉已清掉",
+            "旧标记还在说明没完全换皮")
+    c.check("plateRankDay" in worker and "FROM reports r WHERE r.day=?" in worker
+            and "HAVING cnt>0" in worker,
+            "按天榜从 reports 明细聚合，且用 HAVING cnt>0 防 0 次泄漏")
+    c.check("plateRankMonth" in worker and "AND m.cnt>0" in worker,
+            "按月榜 SQL 过滤 cnt>0（撤销后不留 0 次明文车牌）")
+    c.check("mode: day ? 'day' : 'month'" in worker,
+            "排行榜回包带 mode 字段，前端据此切换文案")
+    c.check("body && body.day" in worker and "'day=?'" in worker
+            and "dayRaw.slice(0, 7)" in worker,
+            "撤销支持按某一天（day=YYYY-MM-DD）整批删，并按所在月回退汇总")
     c.check("/api/*" in routes, "_routes.json 通配 /api/*（新端点无需再登记）")
     c.check("pathname.indexOf('/api/') === 0" in sw,
             "sw.js 排除 /api/*（新端点不进离线缓存）")

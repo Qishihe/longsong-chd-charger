@@ -1016,11 +1016,6 @@
   .plate-box h3{font-size:13px; font-weight:600; margin:0 0 4px; color:var(--text)}
   .plate-fld{display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; align-items:stretch}
   .plate-fld > *{flex:1; min-width:104px}
-  .plate-fld select, .plate-rank-bar select{
-    width:100%; font:inherit; font-size:13px; padding:9px 10px;
-    border:1px solid var(--line-strong); border-radius:9px;
-    background:var(--input-bg); color:var(--text); -webkit-appearance:none;
-  }
   .plate-result{margin-top:10px; padding:10px 12px; border-radius:10px;
     background:var(--free-soft); border:1px solid var(--free-line);
     font-size:13px; color:var(--free-deep); line-height:1.6; white-space:pre-line}
@@ -1030,9 +1025,6 @@
     color:var(--muted); line-height:1.6}
   .plate-off[hidden]{display:none}
   .plate-note{font-size:11.5px; color:var(--hint); line-height:1.6; margin-top:10px}
-  .plate-rank-bar{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:4px}
-  .plate-rank-bar > *{flex:1; min-width:108px}
-  .plate-rank-bar .icon-btn{flex:none; min-width:64px}
   .plate-rank-list{max-height:52vh; overflow-y:auto; margin-top:10px}
   .plate-rank-row{display:flex; align-items:center; gap:8px; padding:9px 0;
     border-bottom:1px solid var(--line); font-size:12.5px; color:var(--text)}
@@ -1042,6 +1034,36 @@
   .plate-rank-row .icon-btn{flex:none; padding:5px 9px; font-size:11.5px}
   .plate-tag{font-size:10.5px; color:var(--hint); border:1px solid var(--line);
     border-radius:999px; padding:1px 6px; white-space:nowrap}
+  /* v3.20 方框对齐（修「有的大有的小」）：登记 / 查询 / 排行榜里所有 input·select·按钮
+     统一盒模型 —— 显式 height + box-sizing:border-box，padding 差 2px 不再撑出高度差；
+     select 去掉原生外观补自定义箭头，与文本框视觉一致。 */
+  .plate-fld input, .plate-fld select, .plate-fld button,
+  .rank-main input, .rank-main select, .rank-main button{
+    box-sizing:border-box; height:38px; margin:0; padding:0 12px;
+    font:inherit; font-size:13px; line-height:1;
+    border:1px solid var(--line-strong); border-radius:9px;
+    background:var(--input-bg); color:var(--text);
+  }
+  .plate-fld select, .rank-main select,
+  .plate-fld input[type=text], .plate-fld input[type=password],
+  .rank-main input[type=text], .rank-main input[type=password]{
+    -webkit-appearance:none; appearance:none; padding-right:30px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238a8a8a' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 11px center;
+  }
+  .plate-fld input:focus, .rank-main input:focus,
+  .plate-fld select:focus, .rank-main select:focus{
+    outline:2px solid var(--accent, var(--free)); outline-offset:1px;
+  }
+  /* .icon-btn 在 plate-fld 里服从统一高度（默认 min-height:38px，改 height 防被 align-stretch 顶高） */
+  .plate-fld .icon-btn, .rank-main .icon-btn{height:38px; min-height:0; padding:0 14px}
+  /* 分段控件（某一天 / 整月） */
+  .seg{display:flex; gap:4px; padding:3px; margin-top:4px;
+    background:var(--input-bg); border:1px solid var(--line); border-radius:10px}
+  .seg-btn{flex:1; border:0; background:transparent; border-radius:8px; padding:8px 10px;
+    font:inherit; font-size:13px; color:var(--muted); cursor:pointer; min-height:32px}
+  .seg-btn.is-active{background:var(--card); color:var(--text); font-weight:600;
+    box-shadow:0 1px 2px rgba(0,0,0,.12)}
   /* 充满要多久（v2.91）：管理员后台 › 工具里的独立估算器。
      纯本地乘法 —— 不读 cpk.cache、不发请求、跟那 200 台桩没有任何关系。 */
   .est-card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 14px}
@@ -2278,24 +2300,40 @@
   </div>
 </dialog>
 
-<!-- 违规排行榜（v3.20）：入口在管理员后台「设备与设置 › 工具」，按月 + 按校区筛选。
-     🔴 写口令只在这个弹窗里用一次，输入框提交后立即清空，绝不落盘。 -->
+<!-- 违规排行榜（v3.20）：入口在管理员后台「设备与设置 › 工具」。
+     🔴 先输写口令进主界面；主界面顶部「某一天 / 整月」分段 + 原生日历选择器（date / month）
+        + 校区下拉，下方展示当天 / 当月违规排行。写口令只在会话内用一次，关闭即清空、绝不落盘。 -->
 <dialog id="dlg-plate-rank" class="sub-dlg" aria-label="违规排行榜">
   <div class="dlg-body">
     <div class="dlg-head">
       <h2>违规排行榜</h2>
       <button class="x-btn" data-close aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
     </div>
-    <div class="plate-rank-bar">
-      <select id="plate-rank-ym" aria-label="月份"></select>
-      <select id="plate-rank-campus" aria-label="校区"></select>
-      <button class="icon-btn" id="plate-rank-load">查看</button>
+
+    <!-- 口令闸门：输对才进主界面 -->
+    <div id="rank-gate">
+      <p class="note" style="margin-top:0">查看排行榜需要写口令。口令只在本弹窗内用一次，关闭即清空，不会保存。</p>
+      <div class="plate-fld">
+        <input type="password" id="plate-rank-token" placeholder="写口令" autocomplete="off">
+        <button class="icon-btn primary" id="plate-rank-enter" type="button" style="flex:0 0 auto; padding:0 18px">进入</button>
+      </div>
+      <div class="plate-result" id="rank-gate-err" hidden></div>
     </div>
-    <div class="plate-fld">
-      <input type="password" id="plate-rank-token" placeholder="写口令" autocomplete="off">
+
+    <!-- 主界面 -->
+    <div class="rank-main" id="rank-main" hidden>
+      <div class="seg" id="rank-seg" role="tablist">
+        <button type="button" class="seg-btn is-active" data-mode="day">某一天</button>
+        <button type="button" class="seg-btn" data-mode="month">整月</button>
+      </div>
+      <div class="plate-fld" id="rank-cal-row" style="margin-top:10px">
+        <input type="date" id="plate-rank-day" aria-label="日期">
+        <input type="month" id="plate-rank-month" aria-label="月份" hidden>
+        <select id="plate-rank-campus" aria-label="校区"></select>
+      </div>
+      <div class="plate-note" id="plate-rank-note"></div>
+      <div class="plate-rank-list" id="plate-rank-list"></div>
     </div>
-    <div class="plate-note" id="plate-rank-note">每张榜单只取前 20 名；月份按最近 7 个自然月列，最早那个月可能不完整。看一次会记一条审计。</div>
-    <div class="plate-rank-list" id="plate-rank-list"></div>
   </div>
 </dialog>
 
@@ -13676,6 +13714,7 @@ SET_ENTRIES.forEach((e) => {
   const CAMPUS_NAMES = { weishui: '渭水', beiyuan: '北院', yanta: '雁塔', xiaozhai: '小寨' };
   let cfg = null;
   let rankToken = '';
+  let rankMode = 'day';
   let rankYm = '';
   let rankCampus = '';
 
@@ -13820,44 +13859,55 @@ SET_ENTRIES.forEach((e) => {
     }
   });
 
-  function fillMonths(months, currentYm) {
-    const sel = $('plate-rank-ym');
-    if (!sel) return;
-    const keep = sel.value;
-    const list = (months && months.length) ? months.slice() : [currentYm || beijingYm()];
-    if (currentYm && list.indexOf(currentYm) < 0) list.unshift(currentYm);
-    sel.innerHTML = list.map((m, i) => {
-      let label = m;
-      if (m === currentYm) label += '（本月）';
-      else if (list.length > 1 && i === list.length - 1) label += '（部分）';
-      return '<option value="' + escapeHtml(m) + '">' + escapeHtml(label) + '</option>';
-    }).join('');
-    if (keep && list.indexOf(keep) >= 0) sel.value = keep;
+  /* 排行榜：先输写口令进主界面；主界面顶部「某一天 / 整月」分段 + 原生日历选择器
+     （date / month）+ 校区下拉，下方展示当天 / 当月违规排行。口令只在会话内用一次。 */
+  function setRankGate(showGate) {
+    const gate = $('rank-gate'), main = $('rank-main');
+    if (gate) gate.hidden = !showGate;
+    if (main) main.hidden = showGate;
+  }
+
+  function beijingDate() {
+    return new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
+  }
+
+  function setRankMode(mode) {
+    rankMode = mode;
+    document.querySelectorAll('#rank-seg .seg-btn').forEach((b) => {
+      b.classList.toggle('is-active', b.getAttribute('data-mode') === mode);
+    });
+    const day = mode === 'day';
+    const dEl = $('plate-rank-day'), mEl = $('plate-rank-month');
+    if (dEl) dEl.hidden = !day;
+    if (mEl) mEl.hidden = day;
+    if (day && dEl && !dEl.value) dEl.value = beijingDate();
+    if (!day && mEl && !mEl.value) mEl.value = beijingYm();
+    if (rankToken) loadRank();
   }
 
   window.plateOpenRank = function () {
     rankToken = '';
+    rankMode = 'day';
     const t = $('plate-rank-token'); if (t) t.value = '';
+    const err = $('rank-gate-err'); if (err) err.hidden = true;
     const list = $('plate-rank-list'); if (list) list.replaceChildren();
     if (!cfg) loadCfg();
-    fillMonths([], beijingYm());
-    text('plate-rank-note', '每张榜单只取前 20 名；月份由 180 天保留窗口决定，最早那个月可能不完整。看一次会记一条审计。');
+    setRankGate(true);
+    setRankMode('day');
+    text('plate-rank-note', '每张榜单只取前 20 名；看一次会记一条审计。点「撤销」会删掉该车所选日期 / 月份的全部登记。');
   };
 
   function renderRank(d) {
     const list = $('plate-rank-list');
     if (!list) return;
     list.replaceChildren();
-    fillMonths(d.months, d.currentYm);
-    rankYm = d.ym;
+    rankYm = d.ym || '';
     rankCampus = d.campus || '';
-    const ymSel = $('plate-rank-ym');
-    if (ymSel && !ymSel.value) ymSel.value = d.ym;
     const rows = d.rows || [];
     if (!rows.length) {
       const p = document.createElement('p');
       p.className = 'plate-note';
-      p.textContent = '这个月还没有登记记录。';
+      p.textContent = (d.mode === 'day') ? '这一天还没有登记记录。' : '这个月还没有登记记录。';
       list.append(p);
       return;
     }
@@ -13883,50 +13933,92 @@ SET_ENTRIES.forEach((e) => {
   }
 
   async function loadRank() {
-    const input = $('plate-rank-token');
-    if (!rankToken) {
-      const v = ((input && input.value) || '').trim();
-      if (!v) { text('plate-rank-note', '先输写口令再看。'); return; }
-      rankToken = v;
-    }
-    if (input) input.value = '';
-    const ym = $('plate-rank-ym').value;
+    if (!rankToken) return;
+    const day = rankMode === 'day';
+    const dateVal = (day ? ($('plate-rank-day') || {}).value : ($('plate-rank-month') || {}).value) || '';
     const campus = $('plate-rank-campus').value;
+    const q = day ? ('day=' + encodeURIComponent(dateVal)) : ('ym=' + encodeURIComponent(dateVal));
     try {
-      const r = await fetch(API_RANK + '?ym=' + encodeURIComponent(ym)
-        + '&campus=' + encodeURIComponent(campus) + '&limit=20', {
+      const r = await fetch(API_RANK + '?' + q + '&campus=' + encodeURIComponent(campus) + '&limit=20', {
         cache: 'no-store', headers: { 'x-admin-token': rankToken },
       });
       if (r.status === 401) {
         rankToken = '';
+        setRankGate(true);
         text('plate-rank-note', '口令不对，或者不是从本站打开的。');
         return;
       }
       const d = await r.json();
       if (!d || !d.ok) { text('plate-rank-note', errText(d)); return; }
       renderRank(d);
-      text('plate-rank-note', '共 ' + (d.rows || []).length
-        + ' 条 · 已记一条审计。点「撤销」会删掉该车这个月的全部登记。');
+      text('plate-rank-note', '共 ' + (d.rows || []).length + ' 条 · 已记一条审计。');
     } catch (e) {
       text('plate-rank-note', '没连上，稍后再试。');
     }
   }
 
-  $('plate-rank-load').addEventListener('click', loadRank);
-  $('plate-rank-ym').addEventListener('change', loadRank);
+  async function enterRank() {
+    const err = $('rank-gate-err');
+    if (err) err.hidden = true;
+    const v = (($('plate-rank-token') || {}).value || '').trim();
+    if (!v) { if (err) { err.hidden = false; err.textContent = '先输入写口令。'; } return; }
+    rankToken = v;
+    const tk = $('plate-rank-token'); if (tk) tk.value = '';
+    const day = rankMode === 'day';
+    const dateVal = (day ? ($('plate-rank-day') || {}).value : ($('plate-rank-month') || {}).value) || '';
+    const q = day ? ('day=' + encodeURIComponent(dateVal)) : ('ym=' + encodeURIComponent(dateVal));
+    try {
+      const r = await fetch(API_RANK + '?' + q + '&campus=' + encodeURIComponent($('plate-rank-campus').value) + '&limit=20', {
+        cache: 'no-store', headers: { 'x-admin-token': rankToken },
+      });
+      if (r.status === 401) {
+        rankToken = '';
+        if (err) { err.hidden = false; err.textContent = '口令不对，或者不是从本站打开的。'; }
+        return;
+      }
+      const d = await r.json();
+      if (!d || !d.ok) {
+        rankToken = '';
+        if (err) { err.hidden = false; err.textContent = errText(d); }
+        return;
+      }
+      setRankGate(false);
+      renderRank(d);
+      text('plate-rank-note', '共 ' + (d.rows || []).length + ' 条 · 已记一条审计。');
+    } catch (e) {
+      rankToken = '';
+      if (err) { err.hidden = false; err.textContent = '没连上，稍后再试。'; }
+    }
+  }
+
+  document.querySelectorAll('#rank-seg .seg-btn').forEach((b) => {
+    b.addEventListener('click', () => setRankMode(b.getAttribute('data-mode') || 'day'));
+  });
+  $('plate-rank-day').addEventListener('change', loadRank);
+  $('plate-rank-month').addEventListener('change', loadRank);
   $('plate-rank-campus').addEventListener('change', loadRank);
+  $('plate-rank-enter').addEventListener('click', enterRank);
+  $('plate-rank-token').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); enterRank(); }
+  });
 
   $('plate-rank-list').addEventListener('click', async (e) => {
     const btn = e.target.closest && e.target.closest('button[data-plate]');
     if (!btn) return;
     const plate = btn.getAttribute('data-plate');
     if (!plate || !rankToken) { text('plate-rank-note', '口令已失效，重新输一次再看。'); return; }
-    if (!window.confirm('撤销 ' + plate + ' 在所选月份的全部登记？')) return;
+    const scope = rankMode === 'day'
+      ? ('所选日期 ' + (($('plate-rank-day') || {}).value || ''))
+      : ('所选月份 ' + (($('plate-rank-month') || {}).value || ''));
+    if (!window.confirm('撤销 ' + plate + ' 在 ' + scope + ' 的全部登记？')) return;
+    const body = rankMode === 'day'
+      ? { plate, day: (($('plate-rank-day') || {}).value || '') }
+      : { plate, ym: ($('plate-rank-month') || {}).value || rankYm };
     try {
       const r = await fetch(API_REVOKE, {
         method: 'POST', cache: 'no-store',
         headers: { 'content-type': 'application/json', 'x-admin-token': rankToken },
-        body: JSON.stringify({ plate, ym: rankYm, campus: rankCampus }),
+        body: JSON.stringify(body),
       });
       const d = await r.json();
       if (d && d.ok) { text('plate-rank-note', '已撤销 ' + d.removed + ' 条。'); loadRank(); }

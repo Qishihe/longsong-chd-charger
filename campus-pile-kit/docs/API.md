@@ -128,11 +128,16 @@
 `ADMIN_TOKEN`），且请求必须同源。前端 `sessionStorage['cpk.unlocked']` 只是 UI 显隐，
 不是鉴权 —— 直接 curl 打这个接口而没有令牌，一律 401。
 
-参数：`ym=YYYY-MM`（缺省当前月）、`campus=<key>`（缺省全部）、`limit`（默认 20，最大 50）。
+参数：`ym=YYYY-MM`（缺省当前月）、`day=YYYY-MM-DD`（按天榜，优先级高于 `ym`）、
+`campus=<key>`（缺省全部）、`limit`（默认 20，最大 50）。
+
+`day` 与 `ym` 互斥：带 `day` 时从 `reports` 明细按天聚合（含各事由分布），适合「看某一天发生了什么」；
+不带 `day` 时走 `plate_month` / `plate_month_campus` 预汇总（只扫索引，不碰明细）。
+回包多一个 `mode` 字段（`"day"` / `"month"`）标明实际走了哪条路径。
 
 ```json
 {
-  "ok": true, "ym": "2026-11", "campus": "",
+  "ok": true, "mode": "month", "ym": "2026-11", "day": "", "campus": "",
   "months": ["2026-11", "2026-10"], "currentYm": "2026-11",
   "windowDays": 180,
   "rows": [{"plate": "陕A12345", "count": 3,
@@ -142,6 +147,8 @@
 
 `months` 由 `SELECT DISTINCT ym` 动态生成，范围受最近 7 个自然月
 （`PLATE_MONTHS_KEEP`）约束；最早那个月可能不完整，当月是「进行中」。
+🔴 月榜 / 天榜都过滤掉 0 次行（`AND m.cnt>0` / `HAVING cnt>0`）——
+撤销后残留的 cnt=0 汇总行不会把「0 次」的明文车牌泄漏到榜单。
 🔴 月汇总是登记时累加的预汇总，惰性清理删掉 180 天前明细时**不会回退月汇总**，
 所以边界月份上「月榜数字」与「180 天查询次数」可能不完全相等。走 `plate_month` /
 `plate_month_campus` 的索引，不对明细做全表分组。每次查看写一条 `rank` 审计。
@@ -153,9 +160,11 @@
 ```json
 {"plate": "陕A12345", "ym": "2026-11", "campus": "weishui"}
 ```
+或按天：`{"plate": "陕A12345", "day": "2026-11-10", "campus": "weishui"}`
+（`day` 与 `ym` 互斥，带 `day` 时按 `reports.day` 精确匹配那一天的明细）。
 
-删掉该车牌该月（可限定校区）的全部登记，回退对应月份与校区的汇总计数，
-写一条 `revoke` 审计。返回 `{"ok": true, "removed": 3, "ym": "2026-11", "campus": "weishui"}`。
+删掉该车牌该月（或该天，可限定校区）的全部登记，回退对应月份（按天撤销时取当天所在月）与校区的汇总计数，
+写一条 `revoke` 审计。返回 `{"ok": true, "removed": 3, "ym": "2026-11", "day": "", "campus": "weishui"}`。
 明细删掉后，180 天查询次数与当天剩余额度自动跟着变，不需要手工改冗余计数列。
 
 这是「通知删除」的最低落地形态：不做这个就不要上线。

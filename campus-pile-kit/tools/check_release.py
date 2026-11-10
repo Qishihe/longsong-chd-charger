@@ -407,6 +407,14 @@ def main():
             "站点目录内没有 versions/（历史快照不应公开托管）")
     stray = [f.name for f in SITE.glob("*.md")]
     c.check(not stray, "站点目录内没有 Markdown 文档", ", ".join(stray) if stray else "")
+
+    # 独立说明页（2026-11-10 v3.20.1）：/guide 由 Pages 静态直出，入口在「使用说明」弹窗底部。
+    # 这里最容易出的两种错：页面加了但没挂入口（没人找得到）、入口写了但文件被打包排除（点了 404）。
+    c.check((SITE / "guide.html").exists(), "站点内有独立说明页 guide.html")
+    c.check('href="guide"' in ix, "「使用说明」弹窗有入口指向 /guide")
+    guide = read("guide.html")
+    c.check("常见问题" in guide and "查询空位" in guide,
+            "说明页章节完整（常见问题 / 查询空位）")
     for name, why in [
         ("map-tmap.js", "腾讯地图留档（TMAP_ENABLED=false，未启用）"),
         ("map-weishui.jpg", "旧版总览底图（0 处引用，340KB）"),

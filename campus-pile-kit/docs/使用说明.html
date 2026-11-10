@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>长安大学充电桩查询 · 使用说明</title>
+<style>
+  :root{
+    --bg:#F7F6F2;
+    --card:#FFFFFF;
+    --text:#1D2B26;
+    --muted:#5D6B65;
+    --hint:#8A968F;
+    --line:#E3E7E2;
+    --line-strong:#CFD7D1;
+    --green:#1D9E75;
+    --green-soft:#E1F5EE;
+    --green-deep:#0F6B4E;
+    --red:#A32D2D;
+    --red-soft:#FDECEC;
+    --amber:#B4650A;
+    --amber-soft:#FDF3E2;
+    --blue:#2E6FD1;
+    --blue-soft:#EAF1FC;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; padding:28px 18px 64px;
+    background:var(--bg); color:var(--text);
+    font:16px/1.75 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Hiragino Sans GB",sans-serif;
+    letter-spacing:.1px;
+  }
+  .wrap{max-width:760px; margin:0 auto}
+
+  header{margin-bottom:26px}
+  .kicker{
+    display:inline-block; margin-bottom:10px; padding:4px 11px;
+    font-size:12px; font-weight:600; letter-spacing:.4px;
+    color:var(--green-deep); background:var(--green-soft);
+    border-radius:999px;
+  }
+  h1{margin:0 0 8px; font-size:27px; line-height:1.35; letter-spacing:.3px}
+  header p{margin:0; color:var(--muted); font-size:15px}
+
+  section{margin:0 0 18px}
+  .card{
+    padding:22px 22px 20px; background:var(--card);
+    border:1px solid var(--line); border-radius:16px;
+  }
+  h2{
+    margin:0 0 14px; font-size:19px; line-height:1.4;
+    display:flex; align-items:center; gap:9px;
+  }
+  h2 .no{
+    flex:none; display:inline-flex; align-items:center; justify-content:center;
+    width:26px; height:26px; border-radius:9px;
+    background:var(--green-soft); color:var(--green-deep);
+    font-size:13px; font-weight:700;
+  }
+  h3{margin:18px 0 8px; font-size:15.5px; color:var(--text)}
+  h3:first-of-type{margin-top:0}
+  p{margin:0 0 10px}
+  p:last-child{margin-bottom:0}
+  ul,ol{margin:0 0 10px; padding-left:22px}
+  li{margin:5px 0}
+  ol.steps{list-style:none; padding:0; counter-reset:s}
+  ol.steps>li{position:relative; padding-left:30px; margin:9px 0}
+  ol.steps>li::before{
+    counter-increment:s; content:counter(s);
+    position:absolute; left:0; top:3px;
+    width:20px; height:20px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--bg); border:1px solid var(--line-strong);
+    color:var(--muted); font-size:11.5px; font-weight:700;
+  }
+  b,strong{font-weight:700}
+  code{
+    padding:1px 5px; border-radius:5px; background:var(--bg);
+    border:1px solid var(--line); font-size:13.5px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  a{color:var(--blue); text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  .hi{background:linear-gradient(transparent 58%, #FFE9A8 58%); font-weight:700}
+  .em{color:var(--green-deep); font-weight:700}
+  .warn{color:var(--red); font-weight:700}
+  .path{
+    display:inline-block; padding:0 6px; border-radius:6px;
+    background:var(--blue-soft); color:#1E4E9C; font-weight:700;
+    font-size:14.5px; white-space:nowrap;
+  }
+  .swatch{
+    display:inline-block; width:11px; height:11px; border-radius:3px;
+    vertical-align:-1px; margin:0 3px 0 0;
+  }
+  .swatch.free{background:var(--green)}
+  .swatch.busy{background:#E24B4A}
+  .swatch.off{background:#B4B2A9}
+
+  .lede{
+    padding:16px 18px; margin-bottom:22px;
+    background:var(--green-soft); border:1px solid #C6E9DB;
+    border-radius:14px; font-size:15px; color:#0F5B44;
+  }
+  .lede b{color:var(--green-deep)}
+  .lede .big{font-size:16.5px}
+  .lede p{margin:0}
+
+  .campuses{display:flex; flex-wrap:wrap; gap:8px; margin:12px 0 14px}
+  .campus{
+    display:inline-flex; align-items:center; gap:6px;
+    padding:8px 15px; font-size:15px; font-weight:700;
+    border-radius:999px; border:1px solid #C6E9DB;
+    background:var(--green-soft); color:var(--green-deep);
+  }
+  .campus i{width:7px; height:7px; border-radius:50%; background:var(--green); display:block}
+  .campus.off{
+    border-color:var(--line); background:#F1F2EF; color:var(--hint);
+    font-weight:600;
+  }
+  .campus.off i{background:#C3C7BF}
+
+  .grid{
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr));
+    gap:9px; margin-top:4px;
+  }
+  .grid a{
+    display:flex; align-items:baseline; gap:8px;
+    padding:11px 13px; border-radius:11px;
+    border:1px solid var(--line); background:#FBFCFA;
+    color:var(--text); font-size:14.5px; font-weight:600;
+  }
+  .grid a:hover{border-color:#C6E9DB; background:var(--green-soft); text-decoration:none}
+  .grid a span{color:var(--hint); font-size:12px; font-weight:700}
+
+  .tip{
+    margin-top:14px; padding:12px 15px;
+    border-radius:11px; font-size:14.5px; line-height:1.7;
+    background:var(--amber-soft); border:1px solid #F0DCB8; color:#7A4708;
+  }
+  .tip .t{font-weight:700; color:var(--amber); margin-right:4px}
+  .tip.blue{background:var(--blue-soft); border-color:#CFE0F7; color:#1E4E9C}
+  .tip.blue .t{color:var(--blue)}
+  .tip.red{background:var(--red-soft); border-color:#F3C2C2; color:#86211F}
+  .tip.red .t{color:var(--red)}
+
+  .tbl{width:100%; border-collapse:collapse; margin-top:6px; font-size:14.5px}
+  .tbl th,.tbl td{
+    padding:10px 12px; text-align:left; vertical-align:top;
+    border-bottom:1px solid var(--line);
+  }
+  .tbl th{background:#FBFAF7; font-weight:700; color:var(--muted); font-size:13.5px}
+  .tbl tr:last-child td{border-bottom:0}
+  .tbl td:first-child{white-space:nowrap; font-weight:700; color:var(--green-deep)}
+
+  .faq dt{font-weight:700; margin-top:14px}
+  .faq dt:first-child{margin-top:0}
+  .faq dd{margin:4px 0 0; color:var(--muted)}
+
+  footer{
+    margin-top:26px; padding-top:18px; border-top:1px solid var(--line);
+    font-size:13.5px; color:var(--hint); text-align:center;
+  }
+  @media (max-width:520px){
+    body{padding:20px 13px 52px}
+    .card{padding:18px 16px 16px; border-radius:14px}
+    h1{font-size:23px}
+    .grid{grid-template-columns:1fr 1fr}
+    .grid a{font-size:13.5px; padding:10px 11px}
+    .tbl th,.tbl td{padding:9px 8px; font-size:13.5px}
+  }
+  @media print{
+    body{background:#fff; padding:0; font-size:12pt}
+    .card{border-color:#ddd; break-inside:avoid}
+    .grid{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">使用说明</div>
+  <h1>长安大学校园充电桩查询</h1>
+  <p>两百台桩摊在一张页面上。哪个区、几号桩、还剩几个空位，扫一遍就清楚。</p>
+</header>
+
+<div class="lede">
+  <p class="big"><b>这里只查状态，<span class="warn">不能充电</span>。</b></p>
+  <p>数据是学校充电平台上本来就公开的状态，搬过来给你看。不登录、不付款、不碰你的账号，充电还是扫桩上的码。</p>
+</div>
+
+<section class="card" id="campus">
+  <h2>能查哪些校区</h2>
+  <p>接了三个校区，加起来两百来台桩：</p>
+  <div class="campuses">
+    <span class="campus"><i></i>渭水校区</span>
+    <span class="campus"><i></i>本部北院</span>
+    <span class="campus"><i></i>雁塔校区</span>
+  </div>
+  <p><span class="campus off"><i></i>小寨校区还没有桩接进来</span></p>
+  <div class="tip">
+    <span class="t">注意</span>校区和地址是上下两排。第一排选校区，第二排是校区里的具体地方，比如朝晖体育场。只点第一排，容易以为这校区没桩。
+  </div>
+</section>
+
+<section class="card" id="list">
+  <h2>现在能做什么</h2>
+  <div class="grid">
+    <a href="#f1"><span>01</span>查询空位</a>
+    <a href="#f2"><span>02</span>地图可视化</a>
+    <a href="#f3"><span>03</span>一周回顾</a>
+    <a href="#f4"><span>04</span>个性换肤</a>
+    <a href="#f5"><span>05</span>一行显示一 / 二台</a>
+    <a href="#f6"><span>06</span>天气提醒</a>
+    <a href="#f7"><span>07</span>支付宝 / 微信扫码</a>
+    <a href="#f8"><span>08</span>充电记录</a>
+    <a href="#f9"><span>09</span>车牌黑名单</a>
+  </div>
+</section>
+
+<section class="card" id="faq-top">
+  <h2><span class="no">?</span>常见问题</h2>
+  <dl class="faq">
+    <dt>为什么一直加载不出来</dt>
+    <dd><b>校园网和手机流量换着用。</b>服务器在境外，校园网出口又是共用的，一条道堵了，换另一条通常立刻就好。问题出在服务器那头，不是你手机。</dd>
+
+    <dt>为什么查到的和现场不一样</dt>
+    <dd>多半是<span class="hi">没刷新就开了地图</span>。地图读的是上一次的结果，所以你看到的是旧状态。查之前先点右上角刷新，进了地图再点地图右上角的刷新，那才是现在的样子。</dd>
+
+    <dt>充电记录一条条登记太慢</dt>
+    <dd>不用手打。记录页底部点 <span class="path">导入</span>，选订单截图，<span class="hi">本机自动识别</span>，一次能选好几张，认完逐条核对一下就行。</dd>
+
+    <dt>充电器被人拔了，能不能把对方的充电器扔掉</dt>
+    <dd><span class="warn">不建议。</span>拔枪的原因可能很多：人家以为充满了、桩自己报错了、急着赶路，未必是故意。动手容易从占理变成担责，事情也没解决。<b>把车牌登记进黑名单</b>，让下一个来充电的人心里有数，比什么都管用。</dd>
+  </dl>
+</section>
+
+<section class="card" id="f1">
+  <h2><span class="no">01</span>查询空位</h2>
+  <div class="tip" style="margin-top:0;margin-bottom:16px">
+    <span class="t">先刷新</span>查之前<span class="hi">一定要点右上角的「刷新」</span>；已经进了地图的，就点地图右上角的刷新图标。<b>不点的话，看到的可能还是上一次查到的状态。</b>
+  </div>
+  <p>首页一张卡就是一台桩，卡里<span class="hi">每个小方块是一个插座</span>：</p>
+  <ul>
+    <li><span class="swatch free"></span><b>绿色「空闲」</b>，现在能插</li>
+    <li><span class="swatch busy"></span><b>红色「占用」</b>，有人在充</li>
+    <li><span class="swatch off"></span><b>灰色</b>，这台桩离线了，读不到状态</li>
+  </ul>
+  <p>卡片顶上两个数：<b>空闲插座</b>、<b>共统计插座</b>。后面跟着时间，那是这次查询的时刻。</p>
+  <p>页面顶部有两排胶囊。<span class="em">第一排选校区，第二排是地址</span>，横着滑。</p>
+  <div class="tip blue">
+    <span class="t">排序</span>默认空位多的排前面。想按编号排，或者让收藏过的排前面，去 <span class="path">设置 › 排序</span> 里换。
+  </div>
+  <p style="margin-top:12px">状态是平台上报的，慢几十秒到一两分钟。有人刚把枪插上，你这边可能还显示空闲。</p>
+</section>
+
+<section class="card" id="f2">
+  <h2><span class="no">02</span>地图可视化</h2>
+  <p>地图上一片桩画一个圈。<b>绿圈</b>里的数字是这片还剩几个空位，<b>红圈打 ×</b> 就是满了。点圈进去，看这片里每台桩，楼名也标着。</p>
+  <p>反着用也行。列表里看到某台桩，点卡片右上的定位图标，地图会直接把它标出来，不用自己找。</p>
+  <div class="tip">
+    <span class="t">加载慢</span>地图比列表费流量。校园网下一直转圈，换手机流量再开一次。
+  </div>
+</section>
+
+<section class="card" id="f3">
+  <h2><span class="no">03</span>一周回顾</h2>
+  <p>想知道几点最挤，就看这里。比到了现场碰运气靠谱。</p>
+  <ol class="steps">
+    <li>首页点「一周回顾」。</li>
+    <li>右上角日期默认是七天平均，点开能选具体某一天。</li>
+    <li>下面选校区，再选地址。</li>
+  </ol>
+  <p>每个小时一根柱子，柱子越高，这个点占用越多。再往下是七天乘二十四小时的热力图，<span class="hi">颜色越深越挤</span>，哪天哪个时段最难找位，看颜色就够了。</p>
+  <div class="tip">
+    <span class="t">空格子</span>统计每小时采一次。碰上那一个小时有桩离线、数据不齐，这一格就空着，没拿估算值填。
+  </div>
+</section>
+
+<section class="card" id="f4">
+  <h2><span class="no">04</span>个性换肤</h2>
+  <p>入口在 <span class="path">设置 › 皮肤</span>。风格、材质、字体，三样各挑一个，能搭配出不少样子。</p>
+  <table class="tbl">
+    <tr><th>维度</th><th>有哪些</th></tr>
+    <tr><td>风格</td><td>默认清爽、杂志编辑、森林麦穗、苔绿暖橙、奶油草绿（像素风）</td></tr>
+    <tr><td>材质</td><td>实色面板、透明磨砂、磨砂玻璃、桃雾莓光、深海冰晶</td></tr>
+    <tr><td>字体</td><td>系统黑体、衬线、等宽，几档可选</td></tr>
+  </table>
+  <p style="margin-top:12px">想恢复原样，风格和材质都选「默认」。手机开了深色模式，界面会自动变暗，不用另外设。</p>
+  <div class="tip blue">
+    <span class="t">只在本机</span>换肤、字体、一行两列这些，都只存在你这台手机上，换台设备看不到。
+  </div>
+</section>
+
+<section class="card" id="f5">
+  <h2><span class="no">05</span>一行显示一台 / 两台</h2>
+  <p>进 <span class="path">设置 › 显示方式</span>，勾上「一行显示两个充电桩」。<span class="hi">一屏放得下的桩多一倍</span>，想先扫一遍哪个区有空，用这个快。</p>
+  <p>代价是卡片变窄，地址要折成两行，桩号数字也小一点。看着挤就取消勾选。</p>
+</section>
+
+<section class="card" id="f6">
+  <h2><span class="no">06</span>天气提醒</h2>
+  <p><span class="hi">未来二十四小时</span>有雨、雪、冻雨或者雷暴，首页顶上会多一行字。出门前扫到，能少跑一趟。</p>
+  <p>提醒是<span class="em">按校区</span>查的，切了校区跟着换。不想看就进 <span class="path">设置 › 天气提醒</span> 关掉，<b>关了之后连天气请求都不发</b>。</p>
+  <div class="tip blue">
+    <span class="t">手动查</span>同一个地方点一下能立刻查一次，还会写出为什么这么判，不用等它自己弹。
+  </div>
+</section>
+
+<section class="card" id="f7">
+  <h2><span class="no">07</span>支付宝 / 微信扫码</h2>
+  <p>站在桩前面用。先到 <span class="path">设置 › 扫码快捷按钮</span> 打开，首页右下角会冒出一个圆按钮。按住能拖到顺手的位置，下次打开还在那儿。</p>
+  <table class="tbl">
+    <tr><th>平台</th><th>点下去会怎样</th></tr>
+    <tr><td>支付宝</td><td>直接跳到 <b>扫一扫</b>，摄像头就位，对着桩上的码扫就行。</td></tr>
+    <tr><td>微信</td><td>把微信叫到前台，然后点 <span class="hi">右上角「+」→ 扫一扫</span>。微信没开放直达扫一扫的口子，这一步只能手点。</td></tr>
+  </table>
+  <p style="margin-top:12px">手机装了应用锁、要指纹或者面容的，跳过去会先停在解锁页，解开就继续。用完记得关掉，不然它会盖在地图和列表上面。</p>
+</section>
+
+<section class="card" id="f8">
+  <h2><span class="no">08</span>充电记录</h2>
+  <p>记每次充了多少电、花了多少钱，月底回头看，能知道自己这学期在充电上花了多少。入口是 <span class="path">设置 › 实用功能 › 记一次充电</span>，整行点一下就进去。</p>
+
+  <h3>记一笔</h3>
+  <ul>
+    <li><b>记一次</b>：记现在这次。</li>
+    <li><b>补登</b>：忘了记，把时间改成当时那天再存。</li>
+    <li><b>补充</b>：事后填时长（按小时）、电量、电费。账单上电费和服务费分开写的，也能拆成两栏填。</li>
+  </ul>
+
+  <h3>导订单截图</h3>
+  <p>记录页底部点 <span class="path">导入</span>，可以直接选订单截图，一次能选好几张。识别在本机做完，图片不上传。</p>
+  <p>认完先列成清单，一条条核对。<span class="hi">标黄的照账单改一下，没勾的不会记进去。</span></p>
+
+  <h3>看趋势</h3>
+  <p>折线图上时长、电量、电费各一条。哪项没填，线就在那儿断开，<span class="hi">不会硬连一条假线</span>。</p>
+  <p>点右上 <span class="path">筛选</span>，可以只勾想看的：时长、电量、总电费、电费、服务费。下面的累计也是分开算的。</p>
+
+  <div class="tip red">
+    <span class="t">会丢</span>记录<span class="hi">只在这台手机上</span>，不上传，也不跟账号绑。清缓存、换手机、卸载浏览器，记录就没了。隔段时间点 <span class="path">导出</span> 存个文件；换机时用 <span class="path">导入</span> 选回来，同一条不会变成两条。
+  </div>
+</section>
+
+<section class="card" id="f9">
+  <h2><span class="no">09</span>车牌黑名单</h2>
+  <p>遇到<span class="hi">乱拔充电器、乱停乱放</span>，登记一笔；也可以查一下它犯了几次。</p>
+  <p>入口在 <span class="path">设置 › 实用功能 › 违规车牌登记</span>。</p>
+
+  <h3>登记</h3>
+  <p>填车牌号，事由选拔充电器、乱停或者其他，再选校区，点「提交登记」。</p>
+
+  <h3>查次数</h3>
+  <p>输入车牌点「查次数」，能看到近 180 天被记了几次、最近一次是什么时候、都在哪些校区。</p>
+
+  <h3>每天有上限</h3>
+  <table class="tbl">
+    <tr><th>项目</th><th>上限</th></tr>
+    <tr><td>同一个车牌</td><td>每天最多被登记 <b>2</b> 次</td></tr>
+    <tr><td>每台设备</td><td>每天最多登记 <b>5</b> 次、查询 <b>3</b> 次</td></tr>
+    <tr><td>记录保留</td><td><b>180</b> 天，到期自动清掉</td></tr>
+  </table>
+  <p style="margin-top:12px">额度第二天自己恢复，不用手动清。</p>
+
+  <div class="tip">
+    <span class="t">只记三样</span>车牌、事由、校区。不传照片，站内也不公示车牌清单，别人看不到你记过谁。
+  </div>
+</section>
+
+<section class="card" id="data">
+  <h2><span class="no">!</span>数据是怎么来的</h2>
+  <table class="tbl">
+    <tr><th>可能想问</th><th>答案</th></tr>
+    <tr><td>多久更新</td><td>列表和地图是现查；一周回顾每小时采一个点。</td></tr>
+    <tr><td>跟现场对不上</td><td>状态来自平台上报，慢几十秒到一两分钟。刚有人插上枪，这边可能还是绿的。</td></tr>
+    <tr><td>查着查着被挡</td><td>平台对密集查询有限流。一分钟里反复刷新可能暂时查不到，等一分钟再点。</td></tr>
+    <tr><td>灰色格子</td><td>那台桩离线了，设备或者运营商那边的问题，不是本站出错，也不计入空位。</td></tr>
+    <tr><td>要不要钱</td><td>不要。本站不接支付，充电按平台原价付。</td></tr>
+  </table>
+</section>
+
+<section class="card" id="faq">
+  <h2><span class="no">※</span>其他问题</h2>
+  <dl class="faq">
+    <dt>一片全红，是真满了吗</dt>
+    <dd>先看卡片上的时间。时间旧就点右上刷新重查。还是红，去地图换一片看。</dd>
+
+    <dt>一周回顾里有段是空的</dt>
+    <dd>那段时间这片桩里有设备离线，数据不齐，就没记。是故意留空的，不是漏了。</dd>
+
+    <dt>右下角的扫码按钮不见了</dt>
+    <dd>去 <span class="path">设置 › 扫码快捷按钮</span> 重新打开。也可能被拖到屏幕边上去了，拖回来就行。</dd>
+
+    <dt>桩位标错，或者新装、拆了桩</dt>
+    <dd>说一声，联系方式在下面。</dd>
+  </dl>
+</section>
+
+<section class="card" id="contact">
+  <h2><span class="no">✉</span>反馈</h2>
+  <p>桩位标错、新装拆桩、想加点什么，都可以说：</p>
+  <ul>
+    <li>QQ 群：<b>1128669064</b></li>
+    <li>邮箱：<b>2742973313@qq.com</b></li>
+    <li>代码：<a href="https://github.com/Qishihe/longsong-chd-charger" target="_blank" rel="noopener noreferrer">github.com/Qishihe/longsong-chd-charger</a></li>
+  </ul>
+</section>
+
+<footer>
+  长安大学校园充电桩查询 · 使用说明<br>
+  同学自己搭的，不是官方。数据来自学校充电平台的公开状态，只读，不涉及账号和支付。
+</footer>
+
+</div>
+</body>
+</html>

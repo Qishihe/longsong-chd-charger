@@ -72,6 +72,13 @@ HEADERS = """\
 /index.html
   Cache-Control: no-cache
 
+# 独立说明页（2026-11-10 v3.20.1）：内容随功能变化，和首页一样走协商缓存，
+# 免得改了说明用户还看到旧版。`/guide` 是 Pages 的 pretty URL，两条都要写。
+/guide
+  Cache-Control: no-cache
+/guide.html
+  Cache-Control: no-cache
+
 # 高德 Key 文件短缓存（换 Key 后最多 5 分钟生效）
 /map-key.local.js
   Cache-Control: max-age=300

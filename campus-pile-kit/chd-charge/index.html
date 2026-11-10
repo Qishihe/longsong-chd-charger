@@ -2273,7 +2273,7 @@
         </div>
         <div class="plate-result" id="plate-query-result" hidden></div>
       </div>
-      <p class="plate-note" id="plate-note">次数只统计近 90 天，记录保留 180 天。同一个车牌每天最多被登记 2 次，每台设备每天最多登记 5 次、查询 3 次，第二天自动恢复。登记会记下车牌、事由、校区和时间，管理员能看按月汇总，不上传照片；请只填与充电位有关的情况。</p>
+      <p class="plate-note" id="plate-note">次数只统计近 180 天，记录保留 180 天。同一个车牌每天最多被登记 2 次，每台设备每天最多登记 5 次、查询 3 次，第二天自动恢复。登记会记下车牌、事由、校区和时间，管理员能看按月汇总，不上传照片；请只填与充电位有关的情况。</p>
     </div>
   </div>
 </dialog>
@@ -2294,7 +2294,7 @@
     <div class="plate-fld">
       <input type="password" id="plate-rank-token" placeholder="写口令" autocomplete="off">
     </div>
-    <div class="plate-note" id="plate-rank-note">每张榜单只取前 20 名；月份由 180 天保留窗口决定，最早那个月可能不完整。看一次会记一条审计。</div>
+    <div class="plate-note" id="plate-rank-note">每张榜单只取前 20 名；月份按最近 7 个自然月列，最早那个月可能不完整。看一次会记一条审计。</div>
     <div class="plate-rank-list" id="plate-rank-list"></div>
   </div>
 </dialog>
@@ -3043,7 +3043,7 @@
     <h3 class="help-sec">违规车牌登记</h3>
     <ol class="help-steps">
       <li><b>登记</b>　设置 › 实用功能 › 违规车牌登记，填车牌号，选事由和校区，点「提交登记」。</li>
-      <li><b>查询</b>　同一页输入车牌号点「查次数」，看近 90 天累计几次、最近一次是什么时候、都在哪些校区。</li>
+      <li><b>查询</b>　同一页输入车牌号点「查次数」，看近 180 天累计几次、最近一次是什么时候、都在哪些校区。</li>
       <li><b>限额</b>　同一个车牌每天最多被登记 2 次，每台设备每天最多登记 5 次、查询 3 次，第二天恢复。记录保留 180 天。</li>
     </ol>
     <p class="help-body">
@@ -10525,7 +10525,7 @@ const CHANGELOG = [
      只写用户看得见的变化：测试版入口、赞赏码措辞、密钥放哪、Worker/接口一律不进。
      _check_chg_merge 会按页脚版本动态校验「每个 0.1 级恰好一组」。 */
   { from: 'v3.20', d: '2026-11-10', items: [
-    '设置里多了「违规车牌登记」：填车牌号、选事由和校区就能登记一次，回显这个车牌近 90 天累计几次；'
+    '设置里多了「违规车牌登记」：填车牌号、选事由和校区就能登记一次，回显这个车牌近 180 天累计几次；'
       + '也能只按车牌查次数，顺带看到都在哪些校区。同一个车牌每天最多被登记 2 次，记录保留 180 天'
   ] },
   { v: 'v3.10 – v3.19', d: '2026-11-07 ~ 11-08', items: [
@@ -13662,8 +13662,9 @@ SET_ENTRIES.forEach((e) => {
 });
 
 /* ── 违规车牌登记（v3.20）────────────────────────────────────────
-   三套口径全由服务端 config 给：windowDays=180 是记录保留、queryDays=90 是查询
-   统计段、排行榜按自然月切。前端只管表单与展示，不做任何计数或本地缓存。
+   三套口径全由服务端 config 给：windowDays=180 是记录保留、queryDays=180 是查询
+   统计段（2026-11-10 起两者对齐，库里还留着的记录查询就能数到）、排行榜按自然月切。
+   前端只管表单与展示，不做任何计数或本地缓存。
    🔴 设备票据只存本机 localStorage，用来做「同设备同日去重」，不是账号也不是身份；
       服务端只收它的 HMAC 值。写口令只在排行榜弹窗内存里留到关闭，绝不落盘。 */
 (function () {
@@ -13742,7 +13743,7 @@ SET_ENTRIES.forEach((e) => {
       const r = await fetch(API, { cache: 'no-store' });
       cfg = await r.json();
     } catch (e) {
-      cfg = { ok: false, enabled: false, windowDays: 180, queryDays: 90,
+      cfg = { ok: false, enabled: false, windowDays: 180, queryDays: 180,
         maxPerDay: 2, queryLimit: 3, campuses: [], reasons: [] };
     }
     paintCfg();

@@ -329,8 +329,12 @@ def main():
             "车牌只存 HMAC 与密文，不落明文")
     c.check("idx_pm_ym_cnt" in worker and "idx_pmc" in worker,
             "按月 / 按校区排行榜走预汇总索引，不做全表分组")
-    c.check("PLATE_WINDOW_DAYS = 180" in worker and "PLATE_QUERY_DAYS = 90" in worker,
-            "记录保留 180 天、查询统计 90 天两套口径都在")
+    c.check("PLATE_WINDOW_DAYS = 180" in worker and "PLATE_QUERY_DAYS = 180" in worker,
+            "记录保留与查询统计都是 180 天（两套口径已对齐）")
+    c.check("次数只统计近 180 天" in ix and "近 180 天累计几次" in ix
+            and "queryDays: 180" in ix,
+            "前端静态文案 / fallback 与服务端 180 天口径一致",
+            "改了 Worker 常量却没改页面，用户看到的还是 90 天")
     # 防刷爆：免费额度账号级共享，车牌 D1 被刷爆会拖死同账号的快照站。
     c.check("PLATE_GLOBAL_LIMIT = 2000" in worker and "PLATE_TOTAL_CAP = 200000" in worker,
             "车牌 D1 有每日上限与总量上限两道硬闸门")

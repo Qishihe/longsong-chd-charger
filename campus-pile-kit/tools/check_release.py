@@ -331,6 +331,24 @@ def main():
             "按月 / 按校区排行榜走预汇总索引，不做全表分组")
     c.check("PLATE_WINDOW_DAYS = 180" in worker and "PLATE_QUERY_DAYS = 90" in worker,
             "记录保留 180 天、查询统计 90 天两套口径都在")
+    # 防刷爆：免费额度账号级共享，车牌 D1 被刷爆会拖死同账号的快照站。
+    c.check("PLATE_GLOBAL_LIMIT = 2000" in worker and "PLATE_TOTAL_CAP = 200000" in worker,
+            "车牌 D1 有每日上限与总量上限两道硬闸门")
+    c.check("plate_meta" in worker and "storage_cap" in worker
+            and "await plateCapGuard(db, now)" in worker,
+            "总量上限用单行计数器，超限时直接拒绝")
+    c.check(worker.find("await plateCapGuard(db, now)") >= 0
+            and worker.find("await plateCapGuard(db, now)")
+                < worker.find("INSERT INTO reports(plate_hash"),
+            "总量闸门在写明细之前判定，超限时一行都不写",
+            "放到写库之后闸门就形同虚设")
+    c.check("SELECT COUNT(*) FROM reports" in worker and "dailyCap" in worker
+            and "totalCap" in worker,
+            "计数器可自校正，config 对外暴露两道上限",
+            "每次登记全表 COUNT 会扫穿 D1 免费版行读额度")
+    c.check("val=val+1" in worker and "val=MAX(0,val-?)" in worker,
+            "计数器随登记增加、随撤销与清理回退")
+    c.check("storage_cap" in ix, "前端对总量触顶有单独提示，不落到通用失败文案")
     for h in ("X-Frame-Options: DENY", "Strict-Transport-Security",
               "Content-Security-Policy-Report-Only"):
         c.check(h in packer, "_headers 有 " + h.split(":")[0])

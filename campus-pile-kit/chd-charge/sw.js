@@ -388,7 +388,7 @@
    index.html 变了，换壳让离线副本一起跟上。 */
 /* v220 → v221（2026-11-10 v3.20）：新增违规车牌登记页与管理员按月排行榜，
    index.html 变了，换壳让离线副本一起跟上。 */
-const CACHE = 'campus-pile-v221';
+const CACHE = 'campus-pile-v222';
 const SHELL = [
   /* v2.86：`'./'` 删了。线上实测 `/` 与 `/index.html` 返回的字节完全相同（md5 一致），
      而 fetch 拦截只把 `'./index.html'` 当主 key，`'./'` 只是回退链的第二顺位 ——

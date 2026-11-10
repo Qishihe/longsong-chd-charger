@@ -58,6 +58,15 @@ CREATE TABLE IF NOT EXISTS plate_quota(
   PRIMARY KEY(scope, key, day)
 );
 
+-- 总量闸门计数器：绝不在每次登记时全表 COUNT(*)，那会扫穿 D1 免费版行读额度。
+-- key='rows' 是 reports 当前行数；登记 +1、撤销 -N、清理 -N。
+-- Worker 首次建表时用 INSERT OR IGNORE ... SELECT COUNT(*) FROM reports 补种，
+-- 老库升级也能从真实行数起跳；触顶时会再用真实 COUNT 自校正一次。
+CREATE TABLE IF NOT EXISTS plate_meta(
+  key TEXT PRIMARY KEY,
+  val INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS plate_audit(
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   at         INTEGER,

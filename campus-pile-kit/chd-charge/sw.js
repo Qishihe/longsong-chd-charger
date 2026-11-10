@@ -400,7 +400,7 @@
 /* v225 → v226（2026-11-10）：新增独立说明页 `guide.html`（站内 `/guide`），
    「使用说明」弹窗底部加一颗「完整版说明」入口。index.html 变了 → 换壳。
    说明页不进 SHELL（只有想离线读的人才会打开，没必要为首装多下一份 21KB）。 */
-const CACHE = 'campus-pile-v227';
+const CACHE = 'campus-pile-v228';
 const SHELL = [
   /* v2.86：`'./'` 删了。线上实测 `/` 与 `/index.html` 返回的字节完全相同（md5 一致），
      而 fetch 拦截只把 `'./index.html'` 当主 key，`'./'` 只是回退链的第二顺位 ——

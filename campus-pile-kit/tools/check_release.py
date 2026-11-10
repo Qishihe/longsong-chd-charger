@@ -309,6 +309,37 @@ def main():
             ("缺：" + " / ".join(miss_pack)) if miss_pack
             else "回退老快照会把文件带回来，打包这一层要挡住")
 
+    # ---------- 5b. v3.20 违规车牌端点与安全头 ----------
+    # 新路由必须注册在 404 兜底之前；管理员端点不能只靠前端 sessionStorage 解锁。
+    c.check("'/api/plate/report'" in worker and "'/api/admin/plate/rank'" in worker
+            and "'/api/admin/plate/revoke'" in worker and "'/api/plate'" in worker,
+            "_worker.js 注册了车牌登记 / 查询 / 月榜 / 撤销四个路由")
+    # 别用 error: 'not_found' 定位：revoke 分支里也有同样的 404，
+    # 它出现在路由注册之前，会把位置比较判成「在兜底后面」。认兜底那行本身。
+    c.check(worker.find("'/api/plate/report'") >= 0
+            and worker.find("'/api/plate/report'") < worker.find("if (path !== '/api/cred')"),
+            "车牌路由注册在 404 兜底之前",
+            "放到兜底后面一律 not_found")
+    c.check("sameSiteRequest(request, url)" in worker and "safeEqual(given, secret)" in worker,
+            "管理员端点走同源校验 + 服务端定长比较",
+            "前端 cpk.unlocked 只是 UI 开关，不能当鉴权")
+    c.check("PLATE_DB" in worker and "plate_disabled" in worker,
+            "D1 / secret 没配好时优雅降级，不影响查桩主功能")
+    c.check("HMAC" in worker and "AES-GCM" in worker and "plate_hash" in worker,
+            "车牌只存 HMAC 与密文，不落明文")
+    c.check("idx_pm_ym_cnt" in worker and "idx_pmc" in worker,
+            "按月 / 按校区排行榜走预汇总索引，不做全表分组")
+    c.check("PLATE_WINDOW_DAYS = 180" in worker and "PLATE_QUERY_DAYS = 90" in worker,
+            "记录保留 180 天、查询统计 90 天两套口径都在")
+    for h in ("X-Frame-Options: DENY", "Strict-Transport-Security",
+              "Content-Security-Policy-Report-Only"):
+        c.check(h in packer, "_headers 有 " + h.split(":")[0])
+    c.check("id=\"set-plate-rank-btn\" hidden" in ix,
+            "排行榜入口在管理员分组且默认隐藏")
+    c.check("/api/*" in routes, "_routes.json 通配 /api/*（新端点无需再登记）")
+    c.check("pathname.indexOf('/api/') === 0" in sw,
+            "sw.js 排除 /api/*（新端点不进离线缓存）")
+
     # ---------- 6. 站点目录保洁 ----------
     c.check(not (SITE / "versions").exists(),
             "站点目录内没有 versions/（历史快照不应公开托管）")

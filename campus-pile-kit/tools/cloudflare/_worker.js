@@ -830,6 +830,426 @@ const RETIRED = new Set([
 /* 目录级：`/redesign/*` 整个都是内部样张，一条前缀挡完比逐个列省心 */
 const RETIRED_PREFIX = ['/redesign/'];
 
+/* ---------------- 违规车牌登记（v3.20，2026-11-10）----------------
+ *
+ * 三套时间口径别混：
+ *   PLATE_WINDOW_DAYS = 明细能留多久（过期惰性清理）；
+ *   PLATE_QUERY_DAYS  = 普通查询数哪一段（滚动窗口）；
+ *   ym               = 排行榜按哪个自然月切（管理员可筛选月份 + 校区）。
+ *
+ * 存储只放 HMAC 后的车牌哈希和 AES-GCM 密文，明文不落库；查询只读次数。
+ * 明细是唯一权威数据：90 天次数、当天已登记几次、按校区分布都由 reports 现算，
+ * 没冗余计数列就不会出现「撤销后累计没跟着退」这种对不上的情况。
+ * 只有排行榜用预汇总表 —— 18 万行明细上做全表分组会撞 10ms CPU 上限。
+ *
+ * 🔴 绑定缺失时全部端点优雅降级（不是崩站）：config 回 enabled:false，
+ *    其余回 503 plate_disabled。控制台配好 PLATE_DB + 两个 secret 后自动生效，
+ *    首次请求用 DDL 惰性建表，不需要手工跑 SQL。
+ */
+const PLATE_WINDOW_DAYS = 180;
+const PLATE_QUERY_DAYS = 90;
+const PLATE_PER_DAY = 2;          // 每个车牌每天最多被登记几次
+const PLATE_REPORT_LIMIT = 5;     // 每个设备每天最多登记几次（挡扫不同车牌刷库）
+const PLATE_QUERY_LIMIT = 3;      // 每个设备每天最多查几次（不累计，日切归零）
+const PLATE_GLOBAL_LIMIT = 2000;  // 全站每天登记熔断，保护账号级共享的 D1 额度
+const PLATE_MONTHS_KEEP = 7;      // 月汇总最多保留几个自然月
+const PLATE_CAMPUSES = ['weishui', 'beiyuan', 'yanta', 'xiaozhai'];
+const PLATE_REASONS = ['pull', 'park', 'other'];
+const PLATE_CAMPUS_NAME = { weishui: '渭水', beiyuan: '北院', yanta: '雁塔', xiaozhai: '小寨' };
+const PLATE_REASON_NAME = { pull: '拔充电器', park: '乱停', other: '其他' };
+
+const PLATE_DDL = [
+  'CREATE TABLE IF NOT EXISTS plates('
+    + 'plate_hash TEXT PRIMARY KEY, plate_enc TEXT, first_at INTEGER, last_at INTEGER,'
+    + ' total_all INTEGER DEFAULT 0)',
+  'CREATE TABLE IF NOT EXISTS reports('
+    + 'id INTEGER PRIMARY KEY AUTOINCREMENT, plate_hash TEXT, src_hash TEXT, day TEXT,'
+    + ' campus TEXT, reason TEXT, at INTEGER,'
+    + ' UNIQUE(plate_hash, src_hash, day))',
+  'CREATE INDEX IF NOT EXISTS idx_reports_plate_at ON reports(plate_hash, at)',
+  'CREATE INDEX IF NOT EXISTS idx_reports_plate_day ON reports(plate_hash, day)',
+  'CREATE INDEX IF NOT EXISTS idx_reports_at ON reports(at)',
+  'CREATE TABLE IF NOT EXISTS plate_month('
+    + 'plate_hash TEXT, ym TEXT, cnt INTEGER DEFAULT 0, pull INTEGER DEFAULT 0,'
+    + ' park INTEGER DEFAULT 0, other INTEGER DEFAULT 0, last_at INTEGER,'
+    + ' PRIMARY KEY(plate_hash, ym))',
+  'CREATE INDEX IF NOT EXISTS idx_pm_ym_cnt ON plate_month(ym, cnt DESC)',
+  'CREATE TABLE IF NOT EXISTS plate_month_campus('
+    + 'plate_hash TEXT, ym TEXT, campus TEXT, cnt INTEGER DEFAULT 0,'
+    + ' PRIMARY KEY(plate_hash, ym, campus))',
+  'CREATE INDEX IF NOT EXISTS idx_pmc ON plate_month_campus(ym, campus, cnt DESC)',
+  'CREATE TABLE IF NOT EXISTS plate_quota('
+    + 'scope TEXT, key TEXT, day TEXT, used INTEGER DEFAULT 0,'
+    + ' PRIMARY KEY(scope, key, day))',
+  'CREATE TABLE IF NOT EXISTS plate_audit('
+    + 'id INTEGER PRIMARY KEY AUTOINCREMENT, at INTEGER, action TEXT, plate_hash TEXT, who TEXT)',
+];
+let plateSchemaReady = false;
+
+function plateEnvReady(env) {
+  return !!(env && env.PLATE_DB && env.PLATE_HMAC_KEY && env.PLATE_AES_KEY);
+}
+
+async function plateInit(db) {
+  if (plateSchemaReady) return;
+  await db.batch(PLATE_DDL.map((sql) => db.prepare(sql)));
+  plateSchemaReady = true;
+}
+
+/* 日与月都按北京时间 UTC+8 的自然边界算。用 UTC 会在每天早上 8 点重置，
+   用户会以为额度凭空回来了。 */
+function plateDay(ts) {
+  return new Date(ts + 8 * 3600000).toISOString().slice(0, 10).replace(/-/g, '');
+}
+function plateYm(ts) {
+  return new Date(ts + 8 * 3600000).toISOString().slice(0, 7);
+}
+
+/* 车牌归一：全角转半角、各类连字符统一、去空白、大写。
+   normKey() 被 U+2011 坑过，这里同样先把那些看着一样的横杠收掉。 */
+function normPlate(s) {
+  let v = String(s == null ? '' : s)
+    .replace(/[\u2010-\u2015\u2212]/g, '-')
+    .replace(/[\uFF01-\uFF5E]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+    .replace(/\s+/g, '')
+    .toUpperCase();
+  return v;
+}
+
+function plateB64(bytes) {
+  let s = '';
+  for (let i = 0; i < bytes.length; i += 1) s += String.fromCharCode(bytes[i]);
+  return btoa(s);
+}
+function plateUnb64(s) {
+  const raw = atob(s);
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i += 1) out[i] = raw.charCodeAt(i);
+  return out;
+}
+
+async function plateHmac(text, secret) {
+  const key = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(text));
+  const arr = new Uint8Array(sig);
+  let hex = '';
+  for (let i = 0; i < arr.length; i += 1) hex += arr[i].toString(16).padStart(2, '0');
+  return hex;
+}
+
+async function plateAesKey(secret) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(secret));
+  return crypto.subtle.importKey('raw', digest, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+}
+
+/* 随机 IV 每次都换，所以密文不能当主键，主键始终是 HMAC 后的 plate_hash。 */
+async function plateEncrypt(text, secret) {
+  const key = await plateAesKey(secret);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const buf = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv }, key, new TextEncoder().encode(text));
+  return plateB64(iv) + ':' + plateB64(new Uint8Array(buf));
+}
+
+async function plateDecrypt(rec, secret) {
+  try {
+    const [iv64, data64] = String(rec || '').split(':');
+    if (!iv64 || !data64) return '';
+    const key = await plateAesKey(secret);
+    const buf = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: plateUnb64(iv64) }, key, plateUnb64(data64));
+    return new TextDecoder().decode(buf);
+  } catch (e) {
+    return '';
+  }
+}
+
+/* 原子扣次：先占位行，再用带条件的 UPDATE 抢额度，changes===1 才算抢到。
+   先读后写在并发下必超发；KV 没有 CAS 且免费 1000 写/天，不能用。 */
+async function plateQuota(db, scope, key, day, limit) {
+  await db.prepare('INSERT OR IGNORE INTO plate_quota(scope,key,day,used) VALUES(?,?,?,0)')
+    .bind(scope, key, day).run();
+  const r = await db.prepare(
+    'UPDATE plate_quota SET used=used+1 WHERE scope=? AND key=? AND day=? AND used<?')
+    .bind(scope, key, day, limit).run();
+  return !!(r && r.meta && r.meta.changes === 1);
+}
+
+/* 抽样惰性清理：免费版 cron 只有 5 条且已被快照站主时钟占满，加不了定时任务。
+   reports 按 180 天分批删，月汇总按整月淘汰；月汇总是登记时累加的、不读明细，
+   所以两者各自清理也不会对不上。 */
+async function plateCleanup(db, now) {
+  const cutoff = now - PLATE_WINDOW_DAYS * 86400000;
+  await db.prepare(
+    'DELETE FROM reports WHERE id IN (SELECT id FROM reports WHERE at<? LIMIT 200)')
+    .bind(cutoff).run();
+  const d = new Date(now + 8 * 3600000);
+  d.setUTCDate(1);
+  d.setUTCMonth(d.getUTCMonth() - (PLATE_MONTHS_KEEP - 1));
+  const oldest = d.toISOString().slice(0, 7);
+  await db.prepare('DELETE FROM plate_month WHERE ym<?').bind(oldest).run();
+  await db.prepare('DELETE FROM plate_month_campus WHERE ym<?').bind(oldest).run();
+  await db.prepare('DELETE FROM plate_quota WHERE day<?').bind(plateDay(cutoff)).run();
+}
+
+function plateConfig(env) {
+  return {
+    ok: true,
+    enabled: plateEnvReady(env),
+    windowDays: PLATE_WINDOW_DAYS,
+    queryDays: PLATE_QUERY_DAYS,
+    maxPerDay: PLATE_PER_DAY,
+    queryLimit: PLATE_QUERY_LIMIT,
+    campuses: PLATE_CAMPUSES.map((k) => ({ key: k, name: PLATE_CAMPUS_NAME[k] })),
+    reasons: PLATE_REASONS.map((k) => ({ key: k, name: PLATE_REASON_NAME[k] })),
+  };
+}
+
+async function plateSrcHash(request, env, raw) {
+  const src = String(raw || '').slice(0, 64);
+  return plateHmac(src || clientIp(request), env.PLATE_HMAC_KEY);
+}
+
+/* GET /api/plate —— 不带 q 时返回配置常量（前端据此显隐入口）；
+   带 q 时返回近 90 天的次数与按校区分布。未命中也扣次，避免额度变成
+   「哪些车牌登记过」的枚举探测器。 */
+async function plateQuery(request, url, env) {
+  const cfg = plateConfig(env);
+  const q = url.searchParams.get('q');
+  if (!q) return json(cfg);
+  if (!cfg.enabled) return json({ ok: false, error: 'plate_disabled' }, 503);
+  const norm = normPlate(q);
+  if (!/^[\u4e00-\u9fa5][A-Z0-9]{5,8}$/.test(norm)) {
+    return json({ ok: false, error: 'bad_plate' }, 400);
+  }
+  const db = env.PLATE_DB;
+  await plateInit(db);
+  const day = plateDay(Date.now());
+  const sh = await plateSrcHash(request, env, request.headers.get('x-plate-src'));
+  if (!(await plateQuota(db, 'query', sh, day, PLATE_QUERY_LIMIT))) {
+    return json({ ok: false, error: 'query_limit' }, 429);
+  }
+  const ph = await plateHmac(norm, env.PLATE_HMAC_KEY);
+  const since = Date.now() - PLATE_QUERY_DAYS * 86400000;
+  const cnt = await db.prepare(
+    'SELECT COUNT(*) AS n FROM reports WHERE plate_hash=? AND at>=?')
+    .bind(ph, since).first('n');
+  const groups = await db.prepare(
+    'SELECT campus, COUNT(*) AS n FROM reports WHERE plate_hash=? AND at>=? GROUP BY campus')
+    .bind(ph, since).all();
+  const last = await db.prepare('SELECT MAX(at) AS t FROM reports WHERE plate_hash=?')
+    .bind(ph).first('t');
+  const byCampus = {};
+  (groups.results || []).forEach((g) => { byCampus[g.campus] = g.n; });
+  return json({
+    ok: true, listed: Number(cnt || 0) > 0, count: Number(cnt || 0),
+    lastAt: Number(last || 0), byCampus, queryDays: PLATE_QUERY_DAYS,
+  });
+}
+
+/* POST /api/plate/report —— 车牌 + 事由 + 校区。
+   🔴 每日 2 次按 plate_hash + day 全局计，不按校区：否则换个校区就能把额度翻 4 倍。
+   🔴 幂等唯一键 (plate_hash, src_hash, day)：同设备同日同车牌重复提交不扣额度。 */
+async function plateReport(request, env) {
+  if (!plateEnvReady(env)) return json({ ok: false, error: 'plate_disabled' }, 503);
+  let body;
+  try { body = await request.json(); } catch (e) { return json({ ok: false, error: 'bad_json' }, 400); }
+  const plate = normPlate(body && body.plate);
+  if (!/^[\u4e00-\u9fa5][A-Z0-9]{5,8}$/.test(plate)) {
+    return json({ ok: false, error: 'bad_plate' }, 400);
+  }
+  const campus = String((body && body.campus) || '');
+  const reason = String((body && body.reason) || '');
+  if (PLATE_CAMPUSES.indexOf(campus) < 0) return json({ ok: false, error: 'bad_campus' }, 400);
+  if (PLATE_REASONS.indexOf(reason) < 0) return json({ ok: false, error: 'bad_reason' }, 400);
+
+  const db = env.PLATE_DB;
+  await plateInit(db);
+  const now = Date.now();
+  const day = plateDay(now);
+  const ym = plateYm(now);
+  const src = String((body && body.src) || '');
+  const sh = await plateSrcHash(request, env, src);
+  const ph = await plateHmac(plate, env.PLATE_HMAC_KEY);
+
+  if (!(await plateQuota(db, 'global', day, day, PLATE_GLOBAL_LIMIT))) {
+    return json({ ok: false, error: 'global_limit' }, 429);
+  }
+  if (!(await plateQuota(db, 'report', sh, day, PLATE_REPORT_LIMIT))) {
+    return json({ ok: false, error: 'report_limit' }, 429);
+  }
+
+  /* 一句 SQL 同时做「同设备同日去重」和「当天该车牌未满 2 次」，并发下不会超发。 */
+  const ins = await db.prepare(
+    'INSERT INTO reports(plate_hash,src_hash,day,campus,reason,at) '
+      + 'SELECT ?,?,?,?,?,? WHERE NOT EXISTS('
+      + 'SELECT 1 FROM reports WHERE plate_hash=? AND src_hash=? AND day=?) '
+      + 'AND (SELECT COUNT(*) FROM reports WHERE plate_hash=? AND day=?) < ?')
+    .bind(ph, sh, day, campus, reason, now, ph, sh, day, ph, day, PLATE_PER_DAY).run();
+  if (!ins || !ins.meta || ins.meta.changes !== 1) {
+    const dup = await db.prepare(
+      'SELECT 1 AS x FROM reports WHERE plate_hash=? AND src_hash=? AND day=?')
+      .bind(ph, sh, day).first('x');
+    return json({ ok: false, error: dup ? 'duplicate' : 'daily_full' }, dup ? 409 : 429);
+  }
+
+  const pull = reason === 'pull' ? 1 : 0;
+  const park = reason === 'park' ? 1 : 0;
+  const other = reason === 'other' ? 1 : 0;
+  /* 只在首次见到这个车牌时写密文；后续登记沿用首份，不反复加密。
+     随机 IV 不能当主键，主键始终是 plate_hash。 */
+  const exists = await db.prepare('SELECT 1 AS x FROM plates WHERE plate_hash=?')
+    .bind(ph).first('x');
+  const enc = exists ? null : await plateEncrypt(plate, env.PLATE_AES_KEY);
+  await db.batch([
+    exists
+      ? db.prepare('UPDATE plates SET last_at=?, total_all=total_all+1 WHERE plate_hash=?')
+        .bind(now, ph)
+      : db.prepare('INSERT INTO plates(plate_hash,plate_enc,first_at,last_at,total_all) VALUES(?,?,?,?,1)')
+        .bind(ph, enc, now, now),
+    db.prepare(
+      'INSERT INTO plate_month(plate_hash,ym,cnt,pull,park,other,last_at) VALUES(?,?,1,?,?,?,?) '
+        + 'ON CONFLICT(plate_hash,ym) DO UPDATE SET '
+        + 'cnt=cnt+1, pull=pull+excluded.pull, park=park+excluded.park, '
+        + 'other=other+excluded.other, last_at=excluded.last_at')
+      .bind(ph, ym, pull, park, other, now),
+    db.prepare(
+      'INSERT INTO plate_month_campus(plate_hash,ym,campus,cnt) VALUES(?,?,?,1) '
+        + 'ON CONFLICT(plate_hash,ym,campus) DO UPDATE SET cnt=cnt+1')
+      .bind(ph, ym, campus),
+    db.prepare('INSERT INTO plate_audit(at,action,plate_hash,who) VALUES(?,?,?,?)')
+      .bind(now, 'report', ph, sh.slice(0, 16)),
+  ]);
+
+  if (Math.random() < 0.05) await plateCleanup(db, now);
+
+  const since = now - PLATE_QUERY_DAYS * 86400000;
+  const total = await db.prepare(
+    'SELECT COUNT(*) AS n FROM reports WHERE plate_hash=? AND at>=?')
+    .bind(ph, since).first('n');
+  return json({ ok: true, total: Number(total || 0), queryDays: PLATE_QUERY_DAYS });
+}
+
+/* 🔴 管理员端点只认服务端这把密钥：前端 cpk.unlocked 是 sessionStorage 里的
+   UI 开关，HTTP 请求根本不带它，curl 也能绕过页面直接打接口。
+   优先用独立的 PLATE_ADMIN_TOKEN；没配才退回全站共用的 ADMIN_TOKEN。 */
+async function plateAdminOk(request, url, env) {
+  const secret = (env && (env.PLATE_ADMIN_TOKEN || env.ADMIN_TOKEN)) || '';
+  if (!secret) return false;
+  if (!sameSiteRequest(request, url)) return false;
+  const given = request.headers.get('x-admin-token') || '';
+  return safeEqual(given, secret);
+}
+
+/* GET /api/admin/plate/rank —— 按自然月 + 可选校区出 Top N，并回可筛选的月份列表。
+   只走预汇总表的索引，不对 18 万行明细做分组。 */
+async function plateRank(request, url, env) {
+  if (!(await plateAdminOk(request, url, env))) {
+    return json({ ok: false, error: 'bad_token' }, 401);
+  }
+  if (!plateEnvReady(env)) return json({ ok: false, error: 'plate_disabled' }, 503);
+  const db = env.PLATE_DB;
+  await plateInit(db);
+  const ymRaw = url.searchParams.get('ym') || '';
+  const ym = /^\d{4}-\d{2}$/.test(ymRaw) ? ymRaw : plateYm(Date.now());
+  const campusRaw = url.searchParams.get('campus') || '';
+  const campus = PLATE_CAMPUSES.indexOf(campusRaw) >= 0 ? campusRaw : '';
+  const limit = Math.min(50, Math.max(1, Number(url.searchParams.get('limit')) || 20));
+
+  const months = await db.prepare(
+    'SELECT DISTINCT ym FROM plate_month ORDER BY ym DESC LIMIT ?')
+    .bind(PLATE_MONTHS_KEEP).all();
+  const sql = campus
+    ? 'SELECT m.plate_hash AS ph, m.cnt AS cnt, p.plate_enc AS enc, p.last_at AS last_at '
+      + 'FROM plate_month_campus m JOIN plates p ON p.plate_hash=m.plate_hash '
+      + 'WHERE m.ym=? AND m.campus=? ORDER BY m.cnt DESC LIMIT ?'
+    : 'SELECT m.plate_hash AS ph, m.cnt AS cnt, m.pull AS pull, m.park AS park, '
+      + 'm.other AS other, p.plate_enc AS enc, m.last_at AS last_at '
+      + 'FROM plate_month m JOIN plates p ON p.plate_hash=m.plate_hash '
+      + 'WHERE m.ym=? ORDER BY m.cnt DESC LIMIT ?';
+  const q = db.prepare(sql);
+  const res = campus ? await q.bind(ym, campus, limit).all() : await q.bind(ym, limit).all();
+  const rows = await Promise.all((res.results || []).map(async (r) => ({
+    plate: await plateDecrypt(r.enc, env.PLATE_AES_KEY),
+    count: Number(r.cnt || 0),
+    pull: Number(r.pull || 0), park: Number(r.park || 0), other: Number(r.other || 0),
+    lastAt: Number(r.last_at || 0),
+  })));
+  await db.prepare('INSERT INTO plate_audit(at,action,plate_hash,who) VALUES(?,?,?,?)')
+    .bind(Date.now(), 'rank', ym + (campus ? ':' + campus : ''), 'admin').run();
+  return json({
+    ok: true, ym, campus,
+    months: (months.results || []).map((m) => m.ym),
+    currentYm: plateYm(Date.now()),
+    windowDays: PLATE_WINDOW_DAYS,
+    rows,
+  });
+}
+
+/* POST /api/admin/plate/revoke —— 撤销某车牌某月（可限定校区）的全部登记。
+   明细删掉后 90 天查询次数自动变少；预汇总表按删掉的条数逐项回退。
+   这是民法典 1195 通知删除的最低落地形态。 */
+async function plateRevoke(request, env) {
+  if (!(await plateAdminOk(request, new URL(request.url), env))) {
+    return json({ ok: false, error: 'bad_token' }, 401);
+  }
+  if (!plateEnvReady(env)) return json({ ok: false, error: 'plate_disabled' }, 503);
+  let body;
+  try { body = await request.json(); } catch (e) { return json({ ok: false, error: 'bad_json' }, 400); }
+  const plate = normPlate(body && body.plate);
+  if (!/^[\u4e00-\u9fa5][A-Z0-9]{5,8}$/.test(plate)) {
+    return json({ ok: false, error: 'bad_plate' }, 400);
+  }
+  const ymRaw = String((body && body.ym) || '');
+  if (!/^\d{4}-\d{2}$/.test(ymRaw)) return json({ ok: false, error: 'bad_ym' }, 400);
+  const campus = String((body && body.campus) || '');
+  if (campus && PLATE_CAMPUSES.indexOf(campus) < 0) {
+    return json({ ok: false, error: 'bad_campus' }, 400);
+  }
+  const db = env.PLATE_DB;
+  await plateInit(db);
+  const ph = await plateHmac(plate, env.PLATE_HMAC_KEY);
+  const like = ymRaw.replace('-', '') + '%';
+  const where = 'plate_hash=? AND day LIKE ?' + (campus ? ' AND campus=?' : '');
+  const gq = db.prepare('SELECT campus, reason, COUNT(*) AS n FROM reports WHERE ' + where
+    + ' GROUP BY campus, reason');
+  const groups = campus ? await gq.bind(ph, like, campus).all() : await gq.bind(ph, like).all();
+  const rows = groups.results || [];
+  if (!rows.length) return json({ ok: false, error: 'not_found' }, 404);
+  const dq = db.prepare('DELETE FROM reports WHERE ' + where);
+  const del = campus ? await dq.bind(ph, like, campus).run() : await dq.bind(ph, like).run();
+  const removed = Number(del && del.meta && del.meta.changes) || 0;
+
+  let pull = 0, park = 0, other = 0;
+  const perCampus = {};
+  rows.forEach((r) => {
+    const n = Number(r.n) || 0;
+    if (r.reason === 'pull') pull += n;
+    else if (r.reason === 'park') park += n;
+    else other += n;
+    perCampus[r.campus] = (perCampus[r.campus] || 0) + n;
+  });
+  const stmts = [
+    db.prepare('UPDATE plate_month SET cnt=MAX(0,cnt-?), pull=MAX(0,pull-?), '
+      + 'park=MAX(0,park-?), other=MAX(0,other-?) WHERE plate_hash=? AND ym=?')
+      .bind(removed, pull, park, other, ph, ymRaw),
+    db.prepare('UPDATE plates SET total_all=MAX(0,total_all-?) WHERE plate_hash=?')
+      .bind(removed, ph),
+    db.prepare('INSERT INTO plate_audit(at,action,plate_hash,who) VALUES(?,?,?,?)')
+      .bind(Date.now(), 'revoke', ph, 'admin'),
+  ];
+  Object.keys(perCampus).forEach((c) => {
+    stmts.push(db.prepare(
+      'UPDATE plate_month_campus SET cnt=MAX(0,cnt-?) WHERE plate_hash=? AND ym=? AND campus=?')
+      .bind(perCampus[c], ph, ymRaw, c));
+  });
+  await db.batch(stmts);
+  await db.prepare('DELETE FROM plate_month WHERE plate_hash=? AND ym=? AND cnt=0')
+    .bind(ph, ymRaw).run();
+  return json({ ok: true, removed, ym: ymRaw, campus });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -865,6 +1285,27 @@ export default {
 
     // ---- 一周回顾 / 快照：反代快照 Worker ----
     if (path === '/api/stats' || path === '/api/snap') return proxySnap(path, url, env);
+
+    // ---- 违规车牌登记（v3.20）。🔴 必须在下面 :909 的 404 兜底之前注册 ----
+    // 绑定没配好时返回 enabled:false / 503，不影响查桩主功能。
+    if (path === '/api/plate') {
+      if (request.method === 'GET' || request.method === 'HEAD') {
+        return plateQuery(request, url, env);
+      }
+      return json({ ok: false, error: 'method_not_allowed' }, 405);
+    }
+    if (path === '/api/plate/report') {
+      if (request.method !== 'POST') return json({ ok: false, error: 'method_not_allowed' }, 405);
+      return plateReport(request, env);
+    }
+    if (path === '/api/admin/plate/rank') {
+      if (request.method !== 'GET') return json({ ok: false, error: 'method_not_allowed' }, 405);
+      return plateRank(request, url, env);
+    }
+    if (path === '/api/admin/plate/revoke') {
+      if (request.method !== 'POST') return json({ ok: false, error: 'method_not_allowed' }, 405);
+      return plateRevoke(request, env);
+    }
 
     // ---- 自动续期的运行结果上报（v3.05，只写；读走 GET /api/cred 的 renew 字段） ----
     /* 为什么要有这条：换证是**无人值守**的（见本机 tools/cred_autorenew.py），

@@ -181,7 +181,10 @@
 2. 加三个 Secret：`PLATE_HMAC_KEY`、`PLATE_AES_KEY`（高熵随机串），
    可选 `PLATE_ADMIN_TOKEN`（不配则复用 `ADMIN_TOKEN`）。
    🔴 口令一旦更换，旧的车牌哈希与密文会全部解不开，别在生产上随手改。
-3. 打开 `/api/ping` 确认 `enabled: true`（或 `GET /api/plate` 看 `enabled`）。
+3. 部署后 `GET /api/plate` 看 `enabled:true`（同时会回 `dailyCap` / `totalCap`）。
+   `/api/ping` 只回环境变量名与 KV / token 是否存在
+   （`{"ok":true,"kv":true,"token":true,"hints":[...]}`），可用来确认绑定生效，
+   但它**没有** `enabled` 字段。
 
 免费额度是**账号级共享**：车牌功能被刷到 D1 超额会连带拖慢同账号的快照站
 查桩主功能，建议把这块放独立 CF 账号。代码侧已有「每日 2000 条 / 总量 20 万行」

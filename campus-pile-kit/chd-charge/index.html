@@ -2218,14 +2218,9 @@
         <span class="set-txt">管理员后台</span>
         <span class="set-caret" aria-hidden="true"></span>
       </button>
-      <!-- v3.20 违规排行榜：入口藏在管理员分组，且只在解锁后显示。
-           🔴 这只是 UI 显隐，真正的安全边界在服务端 /api/admin/plate/rank
-              的 x-admin-token 校验 —— 打开弹窗还要再输一次写口令。 -->
-      <button class="set-row" type="button" id="set-plate-rank-btn" hidden>
-        <span class="set-ico" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 12.4h10.8M4.2 12.4V8.1M7.3 12.4V4.4M10.4 12.4V6.6M13.4 12.4V9.6"/></svg></span>
-        <span class="set-txt">违规排行榜</span>
-        <span class="set-caret" aria-hidden="true"></span>
-      </button>
+      <!-- v3.20 违规排行榜入口已搬进管理员后台「设备与设置 › 工具」
+           （见 #settings-dialog）。这里是所有访客都能看见的设置主面板，
+           不摆管理员专属的行，也不在公告里提它。 -->
     </div>
 
     <!-- v2.59：开发者与致谢名单的入口搬到设置里（首页副标题不再挂链接）。
@@ -2283,7 +2278,7 @@
   </div>
 </dialog>
 
-<!-- 违规排行榜（v3.20）：入口在设置 › 管理员，按月 + 按校区筛选。
+<!-- 违规排行榜（v3.20）：入口在管理员后台「设备与设置 › 工具」，按月 + 按校区筛选。
      🔴 写口令只在这个弹窗里用一次，输入框提交后立即清空，绝不落盘。 -->
 <dialog id="dlg-plate-rank" class="sub-dlg" aria-label="违规排行榜">
   <div class="dlg-body">
@@ -3053,7 +3048,6 @@
     </ol>
     <p class="help-body">
       登记只写车牌、事由和校区，不传照片，也不做车牌清单公示。
-      管理员后台里另有按月排行榜，可以按月份和校区筛选，也能撤销某辆车某个月的全部登记。
     </p>
 
     <h3 class="help-sec">卡住了怎么办</h3>
@@ -3138,6 +3132,15 @@
         <span class="set-ico" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="5.9"/><path d="M8 4.8V8l2.2 1.5"/></svg></span>
         <span class="set-txt">充满要多久</span>
         <span class="set-val" id="set-est-val">约 7.6 小时</span>
+        <span class="set-caret" aria-hidden="true"></span>
+      </button>
+      <!-- 违规排行榜（v3.20）：管理员后台「设备与设置 › 工具」里的一行，
+           只在解锁后由 plateSyncAdminRow() 放出来。
+           🔴 这只是 UI 显隐，真正的安全边界在服务端 /api/admin/plate/rank
+              的 x-admin-token 校验 —— 打开弹窗还要再输一次写口令。 -->
+      <button class="set-row" type="button" id="set-plate-rank-btn" hidden>
+        <span class="set-ico" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 12.4h10.8M4.2 12.4V8.1M7.3 12.4V4.4M10.4 12.4V6.6M13.4 12.4V9.6"/></svg></span>
+        <span class="set-txt">违规排行榜</span>
         <span class="set-caret" aria-hidden="true"></span>
       </button>
     </div>
@@ -10493,7 +10496,7 @@ function openSettingsDialog() {
   $('settings-note').textContent = '';
   paintDevicesCloudState();
   paintCloudState();
-  /* v3.20：解锁成功后会重开设置页，这里顺手把管理员专属的排行榜行放出来 */
+  /* v3.20：解锁成功后打开「设备与设置」，这里顺手把工具组里的排行榜行放出来 */
   if (typeof window.plateSyncAdminRow === 'function') window.plateSyncAdminRow();
   $('settings-dialog').showModal();
 }
@@ -10506,7 +10509,10 @@ function openSettingsDialog() {
    发布新版本时**只加条目、不改历史**；第一条必须是最新版本。
    🔴 同一件事**只说一次**：一天之内把同一块改了两三回（先改文案、又调位置），
       就**原地改那条**，不要新增第二条 —— 用户看到的该是「这块变了」，
-      不是「这块昨天变过、今天又变了」的流水账。 */
+      不是「这块昨天变过、今天又变了」的流水账。
+   🔴 2026-11-10：管理员专属的月榜与撤销不进公告，入口在管理员后台
+      「设备与设置 › 工具」；原本首组写过一条，按反馈删掉了。首组仍从 v3.20 起，
+      只留访客自己用得上的登记与查询，别为管理员功能再补一条。 */
 const CHANGELOG = [
   /* 🔴 公告按「每 0.1 级一组」归档，不许跨级：open 组永远从当前 0.1 级的起点写起
      （页脚 v3.20 → from:'v3.20'）。2026-11-10 已把 v3.10–v3.19 封口成定稿组，
@@ -10520,9 +10526,7 @@ const CHANGELOG = [
      _check_chg_merge 会按页脚版本动态校验「每个 0.1 级恰好一组」。 */
   { from: 'v3.20', d: '2026-11-10', items: [
     '设置里多了「违规车牌登记」：填车牌号、选事由和校区就能登记一次，回显这个车牌近 90 天累计几次；'
-      + '也能只按车牌查次数，顺带看到都在哪些校区。同一个车牌每天最多被登记 2 次，记录保留 180 天',
-    '管理员后台里多了按月排行榜：选月份、选校区看当月登记最多的前 20 个车牌，'
-      + '每行能一键撤销那辆车这个月的全部登记。看榜单要再输一次写口令，每次查看都留记录',
+      + '也能只按车牌查次数，顺带看到都在哪些校区。同一个车牌每天最多被登记 2 次，记录保留 180 天'
   ] },
   { v: 'v3.10 – v3.19', d: '2026-11-07 ~ 11-08', items: [
     /* v3.10 补登过去 / v3.11 按钮并排与时长填小时 / v3.12 整行入口 / v3.13 实用功能栏
@@ -10826,6 +10830,8 @@ const SET_ENTRIES = [
   /* v3.20 违规车牌登记：打开时拉一次服务端 config（绑定没配好就显示「暂未开放」）。
      🔴 充电记录那一行走的是 L13508 的独立绑定，不进 SET_ENTRIES，别照抄。 */
   { btn: 'set-plate-btn', dlg: 'dlg-plate', focus: 'plate-input', onOpen: () => { window.plateOpenCfg(); } },
+  /* 排行榜按钮现在长在 #settings-dialog（设备与设置 › 工具）里，
+     仍按 id 绑定，SET_ENTRIES 这行不用动。 */
   { btn: 'set-plate-rank-btn', dlg: 'dlg-plate-rank', onOpen: () => { window.plateOpenRank(); } },
 ];
 

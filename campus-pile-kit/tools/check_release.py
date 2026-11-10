@@ -352,8 +352,20 @@ def main():
     for h in ("X-Frame-Options: DENY", "Strict-Transport-Security",
               "Content-Security-Policy-Report-Only"):
         c.check(h in packer, "_headers 有 " + h.split(":")[0])
-    c.check("id=\"set-plate-rank-btn\" hidden" in ix,
-            "排行榜入口在管理员分组且默认隐藏")
+    # 2026-11-10：入口从设置主面板的「管理员」分组搬进管理员后台「设备与设置 › 工具」。
+    # 🔴 DOM 搬移两边都核：旧处必须删干净，否则 getElementById 认靠前那个。
+    sync_dlg = ix[ix.find('<dialog id="sync-dialog"'):ix.find('<dialog id="settings-dialog"')]
+    dev_dlg = ix[ix.find('<dialog id="settings-dialog"'):ix.find('<dialog id="changelog-dialog"')]
+    c.check('id="set-plate-rank-btn" hidden' in dev_dlg
+            and 'set-plate-rank-btn' not in sync_dlg
+            and ix.count('id="set-plate-rank-btn"') == 1,
+            "排行榜入口只在管理员后台「设备与设置」且默认隐藏",
+            "设置主面板里还留着旧行，或者搬移时复制成了两份")
+    chg_start = ix.find('const CHANGELOG = [')
+    chg = ix[chg_start:ix.find('\n];', chg_start)] if chg_start >= 0 else ''
+    c.check(bool(chg) and not any(w in chg for w in ('排行榜', '月榜', '撤销', '写口令')),
+            "公告不宣传管理员专属的排行榜与撤销",
+            "按反馈删掉那条，别在版本更新里再补回来")
     c.check("/api/*" in routes, "_routes.json 通配 /api/*（新端点无需再登记）")
     c.check("pathname.indexOf('/api/') === 0" in sw,
             "sw.js 排除 /api/*（新端点不进离线缓存）")

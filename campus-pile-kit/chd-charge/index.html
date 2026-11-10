@@ -185,19 +185,84 @@
   /* 「使用说明」弹窗（2026-10-25）：分节标题 / 三步流程 / 赞助卡片。
      ⚠️ 本文件是**两版共享**的样式区，改动要同时进 index（sync 脚本会搬），
         注释里绝对不能出现星号加斜杠的组合 —— 会提前闭合注释块、整页白屏。 */
-  .help-sec{font-size:13px; font-weight:600; margin:16px 0 0; color:var(--text); letter-spacing:-.1px}
-  .help-body{font-size:12.5px; color:var(--muted); line-height:1.75; margin:6px 0 0}
-  .help-steps{margin:8px 0 0; padding:0; list-style:none; counter-reset:hs}
-  .help-steps li{position:relative; padding-left:24px; font-size:12.5px; color:var(--muted); line-height:1.7; margin-top:10px}
+  /* v3.21：说明弹窗改成完整版，正文全篇跟主界面同族同号（15px / 1.55），
+     不再用 12.5px 的小字。字号只在这几条里定，子规则别再写小号。 */
+  .help-sec{font-size:16px; font-weight:600; margin:24px 0 0; color:var(--text); letter-spacing:-.1px}
+  .help-body{font-size:15px; color:var(--text); line-height:1.55; margin:8px 0 0}
+  .help-steps{margin:10px 0 0; padding:0; list-style:none; counter-reset:hs}
+  .help-steps li{position:relative; padding-left:26px; font-size:15px; color:var(--text); line-height:1.55; margin-top:10px}
   .help-steps li::before{
     counter-increment:hs; content:counter(hs);
-    position:absolute; left:0; top:1px; width:17px; height:17px; border-radius:50%;
-    background:var(--line); color:var(--muted); font-size:10.5px; font-weight:600;
+    position:absolute; left:0; top:3px; width:18px; height:18px; border-radius:50%;
+    background:var(--line); color:var(--muted); font-size:11px; font-weight:600;
     display:flex; align-items:center; justify-content:center;
   }
   .help-steps b{color:var(--text); font-weight:600}
-  .help-list{margin:6px 0 0; padding-left:16px; font-size:12.5px; color:var(--muted); line-height:1.7}
-  .help-list li{margin:4px 0}
+  .help-list{margin:8px 0 0; padding-left:18px; font-size:15px; color:var(--text); line-height:1.55}
+  .help-list li{margin:6px 0}
+
+  /* 说明弹窗的新组件。🔴 一律 gd- 前缀：.card/.grid/.campus/.warn/.back/.no
+     在别处已经有主，直接叫原名会串（v3.08 公告被 .chg-* 串过）。 */
+  #help-dialog{width:min(96vw,560px); overflow:auto; overscroll-behavior:contain}
+  /* 点弹窗空白处会让 dialog 自己拿到焦点，浏览器默认画一圈橙色 focus 环，
+     在圆角上很难看。模态本身已经把注意力圈住了，这一圈可以不要。 */
+  dialog:focus{outline:none}
+  .gd-lede{margin:0; padding:13px 15px; border-radius:12px;
+    background:var(--free-soft); border:1px solid var(--free-line);
+    font-size:15px; line-height:1.55; color:var(--text)}
+  .gd-lede .b{font-weight:700}
+  .gd-lede .red{color:var(--bad-fg); font-weight:700}
+  .gd-cams{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px}
+  .gd-cam{display:inline-flex; align-items:center; gap:7px; padding:7px 13px;
+    border-radius:999px; font-size:15px; font-weight:600;
+    background:var(--free-soft); color:var(--free-deep); border:1px solid var(--free-line)}
+  .gd-cam i{flex:0 0 auto; width:7px; height:7px; border-radius:50%; background:var(--free)}
+  .gd-cam.off{background:var(--slot); color:var(--hint); border-color:var(--line)}
+  .gd-cam.off i{background:var(--off)}
+  .gd-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px}
+  .gd-grid a{display:flex; align-items:center; gap:8px; padding:10px 11px;
+    border-radius:10px; background:var(--input-bg); border:1px solid var(--line);
+    font-size:15px; color:var(--text); text-decoration:none; line-height:1.3}
+  .gd-grid a span{font-size:12px; font-weight:700; color:var(--free-deep); font-variant-numeric:tabular-nums}
+  .gd-grid a:active{background:var(--pressed)}
+  .gd-tip{margin-top:12px; padding:11px 13px; border-radius:10px;
+    font-size:15px; line-height:1.5; color:var(--text);
+    background:var(--warn-bg); border:1px solid var(--warn-line)}
+  .gd-tip .t{display:inline-block; margin-right:6px; padding:1px 7px; border-radius:6px;
+    font-size:12px; font-weight:700; background:var(--warn-line); color:var(--warn-fg)}
+  .gd-tip.supp{background:var(--free-soft); border-color:var(--free-line)}
+  .gd-tip.supp .t{background:var(--free-line); color:var(--free-deep)}
+  .gd-tip.bad{background:var(--bad-bg); border-color:var(--bad-line)}
+  .gd-tip.bad .t{background:var(--bad-line); color:var(--bad-fg)}
+  .gd-hi{background:var(--warn-bg); box-shadow:inset 0 -2px 0 var(--warn-line);
+    padding:1px 2px; border-radius:3px; font-weight:600}
+  .gd-em{color:var(--free-deep); font-weight:700}
+  .gd-warn{color:var(--bad-fg); font-weight:700}
+  .gd-path{display:inline-block; padding:1px 7px; border-radius:6px;
+    background:var(--slot); border:1px solid var(--line);
+    font-size:13.5px; font-weight:600; color:var(--text); white-space:nowrap}
+  .gd-sw{display:inline-block; width:13px; height:13px; border-radius:4px; margin-right:7px; vertical-align:-2px}
+  .gd-sw.is-free{background:var(--free)}
+  .gd-sw.is-busy{background:var(--busy)}
+  .gd-sw.is-off{background:var(--off)}
+  .gd-tbl{width:100%; border-collapse:collapse; margin-top:10px; font-size:15px}
+  .gd-tbl th,.gd-tbl td{padding:8px 9px; text-align:left; vertical-align:top;
+    border-bottom:1px solid var(--line); line-height:1.45}
+  .gd-tbl th{font-size:13px; font-weight:600; color:var(--muted); background:var(--input-bg)}
+  .gd-tbl tr:last-child td{border-bottom:0}
+  .gd-tbl td:first-child{width:34%; color:var(--muted)}
+  .gd-faq{margin:10px 0 0}
+  .gd-faq dt{font-size:15px; font-weight:600; color:var(--text); margin-top:14px}
+  .gd-faq dt:first-of-type{margin-top:0}
+  .gd-faq dd{margin:5px 0 0; font-size:15px; color:var(--text); line-height:1.55}
+  .gd-no{display:inline-flex; align-items:center; justify-content:center;
+    width:21px; height:21px; margin-right:8px; border-radius:6px;
+    background:var(--free-soft); color:var(--free-deep);
+    font-size:12px; font-weight:700; vertical-align:-2px}
+  .gd-sep{height:1px; background:var(--line); border:0; margin:24px 0 0}
+  .gd-h4{font-size:15px; font-weight:700; margin:18px 0 0; color:var(--text)}
+  /* 目录点了 scrollIntoView 会贴顶，留一点余量，标题别顶着弹窗边 */
+  #help-dialog [id^="gd-f"]{scroll-margin-top:14px}
   /* 页脚的 .foot-link 带 word-break:break-all（页脚窄，长链接必须能断），
      搬进说明弹窗后邮箱会被切成 `@qq.co` / `m` 两行 —— 这里把它掰回来：
      normal 优先按空格断，anywhere 只在实在放不下时才硬断。 */
@@ -3047,68 +3112,176 @@
       <button class="x-btn" data-close aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
     </div>
 
-    <h3 class="help-sec">这个站做什么</h3>
-    <p class="help-body">
-      全校 200 台桩摊在一屏：哪个区、几号桩、还剩几个位，不用一台台点开。
-      数据来自充电平台，本站<b>只读</b>，不涉及账号与支付。
-    </p>
+    <div class="gd-lede">
+      <p style="margin:0" class="b">这里只查状态，<span class="red">不能充电</span>。</p>
+      <p style="margin:6px 0 0">数据是学校充电平台上本来就公开的状态，搬过来给你看。不登录、不付款、不碰你的账号，充电还是扫桩上的码。</p>
+    </div>
 
-    <h3 class="help-sec">怎么看</h3>
-    <ol class="help-steps">
-      <li><b>选地址</b>　先挑校区，再挑地址胶囊，点哪颗看哪块。</li>
-      <li><b>排序</b>　默认空位多的排前面；设置 › 排序 可改成按编号或收藏优先。</li>
-      <li><b>一行两个</b>　设置 › 显示方式，一屏能多放一倍。</li>
-      <li><b>定位</b>　卡片右上角定位图标，点开地图直接标出这台桩。</li>
-    </ol>
-    <p class="help-body">
-      卡片上每个格子是一个插座：<b>绿色空闲、红色占用</b>。
-    </p>
+    <h3 class="help-sec">能查哪些校区</h3>
+    <p class="help-body">接了三个校区，加起来两百来台桩：</p>
+    <div class="gd-cams">
+      <span class="gd-cam"><i></i>渭水校区</span>
+      <span class="gd-cam"><i></i>本部北院</span>
+      <span class="gd-cam"><i></i>雁塔校区</span>
+    </div>
+    <p class="help-body"><span class="gd-cam off"><i></i>小寨校区还没有桩接进来</span></p>
+    <div class="gd-tip"><span class="t">注意</span>校区和地址是上下两排。第一排选校区，第二排是校区里的具体地方，比如朝晖体育场。只点第一排，容易以为这校区没桩。</div>
 
-    <h3 class="help-sec">记充电</h3>
-    <ol class="help-steps">
-      <li><b>进页面</b>　设置 › 实用功能 › 记一次充电。</li>
-      <li><b>记一次 / 补登</b>　「记一次」记下现在；漏了的那次点「补登」，把时间改成当时那天。</li>
-      <li><b>补充</b>　记录右侧「补充」里填时长（小时）、电量和电费；电费也能按账单拆成电费和服务费。</li>
-      <li><b>导截图</b>　底部「导入」可以直接选订单截图，本机认完先列出来逐条核，勾上的才记进去；标黄的照账单改。</li>
-      <li><b>备份</b>　「导出」存一个 JSON 文件，换手机用「导入」选回来，同一条不会变成两条。</li>
-    </ol>
-    <p class="help-body">
-      折线图里时长、电量、电费各一条线，用同一个比例；哪项没填就在那里断开。
-      点图右上角「筛选」，可以在时长、电量、总电费、电费、服务费里只勾想看的几项；
-      截图里认出电费和服务费的，累计和每条记录都分开写。记录只存这台设备，不上传。
-    </p>
+    <h3 class="help-sec">现在能做什么</h3>
+    <div class="gd-grid">
+      <a href="#gd-f1"><span>01</span>查询空位</a>
+      <a href="#gd-f2"><span>02</span>地图可视化</a>
+      <a href="#gd-f3"><span>03</span>一周回顾</a>
+      <a href="#gd-f4"><span>04</span>个性换肤</a>
+      <a href="#gd-f5"><span>05</span>一行一 / 两台</a>
+      <a href="#gd-f6"><span>06</span>天气提醒</a>
+      <a href="#gd-f7"><span>07</span>支付宝 / 微信扫码</a>
+      <a href="#gd-f8"><span>08</span>充电记录</a>
+      <a href="#gd-f9"><span>09</span>车牌黑名单</a>
+    </div>
 
-    <h3 class="help-sec">违规车牌登记</h3>
-    <ol class="help-steps">
-      <li><b>登记</b>　设置 › 实用功能 › 违规车牌登记，填车牌号，选事由和校区，点「提交登记」。</li>
-      <li><b>查询</b>　同一页输入车牌号点「查次数」，看近 180 天累计几次、最近一次是什么时候、都在哪些校区。</li>
-      <li><b>限额</b>　同一个车牌每天最多被登记 2 次，每台设备每天最多登记 5 次、查询 3 次，第二天恢复。记录保留 180 天。</li>
-    </ol>
-    <p class="help-body">
-      登记只写车牌、事由和校区，不传照片，也不做车牌清单公示。
-    </p>
+    <h3 class="help-sec"><span class="gd-no">?</span>常见问题</h3>
+    <dl class="gd-faq">
+      <dt>为什么一直加载不出来</dt>
+      <dd><b>校园网和手机流量换着用。</b>服务器在境外，校园网出口又是共用的，一条道堵了，换另一条通常立刻就好。问题出在服务器那头，不是你手机。</dd>
 
-    <h3 class="help-sec">卡住了怎么办</h3>
+      <dt>为什么查到的和现场不一样</dt>
+      <dd>多半是<span class="gd-hi">没刷新就开了地图</span>。地图读的是上一次的结果，所以你看到的是旧状态。查之前先点右上角刷新，进了地图再点地图右上角的刷新，那才是现在的样子。</dd>
+
+      <dt>充电记录一条条登记太慢</dt>
+      <dd>不用手打。记录页底部点 <span class="gd-path">导入</span>，选订单截图，<span class="gd-hi">本机自动识别</span>，一次能选好几张，认完逐条核对一下就行。</dd>
+
+      <dt>充电器被人拔了，能不能把对方的充电器扔掉</dt>
+      <dd><span class="gd-warn">不建议。</span>拔枪的原因可能很多：人家以为充满了、桩自己报错了、急着赶路，未必是故意。动手容易从占理变成担责，事情也没解决。<b>把车牌登记进黑名单</b>，让下一个来充电的人心里有数，比什么都管用。</dd>
+    </dl>
+
+    <h3 class="help-sec" id="gd-f1"><span class="gd-no">01</span>查询空位</h3>
+    <div class="gd-tip"><span class="t">先刷新</span>查之前<span class="gd-hi">一定要点右上角的「刷新」</span>；已经进了地图的，就点地图右上角的刷新图标。<b>不点的话，看到的可能还是上一次查到的状态。</b></div>
+    <p class="help-body">首页一张卡就是一台桩，卡里<span class="gd-hi">每个小方块是一个插座</span>：</p>
     <ul class="help-list">
-      <li>先换成手机流量：校园网出口共享，服务器在境外，绕一圈更慢</li>
-      <li>点「刷新」重查；等一两分钟再试，平台对密集查询有限流</li>
-      <li>转圈超过一分钟，群里说一声</li>
+      <li><span class="gd-sw is-free"></span><b>绿色「空闲」</b>，现在能插</li>
+      <li><span class="gd-sw is-busy"></span><b>红色「占用」</b>，有人在充</li>
+      <li><span class="gd-sw is-off"></span><b>灰色</b>，这台桩离线了，读不到状态</li>
+    </ul>
+    <p class="help-body">卡片顶上两个数：<b>空闲插座</b>、<b>共统计插座</b>。后面跟着时间，那是这次查询的时刻。</p>
+    <p class="help-body">页面顶部有两排胶囊。<span class="gd-em">第一排选校区，第二排是地址</span>，横着滑。</p>
+    <div class="gd-tip supp"><span class="t">排序</span>默认空位多的排前面。想按编号排，或者让收藏过的排前面，去 <span class="gd-path">设置 › 排序</span> 里换。</div>
+    <p class="help-body">状态是平台上报的，慢几十秒到一两分钟。有人刚把枪插上，你这边可能还显示空闲。</p>
+
+    <h3 class="help-sec" id="gd-f2"><span class="gd-no">02</span>地图可视化</h3>
+    <p class="help-body">地图上一片桩画一个圈。<b>绿圈</b>里的数字是这片还剩几个空位，<b>红圈打 ×</b> 就是满了。点圈进去，看这片里每台桩，楼名也标着。</p>
+    <p class="help-body">反着用也行。列表里看到某台桩，点卡片右上的定位图标，地图会直接把它标出来，不用自己找。</p>
+    <div class="gd-tip"><span class="t">加载慢</span>地图比列表费流量。校园网下一直转圈，换手机流量再开一次。</div>
+
+    <h3 class="help-sec" id="gd-f3"><span class="gd-no">03</span>一周回顾</h3>
+    <p class="help-body">想知道几点最挤，就看这里。比到了现场碰运气靠谱。</p>
+    <ol class="help-steps">
+      <li>首页点「一周回顾」。</li>
+      <li>右上角日期默认是七天平均，点开能选具体某一天。</li>
+      <li>下面选校区，再选地址。</li>
+    </ol>
+    <p class="help-body">每个小时一根柱子，柱子越高，这个点占用越多。再往下是七天乘二十四小时的热力图，<span class="gd-hi">颜色越深越挤</span>，哪天哪个时段最难找位，看颜色就够了。</p>
+    <div class="gd-tip"><span class="t">空格子</span>统计每小时采一次。碰上那一个小时有桩离线、数据不齐，这一格就空着，没拿估算值填。</div>
+
+    <h3 class="help-sec" id="gd-f4"><span class="gd-no">04</span>个性换肤</h3>
+    <p class="help-body">入口在 <span class="gd-path">设置 › 皮肤</span>。风格、材质、字体，三样各挑一个，能搭配出不少样子。</p>
+    <table class="gd-tbl">
+      <tr><th>维度</th><th>有哪些</th></tr>
+      <tr><td>风格</td><td>默认清爽、杂志编辑、森林麦穗、苔绿暖橙、奶油草绿（像素风）</td></tr>
+      <tr><td>材质</td><td>实色面板、透明磨砂、磨砂玻璃、桃雾莓光、深海冰晶</td></tr>
+      <tr><td>字体</td><td>系统黑体、衬线、等宽，几档可选</td></tr>
+    </table>
+    <p class="help-body">想恢复原样，风格和材质都选「默认」。手机开了深色模式，界面会自动变暗，不用另外设。</p>
+    <div class="gd-tip supp"><span class="t">只在本机</span>换肤、字体、一行两列这些，都只存在你这台手机上，换台设备看不到。</div>
+
+    <h3 class="help-sec" id="gd-f5"><span class="gd-no">05</span>一行显示一台 / 两台</h3>
+    <p class="help-body">进 <span class="gd-path">设置 › 显示方式</span>，勾上「一行显示两个充电桩」。<span class="gd-hi">一屏放得下的桩多一倍</span>，想先扫一遍哪个区有空，用这个快。</p>
+    <p class="help-body">代价是卡片变窄，地址要折成两行，桩号数字也小一点。看着挤就取消勾选。</p>
+
+    <h3 class="help-sec" id="gd-f6"><span class="gd-no">06</span>天气提醒</h3>
+    <p class="help-body"><span class="gd-hi">未来二十四小时</span>有雨、雪、冻雨或者雷暴，首页顶上会多一行字。出门前扫到，能少跑一趟。</p>
+    <p class="help-body">提醒是<span class="gd-em">按校区</span>查的，切了校区跟着换。不想看就进 <span class="gd-path">设置 › 天气提醒</span> 关掉，<b>关了之后连天气请求都不发</b>。</p>
+    <div class="gd-tip supp"><span class="t">手动查</span>同一个地方点一下能立刻查一次，还会写出为什么这么判，不用等它自己弹。</div>
+
+    <h3 class="help-sec" id="gd-f7"><span class="gd-no">07</span>支付宝 / 微信扫码</h3>
+    <p class="help-body">站在桩前面用。先到 <span class="gd-path">设置 › 扫码快捷按钮</span> 打开，首页右下角会冒出一个圆按钮。按住能拖到顺手的位置，下次打开还在那儿。</p>
+    <table class="gd-tbl">
+      <tr><th>平台</th><th>点下去会怎样</th></tr>
+      <tr><td>支付宝</td><td>直接跳到 <b>扫一扫</b>，摄像头就位，对着桩上的码扫就行。</td></tr>
+      <tr><td>微信</td><td>把微信叫到前台，然后点 <span class="gd-hi">右上角「+」→ 扫一扫</span>。微信没开放直达扫一扫的口子，这一步只能手点。</td></tr>
+    </table>
+    <p class="help-body">手机装了应用锁、要指纹或者面容的，跳过去会先停在解锁页，解开就继续。用完记得关掉，不然它会盖在地图和列表上面。</p>
+
+    <h3 class="help-sec" id="gd-f8"><span class="gd-no">08</span>充电记录</h3>
+    <p class="help-body">记每次充了多少电、花了多少钱，月底回头看，能知道自己这学期在充电上花了多少。入口是 <span class="gd-path">设置 › 实用功能 › 记一次充电</span>，整行点一下就进去。</p>
+    <h4 class="gd-h4">记一笔</h4>
+    <ul class="help-list">
+      <li><b>记一次</b>：记现在这次。</li>
+      <li><b>补登</b>：忘了记，把时间改成当时那天再存。</li>
+      <li><b>补充</b>：事后填时长（按小时）、电量、电费。账单上电费和服务费分开写的，也能拆成两栏填。</li>
+    </ul>
+    <h4 class="gd-h4">导订单截图</h4>
+    <p class="help-body">记录页底部点 <span class="gd-path">导入</span>，可以直接选订单截图，一次能选好几张。识别在本机做完，图片不上传。</p>
+    <p class="help-body">认完先列成清单，一条条核对。<span class="gd-hi">标黄的照账单改一下，没勾的不会记进去。</span></p>
+    <h4 class="gd-h4">看趋势</h4>
+    <p class="help-body">折线图上时长、电量、电费各一条。哪项没填，线就在那儿断开，<span class="gd-hi">不会硬连一条假线</span>。</p>
+    <p class="help-body">点右上 <span class="gd-path">筛选</span>，可以只勾想看的：时长、电量、总电费、电费、服务费。下面的累计也是分开算的。</p>
+    <div class="gd-tip bad"><span class="t">会丢</span>记录<span class="gd-hi">只在这台手机上</span>，不上传，也不跟账号绑。清缓存、换手机、卸载浏览器，记录就没了。隔段时间点 <span class="gd-path">导出</span> 存个文件；换机时用 <span class="gd-path">导入</span> 选回来，同一条不会变成两条。</div>
+
+    <h3 class="help-sec" id="gd-f9"><span class="gd-no">09</span>车牌黑名单</h3>
+    <p class="help-body">遇到<span class="gd-hi">乱拔充电器、乱停乱放</span>，登记一笔；也可以查一下它犯了几次。</p>
+    <p class="help-body">入口在 <span class="gd-path">设置 › 实用功能 › 违规车牌登记</span>。</p>
+    <h4 class="gd-h4">登记</h4>
+    <p class="help-body">填车牌号，事由选拔充电器、乱停或者其他，再选校区，点「提交登记」。</p>
+    <h4 class="gd-h4">查次数</h4>
+    <p class="help-body">输入车牌点「查次数」，能看到近 180 天被记了几次、最近一次是什么时候、都在哪些校区。</p>
+    <h4 class="gd-h4">每天有上限</h4>
+    <table class="gd-tbl">
+      <tr><th>项目</th><th>上限</th></tr>
+      <tr><td>同一个车牌</td><td>每天最多被登记 <b>2</b> 次</td></tr>
+      <tr><td>每台设备</td><td>每天最多登记 <b>5</b> 次、查询 <b>3</b> 次</td></tr>
+      <tr><td>记录保留</td><td><b>180</b> 天，到期自动清掉</td></tr>
+    </table>
+    <p class="help-body">额度第二天自己恢复，不用手动清。</p>
+    <div class="gd-tip"><span class="t">只记三样</span>车牌、事由、校区。不传照片，站内也不公示车牌清单，别人看不到你记过谁。</div>
+
+    <hr class="gd-sep">
+
+    <h3 class="help-sec"><span class="gd-no">!</span>数据是怎么来的</h3>
+    <table class="gd-tbl">
+      <tr><th>可能想问</th><th>答案</th></tr>
+      <tr><td>多久更新</td><td>列表和地图是现查；一周回顾每小时采一个点。</td></tr>
+      <tr><td>跟现场对不上</td><td>状态来自平台上报，慢几十秒到一两分钟。刚有人插上枪，这边可能还是绿的。</td></tr>
+      <tr><td>查着查着被挡</td><td>平台对密集查询有限流。一分钟里反复刷新可能暂时查不到，等一分钟再点。</td></tr>
+      <tr><td>灰色格子</td><td>那台桩离线了，设备或者运营商那边的问题，不是本站出错，也不计入空位。</td></tr>
+      <tr><td>要不要钱</td><td>不要。本站不接支付，充电按平台原价付。</td></tr>
+    </table>
+
+    <h3 class="help-sec"><span class="gd-no">※</span>其他问题</h3>
+    <dl class="gd-faq">
+      <dt>一片全红，是真满了吗</dt>
+      <dd>先看卡片上的时间。时间旧就点右上刷新重查。还是红，去地图换一片看。</dd>
+
+      <dt>一周回顾里有段是空的</dt>
+      <dd>那段时间这片桩里有设备离线，数据不齐，就没记。是故意留空的，不是漏了。</dd>
+
+      <dt>右下角的扫码按钮不见了</dt>
+      <dd>去 <span class="gd-path">设置 › 扫码快捷按钮</span> 重新打开。也可能被拖到屏幕边上去了，拖回来就行。</dd>
+
+      <dt>桩位标错，或者新装、拆了桩</dt>
+      <dd>说一声，联系方式在下面。</dd>
+    </dl>
+
+    <h3 class="help-sec"><span class="gd-no">✉</span>反馈</h3>
+    <p class="help-body">桩位标错、新装拆桩、想加点什么，都可以说：</p>
+    <ul class="help-list">
+      <li>QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" data-qq-open><b>1128669064</b></a></li>
+      <li>邮箱 <a href="mailto:2742973313@qq.com" class="foot-link"><b>2742973313@qq.com</b></a></li>
+      <li>代码 <a href="https://github.com/Qishihe/longsong-chd-charger" target="_blank" rel="noopener noreferrer" class="foot-link">github.com/Qishihe/longsong-chd-charger</a></li>
     </ul>
 
-    <h3 class="help-sec">反馈</h3>
-    <p class="help-body" style="margin-bottom:0">
-      桩位标错、新装或拆了桩，都欢迎说一声。<br>
-      QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" data-qq-open>1128669064</a>
-      　邮箱 <a href="mailto:2742973313@qq.com" class="foot-link">2742973313@qq.com</a>
-    </p>
-
-    <h3 class="help-sec">开源</h3>
-    <p class="help-body" style="margin-bottom:0">
-      代码：<a href="https://github.com/Qishihe/longsong-chd-charger" target="_blank" rel="noopener noreferrer" class="foot-link">github.com/Qishihe/longsong-chd-charger</a>。
-    </p>
-
     <div class="row">
-      <a class="icon-btn" href="guide" style="flex:1; justify-content:center">完整版说明</a>
+      <a class="icon-btn" href="guide" style="flex:1; justify-content:center">单独一页打开</a>
       <button class="icon-btn primary" data-close style="flex:1; justify-content:center">知道了</button>
     </div>
   </div>
@@ -14618,6 +14791,20 @@ document.querySelectorAll('[data-close]').forEach((btn) => {
   trigger.addEventListener('click', () => {
     if (typeof dlg.showModal === 'function') dlg.showModal();
     else dlg.setAttribute('open', '');
+    // v3.21：弹窗变长文，每次打开都从头读，别停在上次看的位置
+    dlg.scrollTop = 0;
+  });
+
+  // v3.21：顶部 9 项目录点了直接滚到对应小节。
+  // 故意不用原生 #hash 跳转：一来会改地址栏，二来 dialog 里的锚点行为各家不一致。
+  dlg.addEventListener('click', (event) => {
+    const link = event.target.closest && event.target.closest('.gd-grid a');
+    if (!link) return;
+    const id = (link.getAttribute('href') || '').replace(/^#/, '');
+    const dest = id && dlg.querySelector('#' + id);
+    if (!dest) return;
+    event.preventDefault();
+    dest.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 })();
 

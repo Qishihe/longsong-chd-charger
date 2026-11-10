@@ -845,13 +845,22 @@ const RETIRED_PREFIX = ['/redesign/'];
  * 🔴 绑定缺失时全部端点优雅降级（不是崩站）：config 回 enabled:false，
  *    其余回 503 plate_disabled。控制台配好 PLATE_DB + 两个 secret 后自动生效，
  *    首次请求用 DDL 惰性建表，不需要手工跑 SQL。
+ *
+ * 🔴 防刷爆两道硬闸门（免费额度是账号级共享，刷爆会拖死同账号的快照站）：
+ *    每日上限 PLATE_GLOBAL_LIMIT —— 全站每天最多登记几条，plate_quota 原子扣次；
+ *    全部上限 PLATE_TOTAL_CAP   —— reports 明细总行数硬顶，写之前先判，满了就不写。
+ *    总量不能每次 SELECT COUNT(*)：18 万行扫一次就是 18 万行读，2000 次/天
+ *    会把 D1 免费版的行读额度直接扫穿。所以用 plate_meta 单行计数器，
+ *    登记 +1 / 撤销 -N / 清理 -N；只有触顶时才用真实 COUNT 自校正一次
+ *    （计数器若因运维手工删库而虚高，这一次也能自愈，不会误拒）。
  */
 const PLATE_WINDOW_DAYS = 180;
 const PLATE_QUERY_DAYS = 90;
 const PLATE_PER_DAY = 2;          // 每个车牌每天最多被登记几次
 const PLATE_REPORT_LIMIT = 5;     // 每个设备每天最多登记几次（挡扫不同车牌刷库）
 const PLATE_QUERY_LIMIT = 3;      // 每个设备每天最多查几次（不累计，日切归零）
-const PLATE_GLOBAL_LIMIT = 2000;  // 全站每天登记熔断，保护账号级共享的 D1 额度
+const PLATE_GLOBAL_LIMIT = 2000;  // 每日上限：全站每天最多登记几条
+const PLATE_TOTAL_CAP = 200000;   // 全部上限：明细总行数硬顶（约 20MB，远低于 5GB）
 const PLATE_MONTHS_KEEP = 7;      // 月汇总最多保留几个自然月
 const PLATE_CAMPUSES = ['weishui', 'beiyuan', 'yanta', 'xiaozhai'];
 const PLATE_REASONS = ['pull', 'park', 'other'];
@@ -881,6 +890,8 @@ const PLATE_DDL = [
   'CREATE TABLE IF NOT EXISTS plate_quota('
     + 'scope TEXT, key TEXT, day TEXT, used INTEGER DEFAULT 0,'
     + ' PRIMARY KEY(scope, key, day))',
+  'CREATE TABLE IF NOT EXISTS plate_meta('
+    + 'key TEXT PRIMARY KEY, val INTEGER NOT NULL DEFAULT 0)',
   'CREATE TABLE IF NOT EXISTS plate_audit('
     + 'id INTEGER PRIMARY KEY AUTOINCREMENT, at INTEGER, action TEXT, plate_hash TEXT, who TEXT)',
 ];
@@ -893,6 +904,11 @@ function plateEnvReady(env) {
 async function plateInit(db) {
   if (plateSchemaReady) return;
   await db.batch(PLATE_DDL.map((sql) => db.prepare(sql)));
+  /* 计数器补种只发生在首次建表 / 新 isolate：老库升级时用真实行数起跳，
+     以后全靠登记 +1、撤销 -N、清理 -N 维护，不再全表 COUNT。 */
+  await db.prepare(
+    'INSERT OR IGNORE INTO plate_meta(key,val) VALUES(?, (SELECT COUNT(*) FROM reports))')
+    .bind('rows').run();
   plateSchemaReady = true;
 }
 
@@ -981,9 +997,14 @@ async function plateQuota(db, scope, key, day, limit) {
    所以两者各自清理也不会对不上。 */
 async function plateCleanup(db, now) {
   const cutoff = now - PLATE_WINDOW_DAYS * 86400000;
-  await db.prepare(
+  const del = await db.prepare(
     'DELETE FROM reports WHERE id IN (SELECT id FROM reports WHERE at<? LIMIT 200)')
     .bind(cutoff).run();
+  const gone = Number(del && del.meta && del.meta.changes) || 0;
+  if (gone) {
+    await db.prepare("UPDATE plate_meta SET val=MAX(0,val-?) WHERE key='rows'")
+      .bind(gone).run();
+  }
   const d = new Date(now + 8 * 3600000);
   d.setUTCDate(1);
   d.setUTCMonth(d.getUTCMonth() - (PLATE_MONTHS_KEEP - 1));
@@ -991,6 +1012,21 @@ async function plateCleanup(db, now) {
   await db.prepare('DELETE FROM plate_month WHERE ym<?').bind(oldest).run();
   await db.prepare('DELETE FROM plate_month_campus WHERE ym<?').bind(oldest).run();
   await db.prepare('DELETE FROM plate_quota WHERE day<?').bind(plateDay(cutoff)).run();
+}
+
+/* 总量闸门：正常路径只读一行计数器，不碰明细表。触顶才做两件贵的事 ——
+   强制清一次 180 天前的记录，再用真实 COUNT 复核并自校正
+   （计数器虚高时自愈，不会因为运维手工删库就一直误拒）。 */
+async function plateRows(db) {
+  const v = await db.prepare("SELECT val FROM plate_meta WHERE key='rows'").first('val');
+  return Number(v || 0);
+}
+async function plateCapGuard(db, now) {
+  if ((await plateRows(db)) < PLATE_TOTAL_CAP) return true;
+  await plateCleanup(db, now);
+  const n = Number(await db.prepare('SELECT COUNT(*) AS n FROM reports').first('n') || 0);
+  await db.prepare("UPDATE plate_meta SET val=? WHERE key='rows'").bind(n).run();
+  return n < PLATE_TOTAL_CAP;
 }
 
 function plateConfig(env) {
@@ -1001,6 +1037,8 @@ function plateConfig(env) {
     queryDays: PLATE_QUERY_DAYS,
     maxPerDay: PLATE_PER_DAY,
     queryLimit: PLATE_QUERY_LIMIT,
+    dailyCap: PLATE_GLOBAL_LIMIT,
+    totalCap: PLATE_TOTAL_CAP,
     campuses: PLATE_CAMPUSES.map((k) => ({ key: k, name: PLATE_CAMPUS_NAME[k] })),
     reasons: PLATE_REASONS.map((k) => ({ key: k, name: PLATE_REASON_NAME[k] })),
   };
@@ -1073,6 +1111,10 @@ async function plateReport(request, env) {
   const sh = await plateSrcHash(request, env, src);
   const ph = await plateHmac(plate, env.PLATE_HMAC_KEY);
 
+  /* 全部上限先判：库满了直接拒，连额度都不扣，更不会往 D1 写一行。 */
+  if (!(await plateCapGuard(db, now))) {
+    return json({ ok: false, error: 'storage_cap' }, 429);
+  }
   if (!(await plateQuota(db, 'global', day, day, PLATE_GLOBAL_LIMIT))) {
     return json({ ok: false, error: 'global_limit' }, 429);
   }
@@ -1120,6 +1162,7 @@ async function plateReport(request, env) {
       .bind(ph, ym, campus),
     db.prepare('INSERT INTO plate_audit(at,action,plate_hash,who) VALUES(?,?,?,?)')
       .bind(now, 'report', ph, sh.slice(0, 16)),
+    db.prepare("UPDATE plate_meta SET val=val+1 WHERE key='rows'"),
   ]);
 
   if (Math.random() < 0.05) await plateCleanup(db, now);
@@ -1238,6 +1281,8 @@ async function plateRevoke(request, env) {
       .bind(removed, ph),
     db.prepare('INSERT INTO plate_audit(at,action,plate_hash,who) VALUES(?,?,?,?)')
       .bind(Date.now(), 'revoke', ph, 'admin'),
+    db.prepare("UPDATE plate_meta SET val=MAX(0,val-?) WHERE key='rows'")
+      .bind(removed),
   ];
   Object.keys(perCampus).forEach((c) => {
     stmts.push(db.prepare(

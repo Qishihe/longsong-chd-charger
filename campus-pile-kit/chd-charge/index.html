@@ -13754,6 +13754,7 @@ SET_ENTRIES.forEach((e) => {
     if (e === 'daily_full') return '今天已达上限，明天再来。';
     if (e === 'duplicate') return '这台设备今天已经登记过这个车牌了。';
     if (e === 'report_limit' || e === 'global_limit') return '今天登记太多了，明天再来。';
+    if (e === 'storage_cap') return '登记的车太多了，等旧记录清理后再试。';
     if (e === 'query_limit') return '今天查询次数用完了，明天再来。';
     if (e === 'bad_plate') return '车牌号看起来不对，检查一下。';
     if (e === 'bad_campus' || e === 'bad_reason') return '选项没选对，重选一下。';

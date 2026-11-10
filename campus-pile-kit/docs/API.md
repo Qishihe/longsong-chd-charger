@@ -17,7 +17,7 @@
 | 401 | `bad_token` | 管理员口令不对，或不是同源请求 |
 | 405 | `method_not_allowed` | 方法不对 |
 | 409 | `duplicate` | 同设备同日同车牌重复登记 |
-| 429 | `daily_full` / `report_limit` / `query_limit` / `global_limit` | 当日额度已满 |
+| 429 | `daily_full` / `report_limit` / `query_limit` / `global_limit` / `storage_cap` | 当日额度已满，或库内明细总量触顶 |
 | 503 | `plate_disabled` | D1 绑定或 secret 未配置 |
 | 404 | `not_found` | 其余路径 |
 
@@ -44,6 +44,8 @@
 | 记录保留窗口 | 180 天 | `reports` 明细惰性清理；月汇总保留最近 7 个自然月 |
 | 普通查询统计段 | 90 天滚动 | `GET /api/plate?q=` 的 `count` 与登记回显的 N |
 | 排行榜 | 自然月 `YYYY-MM` | 管理员按月份 + 校区筛选 |
+| 每日登记上限 | 2000 条 | 全站当天总数，超限 `global_limit`，日切归零 |
+| 明细总量上限 | 200000 行 | 库内 `reports` 行数硬顶，超限 `storage_cap`，不再写库 |
 
 车牌在库里只有 `plate_hash = HMAC(normalize(plate), PLATE_HMAC_KEY)` 和
 `plate_enc`（AES-GCM 密文，随机 IV），**明文只在管理员月榜接口临时解密返回**。
@@ -61,6 +63,8 @@
   "queryDays": 90,
   "maxPerDay": 2,
   "queryLimit": 3,
+  "dailyCap": 2000,
+  "totalCap": 200000,
   "campuses": [{"key": "weishui", "name": "渭水"}],
   "reasons": [{"key": "pull", "name": "拔充电器"}]
 }
@@ -91,9 +95,25 @@
 - `campus` ∈ `weishui` / `beiyuan` / `yanta` / `xiaozhai`，服务端白名单校验
 - 成功：`{"ok": true, "total": 3, "queryDays": 90}`，`total` 是近 90 天次数
 
-限额：**每个车牌每天最多被登记 2 次**（按 `plate_hash + day` 全局计，
-不按校区分桶，否则换校区即可翻 4 倍额度）；每台设备每天最多登记 5 次；
-全站每天登记熔断 2000 次。同设备同日同车牌由唯一索引幂等，不重复扣额度。
+### 限额与两道硬闸门
+
+免费额度是**账号级共享**的，车牌 D1 被刷爆会连带拖慢同账号的快照站查桩，
+所以写入口有两道独立闸门，都在写库之前判定：
+
+| 闸门 | 值 | 触发时 |
+|---|---|---|
+| 每车牌每天 | 2 次 | `429 daily_full` |
+| 每设备每天 | 登记 5 / 查询 3 次 | `429 report_limit` / `query_limit` |
+| **每日上限** | 全站 2000 条 | `429 global_limit`，日切归零 |
+| **全部上限** | 明细 200000 行 | `429 storage_cap`，不扣额度、不写一行 |
+
+每车牌 2 次按 `plate_hash + day` 全局计，不按校区分桶（否则换校区即可翻 4 倍额度）；
+同设备同日同车牌由唯一索引幂等，不重复扣额度。
+
+🔴 总量**不能每次 `SELECT COUNT(*)`**：18 万行扫一次就是 18 万行读，按每天
+2000 次登记会把 D1 免费版的行读额度直接扫穿。所以用 `plate_meta` 单行计数器，
+登记 +1、撤销 −N、清理 −N 维护；只有触顶时才强制清一次 180 天前的记录，
+再用真实 COUNT 复核并自校正（计数器虚高时自愈，不会一直误拒）。
 
 不支持、也不接受证据图片上传。
 
@@ -146,6 +166,7 @@
 | `plate_month` | 按自然月预汇总，供月榜索引扫描 |
 | `plate_month_campus` | 按自然月 + 校区预汇总，供筛选 |
 | `plate_quota` | 原子扣次（scope / key / day），不累计 |
+| `plate_meta` | 明细总行数计数器，供总量闸门 O(1) 判定 |
 | `plate_audit` | 登记 / 月榜查看 / 撤销留痕 |
 
 90 天次数、当天已登记几次、按校区分布都从 `reports` 现算，
@@ -163,4 +184,5 @@
 3. 打开 `/api/ping` 确认 `enabled: true`（或 `GET /api/plate` 看 `enabled`）。
 
 免费额度是**账号级共享**：车牌功能被刷到 D1 超额会连带拖慢同账号的快照站
-查桩主功能，建议把这块放独立 CF 账号，或至少靠 `global_limit` 熔断兜底。
+查桩主功能，建议把这块放独立 CF 账号。代码侧已有「每日 2000 条 / 总量 20 万行」
+两道硬闸门兜底，见上文「限额与两道硬闸门」。

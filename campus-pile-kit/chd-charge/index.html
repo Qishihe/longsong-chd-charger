@@ -1010,6 +1010,38 @@
   /* v2.83：文案精简后有些 note 会被清空（凭证副标、各类状态行），
      空 div 仍带着 margin-top:10px，看着像漏了一块。空就整块收掉。 */
   .note:empty{display:none}
+  /* v3.20 违规车牌登记：两个弹窗共用这一组样式，类名一律 plate- 前缀。
+     浅底淡档的字用 --free-deep，别配 --on-accent（默认皮肤它是纯白）。 */
+  .plate-box{border:1px solid var(--line); border-radius:12px; padding:12px; margin-top:10px; background:var(--card)}
+  .plate-box h3{font-size:13px; font-weight:600; margin:0 0 4px; color:var(--text)}
+  .plate-fld{display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; align-items:stretch}
+  .plate-fld > *{flex:1; min-width:104px}
+  .plate-fld select, .plate-rank-bar select{
+    width:100%; font:inherit; font-size:13px; padding:9px 10px;
+    border:1px solid var(--line-strong); border-radius:9px;
+    background:var(--input-bg); color:var(--text); -webkit-appearance:none;
+  }
+  .plate-result{margin-top:10px; padding:10px 12px; border-radius:10px;
+    background:var(--free-soft); border:1px solid var(--free-line);
+    font-size:13px; color:var(--free-deep); line-height:1.6; white-space:pre-line}
+  .plate-result[hidden], .plate-box[hidden], #plate-on[hidden]{display:none}
+  .plate-off{margin-top:10px; padding:10px 12px; border-radius:10px;
+    background:var(--card); border:1px solid var(--line); font-size:12.5px;
+    color:var(--muted); line-height:1.6}
+  .plate-off[hidden]{display:none}
+  .plate-note{font-size:11.5px; color:var(--hint); line-height:1.6; margin-top:10px}
+  .plate-rank-bar{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:4px}
+  .plate-rank-bar > *{flex:1; min-width:108px}
+  .plate-rank-bar .icon-btn{flex:none; min-width:64px}
+  .plate-rank-list{max-height:52vh; overflow-y:auto; margin-top:10px}
+  .plate-rank-row{display:flex; align-items:center; gap:8px; padding:9px 0;
+    border-bottom:1px solid var(--line); font-size:12.5px; color:var(--text)}
+  .plate-rank-row .p{flex:1; min-width:0; font-variant-numeric:tabular-nums;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .plate-rank-row .n{flex:none; font-weight:600}
+  .plate-rank-row .icon-btn{flex:none; padding:5px 9px; font-size:11.5px}
+  .plate-tag{font-size:10.5px; color:var(--hint); border:1px solid var(--line);
+    border-radius:999px; padding:1px 6px; white-space:nowrap}
   /* 充满要多久（v2.91）：管理员后台 › 工具里的独立估算器。
      纯本地乘法 —— 不读 cpk.cache、不发请求、跟那 200 台桩没有任何关系。 */
   .est-card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 14px}
@@ -1866,7 +1898,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v3.19</div>
+    <div id="app-ver" class="foot-ver">版本 v3.20</div>
   </footer>
 </div>
 
@@ -2146,6 +2178,14 @@
         <span class="set-val" id="set-charge-val">还没记过</span>
         <span class="set-caret" aria-hidden="true"></span>
       </button>
+      <!-- 违规车牌登记（v3.20）：登记与查询放同一页，纯前端表单，数据走 /api/plate/*。
+           右侧值由 plateOpenCfg() 按服务端 config 写：没配绑定时显示「暂未开放」。 -->
+      <button class="set-row" type="button" id="set-plate-btn">
+        <span class="set-ico" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.8" y="4.4" width="12.4" height="7.2" rx="1.6"/><path d="M4.2 4.4V3.1h7.6v1.3M4.6 8.2h6.8M4.6 10.1h4"/><circle cx="12.2" cy="8.2" r=".6" fill="currentColor" stroke="none"/></svg></span>
+        <span class="set-txt">违规车牌登记</span>
+        <span class="set-val" id="set-plate-val">查询 / 登记</span>
+        <span class="set-caret" aria-hidden="true"></span>
+      </button>
     </div>
 
     <div class="set-sec">管理员</div>
@@ -2178,6 +2218,14 @@
         <span class="set-txt">管理员后台</span>
         <span class="set-caret" aria-hidden="true"></span>
       </button>
+      <!-- v3.20 违规排行榜：入口藏在管理员分组，且只在解锁后显示。
+           🔴 这只是 UI 显隐，真正的安全边界在服务端 /api/admin/plate/rank
+              的 x-admin-token 校验 —— 打开弹窗还要再输一次写口令。 -->
+      <button class="set-row" type="button" id="set-plate-rank-btn" hidden>
+        <span class="set-ico" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 12.4h10.8M4.2 12.4V8.1M7.3 12.4V4.4M10.4 12.4V6.6M13.4 12.4V9.6"/></svg></span>
+        <span class="set-txt">违规排行榜</span>
+        <span class="set-caret" aria-hidden="true"></span>
+      </button>
     </div>
 
     <!-- v2.59：开发者与致谢名单的入口搬到设置里（首页副标题不再挂链接）。
@@ -2198,6 +2246,61 @@
         <span class="set-caret" aria-hidden="true"></span>
       </button>
     </div>
+  </div>
+</dialog>
+
+<!-- 违规车牌登记（v3.20）。登记与查询同页，服务端没配好绑定时只显示一句说明，
+     不让人白填一通。id 一律 plate- 前缀，别撞充电记录的 chg-* / clog-*。 -->
+<dialog id="dlg-plate" class="sub-dlg" aria-label="违规车牌登记">
+  <div class="dlg-body">
+    <div class="dlg-head">
+      <h2>违规车牌登记</h2>
+      <button class="x-btn" data-close aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+    </div>
+    <p class="note" style="margin-top:0">拔充电器、乱停、其他情况都可以登记。只按车牌精确查次数，不做车牌清单公示。</p>
+    <div class="plate-off" id="plate-off" hidden>这个功能还没开放：服务端还没接好数据库。先等等，开放后这里会直接变成登记和查询。</div>
+    <div id="plate-on">
+      <div class="plate-box">
+        <h3>登记</h3>
+        <div class="plate-fld">
+          <input type="text" id="plate-input" placeholder="车牌号" maxlength="10" autocomplete="off">
+          <select id="plate-reason" aria-label="事由"></select>
+          <select id="plate-campus" aria-label="校区"></select>
+        </div>
+        <div class="row"><button class="icon-btn primary" id="plate-submit">提交登记</button></div>
+        <div class="plate-result" id="plate-report-result" hidden></div>
+      </div>
+      <div class="plate-box">
+        <h3>查询</h3>
+        <div class="plate-fld">
+          <input type="text" id="plate-query-input" placeholder="车牌号" maxlength="10" autocomplete="off">
+          <button class="icon-btn" id="plate-query-btn">查次数</button>
+        </div>
+        <div class="plate-result" id="plate-query-result" hidden></div>
+      </div>
+      <p class="plate-note" id="plate-note">次数只统计近 90 天，记录保留 180 天。同一个车牌每天最多被登记 2 次，每台设备每天最多登记 5 次、查询 3 次，第二天自动恢复。登记会记下车牌、事由、校区和时间，管理员能看按月汇总，不上传照片；请只填与充电位有关的情况。</p>
+    </div>
+  </div>
+</dialog>
+
+<!-- 违规排行榜（v3.20）：入口在设置 › 管理员，按月 + 按校区筛选。
+     🔴 写口令只在这个弹窗里用一次，输入框提交后立即清空，绝不落盘。 -->
+<dialog id="dlg-plate-rank" class="sub-dlg" aria-label="违规排行榜">
+  <div class="dlg-body">
+    <div class="dlg-head">
+      <h2>违规排行榜</h2>
+      <button class="x-btn" data-close aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+    </div>
+    <div class="plate-rank-bar">
+      <select id="plate-rank-ym" aria-label="月份"></select>
+      <select id="plate-rank-campus" aria-label="校区"></select>
+      <button class="icon-btn" id="plate-rank-load">查看</button>
+    </div>
+    <div class="plate-fld">
+      <input type="password" id="plate-rank-token" placeholder="写口令" autocomplete="off">
+    </div>
+    <div class="plate-note" id="plate-rank-note">每张榜单只取前 20 名；月份由 180 天保留窗口决定，最早那个月可能不完整。看一次会记一条审计。</div>
+    <div class="plate-rank-list" id="plate-rank-list"></div>
   </div>
 </dialog>
 
@@ -2940,6 +3043,17 @@
       折线图里时长、电量、电费各一条线，用同一个比例；哪项没填就在那里断开。
       点图右上角「筛选」，可以在时长、电量、总电费、电费、服务费里只勾想看的几项；
       截图里认出电费和服务费的，累计和每条记录都分开写。记录只存这台设备，不上传。
+    </p>
+
+    <h3 class="help-sec">违规车牌登记</h3>
+    <ol class="help-steps">
+      <li><b>登记</b>　设置 › 实用功能 › 违规车牌登记，填车牌号，选事由和校区，点「提交登记」。</li>
+      <li><b>查询</b>　同一页输入车牌号点「查次数」，看近 90 天累计几次、最近一次是什么时候、都在哪些校区。</li>
+      <li><b>限额</b>　同一个车牌每天最多被登记 2 次，每台设备每天最多登记 5 次、查询 3 次，第二天恢复。记录保留 180 天。</li>
+    </ol>
+    <p class="help-body">
+      登记只写车牌、事由和校区，不传照片，也不做车牌清单公示。
+      管理员后台里另有按月排行榜，可以按月份和校区筛选，也能撤销某辆车某个月的全部登记。
     </p>
 
     <h3 class="help-sec">卡住了怎么办</h3>
@@ -10379,6 +10493,8 @@ function openSettingsDialog() {
   $('settings-note').textContent = '';
   paintDevicesCloudState();
   paintCloudState();
+  /* v3.20：解锁成功后会重开设置页，这里顺手把管理员专属的排行榜行放出来 */
+  if (typeof window.plateSyncAdminRow === 'function') window.plateSyncAdminRow();
   $('settings-dialog').showModal();
 }
 
@@ -10393,7 +10509,8 @@ function openSettingsDialog() {
       不是「这块昨天变过、今天又变了」的流水账。 */
 const CHANGELOG = [
   /* 🔴 公告按「每 0.1 级一组」归档，不许跨级：open 组永远从当前 0.1 级的起点写起
-     （页脚 v3.19 → from:'v3.10'），涨到 v3.20 就要把 v3.10–v3.19 封口、另开一条。
+     （页脚 v3.20 → from:'v3.20'）。2026-11-10 已把 v3.10–v3.19 封口成定稿组，
+     另开 v3.20–v3.29 这一组；下次涨到 v3.30 再照这个规矩封一次。
      2026-11-08 v3.17 重切：原来 open 组从 v2.90 一直挂到 v3.16，横跨 2.9x / 3.0x / 3.1x
      三级 —— 这正是「每 0.1 合并一版」被反复提醒的原因。现在封口成
      v3.10–当前(open) / v3.00–v3.09 / v2.90–v2.99，更早的区间原样不动。
@@ -10401,7 +10518,13 @@ const CHANGELOG = [
      🔴 同一件事只写一条，改了行为就原地改写描述，不另起流水账；单条 ≤200 字。
      只写用户看得见的变化：测试版入口、赞赏码措辞、密钥放哪、Worker/接口一律不进。
      _check_chg_merge 会按页脚版本动态校验「每个 0.1 级恰好一组」。 */
-  { from: 'v3.10', d: '2026-11-07 ~ 11-08', items: [
+  { from: 'v3.20', d: '2026-11-10', items: [
+    '设置里多了「违规车牌登记」：填车牌号、选事由和校区就能登记一次，回显这个车牌近 90 天累计几次；'
+      + '也能只按车牌查次数，顺带看到都在哪些校区。同一个车牌每天最多被登记 2 次，记录保留 180 天',
+    '管理员后台里多了按月排行榜：选月份、选校区看当月登记最多的前 20 个车牌，'
+      + '每行能一键撤销那辆车这个月的全部登记。看榜单要再输一次写口令，每次查看都留记录',
+  ] },
+  { v: 'v3.10 – v3.19', d: '2026-11-07 ~ 11-08', items: [
     /* v3.10 补登过去 / v3.11 按钮并排与时长填小时 / v3.12 整行入口 / v3.13 实用功能栏
        —— 都是「充电记录更好找、更好填」这一件事，压成一条，不按小版本各写一句。 */
     '充电记录里漏掉的那次也能补登了：把时间改成当时那天，填上充了多久和多少电，'
@@ -10700,6 +10823,10 @@ const SET_ENTRIES = [
   /* 扫码快捷按钮（v2.94）：开关/品牌/位置都在弹窗里，静态 DOM，打开时得按当前配置
      重新铺一遍（onOpen 在 showModal **前**触发，够了）。 */
   { btn: 'set-fab-btn', dlg: 'dlg-fab', onOpen: () => fabOpenDlg() },
+  /* v3.20 违规车牌登记：打开时拉一次服务端 config（绑定没配好就显示「暂未开放」）。
+     🔴 充电记录那一行走的是 L13508 的独立绑定，不进 SET_ENTRIES，别照抄。 */
+  { btn: 'set-plate-btn', dlg: 'dlg-plate', focus: 'plate-input', onOpen: () => { window.plateOpenCfg(); } },
+  { btn: 'set-plate-rank-btn', dlg: 'dlg-plate-rank', onOpen: () => { window.plateOpenRank(); } },
 ];
 
 /* ── 充满要多久（v2.91）────────────────────────────────────────
@@ -13527,6 +13654,288 @@ SET_ENTRIES.forEach((e) => {
     if (e.focus) setTimeout(() => { const el = $(e.focus); if (el) el.focus(); }, 60);
   });
 });
+
+/* ── 违规车牌登记（v3.20）────────────────────────────────────────
+   三套口径全由服务端 config 给：windowDays=180 是记录保留、queryDays=90 是查询
+   统计段、排行榜按自然月切。前端只管表单与展示，不做任何计数或本地缓存。
+   🔴 设备票据只存本机 localStorage，用来做「同设备同日去重」，不是账号也不是身份；
+      服务端只收它的 HMAC 值。写口令只在排行榜弹窗内存里留到关闭，绝不落盘。 */
+(function () {
+  const KEY_SRC = 'cpk.plate.src';
+  const API = '/api/plate';
+  const API_REPORT = '/api/plate/report';
+  const API_RANK = '/api/admin/plate/rank';
+  const API_REVOKE = '/api/admin/plate/revoke';
+  const CAMPUS_NAMES = { weishui: '渭水', beiyuan: '北院', yanta: '雁塔', xiaozhai: '小寨' };
+  let cfg = null;
+  let rankToken = '';
+  let rankYm = '';
+  let rankCampus = '';
+
+  function ticket() {
+    let v = '';
+    try { v = localStorage.getItem(KEY_SRC) || ''; } catch (e) { /* 无痕模式 */ }
+    if (!v) {
+      const a = new Uint8Array(16);
+      crypto.getRandomValues(a);
+      v = Array.prototype.map.call(a, (x) => x.toString(16).padStart(2, '0')).join('');
+      try { localStorage.setItem(KEY_SRC, v); } catch (e) { /* 存不下就本次会话用 */ }
+    }
+    return v;
+  }
+
+  function opts(list, allLabel) {
+    let s = allLabel ? '<option value="">' + escapeHtml(allLabel) + '</option>' : '';
+    (list || []).forEach((x) => {
+      s += '<option value="' + escapeHtml(x.key) + '">' + escapeHtml(x.name) + '</option>';
+    });
+    return s;
+  }
+  function text(id, v) { const el = $(id); if (el) el.textContent = v; }
+  function result(id, v) {
+    const el = $(id);
+    if (!el) return;
+    el.hidden = !v;
+    el.textContent = v || '';
+  }
+  function beijingYm() {
+    return new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 7);
+  }
+
+  window.plateSyncAdminRow = function () {
+    const b = $('set-plate-rank-btn');
+    if (b) b.hidden = sessionStorage.getItem('cpk.unlocked') !== '1';
+  };
+
+  function paintCfg() {
+    const enabled = !!(cfg && cfg.enabled);
+    const on = $('plate-on'), off = $('plate-off');
+    if (on) on.hidden = !enabled;
+    if (off) off.hidden = enabled;
+    text('set-plate-val', enabled ? '查询 / 登记' : '暂未开放');
+    const rs = $('plate-reason'), cs = $('plate-campus');
+    if (rs) rs.innerHTML = opts(cfg && cfg.reasons);
+    if (cs) {
+      cs.innerHTML = opts(cfg && cfg.campuses);
+      let cur = '';
+      try { cur = getCampus(); } catch (e) { /* 取不到就默认 */ }
+      const keys = ((cfg && cfg.campuses) || []).map((x) => x.key);
+      cs.value = keys.indexOf(cur) >= 0 ? cur : 'weishui';
+    }
+    if (cfg && cfg.queryDays) {
+      text('plate-note', '次数只统计近 ' + cfg.queryDays + ' 天，记录保留 ' + cfg.windowDays
+        + ' 天。同一个车牌每天最多被登记 ' + cfg.maxPerDay + ' 次，每台设备每天最多查询 '
+        + cfg.queryLimit + ' 次，第二天自动恢复。登记只记车牌、事由和校区，不上传照片。');
+    }
+    const rk = $('plate-rank-campus');
+    if (rk) rk.innerHTML = opts(cfg && cfg.campuses, '全部校区');
+  }
+
+  async function loadCfg() {
+    try {
+      const r = await fetch(API, { cache: 'no-store' });
+      cfg = await r.json();
+    } catch (e) {
+      cfg = { ok: false, enabled: false, windowDays: 180, queryDays: 90,
+        maxPerDay: 2, queryLimit: 3, campuses: [], reasons: [] };
+    }
+    paintCfg();
+  }
+
+  window.plateOpenCfg = function () {
+    result('plate-report-result', '');
+    result('plate-query-result', '');
+    window.plateSyncAdminRow();
+    loadCfg();
+  };
+
+  function errText(d) {
+    const e = (d && d.error) || '';
+    if (e === 'daily_full') return '今天已达上限，明天再来。';
+    if (e === 'duplicate') return '这台设备今天已经登记过这个车牌了。';
+    if (e === 'report_limit' || e === 'global_limit') return '今天登记太多了，明天再来。';
+    if (e === 'query_limit') return '今天查询次数用完了，明天再来。';
+    if (e === 'bad_plate') return '车牌号看起来不对，检查一下。';
+    if (e === 'bad_campus' || e === 'bad_reason') return '选项没选对，重选一下。';
+    if (e === 'plate_disabled') return '这个功能还没开放。';
+    return '没成功，稍后再试。';
+  }
+
+  $('plate-submit').addEventListener('click', async () => {
+    const plate = (($('plate-input') || {}).value || '').trim();
+    if (!plate) { showToast('先填车牌号'); return; }
+    const btn = $('plate-submit');
+    btn.disabled = true;
+    try {
+      const r = await fetch(API_REPORT, {
+        method: 'POST', cache: 'no-store',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          plate, reason: $('plate-reason').value, campus: $('plate-campus').value,
+          src: ticket(),
+        }),
+      });
+      const d = await r.json();
+      result('plate-report-result', d && d.ok
+        ? '已登记，该车累计 ' + d.total + ' 次'
+        : errText(d));
+      if (d && d.ok) $('plate-input').value = '';
+    } catch (e) {
+      result('plate-report-result', '没连上，稍后再试。');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  $('plate-query-btn').addEventListener('click', async () => {
+    const plate = (($('plate-query-input') || {}).value || '').trim();
+    if (!plate) { showToast('先填车牌号'); return; }
+    try {
+      const r = await fetch(API + '?q=' + encodeURIComponent(plate), {
+        cache: 'no-store', headers: { 'x-plate-src': ticket() },
+      });
+      const d = await r.json();
+      if (!d || !d.ok) { result('plate-query-result', errText(d)); return; }
+      let s = '累计 ' + d.count + ' 次';
+      if (d.lastAt) {
+        const dt = new Date(d.lastAt);
+        s += ' · 最近一次 ' + (dt.getMonth() + 1) + ' 月 ' + dt.getDate() + ' 日';
+      }
+      const parts = [];
+      Object.keys(d.byCampus || {}).forEach((k) => {
+        parts.push((CAMPUS_NAMES[k] || k) + ' ' + d.byCampus[k] + ' 次');
+      });
+      if (parts.length) s += '\n' + parts.join(' · ');
+      result('plate-query-result', s);
+    } catch (e) {
+      result('plate-query-result', '没连上，稍后再试。');
+    }
+  });
+
+  function fillMonths(months, currentYm) {
+    const sel = $('plate-rank-ym');
+    if (!sel) return;
+    const keep = sel.value;
+    const list = (months && months.length) ? months.slice() : [currentYm || beijingYm()];
+    if (currentYm && list.indexOf(currentYm) < 0) list.unshift(currentYm);
+    sel.innerHTML = list.map((m, i) => {
+      let label = m;
+      if (m === currentYm) label += '（本月）';
+      else if (list.length > 1 && i === list.length - 1) label += '（部分）';
+      return '<option value="' + escapeHtml(m) + '">' + escapeHtml(label) + '</option>';
+    }).join('');
+    if (keep && list.indexOf(keep) >= 0) sel.value = keep;
+  }
+
+  window.plateOpenRank = function () {
+    rankToken = '';
+    const t = $('plate-rank-token'); if (t) t.value = '';
+    const list = $('plate-rank-list'); if (list) list.replaceChildren();
+    if (!cfg) loadCfg();
+    fillMonths([], beijingYm());
+    text('plate-rank-note', '每张榜单只取前 20 名；月份由 180 天保留窗口决定，最早那个月可能不完整。看一次会记一条审计。');
+  };
+
+  function renderRank(d) {
+    const list = $('plate-rank-list');
+    if (!list) return;
+    list.replaceChildren();
+    fillMonths(d.months, d.currentYm);
+    rankYm = d.ym;
+    rankCampus = d.campus || '';
+    const ymSel = $('plate-rank-ym');
+    if (ymSel && !ymSel.value) ymSel.value = d.ym;
+    const rows = d.rows || [];
+    if (!rows.length) {
+      const p = document.createElement('p');
+      p.className = 'plate-note';
+      p.textContent = '这个月还没有登记记录。';
+      list.append(p);
+      return;
+    }
+    rows.forEach((r) => {
+      const row = document.createElement('div');
+      row.className = 'plate-rank-row';
+      const p = document.createElement('span');
+      p.className = 'p';
+      p.textContent = (r.plate || '（读不出）') + ' · ' + r.count + ' 次';
+      const tag = document.createElement('span');
+      tag.className = 'plate-tag';
+      tag.textContent = (r.pull || r.park || r.other)
+        ? '拔 ' + r.pull + ' / 停 ' + r.park + ' / 其他 ' + r.other
+        : (rankCampus || '全部');
+      const btn = document.createElement('button');
+      btn.className = 'icon-btn';
+      btn.type = 'button';
+      btn.textContent = '撤销';
+      btn.setAttribute('data-plate', r.plate || '');
+      row.append(p, tag, btn);
+      list.append(row);
+    });
+  }
+
+  async function loadRank() {
+    const input = $('plate-rank-token');
+    if (!rankToken) {
+      const v = ((input && input.value) || '').trim();
+      if (!v) { text('plate-rank-note', '先输写口令再看。'); return; }
+      rankToken = v;
+    }
+    if (input) input.value = '';
+    const ym = $('plate-rank-ym').value;
+    const campus = $('plate-rank-campus').value;
+    try {
+      const r = await fetch(API_RANK + '?ym=' + encodeURIComponent(ym)
+        + '&campus=' + encodeURIComponent(campus) + '&limit=20', {
+        cache: 'no-store', headers: { 'x-admin-token': rankToken },
+      });
+      if (r.status === 401) {
+        rankToken = '';
+        text('plate-rank-note', '口令不对，或者不是从本站打开的。');
+        return;
+      }
+      const d = await r.json();
+      if (!d || !d.ok) { text('plate-rank-note', errText(d)); return; }
+      renderRank(d);
+      text('plate-rank-note', '共 ' + (d.rows || []).length
+        + ' 条 · 已记一条审计。点「撤销」会删掉该车这个月的全部登记。');
+    } catch (e) {
+      text('plate-rank-note', '没连上，稍后再试。');
+    }
+  }
+
+  $('plate-rank-load').addEventListener('click', loadRank);
+  $('plate-rank-ym').addEventListener('change', loadRank);
+  $('plate-rank-campus').addEventListener('change', loadRank);
+
+  $('plate-rank-list').addEventListener('click', async (e) => {
+    const btn = e.target.closest && e.target.closest('button[data-plate]');
+    if (!btn) return;
+    const plate = btn.getAttribute('data-plate');
+    if (!plate || !rankToken) { text('plate-rank-note', '口令已失效，重新输一次再看。'); return; }
+    if (!window.confirm('撤销 ' + plate + ' 在所选月份的全部登记？')) return;
+    try {
+      const r = await fetch(API_REVOKE, {
+        method: 'POST', cache: 'no-store',
+        headers: { 'content-type': 'application/json', 'x-admin-token': rankToken },
+        body: JSON.stringify({ plate, ym: rankYm, campus: rankCampus }),
+      });
+      const d = await r.json();
+      if (d && d.ok) { text('plate-rank-note', '已撤销 ' + d.removed + ' 条。'); loadRank(); }
+      else text('plate-rank-note', errText(d));
+    } catch (err) {
+      text('plate-rank-note', '没连上，稍后再试。');
+    }
+  });
+
+  const rd = $('dlg-plate-rank');
+  if (rd) rd.addEventListener('close', () => {
+    rankToken = '';
+    const t = $('plate-rank-token');
+    if (t) t.value = '';
+  });
+  window.plateSyncAdminRow();
+})();
 
 
 /* ── 扫码采设备号（v2.69）────────────────────────────

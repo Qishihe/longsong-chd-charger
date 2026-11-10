@@ -94,9 +94,18 @@ HEADERS = """\
 /ocr/*
   Cache-Control: public, max-age=604800
 
+# 安全响应头（2026-11-10 v3.20 补齐）。原来只有 nosniff + 宽松 Referrer-Policy。
+# 🔴 CSP 特意用 Report-Only：页面里有大量内联脚本与高德 / 识图 / 扫码等外链，
+#    直接上强制 CSP 会白屏（这个项目被注释吞规则坑过好几次）。先只收集、不阻断，
+#    等把外链清单逐条核完再换成 Content-Security-Policy。
+# ⚠️ Pages 高级模式下 _headers 只作用于静态资源；/api/* 由 _worker.js 自己加头。
 /*
   X-Content-Type-Options: nosniff
-  Referrer-Policy: no-referrer-when-downgrade
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Permissions-Policy: camera=(self), microphone=(), geolocation=(self)
+  Content-Security-Policy-Report-Only: default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https:; connect-src 'self' https:; font-src 'self' data:
 """
 
 

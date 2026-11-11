@@ -952,15 +952,23 @@
   .map-dialog[data-engine="amap"] .map-zones{display:none}
   .map-dialog[data-engine="amap"] .map-legend{bottom:12px}
   .map-dialog[data-engine="amap"] .map-attrib{display:block}
-  .map-keybar{
+  .map-keybar, .map-failbar{
     position:absolute; left:10px; right:10px; top:10px; z-index:6;
     display:flex; align-items:center; gap:10px;
     background:#FFF6E5; border:1px solid #E8C98A; border-radius:12px;
     padding:9px 12px; font-size:12px; color:#7A5B22; line-height:1.5;
     box-shadow:0 2px 8px rgba(0,0,0,.08);
   }
-  .map-keybar[hidden]{display:none}
-  .map-keybar span{flex:1}
+  .map-keybar[hidden], .map-failbar[hidden]{display:none}
+  .map-keybar span, .map-failbar span{flex:1}
+  /* 2026-11-11 v3.21：地图拉不出来时的提示。原先只有 nokey 会显形，
+     白名单/网络导致的失败一律静默退回手绘图，用户只看到「地图不对」。
+     这里用中性卡片色而不是黄色警告 —— 它不属于「你操作错了」，
+     属于「这个入口这次拿不到」，语气不该报警。 */
+  .map-failbar{
+    background:var(--card); border-color:var(--line-strong);
+    color:var(--muted); box-shadow:0 2px 8px rgba(0,0,0,.06);
+  }
   /* 空校区提示（2026-11-03 v2.78）：雁塔 / 小寨先接地图、点位还没补，
      那里除了底图什么都没有。没有这句话，用户只会以为地图挂了。
      `pointer-events:none` 是硬要求 —— 它悬在舞台正中，吃得掉拖拽就等于
@@ -2095,6 +2103,8 @@
       <span>需要腾讯地图 key</span>
       <button id="map-key-btn" type="button">填写 key</button>
     </div>
+    <!-- 2026-11-11：在线地图失败时的可见提示（原先静默退回手绘图） -->
+    <div class="map-failbar" id="map-failbar" hidden><span></span></div>
     <svg id="campus-map" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 9600 3422" preserveAspectRatio="xMidYMid meet">
       <!-- ⚡ 性能：底图不在这里写实际路径。
            本 SVG 在初始 HTML 里，<image href> 会被浏览器在解析时立刻下载 —— 而地图弹窗
@@ -6929,6 +6939,7 @@ function ensureTMap() {
         onReady: () => {
           tmapActive = true;
           $('map-keybar').hidden = true;
+          $('map-failbar').hidden = true;
           $('map-dialog').setAttribute('data-engine', 'tmap');
           window.CHD_TMAP.setPiles(tmapDevices());
           window.CHD_TMAP.setView('campus');
@@ -6941,6 +6952,7 @@ function ensureTMap() {
             console.warn('[map] 真实地图加载失败：' + reason);
           }
           if (reason === 'nokey') $('map-keybar').hidden = false;
+          else showMapFail();
           done(false);
         },
         onPileClick: onTMapPileClick,
@@ -7023,6 +7035,7 @@ function ensureAMap() {
         onReady: () => {
           amapActive = true;
           $('map-keybar').hidden = true;
+          $('map-failbar').hidden = true;
           $('map-dialog').setAttribute('data-engine', 'amap');
           const attrib = document.querySelector('.map-attrib');
           if (attrib) attrib.textContent = '底图 © 高德地图 · 桩位按分区排布示意';
@@ -7043,6 +7056,7 @@ function ensureAMap() {
           console.warn('[map] 高德地图加载失败：' + reason);
           // nokey：仓库里不带 Key，提示去看 map-key.example.js
           if (reason === 'nokey') $('map-keybar').hidden = false;
+          else showMapFail();
           done(false);
         },
         onPileClick: onAMapPileClick,
@@ -7425,6 +7439,22 @@ function syncMapTabs() {
 }
 
 /** 切换底图（分区筛选）：只换图 + 重算点位 + 回到全景 */
+/* 2026-11-11：在线地图失败时的可见提示。
+ *
+ * 为什么要看 hostname：高德 Key 的域名白名单只放行正式站，用 IP 或
+ * 其它地址打开时 SDK 直接返回 {"info":"INVALID_USER_DOMAIN"}，
+ * 前端只能拿到 load:empty。这种情况重试一万次也没用，文案得说清楚，
+ * 否则用户只会以为地图坏了。 */
+function showMapFail() {
+  const bar = $('map-failbar');
+  if (!bar) return;
+  const isIpHost = /^\d{1,3}(\.\d{1,3}){3}$/.test(location.hostname);
+  bar.querySelector('span').textContent = isIpHost
+    ? '这个入口没拿到地图授权，先用示意图'
+    : '在线地图没加载出来，先用示意图';
+  bar.hidden = false;
+}
+
 function switchMap(mapId, focusDeviceId) {
   if (!switchAMapOrStatic(mapId, focusDeviceId)) {
     // 静态兜底图（beimen-static / chaohui-static / overview）
@@ -7439,6 +7469,7 @@ function switchAMapOrStatic(mapId, focusDeviceId) {
   if (!next) return false;
   curMap = next;
   syncMapTabs();
+  $('map-failbar').hidden = true;
   ensureAMap().then((ok) => {
     if (ok) { amapApplyView(next.area); return; }
     /* 在线地图拉不出来 → 按 `fallbackStaticId` 退到手绘图；手绘图同样铺满这一块。

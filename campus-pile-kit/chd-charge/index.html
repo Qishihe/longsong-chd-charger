@@ -8619,7 +8619,21 @@ function credBoxAvailable() {
      *    云同步并没有被关掉：`cloudReadShared()` / `cloudWriteShared()` 里各自
      *    还有 `cloudSupport()` 判断，该用的时候照用；两条路都带时间戳防倒退。 */
     if (!/^https?:$/.test(location.protocol)) return false;
-    return typeof fetch === 'function' && Boolean(crypto && crypto.subtle);
+    /* 🔴 2026-11-11：去掉 `Boolean(crypto && crypto.subtle)`。
+     *
+     * 它挡的是「老云端密文路线要在本机解封」，但 2026-10-27 之后
+     * `/api/cred` **只回元数据**（`{ok,exists,updatedAt,expiresAt}`），
+     * 密文压根不下发，读它不需要任何加密能力。
+     *
+     * 留着这条判断会连锁断掉整条查桩链（自建入口 http://IP 上实测）：
+     *   非安全上下文 → `crypto.subtle` 是 undefined → 这里判 false →
+     *   `remoteAutoSync()` 直接转 `cloudAutoSync()`，一个 `/api/cred` 都不发 →
+     *   `SERVER_CRED.exp` 恒为 0 → `credState()` 返回 `{status:'none'}` →
+     *   `refresh()` 开头 `credMissing` 为真、渭水又没有驴充充的桩 →
+     *   **直接 return，页面一台桩都不查**（表现就是「点刷新没反应」）。
+     *
+     * 加密能力现在只有 `credBoxPush()`（推凭证）真的需要，它在自己内部判。 */
+    return typeof fetch === 'function';
   } catch (e) {
     return false;
   }

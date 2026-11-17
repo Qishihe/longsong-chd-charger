@@ -5,9 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>使用说明 · 长安大学充电桩查询</title>
 <meta name="theme-color" content="#1D9E75">
+<meta name="theme-color" content="#171917" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
 <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=1">
 <style>
   :root{
+    color-scheme: light dark;
     --bg:#F7F6F2;
     --card:#FFFFFF;
     --text:#1D2B26;
@@ -173,7 +176,46 @@
     .grid a{font-size:13.5px; padding:10px 11px}
     .tbl th,.tbl td{padding:9px 8px; font-size:13.5px}
   }
+  /* 深色模式（v3.21）：本页此前完全没有暗色支持 —— 从微信点开这个链接，
+     深色手机上就是一整页亮白。变量口径照 index.html 的暗色取值，
+     另外几处硬编码色要单独压深，只改变量盖不住。 */
+  @media (prefers-color-scheme: dark){
+    :root{
+      color-scheme: dark;
+      --bg:#171917; --card:#20231F;
+      --text:#EAEAE4; --muted:#A8A79F; --hint:#7E7D76;
+      --line:#31352F; --line-strong:#41463D;
+      --green:#4FD1A5; --green-soft:#14332A; --green-deep:#8FD9C0;
+      --red:#F0A6A6; --red-soft:#3B1F1F;
+      --amber:#F0C97A; --amber-soft:#3A2E17;
+      --blue:#8FB8E8; --blue-soft:#1B2A3A;
+    }
+    .hi{background:linear-gradient(transparent 58%, #4A3A12 58%)}
+    .path{color:#9EC5F0}
+    .swatch.off{background:#5C5B54}
+    .lede{border-color:#2F6B56; color:#8FD9C0}
+    .campus{border-color:#2F6B56}
+    .campus.off{background:#262A25}
+    .campus.off i{background:#4A4E46}
+    .grid a{background:#1B1E1A}
+    .grid a:hover{border-color:#2F6B56}
+    .tbl th{background:#262A25}
+    .tip{border-color:#6B5426; color:#F0C97A}
+    .tip.blue{border-color:#2F4A6B; color:#9EC5F0}
+    .tip.red{border-color:#6B3535; color:#F0A6A6}
+  }
+
   @media print{
+    /* 🔴 深色系统里直接打印会命中上面的暗色变量：白纸 + 黑卡片。
+       这里强制复位成浅色口径，打印只认纸。 */
+    :root{
+      color-scheme: light;
+      --bg:#F7F6F2; --card:#FFFFFF; --text:#1D2B26; --muted:#5D6B65; --hint:#8A968F;
+      --line:#E3E7E2; --line-strong:#CFD7D1;
+      --green:#1D9E75; --green-soft:#E1F5EE; --green-deep:#0F6B4E;
+      --red:#A32D2D; --red-soft:#FDECEC; --amber:#B4650A; --amber-soft:#FDF3E2;
+      --blue:#2E6FD1; --blue-soft:#EAF1FC;
+    }
     body{background:#fff; padding:0; font-size:12pt}
     .card{border-color:#ddd; break-inside:avoid}
     .grid{display:none}
@@ -305,7 +347,7 @@
   <h2><span class="no">04</span>个性换肤</h2>
   <p>入口在 <span class="path">设置 › 皮肤</span>。风格、材质、字体，三样各挑一个，能搭配出不少样子。</p>
   <table class="tbl">
-    <tr><th>维度</th><th>有哪些</th></tr>
+    <thead><tr><th scope="col">维度</th><th scope="col">有哪些</th></tr></thead>
     <tr><td>风格</td><td>默认清爽、杂志编辑、森林麦穗、苔绿暖橙、奶油草绿（像素风）</td></tr>
     <tr><td>材质</td><td>实色面板、透明磨砂、磨砂玻璃、桃雾莓光、深海冰晶</td></tr>
     <tr><td>字体</td><td>系统黑体、衬线、等宽，几档可选</td></tr>
@@ -335,7 +377,7 @@
   <h2><span class="no">07</span>支付宝 / 微信扫码</h2>
   <p>站在桩前面用。先到 <span class="path">设置 › 扫码快捷按钮</span> 打开，首页右下角会冒出一个圆按钮。按住能拖到顺手的位置，下次打开还在那儿。</p>
   <table class="tbl">
-    <tr><th>平台</th><th>点下去会怎样</th></tr>
+    <thead><tr><th scope="col">平台</th><th scope="col">点下去会怎样</th></tr></thead>
     <tr><td>支付宝</td><td>直接跳到 <b>扫一扫</b>，摄像头就位，对着桩上的码扫就行。</td></tr>
     <tr><td>微信</td><td>把微信叫到前台，然后点 <span class="hi">右上角「+」→ 扫一扫</span>。微信没开放直达扫一扫的口子，这一步只能手点。</td></tr>
   </table>
@@ -379,7 +421,7 @@
 
   <h3>每天有上限</h3>
   <table class="tbl">
-    <tr><th>项目</th><th>上限</th></tr>
+    <thead><tr><th scope="col">项目</th><th scope="col">上限</th></tr></thead>
     <tr><td>同一个车牌</td><td>每天最多被登记 <b>2</b> 次</td></tr>
     <tr><td>每台设备</td><td>每天最多登记 <b>5</b> 次、查询 <b>3</b> 次</td></tr>
     <tr><td>记录保留</td><td><b>180</b> 天，到期自动清掉</td></tr>
@@ -394,7 +436,7 @@
 <section class="card" id="data">
   <h2><span class="no">!</span>数据是怎么来的</h2>
   <table class="tbl">
-    <tr><th>可能想问</th><th>答案</th></tr>
+    <thead><tr><th scope="col">可能想问</th><th scope="col">答案</th></tr></thead>
     <tr><td>多久更新</td><td>列表和地图是现查；一周回顾每小时采一个点。</td></tr>
     <tr><td>跟现场对不上</td><td>状态来自平台上报，慢几十秒到一两分钟。刚有人插上枪，这边可能还是绿的。</td></tr>
     <tr><td>查着查着被挡</td><td>平台对密集查询有限流。一分钟里反复刷新可能暂时查不到，等一分钟再点。</td></tr>

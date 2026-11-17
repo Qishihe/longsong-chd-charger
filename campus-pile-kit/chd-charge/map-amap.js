@@ -1846,7 +1846,7 @@
       }
       labelMeta = null; labelLayer = null; labelVisible = 0; labelTierNow = null;
       map = null; ready = false;
-      if (host) host.innerHTML = '';
+      if (host) host.replaceChildren();   /* v3.21：原子清空，不走 HTML 解析器 */
     },
   };
 

@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" data-page-node-id="ivpO3Yk9vLSFcRNzmY9ZRp">
 <title>长安大学充电桩查询，by长歌</title>
 <meta name="theme-color" content="#1D9E75" data-page-node-id="7JyeX4wRAx0ZC5opzrpbC7">
+<meta name="theme-color" content="#171917" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
 <meta name="description" content="手机直连充电平台查看空位，不需要电脑" data-page-node-id="y6vtL30mP7I9A59D6jMDT2">
 <meta name="apple-mobile-web-app-capable" content="yes" data-page-node-id="jsMtEfsTiad7LYf5ZZ6yM4">
 <meta name="mobile-web-app-capable" content="yes" data-page-node-id="e9dBXgtKkYTxs9xRoZJP0B">
@@ -19,6 +21,8 @@
 <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=1" data-page-node-id="o0N3MXmPgw5Bg7v5u1qUBk">
 <style>
   :root{
+    /* v3.21：声明本页支持双主题，原生控件与首帧画布才会跟着系统走 */
+    color-scheme: light dark;
     --bg:#F7F6F2; --card:#FFFFFF; --line:#E5E3DC; --line-strong:#D3D1C7;
     --text:#2C2C2A; --muted:#6B6A65; --hint:#96948C;
     --free:#1D9E75; --busy:#E24B4A; --warn:#EF9F27; --off:#B4B2A9;
@@ -1478,6 +1482,12 @@
   .usage-chart{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px 8px 4px}
   .usage-chart svg{display:block; width:100%; height:auto}
 
+  /* 暗底皮肤要单独钉成 dark（v3.21）：否则浅色系统下会出现「暗底 + 亮白下拉」。
+     浅底皮肤显式写 light，是为了在系统暗色时不被 :root 的 light dark 带偏 ——
+     这些皮肤本来就自带配色，原生控件必须跟着它们的底色走。 */
+  html[data-skin="magazine"], html[data-skin="moss"], html[data-skin="pixel"]{ color-scheme: light; }
+  html[data-skin="forest"], html[data-mat="deepsea"]{ color-scheme: dark; }
+
   /* 暗色模式（v2.56 收编）：**只改变量**，不再逐条覆盖组件。暗底皮肤
      （森林麦穗 / 深海冰晶）走的是同一套变量名，两边不会再各写一份、各漏一条。 */
   @media (prefers-color-scheme: dark){
@@ -2011,7 +2021,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v3.20</div>
+    <div id="app-ver" class="foot-ver">版本 v3.21</div>
   </footer>
 </div>
 
@@ -2373,7 +2383,7 @@
       <div class="plate-box">
         <h3>登记</h3>
         <div class="plate-fld">
-          <input type="text" id="plate-input" placeholder="车牌号" maxlength="10" autocomplete="off">
+          <input type="text" id="plate-input" placeholder="车牌号" maxlength="10" autocomplete="off" autofocus>
           <select id="plate-reason" aria-label="事由"></select>
           <select id="plate-campus" aria-label="校区"></select>
         </div>
@@ -2444,7 +2454,7 @@
       <button class="x-btn" data-close aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
     </div>
     <p class="note" style="margin-top:0">只用来拉设备清单，与凭证、管理员密码无关。</p>
-    <input type="password" id="sync-password-input" placeholder="请输入同步密码" autocomplete="off">
+    <input type="password" id="sync-password-input" placeholder="请输入同步密码" autocomplete="off" autofocus>
     <div class="row">
       <button class="icon-btn" id="sync-cancel">取消</button>
       <button class="icon-btn primary" id="sync-ok">同步到本地</button>
@@ -2575,7 +2585,7 @@
         </div>
       </div>
     </div>
-    <input type="password" id="password-input" placeholder="请输入管理员密码" autocomplete="off">
+    <input type="password" id="password-input" placeholder="请输入管理员密码" autocomplete="off" autofocus>
     <div class="row">
       <button class="icon-btn" id="password-cancel">取消</button>
       <button class="icon-btn primary" id="password-ok">进入后台</button>
@@ -3208,7 +3218,7 @@
     <h3 class="help-sec" id="gd-f4"><span class="gd-no">04</span>个性换肤</h3>
     <p class="help-body">入口在 <span class="gd-path">设置 › 皮肤</span>。风格、材质、字体，三样各挑一个，能搭配出不少样子。</p>
     <table class="gd-tbl">
-      <tr><th>维度</th><th>有哪些</th></tr>
+      <thead><tr><th scope="col">维度</th><th scope="col">有哪些</th></tr></thead>
       <tr><td>风格</td><td>默认清爽、杂志编辑、森林麦穗、苔绿暖橙、奶油草绿（像素风）</td></tr>
       <tr><td>材质</td><td>实色面板、透明磨砂、磨砂玻璃、桃雾莓光、深海冰晶</td></tr>
       <tr><td>字体</td><td>系统黑体、衬线、等宽，几档可选</td></tr>
@@ -3228,7 +3238,7 @@
     <h3 class="help-sec" id="gd-f7"><span class="gd-no">07</span>支付宝 / 微信扫码</h3>
     <p class="help-body">站在桩前面用。先到 <span class="gd-path">设置 › 扫码快捷按钮</span> 打开，首页右下角会冒出一个圆按钮。按住能拖到顺手的位置，下次打开还在那儿。</p>
     <table class="gd-tbl">
-      <tr><th>平台</th><th>点下去会怎样</th></tr>
+      <thead><tr><th scope="col">平台</th><th scope="col">点下去会怎样</th></tr></thead>
       <tr><td>支付宝</td><td>直接跳到 <b>扫一扫</b>，摄像头就位，对着桩上的码扫就行。</td></tr>
       <tr><td>微信</td><td>把微信叫到前台，然后点 <span class="gd-hi">右上角「+」→ 扫一扫</span>。微信没开放直达扫一扫的口子，这一步只能手点。</td></tr>
     </table>
@@ -3259,7 +3269,7 @@
     <p class="help-body">输入车牌点「查次数」，能看到近 180 天被记了几次、最近一次是什么时候、都在哪些校区。</p>
     <h4 class="gd-h4">每天有上限</h4>
     <table class="gd-tbl">
-      <tr><th>项目</th><th>上限</th></tr>
+      <thead><tr><th scope="col">项目</th><th scope="col">上限</th></tr></thead>
       <tr><td>同一个车牌</td><td>每天最多被登记 <b>2</b> 次</td></tr>
       <tr><td>每台设备</td><td>每天最多登记 <b>5</b> 次、查询 <b>3</b> 次</td></tr>
       <tr><td>记录保留</td><td><b>180</b> 天，到期自动清掉</td></tr>
@@ -3271,7 +3281,7 @@
 
     <h3 class="help-sec"><span class="gd-no">!</span>数据是怎么来的</h3>
     <table class="gd-tbl">
-      <tr><th>可能想问</th><th>答案</th></tr>
+      <thead><tr><th scope="col">可能想问</th><th scope="col">答案</th></tr></thead>
       <tr><td>多久更新</td><td>列表和地图是现查；一周回顾每小时采一个点。</td></tr>
       <tr><td>跟现场对不上</td><td>状态来自平台上报，慢几十秒到一两分钟。刚有人插上枪，这边可能还是绿的。</td></tr>
       <tr><td>查着查着被挡</td><td>平台对密集查询有限流。一分钟里反复刷新可能暂时查不到，等一分钟再点。</td></tr>
@@ -3309,7 +3319,7 @@
   </div>
 </dialog>
 
-<dialog id="token-dialog" data-page-node-id="jayPCSBtsA7KNV7JuFT85w">
+<dialog id="token-dialog" aria-label="换一串凭证" data-page-node-id="jayPCSBtsA7KNV7JuFT85w">
   <div class="dlg-body" data-page-node-id="HADE5zscwgsKAwKDBVKmDp">
     <div class="dlg-head" data-page-node-id="G7oG6mt1ow0ZHOWA8niUJQ">
       <h2 data-page-node-id="lkqygmoRxhXWrSrJ0k9mad">换一串凭证</h2>
@@ -3331,7 +3341,7 @@
   </div>
 </dialog>
 
-<dialog id="settings-dialog" data-page-node-id="MVN8q4d6qy5mnEFnawTh3n">
+<dialog id="settings-dialog" aria-label="设备与设置" data-page-node-id="MVN8q4d6qy5mnEFnawTh3n">
   <div class="dlg-body" data-page-node-id="WJsDosnAKwM1LJ435whhAP">
     <div class="dlg-head" data-page-node-id="ZhfxhwDAE3mB8v0P21YuvF">
       <h2 data-page-node-id="FYar4wNT6i9MjN8yuaVBey">设备与设置</h2>
@@ -4098,6 +4108,20 @@ const DEFAULT_DEVICES = [
 ];
 
 const $ = (id) => document.getElementById(id);
+
+/* 中文输入法保护（v3.21）：所有「keydown + Enter 提交」统一走这里。
+   🔴 e.isComposing 在 Safari 不支持，且 WebKit bug 165004 会提前投递
+   compositionend，所以 keyCode === 229（VK_PROCESSKEY）不能省。
+   preventDefault 放在组合判断之前：选字中的 Enter 也不该触发隐式提交。 */
+function onEnterCommit(el, fn) {
+  if (!el) return;
+  el.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    if (e.isComposing || e.keyCode === 229) return;
+    fn();
+  });
+}
 
 const store = {
   get(key, fallback) {
@@ -6441,7 +6465,7 @@ function warmAMap() {
         return loadScriptOnce('https://webapi.amap.com/maps?v=2.0&key='
           + encodeURIComponent(window.CHD_AMAP_KEY));
       })
-      .then(() => loadScriptOnce('map-amap.js?v=154'))
+      .then(() => loadScriptOnce('map-amap.js?v=155'))
       .catch(() => { /* 预热失败：点开时 ensureAMap() 会重新拉 */ });
   };
   if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 4000 });
@@ -6473,7 +6497,7 @@ function renderCampusClusters() {
   const g = $('map-markers');
   const svg = $('campus-map');
   if (!g || !svg) return;
-  g.innerHTML = '';
+  g.replaceChildren();
   const NS = 'http://www.w3.org/2000/svg';
   const scale = (svg.clientWidth || 1) / (Number(camera.w) || 1);
   const frag = document.createDocumentFragment();
@@ -6587,7 +6611,7 @@ function renderParkSpots() {
   const g = $('map-markers');
   const svg = $('campus-map');
   if (!g || !svg) return;
-  g.innerHTML = '';
+  g.replaceChildren();
 
   const spots = curMap.spots || [];
   if (!spots.length) { $('map-sub').textContent = ''; return; }
@@ -6677,7 +6701,7 @@ function renderMapMarkers() {
   const g = $('map-markers');
   const svg = $('campus-map');
   if (!g || !svg) return;
-  g.innerHTML = '';
+  g.replaceChildren();
   const total = mapScope.length;
   if (!total) { $('map-sub').textContent = ''; return; }
 
@@ -7076,7 +7100,7 @@ function ensureAMap() {
 //    并入本站唯一那份 map-amap.js。改了 js 一定要同时改 ?v（SW 缓存优先）。
 //    2026-10-29 v2.38：内测版退役 —— `map-amap-preview.js` 已删，以后只有一份引擎、一份 HTML，
 //    不再存在「改了 js 要两边同步」这件事。
-      .then(() => loadScriptOnce('map-amap.js?v=154'))
+      .then(() => loadScriptOnce('map-amap.js?v=155'))
       .then(boot)
       .catch(() => done(false));
   });
@@ -10793,9 +10817,14 @@ const CHANGELOG = [
      🔴 同一件事只写一条，改了行为就原地改写描述，不另起流水账；单条 ≤200 字。
      只写用户看得见的变化：测试版入口、赞赏码措辞、密钥放哪、Worker/接口一律不进。
      _check_chg_merge 会按页脚版本动态校验「每个 0.1 级恰好一组」。 */
-  { from: 'v3.20', d: '2026-11-10', items: [
+  { from: 'v3.20', d: '2026-11-10 ~ 11-17', items: [
     '设置里多了「违规车牌登记」：填车牌号、选事由和校区就能登记一次，回显这个车牌近 180 天累计几次；'
-      + '也能只按车牌查次数，顺带看到都在哪些校区。同一个车牌每天最多被登记 2 次，记录保留 180 天'
+      + '也能只按车牌查次数，顺带看到都在哪些校区。同一个车牌每天最多被登记 2 次，记录保留 180 天',
+    /* v3.21：交付给系统的三件事 —— 主题声明（深色控件 / 首屏不再白闪）、
+       三个「打开就为输入」的弹窗自动聚焦、输入法选字中的回车不再误提交。 */
+    '深色模式下日期选择器、下拉框这些系统控件也跟着变暗，切过去不再先闪一下白底；状态栏颜色同步收边',
+    '打开「违规车牌登记」「同步密码」「管理员密码」时，光标直接落在输入框里，不用再点一下；'
+      + '用拼音在这些框里选字时按回车，也不会把没打完的字提交出去'
   ] },
   { v: 'v3.10 – v3.19', d: '2026-11-07 ~ 11-08', items: [
     /* v3.10 补登过去 / v3.11 按钮并排与时长填小时 / v3.12 整行入口 / v3.13 实用功能栏
@@ -11594,10 +11623,13 @@ async function wxRun(opts) {
   wxBusy = true;
   wxPaintState();
   try {
-    const ctl = new AbortController();
-    const to = setTimeout(() => ctl.abort(), 7000);
-    const r = await fetch(wxUrlFor(campus), { signal: ctl.signal, cache: 'no-store' });
-    clearTimeout(to);
+    /* v3.21：手写 AbortController + setTimeout 换成 AbortSignal.timeout()。
+       下面 catch 不判错误名（直接用旧缓存），所以 AbortError → TimeoutError 不影响分支。
+       ⚠️ 本文件另有两处按 name === 'AbortError' 分类（桩查询 / 另一个请求），别跟着换。 */
+    const r = await fetch(wxUrlFor(campus), {
+      signal: AbortSignal.timeout(7000),
+      cache: 'no-store',
+    });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const d = await r.json();
     const ev = wxDecide(d.hourly, Math.floor(Date.now() / 1000));
@@ -13842,16 +13874,12 @@ function chgOpenDlg() {
   const durIn = $('chg-fill-dur');
   if (durIn) {
     durIn.addEventListener('input', () => chgFillHint());
-    durIn.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); chgFillSave(); }
-    });
+    onEnterCommit(durIn, chgFillSave);
   }
   const kwhIn = $('chg-fill-kwh');
   if (kwhIn) {
     kwhIn.addEventListener('input', () => chgFillHint());
-    kwhIn.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); chgFillSave(); }
-    });
+    onEnterCommit(kwhIn, chgFillSave);
   }
   const splitBtn = $('chg-fill-split-btn');
   if (splitBtn) {
@@ -13896,9 +13924,7 @@ function chgOpenDlg() {
   const costIn = $('chg-fill-cost');
   if (costIn) {
     costIn.addEventListener('input', () => chgFillHint());
-    costIn.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); chgFillSave(); }
-    });
+    onEnterCommit(costIn, chgFillSave);
   }
   const save = $('chg-fill-save');
   if (save) save.addEventListener('click', () => chgFillSave());
@@ -14229,9 +14255,7 @@ SET_ENTRIES.forEach((e) => {
   $('plate-rank-month').addEventListener('change', loadRank);
   $('plate-rank-campus').addEventListener('change', loadRank);
   $('plate-rank-enter').addEventListener('click', enterRank);
-  $('plate-rank-token').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); enterRank(); }
-  });
+  onEnterCommit($('plate-rank-token'), enterRank);
 
   $('plate-rank-list').addEventListener('click', async (e) => {
     const btn = e.target.closest && e.target.closest('button[data-plate]');
@@ -14316,7 +14340,7 @@ function scanResetSession() {
   $('scan-hud').hidden = true;   // 重新开弹窗先不显示角标，摄像头起来后再亮
   scanTorchReset();              // 闪光灯按钮也等这次起流的能力检测
   $('scan-chips').hidden = true;
-  $('scan-chips').innerHTML = '';
+  $('scan-chips').replaceChildren();
   $('scan-note').className = 'note';
   $('scan-note').textContent = '';
 }
@@ -14384,7 +14408,7 @@ function scanOnSuccess(decodedText) {
    .hidden 抛 TypeError → 被紧邻的 .catch 当成「摄像头打不开」报给用户，
    而真正的错误原因（打不开摄像头）反倒被掩盖。 */
 function scanClearReader() {
-  $('scan-reader').innerHTML = '';
+  $('scan-reader').replaceChildren();
 }
 
 /* ── 闪光灯（v2.71）──────────────────────────────────────
@@ -14566,7 +14590,7 @@ $('sync-cancel').addEventListener('click', () => {
   $('sync-note').textContent = '';
   $('dlg-sync').close();
 });
-$('sync-password-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('sync-ok').click(); });
+onEnterCommit($('sync-password-input'), () => $('sync-ok').click());
 
 // 输对同步密码 → 把云端清单强制拉下来覆盖本机，并重新查询
 $('sync-ok').addEventListener('click', async () => {
@@ -14616,7 +14640,7 @@ $('password-cancel').addEventListener('click', () => {
   $('password-input').value = '';
   $('dlg-admin').close();
 });
-$('password-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('password-ok').click(); });
+onEnterCommit($('password-input'), () => $('password-ok').click());
 
 /* ---------------- 使用情况统计 ---------------- */
 /* 2026-10-25 第六轮：入口按钮 `#usage-open` 已下掉（弹窗与渲染函数保留，随时能挂回来）。

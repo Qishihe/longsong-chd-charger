@@ -21,9 +21,21 @@
      静态站照常工作，只是 /api/* 返回 501。`tools/cloudflare/` 为空则跳过。
 
 ⚠️ `dist-chd-charge/` 那份是给「拷给别人自己架服务器」用的，保留全量，两者不要混。
+
+产物瘦身（`--full` 可关掉）：
+    index.html / guide.html 和三个站点 JS 在**复制进 dist 时**剥掉注释、压掉空白，
+    `chd-charge/` 源码一个字不动。注释是写给维护者的，不该让每个访客下载一遍
+    （实测 index.html 里 36%、sw.js 里 88% 是注释）。
+    JS 交给 esbuild（真解析器，URL 里的 `//`、正则里的 `/*` 都不会误伤），
+    CSS 用自写扫描器（跳过引号内内容），HTML 只删 `<!-- -->`、不动空白。
+    esbuild 找不到或压缩失败时**原样拷贝**——宁可产物胖，不可线上坏。
 """
+import argparse
+import re
 import shutil
+import subprocess
 import sys
+import tempfile
 import zipfile
 from pathlib import Path
 
@@ -32,6 +44,17 @@ SITE = KIT / "chd-charge"
 DIST = KIT / "dist-cloudflare"
 ZIP = KIT / "dist-cloudflare.zip"
 CF_EXTRA = KIT / "tools" / "cloudflare"   # _worker.js / _routes.json（可选）
+
+# ---- 产物瘦身名单 ----
+# 只处理「注释占比高、又是首屏必下」的文件。判断依据是实测：
+#   index.html   850 KB，36% 是注释（约 300 KB），全站首屏都靠它
+#   sw.js         44 KB，88% 是注释，而且每次访问都要校验一次
+#   map-amap.js  104 KB，38% 是注释，地图一打开就加载
+#   map-data.js   39 KB，0% 注释，但空白很多，顺手一起压
+# 🔴 故意不碰：
+#   _worker.js —— 后端逻辑，注释不影响运行，改它只有风险没有收益
+#   ocr/ sdk/  —— wasm 与第三方 SDK，注释占比 0，压了也省不出东西
+MINIFY_JS = {"map-amap.js", "map-data.js", "sw.js"}
 
 # 公网站点不需要的内部产物
 EXCLUDE_FILES = {
@@ -116,6 +139,108 @@ HEADERS = """\
 """
 
 
+def _find_esbuild():
+    """找可用的 esbuild，返回命令前缀；找不到返回 None。
+
+    为什么不用 `node_modules/.bin/esbuild`：Windows 上那是个 sh 脚本，
+    subprocess 直接 CreateProcess 会失败（只有 Git Bash 认得 shebang）。
+    优先用 npm 装出来的原生二进制，退而用 node 跑包里的 JS 入口。
+    """
+    nm = KIT / "scratch" / "_cli" / "node_modules"
+    for p in sorted(nm.glob("@esbuild/*/esbuild*")):
+        if p.is_file() and p.name in ("esbuild", "esbuild.exe") and p.stat().st_size > 100_000:
+            return [str(p)]
+    js = nm / "esbuild" / "bin" / "esbuild"
+    node = shutil.which("node")
+    if js.exists() and node:
+        return [node, str(js)]
+    exe = shutil.which("esbuild")
+    return [exe] if exe else None
+
+
+def _minify_js(code, cmd):
+    """去掉 JS 注释与多余空白。失败时原样返回 —— 宁可胖，不可坏。"""
+    if not cmd:
+        return code, False
+    with tempfile.TemporaryDirectory() as td:
+        src = Path(td) / "in.js"
+        out = Path(td) / "out.js"
+        src.write_text(code, encoding="utf-8", newline="\n")
+        try:
+            r = subprocess.run(cmd + [str(src), "--minify-whitespace",
+                                      "--target=esnext", "--charset=utf8",
+                                      "--outfile=" + str(out)],
+                               capture_output=True, text=True, timeout=120)
+        except (OSError, subprocess.SubprocessError):
+            return code, False
+        if r.returncode != 0 or not out.exists():
+            return code, False
+        return out.read_text(encoding="utf-8"), True
+
+
+def _strip_css(css):
+    """去 CSS 注释并压空白。
+
+    自己扫一遍而不是直接上正则：`content:"/*"` 这类字符串里的符号
+    必须原样保留，`/*` 先被当成注释吃掉的话整段 CSS 就崩了 ——
+    这个项目被注释吞规则坑过好几次，宁可多写十行。
+    """
+    out, i, n = [], 0, len(css)
+    while i < n:
+        c = css[i]
+        if c == "/" and i + 1 < n and css[i + 1] == "*":
+            j = css.find("*/", i + 2)
+            i = n if j < 0 else j + 2
+            continue
+        if c in "\"'":
+            j = i + 1
+            while j < n:
+                if css[j] == "\\":
+                    j += 2
+                    continue
+                if css[j] == c:
+                    j += 1
+                    break
+                j += 1
+            out.append(css[i:j])
+            i = j
+            continue
+        out.append(c)
+        i += 1
+    s = re.sub(r"\s+", " ", "".join(out))
+    s = re.sub(r"\s*([{};])\s*", r"\1", s)
+    return s.strip()
+
+
+def _strip_html_comments(html):
+    """只删 `<!-- -->`，不动任何空白 —— HTML 里的空白会影响行内排版。"""
+    return re.sub(r"<!--(?!\[if)[\s\S]*?-->", "", html)
+
+
+inline_block = re.compile(r"<(script|style)\b([^>]*)>([\s\S]*?)</\1>", re.I)
+
+
+def _minify_html(text, cmd):
+    """逐块处理：script 走 esbuild、style 走自写扫描器、其余只删 HTML 注释。"""
+    parts, pos, js_ok = [], 0, 0
+    for m in inline_block.finditer(text):
+        parts.append(_strip_html_comments(text[pos:m.start()]))
+        tag, attrs, body = m.group(1), m.group(2), m.group(3)
+        if tag.lower() == "script":
+            # 外链脚本和 ld+json 数据块原样保留
+            if re.search(r"\bsrc\s*=", attrs, re.I) or "ld+json" in attrs:
+                new = body
+            else:
+                new, done = _minify_js(body, cmd)
+                js_ok += 1 if done else 0
+        else:
+            new = _strip_css(body)
+        parts.append("<%s%s>%s</%s>" % (tag, attrs, new, tag))
+        pos = m.end()
+    parts.append(_strip_html_comments(text[pos:]))
+    return "".join(parts), js_ok
+
+
 def _write_catalog(dest):
     """对外设备目录是构建产物：打包时由 gen_catalog.py 生成。
 
@@ -128,16 +253,26 @@ def _write_catalog(dest):
           % (len(data["areas"]), data["total"], len(text.encode("utf-8"))))
 
 
-def main():
+def main(argv=None):
+    ap = argparse.ArgumentParser(description="生成 Cloudflare Pages 部署包")
+    ap.add_argument("--full", action="store_true",
+                    help="不压缩，原样拷贝（排查线上问题时用，产物与源码逐字节一致）")
+    args = ap.parse_args(argv)
+
     if not (SITE / "index.html").exists():
         print(f"x 找不到站点源目录：{SITE}", file=sys.stderr)
         return 2
+
+    cmd = None if args.full else _find_esbuild()
+    if not args.full and not cmd:
+        print("! 没找到 esbuild，JS 注释保留（HTML 注释与 CSS 注释照常剥离）",
+              file=sys.stderr)
 
     if DIST.exists():
         shutil.rmtree(DIST)
     DIST.mkdir(parents=True)
 
-    kept, skipped = [], []
+    kept, skipped, shrunk = [], [], []
     for f in sorted(SITE.rglob("*")):
         if not f.is_file():
             continue
@@ -147,7 +282,26 @@ def main():
             continue
         dst = DIST / rel
         dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(f, dst)
+        if args.full:
+            shutil.copy2(f, dst)
+        elif rel.suffix.lower() == ".html":
+            raw = f.read_text(encoding="utf-8", newline="")
+            out, _ = _minify_html(raw, cmd)
+            dst.write_text(out, encoding="utf-8", newline="")
+            shrunk.append((rel.as_posix(), len(raw.encode("utf-8")),
+                           len(out.encode("utf-8"))))
+        elif rel.name in MINIFY_JS:
+            raw = f.read_text(encoding="utf-8", newline="")
+            out, done = _minify_js(raw, cmd)
+            if not done:
+                # esbuild 没跑成：退回原样拷贝，别拿半成品上线
+                shutil.copy2(f, dst)
+            else:
+                dst.write_text(out, encoding="utf-8", newline="")
+                shrunk.append((rel.as_posix(), len(raw.encode("utf-8")),
+                               len(out.encode("utf-8"))))
+        else:
+            shutil.copy2(f, dst)
         kept.append(rel.as_posix())
 
     # 对外设备目录（构建产物，打包时现生成，不从站点目录复制）
@@ -174,6 +328,21 @@ def main():
     print(f"目录：{len(kept)} 个站点文件 + _headers → {DIST}（{raw:,} B）")
     for s in skipped:
         print(f"  剔除 {s}")
+
+    if shrunk:
+        import gzip
+        before = sum(b for _, b, _ in shrunk)
+        after = sum(a for _, _, a in shrunk)
+        print(f"瘦身：{len(shrunk)} 个文件 {before:,} → {after:,} B"
+              f"（省 {before - after:,} B / {100 * (before - after) / before:.0f}%）")
+        for name, b, a in shrunk:
+            try:
+                gb = len(gzip.compress((SITE / name).read_bytes(), 9))
+                ga = len(gzip.compress((DIST / name).read_bytes(), 9))
+                gz = f"，gzip {gb:,} → {ga:,} B（{100 * (ga - gb) / gb:+.0f}%）"
+            except OSError:
+                gz = ""
+            print(f"  {name:<14} {b:>8,} → {a:>8,} B{gz}")
 
     # 自检：少一个就跑不起来的东西
     must = ["index.html", "map-amap.js", "map-data.js",

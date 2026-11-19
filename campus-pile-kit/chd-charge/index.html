@@ -1086,6 +1086,9 @@
   dialog::backdrop{background:rgba(30,30,28,.42)}
   /* 硬保证：顶上有任何弹窗，页面本体就不滚（弹窗内层滚动器 → dialog → 页面
      的链路在 body 这里断死；老浏览器不支持 :has 时，上面的 contain 仍兜底）。 */
+  /* 桌面端滚动条在弹窗开合时消失又出现，内容会跟着横跳一格。预留槽位稳住布局；
+     Safari 17 之前不认这条，忽略即可（iOS 用 overlay 滚动条，本来也不跳）。 */
+  html{scrollbar-gutter:stable}
   body:has(dialog[open]){overflow:hidden}
   dialog .amap-host, dialog .tmap-host{overscroll-behavior:contain}
   .dlg-body{padding:18px 18px 16px}
@@ -2021,7 +2024,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v3.21</div>
+    <div id="app-ver" class="foot-ver">版本 v3.22</div>
   </footer>
 </div>
 
@@ -2417,7 +2420,7 @@
     <div id="rank-gate">
       <p class="note" style="margin-top:0">查看排行榜需要写口令。口令只在本弹窗内用一次，关闭即清空，不会保存。</p>
       <div class="plate-fld">
-        <input type="password" id="plate-rank-token" placeholder="写口令" autocomplete="off">
+        <input type="password" id="plate-rank-token" placeholder="写口令" autocomplete="off" autofocus>
         <button class="icon-btn primary" id="plate-rank-enter" type="button" style="flex:0 0 auto; padding:0 18px">进入</button>
       </div>
       <div class="plate-result" id="rank-gate-err" hidden></div>
@@ -2816,7 +2819,7 @@
       <div class="est-row">
         <div class="est-fld">
           <label for="est-v">电压</label>
-          <span class="est-inwrap"><input id="est-v" type="number" inputmode="decimal" min="12" max="120" step="1" value="48"><span class="u">V</span></span>
+          <span class="est-inwrap"><input id="est-v" type="number" inputmode="decimal" min="12" max="120" step="1" value="48" autofocus><span class="u">V</span></span>
         </div>
         <div class="est-fld">
           <label for="est-ah">容量</label>
@@ -3056,7 +3059,7 @@
     <div class="clog-field">
       <b>充了多久</b>
       <div class="est-inwrap">
-        <input id="chg-fill-dur" type="number" min="0.05" max="24" step="0.05" inputmode="decimal"
+        <input id="chg-fill-dur" type="number" min="0.05" max="24" step="0.05" inputmode="decimal" autofocus
                placeholder="比如 1.5" aria-label="充电小时数">
         <span class="u">小时</span>
       </div>
@@ -3326,7 +3329,7 @@
       <button class="x-btn" data-close data-page-node-id="NTEj2V0cPHy3OJCVPEVOto" aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
     </div>
     <label for="token-input" data-page-node-id="skZzb3rszK7hZ7o0RFz70n">凭证内容</label>
-    <textarea id="token-input" placeholder="粘贴凭证"></textarea>
+    <textarea id="token-input" placeholder="粘贴凭证" autofocus></textarea>
     <!-- 🔴 2026-11-01 v2.67：这里是「让全站用上」的唯一入口。
          10-27 删掉内置同步密钥之后，老的那条 cloudPush 链路恒 null，
          弹窗却一直写着「之后所有打开这个网址的人自动用上」—— 承诺落空，
@@ -10817,14 +10820,14 @@ const CHANGELOG = [
      🔴 同一件事只写一条，改了行为就原地改写描述，不另起流水账；单条 ≤200 字。
      只写用户看得见的变化：测试版入口、赞赏码措辞、密钥放哪、Worker/接口一律不进。
      _check_chg_merge 会按页脚版本动态校验「每个 0.1 级恰好一组」。 */
-  { from: 'v3.20', d: '2026-11-10 ~ 11-17', items: [
+  { from: 'v3.20', d: '2026-11-10 ~ 11-19', items: [
     '设置里多了「违规车牌登记」：填车牌号、选事由和校区就能登记一次，回显这个车牌近 180 天累计几次；'
       + '也能只按车牌查次数，顺带看到都在哪些校区。同一个车牌每天最多被登记 2 次，记录保留 180 天',
     /* v3.21：交付给系统的三件事 —— 主题声明（深色控件 / 首屏不再白闪）、
        三个「打开就为输入」的弹窗自动聚焦、输入法选字中的回车不再误提交。 */
     '深色模式下日期选择器、下拉框这些系统控件也跟着变暗，切过去不再先闪一下白底；状态栏颜色同步收边',
-    '打开「违规车牌登记」「同步密码」「管理员密码」时，光标直接落在输入框里，不用再点一下；'
-      + '用拼音在这些框里选字时按回车，也不会把没打完的字提交出去'
+    '打开「违规车牌登记」「同步密码」「管理员密码」「充满要多久」「补登」这些弹窗时，'
+      + '光标直接落在要填的那一格，不用再点一下；用拼音选字时按回车，也不会把没打完的字提交出去'
   ] },
   { v: 'v3.10 – v3.19', d: '2026-11-07 ~ 11-08', items: [
     /* v3.10 补登过去 / v3.11 按钮并排与时长填小时 / v3.12 整行入口 / v3.13 实用功能栏
@@ -14877,7 +14880,7 @@ document.querySelectorAll('[data-close]').forEach((btn) => {
     markStuck();
   });
 
-  // v3.23：头部吸顶（长文滚到底也够得着关闭）。滚起来才挂 is-stuck，
+  // v3.22：头部吸顶（长文滚到底也够得着关闭）。滚起来才挂 is-stuck，
   // 首屏不加线，否则标题和下面的章节标题之间多一道横杠，看着碎。
   const head = dlg.querySelector('.dlg-head');
   const markStuck = () => { if (head) head.classList.toggle('is-stuck', dlg.scrollTop > 6); };

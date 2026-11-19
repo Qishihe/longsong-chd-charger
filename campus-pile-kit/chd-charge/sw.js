@@ -400,7 +400,11 @@
 /* v225 → v226（2026-11-10）：新增独立说明页 `guide.html`（站内 `/guide`），
    「使用说明」弹窗底部加一颗「完整版说明」入口。index.html 变了 → 换壳。
    说明页不进 SHELL（只有想离线读的人才会打开，没必要为首装多下一份 21KB）。 */
-const CACHE = 'campus-pile-v233';
+/* v233 → v234（2026-11-19）：CLS 修复 —— 两条「正在查询…」从 #banner 改走 showToast。
+   banner 是文档流块（44px + 12px 外边距），凭证同步回来时撑开、查询结束再收起，
+   每次冷启动白推 56px，实测 CLS 0.103（及格线 0.1）。换 toast 后不再参与布局。
+   index.html 变了 → 换壳。 */
+const CACHE = 'campus-pile-v234';
 const SHELL = [
   /* v2.86：`'./'` 删了。线上实测 `/` 与 `/index.html` 返回的字节完全相同（md5 一致），
      而 fetch 拦截只把 `'./index.html'` 当主 key，`'./'` 只是回退链的第二顺位 ——

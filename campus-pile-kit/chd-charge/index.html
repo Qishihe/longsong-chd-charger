@@ -2024,7 +2024,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v3.22</div>
+    <div id="app-ver" class="foot-ver">版本 v3.23</div>
   </footer>
 </div>
 
@@ -10827,7 +10827,9 @@ const CHANGELOG = [
        三个「打开就为输入」的弹窗自动聚焦、输入法选字中的回车不再误提交。 */
     '深色模式下日期选择器、下拉框这些系统控件也跟着变暗，切过去不再先闪一下白底；状态栏颜色同步收边',
     '打开「违规车牌登记」「同步密码」「管理员密码」「充满要多久」「补登」这些弹窗时，'
-      + '光标直接落在要填的那一格，不用再点一下；用拼音选字时按回车，也不会把没打完的字提交出去'
+      + '光标直接落在要填的那一格，不用再点一下；用拼音选字时按回车，也不会把没打完的字提交出去',
+    /* v3.23：CLS 0.103 → 0。用户感知是「页面不跳了」，就按感知写，不写 CLS 这种词。 */
+    '打开页面时那句「正在查询…」改成浮在底部、说一声就走，不再把下面的卡片往下顶一格'
   ] },
   { v: 'v3.10 – v3.19', d: '2026-11-07 ~ 11-08', items: [
     /* v3.10 补登过去 / v3.11 按钮并排与时长填小时 / v3.12 整行入口 / v3.13 实用功能栏
@@ -15373,10 +15375,19 @@ async function boot() {
   CLOUD_TOKEN_TRIED = true;
   // 注意：这里不再自动同步设备清单 —— 清单同步必须输密码（在同步弹窗里手动触发）
 
+  /* 🔴 v3.23：两条「正在查询…」改走 showToast，不再走 paintBanner。
+     起因是 CLS 实测 0.103（Google 及格线 0.1，我们刚好踩线外）：`#banner` 是**文档流**
+     里的块，凭证同步回来那一刻（~1.1s）它从 hidden 变可见、撑出 44px + 12px 外边距，
+     把 `.stats` 与 `.toolbar` 整体推下去 56px，查询结束再收回来 —— 一出现一消失，
+     两个 0.0516 叠成 0.103，**每次冷启动只要云端有凭证就必现**。
+     按本项目早已写下的分工（见 showToast 上方注释）：banner 说**状态**（凭证失效、
+     平台挂了，要一直挂着），toast 说**事件**（说完自己走）。这两句是典型事件，
+     挂成横幅本身就是用错了容器，正好借这次归零。
+     保留 banner 的三条都是真状态：同步失败 / 需再扫码 / 已接入自动同步。 */
   let text = '';
   let bad = false;
   if (merged && merged.applied) {
-    text = '已取到云端的最新凭证，正在查询…';
+    showToast('已取到云端的最新凭证，正在查询…');
   } else if (merged && merged.message) {
     text = merged.message;
     bad = true;
@@ -15388,7 +15399,7 @@ async function boot() {
   } else if (sync && sync.ok && sync.wantCloud && !getSyncKey()) {
     text = '凭证已导入。再扫一次二维码就能开启自动同步。';
   } else if (sync && sync.ok) {
-    text = '已导入新凭证，正在查询…';
+    showToast('已导入新凭证，正在查询…');
   }
   if (text) paintBanner(text, bad);
 

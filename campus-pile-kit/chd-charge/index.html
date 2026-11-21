@@ -370,6 +370,61 @@
     .toast{transition:opacity .18s ease, visibility .18s; transform:translate(-50%, 0)}
   }
 
+  /* 2026-11-19 v3.24：换离线壳之后的「刷新一下」提示条。
+     🔴 为什么不复用 #banner：banner 在**文档流**里，一出现就把下面整页推下 56px。
+        v3.23 刚为这个把 CLS 从 0.103 修到 0，而这条提示恰恰出现在页面打开后一两秒
+        （新壳 skipWaiting + clients.claim 立刻接管）—— 用 banner 等于把刚归零的
+        CLS 又抬回去。所以做成 fixed 浮条，完全不参与布局。
+     🔴 位置比 .toast 高一档：toast 在 bottom 20px，这里是 74px，两者同时出现不叠。
+     配色跟 toast 同一组变量；按钮用**反色**（背景取 --toast-fg、文字取 --toast-bg），
+     这样 7 套皮肤里无论深底浅底，对比度都自动成立，不用给每套皮肤单独配色。 */
+  .sw-tip{
+    position:fixed; left:50%; bottom:calc(74px + env(safe-area-inset-bottom, 0px));
+    transform:translate(-50%, 14px);
+    /* 🔴 `width:max-content` 不能省：fixed 元素的 shrink-to-fit 只按「最长单词」算，
+       实测不写它时这条只有 195px 宽，18 个字被折成三行（截图里像个黑方块）。
+       max-content 才是「按整句算」，再由 max-width 兜住窄屏。 */
+    width:max-content; max-width:min(92vw, 440px);
+    display:flex; align-items:center; gap:8px;
+    background:var(--toast-bg); color:var(--toast-fg);
+    border-radius:16px; padding:9px 9px 9px 15px;
+    font-size:13px; line-height:1.4; text-align:left;
+    box-shadow:0 8px 24px rgba(0,0,0,.18);
+    opacity:0; visibility:hidden;
+    transition:opacity .18s ease, transform .18s ease, visibility .18s;
+    z-index:59;
+  }
+  .sw-tip.show{opacity:1; visibility:visible; transform:translate(-50%, 0)}
+  .sw-tip-txt{flex:1; min-width:0}
+  .sw-tip-btn{
+    flex:none; border:0; border-radius:999px; padding:6px 13px;
+    background:var(--toast-fg); color:var(--toast-bg);
+    font:inherit; font-size:12.5px; font-weight:600; cursor:pointer;
+  }
+  .sw-tip-btn:active{opacity:.75}
+  .sw-tip-x{
+    flex:none; width:26px; height:26px; padding:0;
+    display:flex; align-items:center; justify-content:center;
+    background:none; border:0; border-radius:50%;
+    color:inherit; font-size:16px; line-height:1; opacity:.5; cursor:pointer;
+  }
+  .sw-tip-x:active{opacity:.85}
+  @media (prefers-reduced-motion: reduce){
+    .sw-tip{transition:opacity .18s ease, visibility .18s; transform:translate(-50%, 0)}
+  }
+
+  /* 诊断信息兜底文本框（v3.24）：只在复制失败时露出来。
+     `white-space:pre-wrap` 才能保留换行 —— 这是要让人原样粘贴出去的纯文本。 */
+  .diag-out{
+    margin:12px 0 0; padding:11px 12px; max-height:210px; overflow:auto;
+    /* 用 --code-bg 而不是 --card：它和上面的设置卡是同一个背景色，
+       同色 + 一条边框几乎分不出边界（截图里看着像卡片自己长出来一截）。 */
+    background:var(--code-bg); border:1px solid var(--line);
+    border-radius:10px; font-family:ui-monospace, Menlo, Consolas, monospace;
+    font-size:11.5px; line-height:1.65; color:var(--muted);
+    white-space:pre-wrap; word-break:break-all; -webkit-user-select:text; user-select:text;
+  }
+
   /* 2026-11-04 v2.94：扫码快捷按钮（默认关闭，设置 › 扫码快捷按钮 里开）。
      为什么不干脆做成设置里的一行按钮：用它的时机是「站在桩前面」，那时候人在首页
      列表或地图里，而不是在设置面板里 —— 必须是随时按得到的浮层。
@@ -2024,13 +2079,23 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v3.23</div>
+    <div id="app-ver" class="foot-ver">版本 v3.27</div>
   </footer>
 </div>
 
 <!-- 底部轻提示（v2.34）：一过性的话都往这里说，别再占顶部横幅条。
      `role=status` + `aria-live=polite` 让读屏用户在**不打断当前朗读**的前提下听到它。 -->
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- 新版本提示（v3.24）。平时 opacity/visibility 全关，`swTipShow()` 才加 .show。
+     🔴 不用 `hidden` 属性：隐藏和 .show 会打架（display:none 下 transition 不生效，
+        会变成硬闪）。跟 .toast 一样靠 visibility 收，读屏也不会读到。
+     🔴 这里**必须**是 fixed 浮条，不能挂进 #banner —— 理由见上面 CSS 那段注释。 -->
+<div class="sw-tip" id="sw-tip" role="status" aria-live="polite">
+  <span class="sw-tip-txt">本站更新了，刷新一下就能用上新版</span>
+  <button class="sw-tip-btn" id="sw-tip-go" type="button">刷新</button>
+  <button class="sw-tip-x" id="sw-tip-x" type="button" aria-label="稍后再说" title="稍后再说">×</button>
+</div>
 
 <!-- 扫码快捷按钮（v2.94）：默认 hidden，fabPaint() 按 cpk.scanFab.on 决定露不露面。
      两个图标都写在里面，用 data-app 切显示，换微信/支付宝不动 DOM。
@@ -2890,7 +2955,7 @@
     </div>
 
     <div class="about-hero">
-      <img class="about-logo" src="icons/icon-192.png" alt="长安大学充电桩查询图标" width="76" height="76" decoding="async">
+      <img class="about-logo" src="icons/icon-192.png" alt="长安大学充电桩查询图标" width="76" height="76" decoding="async" loading="lazy">
       <div class="about-name">长安大学充电桩查询</div>
       <div class="about-by">by 长歌</div>
       <div class="about-ver" id="about-ver"></div>
@@ -2910,7 +2975,20 @@
         <span class="set-txt">反馈交流群</span>
         <a class="set-link" href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" data-qq-open>1128669064</a>
       </div>
+      <!-- 诊断信息（v3.24）：页面出错时把环境 + 最近错误一键复制出来贴给开发者。
+           为什么放在「关于 › 开发者」而不是设置主面板：普通访客用不到这一行，
+           摆在主面板只是多一行噪音（这个原则和「违规排行榜只进管理员后台」一样）。
+           正常用户永远不需要点它 —— 它是给「页面好像不太对」的人准备的。 -->
+      <button class="set-row" type="button" id="about-diag-btn">
+        <span class="set-txt">诊断信息</span>
+        <span class="set-val" id="about-diag-val">复制</span>
+        <span class="set-caret" aria-hidden="true"></span>
+      </button>
     </div>
+    <!-- 复制失败（HTTP 入口、旧浏览器）时的兜底：把原文摊出来让人自己长按选。
+         平时 hidden，只有 copyDiag() 判定失败才露出来。 -->
+    <pre class="diag-out" id="diag-out" hidden></pre>
+
 
     <div class="set-sec">致谢与贡献人员</div>
     <div class="set-card">
@@ -3467,6 +3545,105 @@
 <script src="map-data.js?v=173" defer fetchpriority="low"></script>
 <script>
 'use strict';
+
+/* ---------------- 出错留证（v3.24） ----------------
+ *
+ * 为什么要有：这个页面一万五千行，跑在别人的手机浏览器里，而此前**一处 onerror 都没有**
+ *（`window.onerror` / `unhandledrejection` / `sendBeacon` 全是 0 处，`console.error` 只有 1 处）。
+ * 用户遇到白屏、卡片失踪、地图不出来，只能截图说「打不开」，我们这边完全看不见现场 ——
+ * 同一个毛病在 11-19 查首屏成本时才发现「原来 206 KB 注释在白白下发」，也是因为看不见。
+ *
+ * 现在把最近 20 条错误落在本机 localStorage，用户在「设置 › 关于 › 诊断信息」里一键复制，
+ * 贴到反馈里就能定位到文件和行号。
+ *
+ * 🔴 四条硬约束，改之前先读：
+ *   1. **只存本机、不上传**。没有 sendBeacon、没有第三方、没有「上报」开关 ——
+ *      这个项目连充电记录都只落 localStorage，错误日志更没理由往外送。
+ *   2. 采集本身**绝不能抛错**，否则一次错误会变成无限错误。整个函数包在 try/catch 里。
+ *   3. 同一条错误**连续重复只累加次数**，不占新坑位。渲染循环里一抛错能瞬间刷满 20 条，
+ *      把真正有用的前几条挤出去 —— 那时候这份日志就彻底没用了。
+ *   4. 必须用**捕获阶段**（`true`）注册：img/script/link 的加载错误不冒泡，
+ *      只在捕获阶段能拿到（这类错误 `e.message` 是空的，只有 `e.target`）。
+ *
+ * ⚠️ 注册点放在脚本最前面，函数声明会提升，所以下面 4000 行处的 `store` 还没初始化时
+ *    被调用也不会炸（内部直接用 localStorage，且全程 try/catch）。 */
+const DIAG_KEY = 'cpk.diag';
+const DIAG_MAX = 20;
+
+function diagPush(kind, msg, where) {
+  try {
+    let arr = [];
+    try {
+      const raw = localStorage.getItem(DIAG_KEY);
+      if (raw) { const p = JSON.parse(raw); if (Array.isArray(p)) arr = p; }
+    } catch (e) {}
+    const m = String(msg == null ? '' : msg).slice(0, 300);
+    const w = String(where == null ? '' : where).slice(0, 160);
+    if (!m && !w) return;
+    const last = arr[arr.length - 1];
+    if (last && last.m === m && last.w === w) {
+      last.n = (last.n || 1) + 1;
+      last.t = Date.now();
+    } else {
+      arr.push({ t: Date.now(), k: String(kind || ''), m: m, w: w, n: 1 });
+    }
+    while (arr.length > DIAG_MAX) arr.shift();
+    localStorage.setItem(DIAG_KEY, JSON.stringify(arr));
+  } catch (e) {}
+}
+
+function diagOnError(e) {
+  try {
+    const t = e && e.target;
+    /* 资源加载失败：e.target 是那个 img/script/link 本身（而不是 window）。 */
+    if (t && t !== window && t.tagName) {
+      const url = t.currentSrc || t.src || t.href || '';
+      diagPush('res', t.tagName.toLowerCase() + ' 加载失败', String(url).slice(0, 160));
+      return;
+    }
+    const msg = (e && (e.message || (e.error && e.error.message))) || '';
+    const at = e && e.filename
+      ? String(e.filename).replace(/^.*\//, '') + ':' + e.lineno + ':' + e.colno
+      : '';
+    diagPush('err', msg || '脚本错误', at);
+  } catch (err) {}
+}
+
+function diagOnReject(e) {
+  try {
+    const r = e && e.reason;
+    const msg = (r && (r.message || String(r))) || 'Promise 拒绝（无 message）';
+    /* 只取栈的第二行（第一行通常就是 message 本身，重复了）。 */
+    let at = '';
+    if (r && r.stack) {
+      const lines = String(r.stack).split('\n');
+      at = (lines[1] || '').trim();
+      /* V8 的栈是「    at fn (http://…/index.html:123:4)」这种，只留文件名和行列。 */
+      const m = at.match(/[\w.-]+\.(?:html|js):\d+:\d+/);
+      at = m ? m[0] : at.replace(/^at\s+/, '');
+    }
+    diagPush('rej', msg, at.slice(0, 160));
+  } catch (err) {}
+}
+
+/* 捕获阶段：资源加载错误不冒泡，只有 capture 能收到。 */
+window.addEventListener('error', diagOnError, true);
+window.addEventListener('unhandledrejection', diagOnReject);
+
+/* 2026-11-21：记 LCP。
+ * 诊断面板原来只有 FCP —— 可「点了之后多久看到内容」和「多久看到**主要内容**」
+ * 是两件事：弱网下 FCP 常常 400ms 就出来了（骨架卡），真正的主力内容要等
+ * 查询回来。LCP 是这两者里更接近体感的那个数。
+ * 只在支持 PerformanceObserver 的浏览器上装；出错就静默，诊断不能反过来影响页面。 */
+let diagLcp = 0;
+try {
+  if (typeof PerformanceObserver === 'function') {
+    new PerformanceObserver((list) => {
+      const es = list.getEntries();
+      if (es && es.length) diagLcp = Math.round(es[es.length - 1].startTime);
+    }).observe({ type: 'largest-contentful-paint', buffered: true });
+  }
+} catch (e) {}
 
 // 敏感常量轻度编码：只挡住"打开源码一眼抄走"，不是加密（前端无法真正保密）
 const _dec = (s) => atob(s);
@@ -4754,6 +4931,12 @@ async function readPorts(device) {
  *  页面用它决定收尾提示怎么写 —— 下面 `refresh()` 末尾读它。 */
 let lastPileMeta = { fetched: 0, hit: 0, throttled: false, rateLimited: false, batches: 0, oldestAge: 0 };
 
+/* 2026-11-21：最近一轮**每一批**的耗时（毫秒，成功与否都记）。
+ * 为什么不只记平均：网络慢的时候真正难受的是尾部 —— 平均 300ms、其中一批 2.6 秒，
+ * 用户等到的是那 2.6 秒。诊断面板按批列出来，才看得出是「普遍慢」还是「偶尔卡死」。
+ * 只存在本机内存里，不上传、不落盘。 */
+let lastBatchMs = [];
+
 async function pileProxyBatch(items, onChunk, shouldStop, opts = {}) {
   /* 🔴 2026-10-27：不再要求本机有凭证 —— 访客本来就没有。
    * 凭证在 Worker 里，`/api/pile` 缺 `token` 时自己取、自己带 Authorization 上平台。
@@ -4765,6 +4948,7 @@ async function pileProxyBatch(items, onChunk, shouldStop, opts = {}) {
    * 它返回的 `at` 就是缓存写入时刻。这正是「点了刷新还显示 3 分钟前」的根因。 */
   const fresh = !!(opts && opts.fresh);
   lastPileMeta = { fetched: 0, hit: 0, throttled: false, rateLimited: false, batches: 0, oldestAge: 0 };
+  lastBatchMs = [];
 
   /* ① 先按**数据源**分组，再在组内切批（v2.63）。
    * 一个批次只能带一个 `src` —— 混在一起的话 Worker 只能用其中一个，
@@ -4791,10 +4975,13 @@ async function pileProxyBatch(items, onChunk, shouldStop, opts = {}) {
 
   const out = {};
   let gotAny = false;
+  /* 本轮成功批数 —— 跑完交给 judgeLaneHealth() 判要不要回落 2 条（见 PILE_LANES_FAST 上方）。 */
+  let okBatches = 0;
   /* 这一轮是否已经为 429 退让过一次（跨批次共享，见 oneBatch 里那段注释） */
   let rateRetried = false;
 
   const oneBatch = async (part) => {
+    const batchT0 = Date.now();
     try {
       /* 没 token 就不带这个字段（而不是发一个空串）——
        * 让「服务端决定用哪份凭证」这件事只有一个明确入口。
@@ -4862,13 +5049,19 @@ async function pileProxyBatch(items, onChunk, shouldStop, opts = {}) {
         /* 回调里出异常不能把「已经查到的结果」一起废掉 */
         try { onChunk(data.results); } catch (e) { console.error('[pile] onChunk 出错', e); }
       }
+      okBatches += 1;
       return true;
     } catch (e) {
       return false;
+    } finally {
+      /* 2026-11-21：每批都记（含失败）——诊断面板要的是分布，不是平均值。 */
+      lastBatchMs.push({ n: part.ids.length, ms: Date.now() - batchT0 });
+      while (lastBatchMs.length > 24) lastBatchMs.shift();
     }
   };
 
-  const lanes = Array.from({ length: Math.min(PILE_LANES, chunks.length) }, () => []);
+  const laneCount = Math.min(pileLaneCount(), chunks.length);
+  const lanes = Array.from({ length: laneCount }, () => []);
   chunks.forEach((c, i) => lanes[i % lanes.length].push(c));
 
   await Promise.all(lanes.map(async (list, li) => {
@@ -4884,6 +5077,9 @@ async function pileProxyBatch(items, onChunk, shouldStop, opts = {}) {
       if (!ok) return;          // 这条流水线断了，另一条照常跑完
     }
   }));
+
+  /* 采样够大才判：本轮成片失败就降级，避免下次还按 3 条去撞平台。 */
+  judgeLaneHealth(okBatches, chunks.length);
 
   return gotAny ? out : null;
 }
@@ -6423,15 +6619,44 @@ function buildScope() {
  *   首屏/空闲时段都不该为它付 963KB。
  *   （注：这张图只在「渭水校区」页签被打开时才用得上。）
  */
+/* 2026-11-21：首屏预热的准入判断。
+ *
+ * 起因是一次受控 A/B（模拟 4G：RTT 150ms / 1.6Mbps）：
+ *   带预热 → FCP 4104ms、单批查询 2244/2611/1600ms、首开 629KB
+ *   屏蔽预热 → FCP 404ms、单批查询 263/250/421ms、首开 416KB
+ * 也就是**预热把首屏拖慢了 10 倍、把查询拖慢了 8 倍** —— 因为它在首页脚本一跑起来
+ * 就抢 145KB 底图、第 6 秒再抢 284KB 高德 SDK，而这些在弱网里是实打实从查询嘴里抢的带宽。
+ *
+ * 原来的判断只挡 `saveData` 与 2g/3g，可**真实 4G 上报的是 `effectiveType: '4g'`**，
+ * 校园网 WiFi 更是一路放行 —— 三种网络里最慢的两种恰好都不设防。
+ *
+ * 所以这里换成一个「这条链路值不值得替用户预花几百 KB」的判断：
+ *   · 省流模式                → 不预热（用户明确说了别花）
+ *   · `type === 'cellular'`   → 不预热（流量是计价资源；点开地图再下，总量一样不少付）
+ *   · 2g/3g                   → 不预热
+ *   · `downlink < 4Mbps`      → 不预热（校园网实测下行 0.7Mbps，属于这一类）
+ * 拿不到 Network Information API 时按「可以预热」处理，保持老浏览器行为不变。 */
+function netWorthWarming() {
+  try {
+    const c = navigator.connection || {};
+    if (c.saveData) return false;
+    if (/cellular/i.test(String(c.type || ''))) return false;
+    if (/2g|3g/.test(String(c.effectiveType || ''))) return false;
+    const dl = Number(c.downlink);
+    if (dl > 0 && dl < 4) return false;
+    return true;
+  } catch (e) {
+    return true;
+  }
+}
+
 function warmBaseMaps() {
   /* v2.86：这里原来连 `navigator.connection` 都没看 —— 隔壁 `warmAMap()` 一直有，
      这张却漏了，于是开着省流模式的用户照样被下 145KB 底图（实测占首屏传输的 35%），
      而这两张图只有点「地图」才用得上。判断与 `warmAMap()` 保持一致。 */
-  try {
-    const c = navigator.connection || {};
-    if (c.saveData) return;
-    if (/2g|3g/.test(String(c.effectiveType || ''))) return;
-  } catch (e) { /* 不支持 Network Information API 就照常预热 */ }
+  /* 2026-11-21：判断收进 `netWorthWarming()`（流量 / 弱链路一律不预热，
+     理由与那组 A/B 数据写在那里）。 */
+  if (!netWorthWarming()) return;
 
   const urls = ['map-clean.webp', 'map-beimen.webp'];
   const run = () => urls.forEach((u) => { const im = new Image(); im.src = u; });
@@ -6453,11 +6678,8 @@ let amapWarmed = false;
 function warmAMap() {
   if (amapWarmed) return;
   amapWarmed = true;
-  try {
-    const c = navigator.connection || {};
-    if (c.saveData) return;
-    if (/2g|3g/.test(String(c.effectiveType || ''))) return;
-  } catch (e) { /* 不支持 Network Information API 就照常预热 */ }
+  /* 2026-11-21：同 `warmBaseMaps()` —— 流量 / 弱链路不预热，点开地图时按需加载。 */
+  if (!netWorthWarming()) return;
 
   const run = () => {
     loadLocalKeyOnce()
@@ -8601,10 +8823,43 @@ const PILE_PROXY_PATH = '/api/pile';
  * 12 台一批 + Worker 内部 6 路并发 = 每批约 3~4 秒，稳。 */
 const PILE_PROXY_CHUNK = 12;
 /* 页面这边同时跑几条流水线（每条 = 一个 /api/pile 请求 = Worker 内 6 并发）。
- * 6 × 2 = 12 个平台并发，仍在实测安全区（20 并发 1.9 秒全成）以下。
- * 🔴 别再往上加到 3：3 条 = 18 并发，2026-10-24 深夜实测成功率掉到 35%
- *    （那一轮也可能是平台自己在抖，但那已经是「没有余量」的位置，不值得赌）。 */
-const PILE_LANES = 2;
+ *
+ * 2026-11-21：从「固定 2 条」改成「默认 3 条、抖了就自动回落 2 条」。
+ *
+ * 起因：用手机流量刷新还是慢。一条流水线内部是**串行**的，2 条 × 6 并发 = 12 个
+ * 平台并发，而平台实测 20 并发 1.9 秒全成（见 PILE_PROXY_CHUNK 上方）—— 12 根本
+ * 没贴着上限，白白让 117 台多跑了两轮往返：
+ *   · 2 条：117 ÷ 12 = 10 批 → 每条 5 批 ×（回源 1.2~2.3 秒 + 批间 260ms）≈ 8~11 秒
+ *   · 3 条：同样 10 批 → 每条 3~4 批 ≈ 5~7 秒
+ * 流量下差距更大：每多一轮就多一次「手机 → 边缘」的 RTT，而这条 RTT 比家宽长得多。
+ * 2026-11-21 线上实测 3 条打 100 台：9/9 批成功、0 降级、17.4 台/秒。
+ *
+ * 🔴 但 2026-10-24 深夜那次「3 条掉到 35% 成功率」也是真的 —— 平台会抖。
+ * 所以不做无脑 3 条：本轮**批成功率 < 70%** 就写一条降级标记，10 分钟内回落 2 条，
+ * 下次再抖不会连着挨。判定要求样本 ≥ 6 批，补查那种 1~2 批不参与。 */
+const PILE_LANES_FAST = 3;
+const PILE_LANES_SAFE = 2;
+const PILE_LANES_DEMOTE_KEY = 'cpk.lanes.demote';
+const PILE_LANES_DEMOTE_MS = 10 * 60 * 1000;
+const PILE_LANES_MIN_SAMPLE = 6;
+
+/** 本轮该开几条流水线：降级标记还没过期就用 2 条，否则 3 条。 */
+function pileLaneCount() {
+  try {
+    const o = store.get(PILE_LANES_DEMOTE_KEY, null);
+    const at = Number(o && o.at) || 0;
+    if (at && Date.now() - at < PILE_LANES_DEMOTE_MS) return PILE_LANES_SAFE;
+  } catch (e) { /* 读不出来就当没降级过 */ }
+  return PILE_LANES_FAST;
+}
+
+/** 一轮跑完再判健康度。只在样本够、且失败是「成片」的时候才降级 ——
+ *  单批偶发超时（平台抖一下）不该把后面十分钟都拖成 2 条。 */
+function judgeLaneHealth(okBatches, totalBatches) {
+  if (totalBatches < PILE_LANES_MIN_SAMPLE) return;
+  if (okBatches / totalBatches >= 0.7) return;
+  store.set(PILE_LANES_DEMOTE_KEY, { at: Date.now(), ok: okBatches, n: totalBatches });
+}
 const PILE_PROXY_TIMEOUT_MS = 25000;
 
 /* 🔴 v2.82：批与批之间、车道与车道之间各留一点间隔（2026-11-03 北院实测后加）。
@@ -8618,8 +8873,13 @@ const PILE_PROXY_TIMEOUT_MS = 25000;
  *   · 车道错峰 800ms：两条线的波峰错开，平台侧同时在飞的从 24 台降到 12 台；
  *   · 批间 260ms：一批回来喘一口再发下一批，尾部批次不再在最密的时刻撞上去。
  * 代价：一轮 57 台从 4.4 秒变成 ~6.5 秒（流式回填，第一批照样 2 秒上屏）。 */
-const PILE_BATCH_GAP_MS = 260;
-const PILE_LANE_STAGGER_MS = 800;
+/* 2026-11-21：车道从 2 条变 3 条后，这两个间隔一起往下收 ——
+ * 它们的作用是「把一口气摊成匀速」，而 3 条错峰本身就把波峰切得更碎：
+ *   · 车道错峰 800 → 400ms：第三条不用干等到 1.6 秒才出发（那段纯属白等）；
+ *   · 批间 260 → 180ms：单条车道的批数已从 5 降到 3~4，留一口气即可。
+ * 总请求数、单批台数、Worker 内并发一律没动，改的只是「什么时候发」。 */
+const PILE_BATCH_GAP_MS = 180;
+const PILE_LANE_STAGGER_MS = 400;
 
 /* 补查用的批大小：失败的那几台本来就更难查通，一批 6 台可以让重试更快出结论，
  * 也不会因为「重试本身又是一大批」把平台刚缓过来的窗口再次填满。 */
@@ -10829,7 +11089,24 @@ const CHANGELOG = [
     '打开「违规车牌登记」「同步密码」「管理员密码」「充满要多久」「补登」这些弹窗时，'
       + '光标直接落在要填的那一格，不用再点一下；用拼音选字时按回车，也不会把没打完的字提交出去',
     /* v3.23：CLS 0.103 → 0。用户感知是「页面不跳了」，就按感知写，不写 CLS 这种词。 */
-    '打开页面时那句「正在查询…」改成浮在底部、说一声就走，不再把下面的卡片往下顶一格'
+    '打开页面时那句「正在查询…」改成浮在底部、说一声就走，不再把下面的卡片往下顶一格',
+    /* v3.24：两件「出了问题才看得出价值」的事。文案照用户能感知的说法写，
+       不出现 Service Worker / localStorage / 错误上报这些词。 */
+    '本站更新之后，页面底部会冒一句「刷新一下就能用上新版」，点一下就换过去，'
+      + '不用自己去找刷新键；挂着没关的页面放久了再回来，也会自己检查有没有新版',
+    '设置 › 关于 里多了一行「诊断信息」：页面要是哪里不对劲（白屏、卡片不出来），'
+      + '点一下就能把当时的情况复制下来，贴在反馈里发过来，查起来快得多',
+    /* v3.25：手机流量 / 校园网下变快 —— 只写用户能感觉到的：不再被地图资源抢带宽。 */
+    '手机流量和校园网下打开更快了：以前一进来就先偷偷下好地图底图和地图脚本'
+      + '（加起来四百多 KB），把查询的带宽抢光了；现在用流量、开省流或者网速本来就慢时不预下，'
+      + '点开地图才加载。「诊断信息」也多几行：网络、建连、绘制、查询，慢在哪一段一眼能分清',
+    /* v3.26：白屏这件事用户真的撞到了，得如实写，不装作没发生。 */
+    '修好了个别手机「第二次打开是白屏、过一会儿再刷又正常」的问题：'
+      + '页面会先等网络一小会儿，等不到才用本机存的那份，用之前还会先确认它是完整的',
+    /* v3.27：查询提速 —— 用户感知是「刷新之后卡片变新的速度快了」，按感知写。 */
+    '点刷新之后，卡片陆续变新的速度快了一截（手机流量下最明显）：'
+      + '以前同时查 2 路，现在同时查 3 路；万一平台那边连着好几批都没响应，'
+      + '会自动退回 2 路，不会越刷越慢',
   ] },
   { v: 'v3.10 – v3.19', d: '2026-11-07 ~ 11-08', items: [
     /* v3.10 补登过去 / v3.11 按钮并排与时长填小时 / v3.12 整行入口 / v3.13 实用功能栏
@@ -11059,6 +11336,196 @@ function changelogFingerprint() {
 function changelogVersion() {
   const m = (($('app-ver') || {}).textContent || '').match(/v\d+(?:\.\d+)*/);
   return m ? m[0] : CHANGELOG[0].v;
+}
+
+/* ---------------- 诊断信息（v3.24） ----------------
+ * 把「出问题时你会想知道的那些」拼成一段可直接粘贴的纯文本：
+ * 版本、时间、UA、视口、离线缓存/凭证状态、最近错误（含文件与行号）。
+ * 🔴 不放任何凭证、密码、车牌、充电记录 —— 这些都属于用户隐私，
+ *    而诊断只需要「环境 + 错误」就够定位问题了。 */
+function diagText() {
+  const L = [];
+  const pad = (n) => String(n).padStart(2, '0');
+  const now = new Date();
+  const hhmmss = (ms) => {
+    const d = new Date(ms);
+    return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+  };
+
+  L.push('长安大学充电桩查询 ' + changelogVersion());
+  L.push('时间 ' + now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate())
+    + ' ' + hhmmss(now.getTime()));
+  L.push('页面 ' + location.href);
+  L.push('UA ' + navigator.userAgent);
+  L.push('视口 ' + innerWidth + 'x' + innerHeight + ' dpr=' + (devicePixelRatio || 1));
+
+  /* 查询范围：校区 + 地址筛选。下面那句「待重查」是相对这个范围说的，
+     不把范围写出来，光看台数就是一句没法核对的话。 */
+  try {
+    L.push('范围 ' + (campusName(getCampus(), true) || getCampus())
+      + ' / ' + (getFilter() || '全部地址'));
+  } catch (e) {}
+
+  /* 离线缓存：全库几台、当前范围几台、其中多少需要重查。
+     🔴 别把「全库超 1 小时」当故障：刷新只刷**当前校区 + 当前地址**（inFilterScope 是硬范围，
+     校区先过一道），换过校区留下的旧记录会一直躺在 cpk.cache 里。
+     2026-11-21 真机报告里那句「超 1 小时 152 台」全是这个来历，实际当前范围一台都不旧 ——
+     报一个不会误导人的数字，比报一个大数字有用。 */
+  try {
+    const cache = store.get(KEY_CACHE, {}) || {};
+    const keys = Object.keys(cache);
+    let oldest = 0;
+    keys.forEach((k) => {
+      const at = cache[k] && cache[k].at ? cache[k].at : 0;
+      if (at && (!oldest || at < oldest)) oldest = at;
+    });
+    let plan = null;
+    try { plan = refreshPlan(); } catch (e2) {}
+    let line = '明细缓存 ' + keys.length + ' 台';
+    if (plan) {
+      /* 🔴 「没响应」和「平台说设备断线」是两件事：前者我们不知道发生了什么、值得重试；
+         后者是平台给了明确结论（`该设备已断线，暂时无法使用…`），再点一百次也不会变。
+         混成一个数字会让人以为是自己网络的问题（2026-11-21 北门 D-07 / D-13 实测）。 */
+      let offline = 0;
+      try {
+        const devs = getDevices();
+        plan.need.forEach((i) => {
+          const d = devs[i];
+          const rec = d ? cache[d.id] : null;
+          if (rec && String(rec.error || '').indexOf('断线') >= 0) offline += 1;
+        });
+      } catch (e3) {}
+      const bits = [];
+      if (offline) bits.push('已断线 ' + offline);
+      if (plan.failed - offline > 0) bits.push('没响应 ' + (plan.failed - offline));
+      line += ' · 当前范围 ' + plan.scope + ' 台，待重查 ' + plan.need.length
+        + (bits.length ? '（' + bits.join(' · ') + '）' : '');
+    }
+    if (oldest) {
+      const mins = Math.round((Date.now() - oldest) / 60000);
+      line += ' · 全库最旧 ' + (mins >= 1440 ? Math.round(mins / 1440) + ' 天前' : mins + ' 分钟前');
+    }
+    L.push(line);
+  } catch (e) { L.push('明细缓存 (读不到)'); }
+
+  /* 只说「本地有没有」，不写「失效」—— 查询走的是服务端凭证（/api/pile 由 Worker 代查），
+     本地这把只是兜底。写「已失效」会把好好的页面说成坏了（2026-11-21 真机反馈踩过）；
+     项目自己在 5495 行就记过这个坑：cpk.had 会把每个新访客误判成「这台机器查不了」。 */
+  try {
+    L.push('凭证 ' + (getToken()
+      ? '本地有（仅本标签页，优先于服务端）'
+      : (hadToken() ? '本地无（以前那把已过期，查询走服务端）' : '本地无（查询走服务端）')));
+  } catch (e) {}
+  try {
+    L.push('联网 ' + (navigator.onLine ? '在线' : '离线')
+      + (navigator.serviceWorker && navigator.serviceWorker.controller ? ' · 有离线壳' : ' · 无离线壳'));
+  } catch (e) {}
+
+  /* ---- 网络一段 ----
+   * 2026-11-21：为「为什么这个网络慢」准备的口径。
+   * 一个总时长分不出原因 —— 慢在建连（换节点能救）和慢在带宽（只能减字节）
+   * 是两种完全不同的结论，所以把五段拆开报：
+   *   建连 dns/tcp/tls   ← 这一段是「绕路」的代价
+   *   首字节            ← 包含 Worker 处理平台接口的固定开销
+   *   文档 KB           ← 这一段是「带宽」的代价
+   * 全部来自本机 Performance API，不上传、不落盘。 */
+  try {
+    const c = navigator.connection || {};
+    const nb = [];
+    if (c.effectiveType) nb.push(String(c.effectiveType));
+    if (/cellular/i.test(String(c.type || ''))) nb.push('流量');
+    if (Number(c.downlink) > 0) nb.push('下行约 ' + c.downlink + 'Mbps');
+    if (Number(c.rtt) > 0) nb.push('往返 ' + c.rtt + 'ms');
+    if (c.saveData) nb.push('省流开');
+    L.push('网络 ' + (nb.join(' · ') || '浏览器不报'));
+  } catch (e) {}
+
+  try {
+    const nav = (performance.getEntriesByType('navigation') || [])[0] || null;
+    const r = (v) => Math.round(v || 0);
+    if (nav) {
+      const dns = r(nav.domainLookupEnd - nav.domainLookupStart);
+      const tcp = r(nav.connectEnd - nav.connectStart);
+      const tls = nav.secureConnectionStart ? r(nav.connectEnd - nav.secureConnectionStart) : 0;
+      const kb = r((nav.transferSize || 0) / 1024);
+      L.push('建连 dns ' + dns + ' / tcp ' + tcp + ' / tls ' + tls + ' ms'
+        + ' · 首字节 ' + r(nav.responseStart) + ' ms'
+        + ' · 文档 ' + kb + 'KB'
+        + ' · ' + (nav.nextHopProtocol || '来自离线壳'));
+    }
+    const paints = {};
+    (performance.getEntriesByType('paint') || []).forEach((p) => { paints[p.name] = p.startTime; });
+    L.push('绘制 首屏 ' + r(paints['first-contentful-paint']) + ' ms'
+      + ' · 主内容 ' + (diagLcp ? diagLcp + ' ms' : '(未测)')
+      + ' · 加载完成 ' + (nav ? r(nav.loadEventEnd) : 0) + ' ms');
+  } catch (e) {}
+
+  /* 查询的**分布**而不是平均值：网络差时难受的是尾部（平均 300ms 里夹一批 2.6 秒）。
+     顺带报「现在开几路」——3 路是常态，出现「已回落」说明上一轮成片失败过（见 judgeLaneHealth）。 */
+  try {
+    const laneNow = pileLaneCount();
+    L.push('查询 ' + (lastBatchMs.length
+      ? '最近 ' + lastBatchMs.length + ' 批 ' + lastBatchMs.slice(-8).map((b) => b.ms).join('/') + ' ms'
+      : '这一轮还没发请求')
+      + ' · ' + laneNow + ' 路（每路 6 并发）'
+      + (laneNow === PILE_LANES_SAFE ? '，上次成片失败已回落' : ''));
+  } catch (e) {}
+
+  let arr = [];
+  try {
+    const raw = localStorage.getItem(DIAG_KEY);
+    if (raw) { const p = JSON.parse(raw); if (Array.isArray(p)) arr = p; }
+  } catch (e) {}
+
+  L.push('');
+  L.push('---- 最近错误 ' + arr.length + ' 条 ----');
+  if (!arr.length) {
+    L.push('(还没有记录到错误)');
+  } else {
+    arr.slice(-12).forEach((x) => {
+      L.push(hhmmss(x.t) + ' [' + x.k + '] ' + x.m
+        + (x.n > 1 ? ' ×' + x.n : '')
+        + (x.w ? ' @ ' + x.w : ''));
+    });
+  }
+  return L.join('\n');
+}
+
+/** 复制诊断信息。剪贴板 API 在 HTTP 入口（自建 192.140.173.156）下不可用，
+ *  所以保留了 execCommand 降级 —— 和「扫码采设备号」里那段是同一套写法。 */
+function copyDiag() {
+  const text = diagText();
+  const box = $('diag-out');
+  const done = (ok) => {
+    showToast(ok ? '已复制，粘贴到反馈里就行' : '复制失败，长按下面这段手动选', ok ? 2400 : 3600);
+    if (box) {
+      /* 成功时要把它收回去：上一次失败留下的那一大段文本留在弹窗里，
+         下次再点会以为是「又失败了」。 */
+      box.hidden = ok;
+      box.textContent = ok ? '' : text;
+    }
+  };
+  const fallback = () => {
+    let ok = false;
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.top = '-1000px';
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, text.length);
+      try { ok = document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(ta);
+    } catch (e) {}
+    done(ok);
+  };
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(() => done(true)).catch(fallback);
+  } else {
+    fallback();
+  }
 }
 
 function renderChangelog() {
@@ -15430,12 +15897,59 @@ boot();
    放这儿（boot 之后一行）能保证首帧就有结论，不会先亮一下再灭。 */
 syncChangelogDot();
 
-// 注册 Service Worker：HTTPS 下 Android 才认得出这是可安装的应用
+/* ---------------- 新版本提示（v3.24） ----------------
+ *
+ * 离线壳（sw.js）用的是 skipWaiting + clients.claim：新壳装好**立刻接管**，
+ * 可**当前页面里的 HTML 早在内存里了**，不会跟着换。于是修好的 bug、改过的逻辑，
+ * 对「从来不手动刷新」的人等于没发出去 —— 他们看到的还是旧版。
+ *
+ * 所以新壳接管（controllerchange）时给一条 fixed 提示，点一下就 reload。
+ *
+ * 🔴 只在「之前已经有一个 controller」时才提示：首次安装时 clients.claim()
+ *    同样会触发 controllerchange，那种情况根本没有旧版可换，弹提示只会让人困惑。
+ * 🔴 提示条是 fixed 浮条、不进 #banner —— 它在页面加载后才出现，用文档流里的
+ *    banner 会把刚修好的 CLS 又推回去（详见 CSS 里 .sw-tip 那段）。 */
+function swTipShow() {
+  const el = $('sw-tip');
+  if (el) el.classList.add('show');
+}
+function swTipHide() {
+  const el = $('sw-tip');
+  if (el) el.classList.remove('show');
+}
+
 if ('serviceWorker' in navigator) {
+  /* 必须在 register 之前读一次：注册之后 controller 可能已经被新壳抢走。 */
+  const hadController = !!navigator.serviceWorker.controller;
+
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    navigator.serviceWorker.register('sw.js').then((reg) => {
+      if (hadController) {
+        let swapped = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (swapped) return;
+          swapped = true;
+          swTipShow();
+        });
+      }
+      /* 挂了一整天的页面（这站真的有用户这么用）不会自己去查新版本。
+         每次重新可见时顺手 reg.update()，30 分钟内不重复打。 */
+      let lastCheck = Date.now();
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) return;
+        if (Date.now() - lastCheck < 30 * 60 * 1000) return;
+        lastCheck = Date.now();
+        reg.update().catch(() => {});
+      });
+    }).catch(() => {});
   });
 }
+
+$('sw-tip-go').addEventListener('click', () => location.reload());
+$('sw-tip-x').addEventListener('click', swTipHide);
+/* 诊断信息（v3.24）：放在「关于 › 开发者」。复制失败时 copyDiag() 会把原文
+   摊到 #diag-out 里，所以这里只管点。 */
+$('about-diag-btn').addEventListener('click', copyDiag);
 </script>
 </body>
 </html>

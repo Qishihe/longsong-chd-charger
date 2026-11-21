@@ -2079,7 +2079,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v3.28</div>
+    <div id="app-ver" class="foot-ver">版本 v3.29</div>
   </footer>
 </div>
 
@@ -4992,9 +4992,11 @@ async function pileProxyBatch(items, onChunk, shouldStop, opts = {}) {
 
       /* 🔴 v2.68：429 单独处理，别和「平台没响应」混成一条路。
        *
-       * Worker 对**同一个出口 IP** 有每分钟 30 批的限流（挡人当免费代理用）。
+       * Worker 对**同一个出口 IP** 有每分钟 60 个**回源**批次的限流（挡人当免费代理用）。
+       * v3.29 起只有真要回源的批次才计数，纯命中缓存的批次不算 —— 所以撞到 429 说明
+       * 这一分钟确实在反复回源，而不是「打开看了几眼」。
        * 校园网 IPv4 是 NAT —— 一个宿舍楼共用一个公网地址，几百人一起点刷新时
-       * 三四个人的额度就能把 30 批吃满，剩下的全拿到 429。
+       * 五六个人的额度就能把 60 批吃满，剩下的全拿到 429。
        *
        * 那是**我们自己**的闸，几秒后就好；而 `!res.ok → return false` 会让这条
        * 流水线整条断掉 → 剩下上百台被逐台标成「平台没响应」→ 攒够 10 台按失败率

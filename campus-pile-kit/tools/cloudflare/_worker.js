@@ -77,7 +77,10 @@ const PILE_API = 'https://union.zhumanggroup.com';
 const PILE_SCAN = '/api/rent/scan-code';
 const PILE_TTL = 300;            // 边缘缓存秒数（普通请求的上界）
 const PILE_MAX_IDS = 14;         // = 3N+2 ≤ 50 解出来的安全上界（见上），别再按「台数」放宽
-const PILE_RATE = 30;            // 单 IP 每分钟最多几次批量请求
+/* 单 IP 每分钟最多几次**回源**批次。命中边缘缓存的批次不计数，判定点也挪到了
+ * 缓存循环之后（原位置在入口，纯读也扣配额）—— 理由写在 `/api/pile` 里那道闸旁边。
+ * 2026-11-21 从 30 提到 60：平台压力由 PILE_FRESH_BUDGET 兜，这里只是放宽突发。 */
+const PILE_RATE = 60;
 
 /* ---------------- 「用户点了刷新」时怎么兼顾实时性与风控 ----------------
  *
@@ -168,6 +171,9 @@ const PILE_HEADERS = {
 };
 
 const pileHits = new Map();
+/* 计一次「回源批次」。调用方**只应在 missIds.length > 0 时**调它 —— 纯命中缓存的
+ * 批次不给平台添任何负担，吃配额只会把额度耗在假需求上（见 `/api/pile` 调用处）。
+ * 计数在 isolate 内存里，跨 isolate 不共享、回收即清零，本来就只是礼貌限速。 */
 function pileTooMany(ip) {
   const now = Date.now();
   const rec = pileHits.get(ip) || { n: 0, t: now };
@@ -389,10 +395,8 @@ async function handlePile(request, url, env) {
   }
 
   const ip = clientIp(request);
-  /* 内部调度不吃这道闸（v2.68）：它的出口是 Cloudflare 自己的 IP，跟「人当代理刷」
-   * 无关；更实际的是，快照站一轮要连发 5~8 批，碰上有人刷就一起被挡，
-   * 结果是一周回顾掉格子（见 PILE_FRESH_BUDGET_INTERNAL 上方注释）。 */
-  if (!internal && pileTooMany(ip)) return json({ ok: false, error: 'rate_limited' }, 429);
+  /* 单 IP 配额判定挪到缓存循环之后（v3.29）—— 只有真要回源的批次才计数。
+   * 判定代码在那个循环下面，别挪回这里：在入口扣配额会把「纯命中缓存」也计进去。 */
 
   /* `fresh` = 用户明确要「现在这一刻」。缺省 false → 与旧版页面完全一致的行为。 */
   const wantFresh = body && body.fresh === true;
@@ -422,6 +426,27 @@ async function handlePile(request, url, env) {
       } catch (e) { /* 缓存坏了就当作没命中，重新取 */ }
     }
     missIds.push(id);
+  }
+
+  /* 单 IP 配额（v3.29，2026-11-21）：**只有真要回源的批次才计数**。
+   *
+   * 原来这道闸在入口（`const ip = …` 下面），等于「一批 12 台全部命中边缘缓存」
+   * 也照样扣一次。而命中缓存是 300ms、零上游请求、零风控成本的纯读操作，偏偏
+   * 也是最常见的路径：数据还在 60 秒内、同一片区域第二个人打开、非 fresh 的
+   * 自动刷新，全都走这里。结果是桶被纯读吃空，某个真需要回源的批次突然 429，
+   * 用户看到的是「刚才查询的人太多了」—— 但他自己一次都没真查过。
+   *
+   * 现在只统计 `missIds.length > 0` 的批次，额度同步 30 → 60：
+   *   · 平台压力不变：真回源总量仍由 PILE_FRESH_BUDGET=160 台/分 兜底，
+   *     60 放宽的是「一个 IP 能发多少个回源批次」，不是回源台数；
+   *   · 一轮渭水全量 = 10 批，60 意味着单 IP 一分钟最多 6 轮，正常用不满；
+   *   · 校园网/CGNAT 下几十个人共用一个出口 IP 时才真正需要这点余量。
+   *
+   * 内部调度不吃这道闸（v2.68）：它的出口是 Cloudflare 自己的 IP，跟「人当代理刷」
+   * 无关；更实际的是，快照站一轮要连发 5~8 批，碰上有人刷就一起被挡，
+   * 结果是一周回顾掉格子（见 PILE_FRESH_BUDGET_INTERNAL 上方注释）。 */
+  if (!internal && missIds.length && pileTooMany(ip)) {
+    return json({ ok: false, error: 'rate_limited' }, 429);
   }
 
   /* 全站回源预算：每分钟一个桶，跨 isolate 用 Cache API 计数。

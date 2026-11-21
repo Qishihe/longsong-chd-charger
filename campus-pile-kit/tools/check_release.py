@@ -170,6 +170,30 @@ def main():
         print(f"找不到 index.html，站点目录：{SITE}")
         return 1
 
+    # ---------- 0. 设备编号不外泄 ----------
+    # 真号只放 private/devices.private.json（.gitignore 排除），源码里一律 PILE0001。
+    # 这条是防手滑：从旧文件复制一段带真号的代码进来，打包时 inject_private 找不到占位符，
+    # 产物里就混进真号 —— 而那时候它已经推上 GitHub 了。
+    real_ids = []
+    for p in (SITE / "index.html", SITE / "map-amap.js",
+              KIT / "snapshot-worker" / "partitions.mjs",
+              KIT / "snapshot-worker" / "core.mjs",
+              KIT / "snapshot-worker" / "selftest.mjs",
+              KIT / "tools" / "cred_grab.py",
+              KIT.parent / "docs" / "API.md"):
+        try:
+            t = p.read_text(encoding="utf-8", errors="replace")
+        except FileNotFoundError:
+            continue
+        found = re.findall(r"XL[AB]\d{5}", t) + re.findall(r"id:\s*'86\d{13}'", t)
+        if found:
+            real_ids.append(f"{p.name}×{len(found)}")
+    c.check(not real_ids, "源码里没有真实设备号（真值只在 private/）",
+            ("、".join(real_ids) + "；打包会漏注入") if real_ids else "全是 PILE#### 占位符")
+    c.check("campus-pile-kit/private/" in gitignore,
+            "私有清单目录已在 .gitignore 里",
+            "" if "campus-pile-kit/private/" in gitignore else "private/ 有被误提交的风险")
+
     # ---------- 1. 单轨：退役页面必须彻底不在 ----------
     left = [n for n in RETIRED_FILES if (SITE / n).exists()]
     c.check(not left, "站点目录里没有退役页面残留",

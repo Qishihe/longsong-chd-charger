@@ -62,9 +62,30 @@ ADMIN_FILE = HOME / ".chd_admin_token"        # Cloudflare Worker 的 ADMIN_TOKE
 SITE = "https://chd-charge.pages.dev"
 # 🔴 反代域名 chd-charge.app.workbuddy.host 会丢掉 x-admin-token，写过一次就报 bad_token，
 #    所以这里钉死 pages.dev，别再改成别的。
-PROBE_IDS = ["PILEXXXX"]        # 真实设备号（2026-11-05 实测在线），验证 token 用
-# 🔴 PILEXXXX 曾经是探针号，2026-11-05 发现走 Worker /api/pile 时命中边缘缓存，
-#    垃圾 token 也能拿到 200 → 验证必须直连上游（见 upstream_scan），别改回去。
+def _load_probe_ids():
+    """探针号从**私有清单**取，不写死在仓库里。
+
+    这些号是能直接打到上游平台的查询键，公开仓库不该躺明文；同时探针必须是
+    「平台上真实存在且在线」的设备，所以也只能用真值。清单不在就**直接报错** ——
+    静默退化成占位符会让 verify() 用一个假号去验 token，永远验不过。
+    """
+    p = Path(__file__).resolve().parent.parent / "private" / "devices.private.json"
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except Exception as e:
+        raise SystemExit(
+            "读不到私有设备清单：%s（%s）\n"
+            "  cred_grab 需要一个真实设备号做 token 探针，这份文件不入库。" % (p, e))
+    ids = [d["id"] for d in data.get("devices", [])
+           if (d.get("src") or "zm") == "zm" and d.get("id")]
+    if not ids:
+        raise SystemExit("私有清单里没有走中民（zm）的设备，无法选探针")
+    return ids[:1]
+
+
+PROBE_IDS = _load_probe_ids()   # 真实设备号，验证 token 用（2026-11-05 起从私有清单取）
+# 🔴 曾经用过另一台当探针，发现走 Worker /api/pile 时命中边缘缓存，垃圾 token 也能拿到
+#    200 → 验证必须直连上游（见 upstream_scan），别改回去。
 PROXY_HOST, PROXY_PORT = "127.0.0.1", 8888
 GRAB_TIMEOUT = 420              # 等用户点小程序的最长时间（秒）
 

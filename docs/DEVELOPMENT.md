@@ -55,8 +55,8 @@ GET 首页 → 解析 static/js/index.<hash>.js
 | 前端可挖的东西 | 有 secret | **无**，secret 不在前端 |
 | 扫码落地页 | — | Nuxt SSR 营销页，`payload.js` 内容仅 `data:[{}]`，不含任何设备数据 |
 
-扫码落地页这一项是决定性证据：`https://charging.jiedian.live/ssr/wxprogram/?id=PILEXXXX` 里，
-桩号 `PILEXXXX` 出现 **0 次**，页面只做 `<wx-open-launch-weapp>` 跳转，真正的实时状态在
+扫码落地页这一项是决定性证据：`https://charging.jiedian.live/ssr/wxprogram/?id=PILE0001` 里，
+桩号 `PILE0001` 出现 **0 次**，页面只做 `<wx-open-launch-weapp>` 跳转，真正的实时状态在
 `admin.sdbattery.com`（代理商后台，需登录）。
 
 顺带一条硬约束：汕大那仓库**没有 LICENSE 文件**，按其 `LICENSE-CHOICES.md` 自述属「保留所有权利」，

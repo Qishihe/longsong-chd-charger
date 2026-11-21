@@ -241,6 +241,17 @@ def _minify_html(text, cmd):
     return "".join(parts), js_ok
 
 
+def _inject(text):
+    """公开源码里的设备占位符 → 真实编号、演示坐标偏移归零。
+
+    真值在 `private/devices.private.json`（不入库）。**必须在压缩之前**做：
+    esbuild 会把 IIFE 里的 `var GEO_SHIFT` 改名，压完就找不到锚点了。
+    """
+    sys.path.insert(0, str(KIT / "tools"))
+    import inject_private
+    return inject_private.inject_text(text)
+
+
 def _write_catalog(dest):
     """对外设备目录是构建产物：打包时由 gen_catalog.py 生成。
 
@@ -249,6 +260,12 @@ def _write_catalog(dest):
     sys.path.insert(0, str(KIT / "tools"))
     import gen_catalog
     data, text = gen_catalog.generate(dest)
+    # gen_catalog 解析的是公开源码，id 是 PILE 占位符 —— 落盘后补一次注入
+    if dest.exists():
+        injected = _inject(dest.read_text(encoding="utf-8", newline=""))
+        if injected != dest.read_text(encoding="utf-8", newline=""):
+            dest.write_text(injected, encoding="utf-8", newline="")
+            text = injected
     print("目录：catalog.json %d 个分区 / %d 台 / %d B"
           % (len(data["areas"]), data["total"], len(text.encode("utf-8"))))
 
@@ -282,26 +299,37 @@ def main(argv=None):
             continue
         dst = DIST / rel
         dst.parent.mkdir(parents=True, exist_ok=True)
-        if args.full:
-            shutil.copy2(f, dst)
-        elif rel.suffix.lower() == ".html":
+        # 文本文件先注入（占位符 → 真值），二进制原样拷贝
+        try:
             raw = f.read_text(encoding="utf-8", newline="")
+        except (UnicodeDecodeError, OSError):
+            raw = None
+        if raw is not None:
+            raw = _inject(raw)
+        if args.full:
+            if raw is not None:
+                dst.write_text(raw, encoding="utf-8", newline="")
+            else:
+                shutil.copy2(f, dst)
+        elif rel.suffix.lower() == ".html":
             out, _ = _minify_html(raw, cmd)
             dst.write_text(out, encoding="utf-8", newline="")
             shrunk.append((rel.as_posix(), len(raw.encode("utf-8")),
                            len(out.encode("utf-8"))))
         elif rel.name in MINIFY_JS:
-            raw = f.read_text(encoding="utf-8", newline="")
             out, done = _minify_js(raw, cmd)
             if not done:
-                # esbuild 没跑成：退回原样拷贝，别拿半成品上线
-                shutil.copy2(f, dst)
+                # esbuild 没跑成：退回注入后的原文，别拿半成品上线
+                dst.write_text(raw, encoding="utf-8", newline="")
             else:
                 dst.write_text(out, encoding="utf-8", newline="")
                 shrunk.append((rel.as_posix(), len(raw.encode("utf-8")),
                                len(out.encode("utf-8"))))
         else:
-            shutil.copy2(f, dst)
+            if raw is not None:
+                dst.write_text(raw, encoding="utf-8", newline="")
+            else:
+                shutil.copy2(f, dst)
         kept.append(rel.as_posix())
 
     # 对外设备目录（构建产物，打包时现生成，不从站点目录复制）

@@ -3436,7 +3436,7 @@
     <p class="note" style="margin-top:0">凭证状态与更新入口在「设置 → 设备凭证」里，所有人可见。</p>
 
     <label for="devices-input" data-page-node-id="DGjs0M3GYAb4rdnX7K6jZt">要看的设备，每行一个：<code data-page-node-id="KsL6Gk1UTPQAxSxX9zgksQ">桩号 名称 @地址</code></label>
-    <textarea id="devices-input" placeholder="PILEXXXX 渭水校区 TY-36 号桩 @渭水-朝晖体育场南&#10;PILEXXXX 渭水校区 W-04 号桩 @渭水-物业服务中心"></textarea>
+    <textarea id="devices-input" placeholder="PILE0036 渭水校区 TY-36 号桩 @渭水-朝晖体育场南&#10;PILE0098 渭水校区 W-04 号桩 @渭水-物业服务中心"></textarea>
     <div class="row" data-page-node-id="KXaFTpYMXwCDHfjWFWlXjn">
       <button class="icon-btn" id="devices-reset" data-page-node-id="GDhvRnKGFR7m3dpjzPquCO">恢复默认</button>
       <button class="icon-btn primary" id="devices-save" data-page-node-id="AnEKZEa36Z07EnspGF50QG">保存</button>
@@ -3915,14 +3915,14 @@ const SCHEMA_ADDED_LOCATIONS = {
  *    会把 `fromSchema+1 .. DEVICE_SCHEMA` 这几版的改名**依次叠加**再一次性套用。 */
 const SCHEMA_CODE_RENAMES = {
   7: {
-    'PILEXXXX': 'Z-01',   // 1 号机
-    'PILEXXXX': 'Z-02',   // 2 号机
-    'PILEXXXX': 'Z-03',   // 3 号机
-    'PILEXXXX': 'Z-04',   // 4 号机
-    'PILEXXXX': 'Z-05',   // 5 号机
-    'PILEXXXX': 'Z-06',   // 6 号机
-    'PILEXXXX': 'Z-07',   // 7 号机
-    'PILEXXXX': 'Z-08',   // 8 号机
+    'PILE0110': 'Z-01',   // 1 号机
+    'PILE0111': 'Z-02',   // 2 号机
+    'PILE0112': 'Z-03',   // 3 号机
+    'PILE0113': 'Z-04',   // 4 号机
+    'PILE0114': 'Z-05',   // 5 号机
+    'PILE0115': 'Z-06',   // 6 号机
+    'PILE0116': 'Z-07',   // 7 号机
+    'PILE0117': 'Z-08',   // 8 号机
   },
 };
 
@@ -3986,139 +3986,139 @@ const BOX_TIMEOUT_MS = 4000;
  */
 
 const DEFAULT_DEVICES = [
-  { id: 'PILEXXXX', code: 'TY-01', name: '渭水校区 TY-01 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-02', name: '渭水校区 TY-02 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-03', name: '渭水校区 TY-03 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-04', name: '渭水校区 TY-04 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-05', name: '渭水校区 TY-05 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-06', name: '渭水校区 TY-06 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-07', name: '渭水校区 TY-07 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-08', name: '渭水校区 TY-08 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-09', name: '渭水校区 TY-09 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-10', name: '渭水校区 TY-10 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-11', name: '渭水校区 TY-11 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-12', name: '渭水校区 TY-12 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-13', name: '渭水校区 TY-13 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-14', name: '渭水校区 TY-14 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-15', name: '渭水校区 TY-15 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-16', name: '渭水校区 TY-16 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-17', name: '渭水校区 TY-17 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-18', name: '渭水校区 TY-18 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-19', name: '渭水校区 TY-19 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-20', name: '渭水校区 TY-20 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-21', name: '渭水校区 TY-21 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-22', name: '渭水校区 TY-22 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-23', name: '渭水校区 TY-23 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-24', name: '渭水校区 TY-24 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-25', name: '渭水校区 TY-25 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-26', name: '渭水校区 TY-26 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-27', name: '渭水校区 TY-27 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-28', name: '渭水校区 TY-28 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-29', name: '渭水校区 TY-29 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-30', name: '渭水校区 TY-30 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-31', name: '渭水校区 TY-31 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-32', name: '渭水校区 TY-32 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-33', name: '渭水校区 TY-33 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-34', name: '渭水校区 TY-34 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-35', name: '渭水校区 TY-35 号桩', location: '渭水-朝晖体育场南' },
-  { id: 'PILEXXXX', code: 'TY-36', name: '渭水校区 TY-36 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0001', code: 'TY-01', name: '渭水校区 TY-01 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0002', code: 'TY-02', name: '渭水校区 TY-02 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0003', code: 'TY-03', name: '渭水校区 TY-03 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0004', code: 'TY-04', name: '渭水校区 TY-04 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0005', code: 'TY-05', name: '渭水校区 TY-05 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0006', code: 'TY-06', name: '渭水校区 TY-06 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0007', code: 'TY-07', name: '渭水校区 TY-07 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0008', code: 'TY-08', name: '渭水校区 TY-08 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0009', code: 'TY-09', name: '渭水校区 TY-09 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0010', code: 'TY-10', name: '渭水校区 TY-10 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0011', code: 'TY-11', name: '渭水校区 TY-11 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0012', code: 'TY-12', name: '渭水校区 TY-12 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0013', code: 'TY-13', name: '渭水校区 TY-13 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0014', code: 'TY-14', name: '渭水校区 TY-14 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0015', code: 'TY-15', name: '渭水校区 TY-15 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0016', code: 'TY-16', name: '渭水校区 TY-16 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0017', code: 'TY-17', name: '渭水校区 TY-17 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0018', code: 'TY-18', name: '渭水校区 TY-18 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0019', code: 'TY-19', name: '渭水校区 TY-19 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0020', code: 'TY-20', name: '渭水校区 TY-20 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0021', code: 'TY-21', name: '渭水校区 TY-21 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0022', code: 'TY-22', name: '渭水校区 TY-22 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0023', code: 'TY-23', name: '渭水校区 TY-23 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0024', code: 'TY-24', name: '渭水校区 TY-24 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0025', code: 'TY-25', name: '渭水校区 TY-25 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0026', code: 'TY-26', name: '渭水校区 TY-26 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0027', code: 'TY-27', name: '渭水校区 TY-27 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0028', code: 'TY-28', name: '渭水校区 TY-28 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0029', code: 'TY-29', name: '渭水校区 TY-29 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0030', code: 'TY-30', name: '渭水校区 TY-30 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0031', code: 'TY-31', name: '渭水校区 TY-31 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0032', code: 'TY-32', name: '渭水校区 TY-32 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0033', code: 'TY-33', name: '渭水校区 TY-33 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0034', code: 'TY-34', name: '渭水校区 TY-34 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0035', code: 'TY-35', name: '渭水校区 TY-35 号桩', location: '渭水-朝晖体育场南' },
+  { id: 'PILE0036', code: 'TY-36', name: '渭水校区 TY-36 号桩', location: '渭水-朝晖体育场南' },
   // ↓↓↓ 北门停车区 37 台真实桩（2026-10-19 用户提供清单），编号与地图车位一一对应 ↓↓↓
   // A 区
-  { id: 'PILEXXXX', code: 'A01', name: '渭水校区 北-A01 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'A02', name: '渭水校区 北-A02 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'A03', name: '渭水校区 北-A03 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'A04', name: '渭水校区 北-A04 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'A05', name: '渭水校区 北-A05 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'A06', name: '渭水校区 北-A06 号桩', location: '渭水-北门' },
+  { id: 'PILE0037', code: 'A01', name: '渭水校区 北-A01 号桩', location: '渭水-北门' },
+  { id: 'PILE0038', code: 'A02', name: '渭水校区 北-A02 号桩', location: '渭水-北门' },
+  { id: 'PILE0039', code: 'A03', name: '渭水校区 北-A03 号桩', location: '渭水-北门' },
+  { id: 'PILE0040', code: 'A04', name: '渭水校区 北-A04 号桩', location: '渭水-北门' },
+  { id: 'PILE0041', code: 'A05', name: '渭水校区 北-A05 号桩', location: '渭水-北门' },
+  { id: 'PILE0042', code: 'A06', name: '渭水校区 北-A06 号桩', location: '渭水-北门' },
   // B 区
-  { id: 'PILEXXXX', code: 'B01', name: '渭水校区 北-B01 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'B02', name: '渭水校区 北-B02 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'B03', name: '渭水校区 北-B03 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'B04', name: '渭水校区 北-B04 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'B05', name: '渭水校区 北-B05 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'B06', name: '渭水校区 北-B06 号桩', location: '渭水-北门' },
+  { id: 'PILE0043', code: 'B01', name: '渭水校区 北-B01 号桩', location: '渭水-北门' },
+  { id: 'PILE0044', code: 'B02', name: '渭水校区 北-B02 号桩', location: '渭水-北门' },
+  { id: 'PILE0045', code: 'B03', name: '渭水校区 北-B03 号桩', location: '渭水-北门' },
+  { id: 'PILE0046', code: 'B04', name: '渭水校区 北-B04 号桩', location: '渭水-北门' },
+  { id: 'PILE0047', code: 'B05', name: '渭水校区 北-B05 号桩', location: '渭水-北门' },
+  { id: 'PILE0048', code: 'B06', name: '渭水校区 北-B06 号桩', location: '渭水-北门' },
   // C 区
-  { id: 'PILEXXXX', code: 'C01', name: '渭水校区 北-C01 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'C02', name: '渭水校区 北-C02 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'C03', name: '渭水校区 北-C03 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'C04', name: '渭水校区 北-C04 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'C05', name: '渭水校区 北-C05 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'C06', name: '渭水校区 北-C06 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'C07', name: '渭水校区 北-C07 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'C08', name: '渭水校区 北-C08 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'C09', name: '渭水校区 北-C09 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'C10', name: '渭水校区 北-C10 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'C11', name: '渭水校区 北-C11 号桩', location: '渭水-北门' },
+  { id: 'PILE0049', code: 'C01', name: '渭水校区 北-C01 号桩', location: '渭水-北门' },
+  { id: 'PILE0050', code: 'C02', name: '渭水校区 北-C02 号桩', location: '渭水-北门' },
+  { id: 'PILE0051', code: 'C03', name: '渭水校区 北-C03 号桩', location: '渭水-北门' },
+  { id: 'PILE0052', code: 'C04', name: '渭水校区 北-C04 号桩', location: '渭水-北门' },
+  { id: 'PILE0053', code: 'C05', name: '渭水校区 北-C05 号桩', location: '渭水-北门' },
+  { id: 'PILE0054', code: 'C06', name: '渭水校区 北-C06 号桩', location: '渭水-北门' },
+  { id: 'PILE0055', code: 'C07', name: '渭水校区 北-C07 号桩', location: '渭水-北门' },
+  { id: 'PILE0056', code: 'C08', name: '渭水校区 北-C08 号桩', location: '渭水-北门' },
+  { id: 'PILE0057', code: 'C09', name: '渭水校区 北-C09 号桩', location: '渭水-北门' },
+  { id: 'PILE0058', code: 'C10', name: '渭水校区 北-C10 号桩', location: '渭水-北门' },
+  { id: 'PILE0059', code: 'C11', name: '渭水校区 北-C11 号桩', location: '渭水-北门' },
   // D 区
-  { id: 'PILEXXXX', code: 'D01', name: '渭水校区 北-D01 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'D02', name: '渭水校区 北-D02 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'D03', name: '渭水校区 北-D03 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'D04', name: '渭水校区 北-D04 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'D05', name: '渭水校区 北-D05 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'D06', name: '渭水校区 北-D06 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'D07', name: '渭水校区 北-D07 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'D08', name: '渭水校区 北-D08 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'D09', name: '渭水校区 北-D09 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'D10', name: '渭水校区 北-D10 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'D11', name: '渭水校区 北-D11 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'D12', name: '渭水校区 北-D12 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'D13', name: '渭水校区 北-D13 号桩', location: '渭水-北门' },
-  { id: 'PILEXXXX', code: 'D14', name: '渭水校区 北-D14 号桩', location: '渭水-北门' },
+  { id: 'PILE0060', code: 'D01', name: '渭水校区 北-D01 号桩', location: '渭水-北门' },
+  { id: 'PILE0061', code: 'D02', name: '渭水校区 北-D02 号桩', location: '渭水-北门' },
+  { id: 'PILE0062', code: 'D03', name: '渭水校区 北-D03 号桩', location: '渭水-北门' },
+  { id: 'PILE0063', code: 'D04', name: '渭水校区 北-D04 号桩', location: '渭水-北门' },
+  { id: 'PILE0064', code: 'D05', name: '渭水校区 北-D05 号桩', location: '渭水-北门' },
+  { id: 'PILE0065', code: 'D06', name: '渭水校区 北-D06 号桩', location: '渭水-北门' },
+  { id: 'PILE0066', code: 'D07', name: '渭水校区 北-D07 号桩', location: '渭水-北门' },
+  { id: 'PILE0067', code: 'D08', name: '渭水校区 北-D08 号桩', location: '渭水-北门' },
+  { id: 'PILE0068', code: 'D09', name: '渭水校区 北-D09 号桩', location: '渭水-北门' },
+  { id: 'PILE0069', code: 'D10', name: '渭水校区 北-D10 号桩', location: '渭水-北门' },
+  { id: 'PILE0070', code: 'D11', name: '渭水校区 北-D11 号桩', location: '渭水-北门' },
+  { id: 'PILE0071', code: 'D12', name: '渭水校区 北-D12 号桩', location: '渭水-北门' },
+  { id: 'PILE0072', code: 'D13', name: '渭水校区 北-D13 号桩', location: '渭水-北门' },
+  { id: 'PILE0073', code: 'D14', name: '渭水校区 北-D14 号桩', location: '渭水-北门' },
 
   /* 🔌 2026-10-21 新增「渭水-20号楼」（公路学院，产品方在图上圈出的那段红线）——
      E-01~E-24 沿红线从左到右等分，落点写在 `map-amap.js` 的 `E_GEO`（24 个固定经纬度）。
      清单来自产品方给的 24 行（`<id> 渭水校区 E-xx 号桩 @渭水-20号楼`），**逐行照抄，未改动任何 id**。
      ⚠️ 位置名是 `渭水-20号楼`（不是 `20号楼(公路学院)`）—— 以这批设备行的 `@` 地址为准，
         它同时是 `map-data.js` 里 `areas` 的键、也是地图分组/筛选/云端 `location` 的值。 */
-  { id: 'PILEXXXX', code: 'E-01', name: '渭水校区 E-01 号桩', location: '渭水-20号楼' },
-  { id: 'PILEXXXX', code: 'E-02', name: '渭水校区 E-02 号桩', location: '渭水-20号楼' },
-  { id: 'PILEXXXX', code: 'E-03', name: '渭水校区 E-03 号桩', location: '渭水-20号楼' },
-  { id: 'PILEXXXX', code: 'E-04', name: '渭水校区 E-04 号桩', location: '渭水-20号楼' },
-  { id: 'PILEXXXX', code: 'E-05', name: '渭水校区 E-05 号桩', location: '渭水-20号楼' },
-  { id: 'PILEXXXX', code: 'E-06', name: '渭水校区 E-06 号桩', location: '渭水-20号楼' },
-  { id: 'PILEXXXX', code: 'E-07', name: '渭水校区 E-07 号桩', location: '渭水-20号楼' },
-  { id: 'PILEXXXX', code: 'E-08', name: '渭水校区 E-08 号桩', location: '渭水-20号楼' },
-  { id: 'PILEXXXX', code: 'E-09', name: '渭水校区 E-09 号桩', location: '渭水-20号楼' },
-  { id: 'PILEXXXX', code: 'E-10', name: '渭水校区 E-10 号桩', location: '渭水-20号楼' },
-  { id: 'PILEXXXX', code: 'E-11', name: '渭水校区 E-11 号桩', location: '渭水-20号楼' },
-  { id: 'PILEXXXX', code: 'E-12', name: '渭水校区 E-12 号桩', location: '渭水-20号楼' },
-  { id: 'PILEXXXX', code: 'E-13', name: '渭水校区 E-13 号桩', location: '渭水-20号楼' },
-  { id: 'PILEXXXX', code: 'E-14', name: '渭水校区 E-14 号桩', location: '渭水-20号楼' },
-  { id: 'PILEXXXX', code: 'E-15', name: '渭水校区 E-15 号桩', location: '渭水-20号楼' },
-  { id: 'PILEXXXX', code: 'E-16', name: '渭水校区 E-16 号桩', location: '渭水-20号楼' },
-  { id: 'PILEXXXX', code: 'E-17', name: '渭水校区 E-17 号桩', location: '渭水-20号楼' },
-  { id: 'PILEXXXX', code: 'E-18', name: '渭水校区 E-18 号桩', location: '渭水-20号楼' },
-  { id: 'PILEXXXX', code: 'E-19', name: '渭水校区 E-19 号桩', location: '渭水-20号楼' },
-  { id: 'PILEXXXX', code: 'E-20', name: '渭水校区 E-20 号桩', location: '渭水-20号楼' },
-  { id: 'PILEXXXX', code: 'E-21', name: '渭水校区 E-21 号桩', location: '渭水-20号楼' },
-  { id: 'PILEXXXX', code: 'E-22', name: '渭水校区 E-22 号桩', location: '渭水-20号楼' },
-  { id: 'PILEXXXX', code: 'E-23', name: '渭水校区 E-23 号桩', location: '渭水-20号楼' },
-  { id: 'PILEXXXX', code: 'E-24', name: '渭水校区 E-24 号桩', location: '渭水-20号楼' },
+  { id: 'PILE0074', code: 'E-01', name: '渭水校区 E-01 号桩', location: '渭水-20号楼' },
+  { id: 'PILE0075', code: 'E-02', name: '渭水校区 E-02 号桩', location: '渭水-20号楼' },
+  { id: 'PILE0076', code: 'E-03', name: '渭水校区 E-03 号桩', location: '渭水-20号楼' },
+  { id: 'PILE0077', code: 'E-04', name: '渭水校区 E-04 号桩', location: '渭水-20号楼' },
+  { id: 'PILE0078', code: 'E-05', name: '渭水校区 E-05 号桩', location: '渭水-20号楼' },
+  { id: 'PILE0079', code: 'E-06', name: '渭水校区 E-06 号桩', location: '渭水-20号楼' },
+  { id: 'PILE0080', code: 'E-07', name: '渭水校区 E-07 号桩', location: '渭水-20号楼' },
+  { id: 'PILE0081', code: 'E-08', name: '渭水校区 E-08 号桩', location: '渭水-20号楼' },
+  { id: 'PILE0082', code: 'E-09', name: '渭水校区 E-09 号桩', location: '渭水-20号楼' },
+  { id: 'PILE0083', code: 'E-10', name: '渭水校区 E-10 号桩', location: '渭水-20号楼' },
+  { id: 'PILE0084', code: 'E-11', name: '渭水校区 E-11 号桩', location: '渭水-20号楼' },
+  { id: 'PILE0085', code: 'E-12', name: '渭水校区 E-12 号桩', location: '渭水-20号楼' },
+  { id: 'PILE0086', code: 'E-13', name: '渭水校区 E-13 号桩', location: '渭水-20号楼' },
+  { id: 'PILE0087', code: 'E-14', name: '渭水校区 E-14 号桩', location: '渭水-20号楼' },
+  { id: 'PILE0088', code: 'E-15', name: '渭水校区 E-15 号桩', location: '渭水-20号楼' },
+  { id: 'PILE0089', code: 'E-16', name: '渭水校区 E-16 号桩', location: '渭水-20号楼' },
+  { id: 'PILE0090', code: 'E-17', name: '渭水校区 E-17 号桩', location: '渭水-20号楼' },
+  { id: 'PILE0091', code: 'E-18', name: '渭水校区 E-18 号桩', location: '渭水-20号楼' },
+  { id: 'PILE0092', code: 'E-19', name: '渭水校区 E-19 号桩', location: '渭水-20号楼' },
+  { id: 'PILE0093', code: 'E-20', name: '渭水校区 E-20 号桩', location: '渭水-20号楼' },
+  { id: 'PILE0094', code: 'E-21', name: '渭水校区 E-21 号桩', location: '渭水-20号楼' },
+  { id: 'PILE0095', code: 'E-22', name: '渭水校区 E-22 号桩', location: '渭水-20号楼' },
+  { id: 'PILE0096', code: 'E-23', name: '渭水校区 E-23 号桩', location: '渭水-20号楼' },
+  { id: 'PILE0097', code: 'E-24', name: '渭水校区 E-24 号桩', location: '渭水-20号楼' },
 
   /* 🔌 2026-10-21 新增「渭水-物业服务中心」W-01~W-12（产品方在图上圈的**竖**红线，从下到上排）。
      ⚠️ 2026-10-24 产品方把它从「物流服务中心」**改名**为「物业服务中心」——
        `id` / 桩号 / 坐标一个都没动，只有 `location` 变了；
        旧名字的存量数据靠 `LOCATION_RENAMES` + schema 5 迁移自动改，别再手改数据文件。
      清单来自产品方给的 12 行，id **逐行照抄**。
-     ✅ **产品方 2026-10-21 19:0x 已确认：`PILEXXXX` = `W-04`**（不再是我的推测）。
-       他给的 12 行里第 3、4 台都写着 `W-03`（PILEXXXX / PILEXXXX）、第 5 台直接跳 `W-05`；
+     ✅ **产品方 2026-10-21 19:0x 已确认：`PILE0098` = `W-04`**（不再是我的推测）。
+       他给的 12 行里第 3、4 台都写着 `W-03`（PILE0099 / PILE0098）、第 5 台直接跳 `W-05`；
        12 台设备对应 12 个位置，所以第 4 台是 `W-04`。
        ⚠️ 另一条仍然成立：产品方原文用的是**不换行连字符 `‑`（U+2011）**，不是普通 `-`。
           这里统一成普通连字符（`W-01`），与 `TY-01` / `E-01` 写法一致；地图上渲染成 `W01`。
           **而云端那份数据里 `W‑01` 的连字符仍是 U+2011** —— 靠 `normKey()` 在判据处归一化兜住
           （见 `normKey` 的说明；那是本轮查出的线上 P0）。 */
-  { id: 'PILEXXXX', code: 'W-01', name: '渭水校区 W-01 号桩', location: '渭水-物业服务中心' },
-  { id: 'PILEXXXX', code: 'W-02', name: '渭水校区 W-02 号桩', location: '渭水-物业服务中心' },
-  { id: 'PILEXXXX', code: 'W-03', name: '渭水校区 W-03 号桩', location: '渭水-物业服务中心' },
-  { id: 'PILEXXXX', code: 'W-04', name: '渭水校区 W-04 号桩', location: '渭水-物业服务中心' },
-  { id: 'PILEXXXX', code: 'W-05', name: '渭水校区 W-05 号桩', location: '渭水-物业服务中心' },
-  { id: 'PILEXXXX', code: 'W-06', name: '渭水校区 W-06 号桩', location: '渭水-物业服务中心' },
-  { id: 'PILEXXXX', code: 'W-07', name: '渭水校区 W-07 号桩', location: '渭水-物业服务中心' },
-  { id: 'PILEXXXX', code: 'W-08', name: '渭水校区 W-08 号桩', location: '渭水-物业服务中心' },
-  { id: 'PILEXXXX', code: 'W-09', name: '渭水校区 W-09 号桩', location: '渭水-物业服务中心' },
-  { id: 'PILEXXXX', code: 'W-10', name: '渭水校区 W-10 号桩', location: '渭水-物业服务中心' },
-  { id: 'PILEXXXX', code: 'W-11', name: '渭水校区 W-11 号桩', location: '渭水-物业服务中心' },
-  { id: 'PILEXXXX', code: 'W-12', name: '渭水校区 W-12 号桩', location: '渭水-物业服务中心' },
+  { id: 'PILE0100', code: 'W-01', name: '渭水校区 W-01 号桩', location: '渭水-物业服务中心' },
+  { id: 'PILE0101', code: 'W-02', name: '渭水校区 W-02 号桩', location: '渭水-物业服务中心' },
+  { id: 'PILE0099', code: 'W-03', name: '渭水校区 W-03 号桩', location: '渭水-物业服务中心' },
+  { id: 'PILE0098', code: 'W-04', name: '渭水校区 W-04 号桩', location: '渭水-物业服务中心' },
+  { id: 'PILE0102', code: 'W-05', name: '渭水校区 W-05 号桩', location: '渭水-物业服务中心' },
+  { id: 'PILE0103', code: 'W-06', name: '渭水校区 W-06 号桩', location: '渭水-物业服务中心' },
+  { id: 'PILE0104', code: 'W-07', name: '渭水校区 W-07 号桩', location: '渭水-物业服务中心' },
+  { id: 'PILE0105', code: 'W-08', name: '渭水校区 W-08 号桩', location: '渭水-物业服务中心' },
+  { id: 'PILE0106', code: 'W-09', name: '渭水校区 W-09 号桩', location: '渭水-物业服务中心' },
+  { id: 'PILE0107', code: 'W-10', name: '渭水校区 W-10 号桩', location: '渭水-物业服务中心' },
+  { id: 'PILE0108', code: 'W-11', name: '渭水校区 W-11 号桩', location: '渭水-物业服务中心' },
+  { id: 'PILE0109', code: 'W-12', name: '渭水校区 W-12 号桩', location: '渭水-物业服务中心' },
 
   /* 🔌 2026-10-31 v2.63 新增「渭水-住宅」8 台 —— **另一个平台（驴充充）的机器**。
    *   · `src: 'lvcc'` 是给 `/api/pile` 选数据源的；缺省（不写）= 住芒，所以上面 109 台一行都不用改。
@@ -4141,19 +4141,19 @@ const DEFAULT_DEVICES = [
    * ⚠️ `code` / `name` / `location` 三样在存量浏览器里都是**存在本地**的，
    *    改这里对老用户不生效 —— 必须同时升 `DEVICE_SCHEMA` 并登记 `SCHEMA_CODE_RENAMES[7]`
    *    （见那张表的说明；`code` 是地图落点用的，不跟着改会让 8 台掉进朝晖弧）。 */
-  { id: 'PILEXXXX', src: 'lvcc', portCount: 20, code: 'Z-01', name: '渭水校区 Z-01 号桩', location: '渭水-住宅' },
-  { id: 'PILEXXXX', src: 'lvcc', portCount: 20, code: 'Z-02', name: '渭水校区 Z-02 号桩', location: '渭水-住宅' },
-  { id: 'PILEXXXX', src: 'lvcc', portCount: 20, code: 'Z-03', name: '渭水校区 Z-03 号桩', location: '渭水-住宅' },
-  { id: 'PILEXXXX', src: 'lvcc', portCount: 20, code: 'Z-04', name: '渭水校区 Z-04 号桩', location: '渭水-住宅' },
-  { id: 'PILEXXXX', src: 'lvcc', portCount: 2,  code: 'Z-05', name: '渭水校区 Z-05 号桩', location: '渭水-住宅' },
-  { id: 'PILEXXXX', src: 'lvcc', portCount: 2,  code: 'Z-06', name: '渭水校区 Z-06 号桩', location: '渭水-住宅' },
-  { id: 'PILEXXXX', src: 'lvcc', portCount: 10, code: 'Z-07', name: '渭水校区 Z-07 号桩', location: '渭水-住宅' },
-  { id: 'PILEXXXX', src: 'lvcc', portCount: 10, code: 'Z-08', name: '渭水校区 Z-08 号桩', location: '渭水-住宅' },
+  { id: 'PILE0110', src: 'lvcc', portCount: 20, code: 'Z-01', name: '渭水校区 Z-01 号桩', location: '渭水-住宅' },
+  { id: 'PILE0111', src: 'lvcc', portCount: 20, code: 'Z-02', name: '渭水校区 Z-02 号桩', location: '渭水-住宅' },
+  { id: 'PILE0112', src: 'lvcc', portCount: 20, code: 'Z-03', name: '渭水校区 Z-03 号桩', location: '渭水-住宅' },
+  { id: 'PILE0113', src: 'lvcc', portCount: 20, code: 'Z-04', name: '渭水校区 Z-04 号桩', location: '渭水-住宅' },
+  { id: 'PILE0114', src: 'lvcc', portCount: 2,  code: 'Z-05', name: '渭水校区 Z-05 号桩', location: '渭水-住宅' },
+  { id: 'PILE0115', src: 'lvcc', portCount: 2,  code: 'Z-06', name: '渭水校区 Z-06 号桩', location: '渭水-住宅' },
+  { id: 'PILE0116', src: 'lvcc', portCount: 10, code: 'Z-07', name: '渭水校区 Z-07 号桩', location: '渭水-住宅' },
+  { id: 'PILE0117', src: 'lvcc', portCount: 10, code: 'Z-08', name: '渭水校区 Z-08 号桩', location: '渭水-住宅' },
 
   /* ═══ 2026-11-02 v2.72：新增「北院-体育馆北停车场」57 台（校本部北院）═══
    *
    * 清单来源：产品方给的《本部北院2.txt》+ 一张手绘图。图上是一条路边的停车场，
-   * 横着排了 ①~⑦ 七排，每排 8 台；第 7 排写了 10 行，其中 `PILEXXXX` 连写两遍
+   * 横着排了 ①~⑦ 七排，每排 8 台；第 7 排写了 10 行，其中 `PILE0118` 连写两遍
    * （产品方确认是同一台写重了）→ **按 9 台算**。8×6 + 9 = **57 台**。
    *
    * `location` 用「**北院-**」前缀，与渭水那批「渭水-」同一个规矩 ——
@@ -4174,75 +4174,75 @@ const DEFAULT_DEVICES = [
    *   登记了但标了 `in_snapshot=False`）：免费版一个 Worker 只挂得下 5 条 cron，
    *   4 跳分区 + 1 跳统计早就满了，硬塞第 6 个区会把「一周回顾」的覆盖率打成 5/6。
    *   等重排完 cron 分组再放进来（见该文件的注释）。 */
-{ id: 'PILEXXXX', code: 'B1-01', name: '北院 B1-01 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B1-02', name: '北院 B1-02 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B1-03', name: '北院 B1-03 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B1-04', name: '北院 B1-04 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B1-05', name: '北院 B1-05 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B1-06', name: '北院 B1-06 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B1-07', name: '北院 B1-07 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B1-08', name: '北院 B1-08 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B2-01', name: '北院 B2-01 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B2-02', name: '北院 B2-02 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B2-03', name: '北院 B2-03 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B2-04', name: '北院 B2-04 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B2-05', name: '北院 B2-05 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B2-06', name: '北院 B2-06 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B2-07', name: '北院 B2-07 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B2-08', name: '北院 B2-08 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B3-01', name: '北院 B3-01 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B3-02', name: '北院 B3-02 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B3-03', name: '北院 B3-03 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B3-04', name: '北院 B3-04 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B3-05', name: '北院 B3-05 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B3-06', name: '北院 B3-06 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B3-07', name: '北院 B3-07 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B3-08', name: '北院 B3-08 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B4-01', name: '北院 B4-01 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B4-02', name: '北院 B4-02 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B4-03', name: '北院 B4-03 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B4-04', name: '北院 B4-04 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B4-05', name: '北院 B4-05 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B4-06', name: '北院 B4-06 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B4-07', name: '北院 B4-07 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B4-08', name: '北院 B4-08 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B5-01', name: '北院 B5-01 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B5-02', name: '北院 B5-02 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B5-03', name: '北院 B5-03 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B5-04', name: '北院 B5-04 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B5-05', name: '北院 B5-05 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B5-06', name: '北院 B5-06 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B5-07', name: '北院 B5-07 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B5-08', name: '北院 B5-08 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B6-01', name: '北院 B6-01 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B6-02', name: '北院 B6-02 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B6-03', name: '北院 B6-03 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B6-04', name: '北院 B6-04 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B6-05', name: '北院 B6-05 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B6-06', name: '北院 B6-06 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B6-07', name: '北院 B6-07 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B6-08', name: '北院 B6-08 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B7-01', name: '北院 B7-01 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B7-02', name: '北院 B7-02 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B7-03', name: '北院 B7-03 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B7-04', name: '北院 B7-04 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B7-05', name: '北院 B7-05 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B7-06', name: '北院 B7-06 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B7-07', name: '北院 B7-07 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B7-08', name: '北院 B7-08 号桩', location: '北院-体育馆北停车场' },
-  { id: 'PILEXXXX', code: 'B7-09', name: '北院 B7-09 号桩', location: '北院-体育馆北停车场' },
+{ id: 'PILE0119', code: 'B1-01', name: '北院 B1-01 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0120', code: 'B1-02', name: '北院 B1-02 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0121', code: 'B1-03', name: '北院 B1-03 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0122', code: 'B1-04', name: '北院 B1-04 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0123', code: 'B1-05', name: '北院 B1-05 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0124', code: 'B1-06', name: '北院 B1-06 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0125', code: 'B1-07', name: '北院 B1-07 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0126', code: 'B1-08', name: '北院 B1-08 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0127', code: 'B2-01', name: '北院 B2-01 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0128', code: 'B2-02', name: '北院 B2-02 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0129', code: 'B2-03', name: '北院 B2-03 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0130', code: 'B2-04', name: '北院 B2-04 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0131', code: 'B2-05', name: '北院 B2-05 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0132', code: 'B2-06', name: '北院 B2-06 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0133', code: 'B2-07', name: '北院 B2-07 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0134', code: 'B2-08', name: '北院 B2-08 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0135', code: 'B3-01', name: '北院 B3-01 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0136', code: 'B3-02', name: '北院 B3-02 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0137', code: 'B3-03', name: '北院 B3-03 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0138', code: 'B3-04', name: '北院 B3-04 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0139', code: 'B3-05', name: '北院 B3-05 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0140', code: 'B3-06', name: '北院 B3-06 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0141', code: 'B3-07', name: '北院 B3-07 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0142', code: 'B3-08', name: '北院 B3-08 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0143', code: 'B4-01', name: '北院 B4-01 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0144', code: 'B4-02', name: '北院 B4-02 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0145', code: 'B4-03', name: '北院 B4-03 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0146', code: 'B4-04', name: '北院 B4-04 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0147', code: 'B4-05', name: '北院 B4-05 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0148', code: 'B4-06', name: '北院 B4-06 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0149', code: 'B4-07', name: '北院 B4-07 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0150', code: 'B4-08', name: '北院 B4-08 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0151', code: 'B5-01', name: '北院 B5-01 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0152', code: 'B5-02', name: '北院 B5-02 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0153', code: 'B5-03', name: '北院 B5-03 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0154', code: 'B5-04', name: '北院 B5-04 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0155', code: 'B5-05', name: '北院 B5-05 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0156', code: 'B5-06', name: '北院 B5-06 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0157', code: 'B5-07', name: '北院 B5-07 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0158', code: 'B5-08', name: '北院 B5-08 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0159', code: 'B6-01', name: '北院 B6-01 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0160', code: 'B6-02', name: '北院 B6-02 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0161', code: 'B6-03', name: '北院 B6-03 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0162', code: 'B6-04', name: '北院 B6-04 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0163', code: 'B6-05', name: '北院 B6-05 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0164', code: 'B6-06', name: '北院 B6-06 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0165', code: 'B6-07', name: '北院 B6-07 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0166', code: 'B6-08', name: '北院 B6-08 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0167', code: 'B7-01', name: '北院 B7-01 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0168', code: 'B7-02', name: '北院 B7-02 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0169', code: 'B7-03', name: '北院 B7-03 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0170', code: 'B7-04', name: '北院 B7-04 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0171', code: 'B7-05', name: '北院 B7-05 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0172', code: 'B7-06', name: '北院 B7-06 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0173', code: 'B7-07', name: '北院 B7-07 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0174', code: 'B7-08', name: '北院 B7-08 号桩', location: '北院-体育馆北停车场' },
+  { id: 'PILE0118', code: 'B7-09', name: '北院 B7-09 号桩', location: '北院-体育馆北停车场' },
   /* 2026-11-03 v2.79 雁塔校区（水利与环境学院 = 水院）。
-   * 产品方在原话里按**从下到上**报了三台机号：PILEXXXX（下）→ PILEXXXX（中）→
-   * PILEXXXX（上），所以桩号就按这个顺序编 Y-01~Y-03，点位上也是一条自南向北的竖线
+   * 产品方在原话里按**从下到上**报了三台机号：PILE0175（下）→ PILE0176（中）→
+   * PILE0177（上），所以桩号就按这个顺序编 Y-01~Y-03，点位上也是一条自南向北的竖线
    * （见 `map-amap.js` 的 `Y_GEO`）。
    * ⚠️ 前缀用 'Y'（雁塔 Yanta），与北院的 'B' 同一套：`LINE_AREAS` 里给这条登记了
    *    `prefix:'Y'`，`shortCode()` 才不会把 `Y-02` 的末尾数字当成朝晖的 T02。
    * ⚠️ 地址写**全称**「雁塔-水利与环境学院」：地址胶囊显示 `水院`（`ADDR_PILL_LABEL`）、
    *    卡片地址行显示 `水利与环境学院`（`shortAddrLabel` 去掉校区前缀）——
    *    三者不是同一个字符串，也别让它们同源，各有各的宽度预算。 */
-  { id: 'PILEXXXX', code: 'Y-01', name: '雁塔 Y-01 号桩', location: '雁塔-水利与环境学院' },
-  { id: 'PILEXXXX', code: 'Y-02', name: '雁塔 Y-02 号桩', location: '雁塔-水利与环境学院' },
-  { id: 'PILEXXXX', code: 'Y-03', name: '雁塔 Y-03 号桩', location: '雁塔-水利与环境学院' },
+  { id: 'PILE0175', code: 'Y-01', name: '雁塔 Y-01 号桩', location: '雁塔-水利与环境学院' },
+  { id: 'PILE0176', code: 'Y-02', name: '雁塔 Y-02 号桩', location: '雁塔-水利与环境学院' },
+  { id: 'PILE0177', code: 'Y-03', name: '雁塔 Y-03 号桩', location: '雁塔-水利与环境学院' },
   /* 2026-11-05 v2.98 雁塔校区「图书馆」8 台（XLB 前缀，与 XLA 同属住芒 zm 平台，
      接入前逐台直连上游 scan-code 验过，8 台都是 4 口且能读到实时状态）。
      🔴 产品方给清单时明确「设备顺序是自南向北」，所以 T-01 在最南、T-08 在最北，
@@ -4252,14 +4252,14 @@ const DEFAULT_DEVICES = [
         否则 lineSeq 认不出 T-01，会掉进 arcSeq 把 8 台全摆到朝晖两条弧上。
      ⚠️ 地址写全称「雁塔-图书馆」：胶囊短名走 shortAddrLabel 自动得「图书馆」，
         卡片地址行与地图表头也用它，不必再进 ADDR_PILL_LABEL（那张表是给 7 字长名用的）。 */
-  { id: 'PILEXXXX', code: 'T-01', name: '雁塔 T-01 号桩', location: '雁塔-图书馆' },
-  { id: 'PILEXXXX', code: 'T-02', name: '雁塔 T-02 号桩', location: '雁塔-图书馆' },
-  { id: 'PILEXXXX', code: 'T-03', name: '雁塔 T-03 号桩', location: '雁塔-图书馆' },
-  { id: 'PILEXXXX', code: 'T-04', name: '雁塔 T-04 号桩', location: '雁塔-图书馆' },
-  { id: 'PILEXXXX', code: 'T-05', name: '雁塔 T-05 号桩', location: '雁塔-图书馆' },
-  { id: 'PILEXXXX', code: 'T-06', name: '雁塔 T-06 号桩', location: '雁塔-图书馆' },
-  { id: 'PILEXXXX', code: 'T-07', name: '雁塔 T-07 号桩', location: '雁塔-图书馆' },
-  { id: 'PILEXXXX', code: 'T-08', name: '雁塔 T-08 号桩', location: '雁塔-图书馆' },
+  { id: 'PILE0178', code: 'T-01', name: '雁塔 T-01 号桩', location: '雁塔-图书馆' },
+  { id: 'PILE0179', code: 'T-02', name: '雁塔 T-02 号桩', location: '雁塔-图书馆' },
+  { id: 'PILE0180', code: 'T-03', name: '雁塔 T-03 号桩', location: '雁塔-图书馆' },
+  { id: 'PILE0181', code: 'T-04', name: '雁塔 T-04 号桩', location: '雁塔-图书馆' },
+  { id: 'PILE0182', code: 'T-05', name: '雁塔 T-05 号桩', location: '雁塔-图书馆' },
+  { id: 'PILE0183', code: 'T-06', name: '雁塔 T-06 号桩', location: '雁塔-图书馆' },
+  { id: 'PILE0184', code: 'T-07', name: '雁塔 T-07 号桩', location: '雁塔-图书馆' },
+  { id: 'PILE0185', code: 'T-08', name: '雁塔 T-08 号桩', location: '雁塔-图书馆' },
   /* 2026-11-05 v2.99 雁塔校区两处新场地，接入前逐台直连上游 scan-code 验过，
      15 台全部 200、4 口、能读到实时状态。
      🔴 「5号学生公寓南部」12 台：产品方原话「设备顺序是自东向西排列，
@@ -4270,21 +4270,21 @@ const DEFAULT_DEVICES = [
      ⚠️ 两处都在学府北路沿线，取景框由 map-data.js 的 areas 决定（zoom 20.2），
         比产品方标注的灰框还紧，只压在车棚/停车出口那一小片，不跨到公寓和教学楼。
      ⚠️ 地址写全称，胶囊短名在 ADDR_PILL_LABEL 里登记（这两个名字都太长）。 */
-  { id: 'PILEXXXX', code: 'W-01', name: '雁塔 W-01 号桩', location: '雁塔-5号学生公寓南部' },
-  { id: 'PILEXXXX', code: 'W-02', name: '雁塔 W-02 号桩', location: '雁塔-5号学生公寓南部' },
-  { id: 'PILEXXXX', code: 'W-03', name: '雁塔 W-03 号桩', location: '雁塔-5号学生公寓南部' },
-  { id: 'PILEXXXX', code: 'W-04', name: '雁塔 W-04 号桩', location: '雁塔-5号学生公寓南部' },
-  { id: 'PILEXXXX', code: 'W-05', name: '雁塔 W-05 号桩', location: '雁塔-5号学生公寓南部' },
-  { id: 'PILEXXXX', code: 'W-06', name: '雁塔 W-06 号桩', location: '雁塔-5号学生公寓南部' },
-  { id: 'PILEXXXX', code: 'W-07', name: '雁塔 W-07 号桩', location: '雁塔-5号学生公寓南部' },
-  { id: 'PILEXXXX', code: 'W-08', name: '雁塔 W-08 号桩', location: '雁塔-5号学生公寓南部' },
-  { id: 'PILEXXXX', code: 'W-09', name: '雁塔 W-09 号桩', location: '雁塔-5号学生公寓南部' },
-  { id: 'PILEXXXX', code: 'W-10', name: '雁塔 W-10 号桩', location: '雁塔-5号学生公寓南部' },
-  { id: 'PILEXXXX', code: 'W-11', name: '雁塔 W-11 号桩', location: '雁塔-5号学生公寓南部' },
-  { id: 'PILEXXXX', code: 'W-12', name: '雁塔 W-12 号桩', location: '雁塔-5号学生公寓南部' },
-  { id: 'PILEXXXX', code: 'P-01', name: '雁塔 P-01 号桩', location: '雁塔-停车场出口' },
-  { id: 'PILEXXXX', code: 'P-02', name: '雁塔 P-02 号桩', location: '雁塔-停车场出口' },
-  { id: 'PILEXXXX', code: 'P-03', name: '雁塔 P-03 号桩', location: '雁塔-停车场出口' },
+  { id: 'PILE0186', code: 'W-01', name: '雁塔 W-01 号桩', location: '雁塔-5号学生公寓南部' },
+  { id: 'PILE0187', code: 'W-02', name: '雁塔 W-02 号桩', location: '雁塔-5号学生公寓南部' },
+  { id: 'PILE0188', code: 'W-03', name: '雁塔 W-03 号桩', location: '雁塔-5号学生公寓南部' },
+  { id: 'PILE0189', code: 'W-04', name: '雁塔 W-04 号桩', location: '雁塔-5号学生公寓南部' },
+  { id: 'PILE0190', code: 'W-05', name: '雁塔 W-05 号桩', location: '雁塔-5号学生公寓南部' },
+  { id: 'PILE0191', code: 'W-06', name: '雁塔 W-06 号桩', location: '雁塔-5号学生公寓南部' },
+  { id: 'PILE0192', code: 'W-07', name: '雁塔 W-07 号桩', location: '雁塔-5号学生公寓南部' },
+  { id: 'PILE0193', code: 'W-08', name: '雁塔 W-08 号桩', location: '雁塔-5号学生公寓南部' },
+  { id: 'PILE0194', code: 'W-09', name: '雁塔 W-09 号桩', location: '雁塔-5号学生公寓南部' },
+  { id: 'PILE0195', code: 'W-10', name: '雁塔 W-10 号桩', location: '雁塔-5号学生公寓南部' },
+  { id: 'PILE0196', code: 'W-11', name: '雁塔 W-11 号桩', location: '雁塔-5号学生公寓南部' },
+  { id: 'PILE0197', code: 'W-12', name: '雁塔 W-12 号桩', location: '雁塔-5号学生公寓南部' },
+  { id: 'PILE0198', code: 'P-01', name: '雁塔 P-01 号桩', location: '雁塔-停车场出口' },
+  { id: 'PILE0199', code: 'P-02', name: '雁塔 P-02 号桩', location: '雁塔-停车场出口' },
+  { id: 'PILE0200', code: 'P-03', name: '雁塔 P-03 号桩', location: '雁塔-停车场出口' },
 ];
 
 const $ = (id) => document.getElementById(id);
@@ -4488,7 +4488,7 @@ function applySchemaIdentityFixes(list, fromSchema) {
   for (let v = Number(fromSchema || 0) + 1; v <= DEVICE_SCHEMA; v++) {
     const one = SCHEMA_CODE_RENAMES[v];
     if (!one) continue;
-    /* 键统一大写：设备 id 有的是全大写（PILEXXXX）、有的是纯数字，比对时不能区分大小写 */
+    /* 键统一大写：设备 id 有的是全大写（PILE0074）、有的是纯数字，比对时不能区分大小写 */
     for (const k of Object.keys(one)) { fixes[k.toUpperCase()] = one[k]; any = true; }
   }
   if (!any || !Array.isArray(list)) return list;
@@ -9317,7 +9317,7 @@ function buildShareRow(deviceId, record) {
  *     占用率 = (total - free) / total —— 聚合已经做完，读取端只做一次除法，
  *     不需要再遍历几十台桩累加（这正是产品方要的「不需要重新计算」）。
  *   · **用 device_id 做行类型标记**：聚合行写 `device_id = AGG_DEVICE_ID`（保留串），
- *     与真实的桩号（如 PILEXXXX）天然区分开。读取端据此优先用聚合行。
+ *     与真实的桩号（如 PILE0001）天然区分开。读取端据此优先用聚合行。
  *
  * 去重（不依赖数据库唯一约束，纯代码层）：
  *   先按 (location, day, ts=该小时整点) 查有没有聚合行 →
@@ -14907,7 +14907,7 @@ function scanBeep() {
   } catch (e) { /* 没声音就算了，toast 和振动还在 */ }
 }
 
-/* 从二维码内容里提取编号：`…/?id=PILEXXXX` → PILEXXXX；
+/* 从二维码内容里提取编号：`…/?id=PILE0119` → PILE0119；
    顺带认 deviceId / sn / code 这几个常见参数名，兜底是内容本身就是纯编号。
    统一转大写 —— 站内 id 全大写，二维码里偶尔混小写。 */
 function scanExtractId(raw) {

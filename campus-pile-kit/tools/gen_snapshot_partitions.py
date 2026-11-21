@@ -182,7 +182,49 @@ def render(data):
     return HEADER + 'export const PARTITIONS = ' + body + ';\n'
 
 
+def build_inject_dir():
+    """生成可部署的 Worker 副本：把 partitions.mjs 里的占位符换成真号。
+
+    仓库里的 partitions.mjs 是 `PILE0001` 这类占位符（真值在 private/ 清单），
+    直接 `wrangler deploy` 会拿一串假号去打平台 —— 每台都「平台没响应」，
+    而且 cron 静默失败没人发现。所以部署走这条：
+
+        python tools/gen_snapshot_partitions.py --inject
+        cd snapshot-worker/.deploy && wrangler deploy
+
+    `.deploy/` 在 .gitignore 里，含真号，**绝不能提交**。
+    """
+    import shutil
+    import inject_private
+
+    src = os.path.join(ROOT, 'snapshot-worker')
+    dest = os.path.join(src, '.deploy')
+    if os.path.exists(dest):
+        shutil.rmtree(dest)
+    shutil.copytree(src, dest, ignore=shutil.ignore_patterns(
+        '.deploy', 'node_modules', '.wrangler', '*.log', '.DS_Store'))
+
+    # 先按源码重算一遍，保证 .deploy/partitions.mjs 与 DEFAULT_DEVICES 同源
+    data = build()
+    io.open(os.path.join(dest, 'partitions.mjs'), 'w',
+            encoding='utf-8', newline='\n').write(render(data))
+
+    stats = inject_private.inject_dir(dest)
+    left = inject_private.verify_dir(dest)
+    print('已生成 %s（%d 个文件、%d 处编号）'
+          % (os.path.relpath(dest, ROOT), stats['files'], stats['ids']))
+    if left:
+        print('[X] 注入后仍有问题：')
+        for x in left:
+            print('   ', x)
+        return 1
+    print('下一步：cd %s && wrangler deploy' % os.path.relpath(dest, ROOT))
+    return 0
+
+
 def main():
+    if '--inject' in sys.argv:
+        return build_inject_dir()
     text = render(build())
     if '--check' in sys.argv:
         try:

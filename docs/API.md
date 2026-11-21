@@ -68,7 +68,7 @@ GET https://chd-charge.pages.dev/catalog.json
   ],
   "devices": [
     {
-      "id": "PILEXXXX",           // 平台查询键，跨版本稳定
+      "id": "PILE0001",           // 平台查询键，跨版本稳定
       "code": "TY-01",            // 桩号，站点地图的落点键
       "name": "渭水校区 TY-01 号桩",
       "area": "chaohui",          // → areas[].key
@@ -107,7 +107,7 @@ POST https://chd-charge.pages.dev/api/pile
 content-type: application/json
 origin: https://chd-charge.pages.dev        ← 必填，见 §6.1
 
-{"ids": ["PILEXXXX", "PILEXXXX"]}
+{"ids": ["PILE0001", "PILE0002"]}
 ```
 
 ### 请求字段
@@ -133,11 +133,11 @@ origin: https://chd-charge.pages.dev        ← 必填，见 §6.1
 {
   "ok": true,
   "results": {
-    "PILEXXXX": {
+    "PILE0001": {
       "at": 1793534514674,                        // 毫秒
       "ports": [{"num": 1, "state": 1}, {"num": 2, "state": 0}]
     },
-    "PILEXXXX": { "at": 0, "error": "平台没响应", "auth": false }
+    "PILE0002": { "at": 0, "error": "平台没响应", "auth": false }
   },
   "hit": 1,          // 直接沿用边缘缓存的台数
   "fetched": 1,      // 真的回源平台的台数
@@ -206,8 +206,8 @@ GET /api/snap?area=all&refresh=1  # ⚠️ area=all 不支持 refresh，会回 r
       "at": 1793538922,   // 秒
       "interval": 900,
       "devices": {
-        "PILEXXXX": {"p": "1111", "f": 0, "n": 4, "t": 1793538922},
-        "PILEXXXX": {"p": "1101", "f": 1, "n": 4, "t": 1793538922}
+        "PILE0001": {"p": "1111", "f": 0, "n": 4, "t": 1793538922},
+        "PILE0003": {"p": "1101", "f": 1, "n": 4, "t": 1793538922}
       }
     }
   }],

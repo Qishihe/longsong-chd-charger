@@ -142,6 +142,24 @@
 
   function LL(p) { return [p[0], p[1]]; }   // 高德用 [lng, lat]
 
+  /* ---------- 演示坐标偏移（**只在源码里生效**） ----------
+   * 仓库是公开的，桩的精确落点不该白纸黑字躺在里面。所以源码里所有**桩点落点**
+   * 整体平移一个固定偏移（约 300 m，方向朝东南）。打包时 tools/inject_private.py
+   * 会把这两个值注入成 0 —— 线上产物拿到的是真实坐标。
+   *
+   * 🔴 因此别直接拿源码目录当站点看：桩点会飘到校区外、徽章与桩阵错位。
+   *    本地预览请用注入过的副本：
+   *      python tools/inject_private.py --out scratch/_devsite
+   *    或者直接用打包产物 dist-cloudflare/。
+   *
+   * 偏移加在 layoutPiles() 的出口，下游（外接框、徽章、聚合圈、取景）全部跟着走，
+   * 所以源码态内部是**自洽**的：看起来就是整片桩阵被搬去了隔壁街区。 */
+  var GEO_SHIFT = { lng: 0.00312, lat: -0.00268 };
+  function shiftLL(p) {
+    if (!p) return p;
+    return [r6(p[0] + GEO_SHIFT.lng), r6(p[1] + GEO_SHIFT.lat)];
+  }
+
   /* ---------- 桩位：照搬两张静态底图（手绘图）的分布 ----------
    * 用户要求「把静态图上的桩位分布原样搬过来」。两张手绘图里的桩位本来就是写死的像素坐标，
    * 这里只做一次「手绘图像素 → 经纬度」的锚定换算，行列位置、弧线走向一律照抄：
@@ -351,7 +369,7 @@
    *       长大地学科技大厦 108.959021/34.224945 → (748,1351)
    *     ⚠️ 别用「看比例尺估算」那一套（北院那次按图上的 50 米条算错了 45%）：
    *        高德手机版这里根本不显示比例尺条，只有 POI 坐标是可信的锚点。
-   *   · 排布：产品方原话「从下到上」报了三台（PILEXXXX / PILEXXXX / PILEXXXX），
+   *   · 排布：产品方原话「从下到上」报了三台（PILE0001 / PILE0002 / PILE0003），
    *     即 **Y-01 在南、Y-03 在北**，一条竖线、间距 5.16m（框内均分 3 份）。
    *     横坐标取方框中心 x=369px，换算后 lon 恒为 108.958558。
    *   ⚠️ 现场摆位若与图不符，**只改这三个坐标**；`LINE_AREAS` 那行和桩号不用动。
@@ -616,10 +634,13 @@
         }
       });
     }
-    return out.filter(function (o) { return !!o.pos; });
+    /* 出参统一套演示偏移（源码态）。注入后 GEO_SHIFT 为 0，这一步等于空操作。 */
+    return out.filter(function (o) { return !!o.pos; }).map(function (o) {
+      return { p: o.p, pos: shiftLL(o.pos) };
+    });
   }
 
-  /** 某分区桩阵的外接框（用真实落点算，供相机取景） */
+  /** 某分区桩阵的外接框（落点已带演示偏移，与桩点严格一致） */
   function areaBBox(areaKey) {
     var laid = layoutPiles(piles.filter(function (p) { return p.location === areaKey; }), areaKey);
     var w = Infinity, e = -Infinity, s = Infinity, n = -Infinity;

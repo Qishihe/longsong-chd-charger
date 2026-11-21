@@ -48,3 +48,10 @@ campus-pile-kit/scratch/
 
 # ── 第三方参考仓库：独立克隆，自带 .git，且其许可为「保留所有权利」，不随本仓库分发 ──
 stu-charge-watch/
+
+# ── 私有真值清单：真实设备编号，**绝不能入库** ──
+# 打包注入（tools/inject_private.py）与快照部署（gen_snapshot_partitions.py --inject）
+# 都靠它；丢了等于丢了整份设备清单。
+campus-pile-kit/private/
+# 快照 Worker 的注入部署副本（含真号，由 gen_snapshot_partitions.py --inject 生成）
+campus-pile-kit/snapshot-worker/.deploy/

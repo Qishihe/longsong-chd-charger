@@ -162,7 +162,7 @@ def main(argv=None):
             for b in bad:
                 print('   ', b)
             return 1
-        print('下一步：python tools/serve_gzip.py --dir %s --port 8909' % dest)
+        print('下一步：python campus-pile-kit/chd-charge/serve_gzip.py --root %s --port 8909' % dest)
         return 0
 
     raise SystemExit(__doc__ + '\n用法：\n'

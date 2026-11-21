@@ -404,7 +404,19 @@
    banner 是文档流块（44px + 12px 外边距），凭证同步回来时撑开、查询结束再收起，
    每次冷启动白推 56px，实测 CLS 0.103（及格线 0.1）。换 toast 后不再参与布局。
    index.html 变了 → 换壳。 */
-const CACHE = 'campus-pile-v234';
+/* v234 → v235（2026-11-19）：加「新版本提示」与「诊断信息」。
+   页面现在会监听 controllerchange：新壳经 skipWaiting + clients.claim 接管时，
+   给一条「刷新一下」的浮条（fixed，不进文档流，不动 CLS）。
+   index.html 变了 → 换壳。 */
+/* v235 → v236（2026-11-21 v3.25）：首屏预热按流量 / 弱链路收口（`netWorthWarming()`），
+   页面新增 LCP 观测与批次耗时记录。这一版还试过把导航改成「缓存先出」，
+   结果真机白屏，见 v236 → v237。 */
+/* v236 → v237（2026-11-21 v3.26）：导航回到「网络优先 + 1.2 秒超时才放缓存」，
+   缓存副本一律**重建**（丢掉 content-encoding / content-length 并校验 </html>），
+   且不再把导航响应写进缓存。换壳是为了把 v236 里可能写坏的 `./index.html` 清掉。 */
+/* v237 → v238（2026-11-21 v3.27）：查询流水线 2 路 → 3 路（成片失败自动回落 2 路）。
+   index.html 变了 → 换壳。 */
+const CACHE = 'campus-pile-v238';
 const SHELL = [
   /* v2.86：`'./'` 删了。线上实测 `/` 与 `/index.html` 返回的字节完全相同（md5 一致），
      而 fetch 拦截只把 `'./index.html'` 当主 key，`'./'` 只是回退链的第二顺位 ——
@@ -471,6 +483,45 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/* 从缓存里取一份**可以安全回放**的首页（细节见导航分支那段注释）。
+ * 读成文本 → 验完整性 → 包一个只带 content-type 的新 Response。 */
+async function readCachedDoc(key) {
+  let hit = null;
+  try {
+    hit = (await caches.match(key)) || (await caches.match('./index.html'));
+  } catch (e) {
+    return null;
+  }
+  if (!hit) return null;
+  try {
+    const text = await hit.text();
+    if (text.length < 50000) return null;
+    if (!/<\/html>\s*$/i.test(text)) return null;
+    return new Response(text, {
+      status: 200,
+      statusText: 'OK',
+      headers: { 'content-type': 'text/html; charset=utf-8' },
+    });
+  } catch (e) {
+    return null;
+  }
+}
+
+/* 既没缓存也连不上时给一句人话，不要留一个 chrome-error 页 */
+function offlinePage() {
+  return new Response(
+    '<!doctype html><meta charset="utf-8">'
+    + '<meta name="viewport" content="width=device-width,initial-scale=1">'
+    + '<title>暂时连不上</title>'
+    + '<body style="font:16px/1.7 system-ui,-apple-system,sans-serif;padding:2em;color:#333">'
+    + '<p>现在连不上网，本地也还没存下页面。</p>'
+    + '<p>等网络恢复后再打开一次即可。</p></body>',
+    { status: 503, headers: { 'content-type': 'text/html; charset=utf-8' } }
+  );
+}
+
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET') return;
@@ -489,24 +540,50 @@ self.addEventListener('fetch', (event) => {
      站长每周换凭证等于白换，而且没有任何报错信号 ✗ */
   if (url.pathname.indexOf('/api/') === 0) return;
 
-  // 导航请求：网络优先，断了才用缓存里的壳
+  /* 导航请求：**网络优先，1.2 秒没回来才用缓存**（v3.26 从「缓存先出」改回来）。
+   *
+   * 为什么回退：v3.25 试过「缓存先出 + 后台换新」，桌面 Chromium 连开三次都正常，
+   * 但真机上出现「第二次打开白屏、过一会儿再刷又好了」。原因不是玄学：
+   * 直接把 `caches.match()` 拿到的原始 Response 回放给渲染进程时，
+   * 它身上还带着 `content-encoding: br` 与 `content-length` —— 缓存里那份副本
+   * 只要不完整（发布窗口期的边缘节点、弱网断流），浏览器按这两个头去解就是乱码 → 整页白。
+   * 更糟的是「过一会儿自己好」：因为下面那段代码会把网络响应 `cache.put` 回去，
+   * 等于坏副本被顺手盖掉了 —— 掩盖了问题，却挡不住下一个用户在同样的时机再撞一次。
+   *
+   * 现在的策略：
+   *   1. 网络 1.2 秒内回来就用网络（正常链路 TTFB 就在 700ms 量级，等于没有额外等待）；
+   *   2. 超过 1.2 秒才放缓存，并且**重建**一个干净的 Response（只留 content-type，
+   *      丢掉 content-encoding / content-length 这些能导致白屏的头）；
+   *   3. 交给页面前先验一遍「有没有 </html>、够不够长」，不完整就当没有缓存；
+   *   4. **不再把导航响应写进缓存** —— 缓存的 HTML 只来自 install 阶段的
+   *      `cache.add('./index.html')`（原子写，半截会整条失败）。
+   *      所以最坏是「落后一版」，靠 sw.js 自身的 no-cache + 更新浮条兜住。
+   *
+   * 🔴 绝不要在 `_headers` 里给 HTML 设 `max-age`：那是 CDN + 浏览器两层缓存，
+   *    发布后既不能立刻生效、也不好回滚，和这里的「SW 单层」是两回事。
+   * 🔴 缓存键必须与 install 里的 SHELL 逐字一致（`./index.html`）。 */
   if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const copy = response.clone();
-          // 按实际路径缓存，避免访问 preview.html 时覆盖 index.html 的离线副本
-          const isRoot = url.pathname === '/' || url.pathname === '';
-          const cacheKey = isRoot ? './index.html' : '.' + url.pathname;
-          caches.open(CACHE).then((cache) => cache.put(cacheKey, copy)).catch(() => {});
-          return response;
-        })
-        .catch(() => {
-          const isRoot = url.pathname === '/' || url.pathname === '';
-          const cacheKey = isRoot ? './index.html' : '.' + url.pathname;
-          return caches.match(cacheKey).then((hit) => hit || caches.match('./index.html') || caches.match('./'));
-        })
-    );
+    const isRoot = url.pathname === '/' || url.pathname === '';
+    const cacheKey = isRoot ? './index.html' : '.' + url.pathname;
+
+    event.respondWith((async () => {
+      const ctrl = new AbortController();
+      const netP = fetch(request, { signal: ctrl.signal })
+        .then((r) => (r && r.ok ? r : null))
+        .catch(() => null);
+
+      /* 先确认有没有可安全回放的缓存副本。没有就别起超时 —— 首访 / 换壳时
+         老实等网络，否则 1.2 秒一到会主动掐掉，反而把唯一那份响应也弄丢。 */
+      const cached = await readCachedDoc(cacheKey);
+      if (!cached) return (await netP) || offlinePage();
+
+      const first = await Promise.race([netP, sleep(1200)]);
+      if (first) return first;
+
+      /* 网络超过 1.2 秒还没给东西：不再等，省掉那 121KB */
+      try { ctrl.abort(); } catch (e) { /* 已经结束就忽略 */ }
+      return cached;
+    })());
     return;
   }
 

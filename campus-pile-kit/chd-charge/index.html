@@ -2079,7 +2079,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v3.27</div>
+    <div id="app-ver" class="foot-ver">版本 v3.28</div>
   </footer>
 </div>
 
@@ -5003,7 +5003,12 @@ async function pileProxyBatch(items, onChunk, shouldStop, opts = {}) {
        * 并把「人多」记进 lastPileMeta，让收尾的话说对原因。 */
       let res = null;
       let lastErr = null;
-      for (let attempt = 0; attempt < 2; attempt++) {
+      /* v3.28：网络层失败也重试一次（原来只有 429 会退让）。
+       * 弱链路（实测 3g / 下行 0.35Mbps / 往返 800ms）下，偶发一批整批超时；
+       * 不重试就是那 12 台一起标「平台没响应」，用户看到一整片空白。
+       * 重试只在失败时发生，正常路径一个请求都不多发。 */
+      let netRetried = false;
+      for (let attempt = 0; attempt < 3; attempt++) {
         const ac = typeof AbortController === 'function' ? new AbortController() : null;
         const t = ac ? setTimeout(() => ac.abort(), PILE_PROXY_TIMEOUT_MS) : null;
         try {
@@ -5014,27 +5019,39 @@ async function pileProxyBatch(items, onChunk, shouldStop, opts = {}) {
             cache: 'no-store',
             signal: ac ? ac.signal : undefined,
           });
+          /* 成功了就把上一次的异常清掉 —— 否则下面 `throw lastErr` 会把
+             一次已经重试成功的批次又判成失败（老代码只重试 429，碰不到这条）。 */
+          lastErr = null;
         } catch (e) {
           lastErr = e;
           res = null;
         } finally {
           if (t) clearTimeout(t);
         }
-        if (!res || res.status !== 429) break;
-        lastPileMeta.rateLimited = true;
-        /* 🔴 一整轮只退一次，不是每批都退。
-         * 限流窗口是 60 秒滑动的：真被吃满时，退 1 秒再打还是 429，只是把
-         * 同一分钟的请求数又推到更高，还拖慢别的同学。所以第一次 429 退一步
-         * 试试（多半是「同一秒涌进来的那批」），之后再撞就直接认了、停手。 */
-        if (attempt === 0 && !rateRetried) {
-          rateRetried = true;
-          await new Promise((r) => setTimeout(r, 900 + Math.random() * 600));
-          continue;
+
+        /* ① 429：我们自己的单 IP 闸，一整轮只退一次（理由见上）。 */
+        if (res && res.status === 429) {
+          lastPileMeta.rateLimited = true;
+          if (!rateRetried) {
+            rateRetried = true;
+            await new Promise((r) => setTimeout(r, 900 + Math.random() * 600));
+            continue;
+          }
+          break;
+        }
+        /* ② 连不上 / 超时 / 被重置：给一次重试，间隔短一些（不是限流，不用等太久）。 */
+        if (!res) {
+          if (!netRetried) {
+            netRetried = true;
+            await new Promise((r) => setTimeout(r, 500 + Math.random() * 500));
+            continue;
+          }
+          break;
         }
         break;
       }
-      if (lastErr) throw lastErr;
-      if (!res || !res.ok) return false;
+      if (!res) throw (lastErr || new Error('网络没响应'));
+      if (!res.ok) return false;
       const data = await res.json();
       if (!data || !data.ok || !data.results) return false;
       lastPileMeta.batches += 1;
@@ -8321,9 +8338,14 @@ async function refresh({ force = false, retried = false, only = null, autoRetry 
             if (row) toShare.push(row);
             netChecked += 1;                 // 成功也算一个「已查」样本
           } else {
+            /* v3.28：`pre` 有值 = 平台明确回了一条（比如「设备已断线」「二维码无效」），
+               那是真实状态，照实显示；`pre` 为空 = 这一批根本没返回这台，
+               有旧数据就保留口数，别让弱网下的一次整批失败把卡片清成空白。 */
+            const prev = results[i];
+            const keep = !pre && prev && Array.isArray(prev.ports) && prev.ports.length;
             record = {
-              at: Date.now(),
-              ports: [],
+              at: keep ? (Number(prev.at) || 0) : Date.now(),
+              ports: keep ? prev.ports : [],
               error: (pre && pre.error) || '平台没响应（代理没返回这台）',
               auth: !!(pre && pre.auth),
             };
@@ -8405,9 +8427,16 @@ async function refresh({ force = false, retried = false, only = null, autoRetry 
             crowded: true,
           };
         } else {
+          /* v3.28：整批没回来时，**有旧数据就别清空**。
+           * 原来一律写 `ports: []`，弱链路下一批失败就让一整片本来有数的卡片
+           * 变成「平台没响应」，用户以为桩坏了。渲染是按 ports 优先的
+           * （见 `!ports.length && rec.error` 那两处），所以保留上次口数、
+           * 同时留着 error —— 失败率判定、收尾补查、下次 refreshPlan 都还认它。 */
+          const prev = results[i];
+          const keepPorts = !!(prev && Array.isArray(prev.ports) && prev.ports.length);
           record = {
-            at: Date.now(),
-            ports: [],
+            at: keepPorts ? (Number(prev.at) || 0) : Date.now(),
+            ports: keepPorts ? prev.ports : [],
             error: '平台没响应（本轮没覆盖到，再点一次刷新就重试）',
             auth: false,
           };
@@ -8843,14 +8872,46 @@ const PILE_LANES_DEMOTE_KEY = 'cpk.lanes.demote';
 const PILE_LANES_DEMOTE_MS = 10 * 60 * 1000;
 const PILE_LANES_MIN_SAMPLE = 6;
 
-/** 本轮该开几条流水线：降级标记还没过期就用 2 条，否则 3 条。 */
+/** 链路能扛住几条流水线（v3.28）。
+ *
+ * 起因是真机诊断：`3g · 流量 · 下行 0.35Mbps · 往返 800ms` 下开 3 路，
+ * 用户看到的是「等很久 → 一批台显示没响应」。这不是平台并发超限，而是
+ * **弱链路扛不住 18 条并行连接**：丢包后每条 TCP 的拥塞窗口互相挤压，
+ * 单批耗时被拉长到贴近超时线，尾部批次干脆整批失败。
+ *
+ * 链路好时 3 路是稳的（实测 18 并发 9/9 批成功），所以按质量给上限：
+ *   · 省流                     → 2（用户明确说别花）
+ *   · 2g / 往返 ≥1.5s          → 1（这种链路上并行只会互相拖）
+ *   · 3g / 往返 ≥400 / 下行<1M → 2
+ *   · 其余（4g 及以上）        → 3
+ * 🔴 下行 0.35M 不单独降 1 路：一批响应才 1.5KB，带宽不是瓶颈，往返才是；
+ *    真降到 1 路反而把 117 台拖成串行十轮（实测会从 6 秒变 20 秒以上）。
+ * 拿不到 Network Information API 时按 3 处理，老浏览器行为不变。 */
+function netLaneCap() {
+  try {
+    const c = navigator.connection || {};
+    if (c.saveData) return 2;
+    const rtt = Number(c.rtt) || 0;
+    const dl = Number(c.downlink) || 0;
+    const et = String(c.effectiveType || '');
+    if (/^(slow-)?2g$/.test(et) || rtt >= 1500) return 1;
+    if (/^3g$/.test(et) || rtt >= 400 || (dl > 0 && dl < 1)) return 2;
+    return PILE_LANES_FAST;
+  } catch (e) {
+    return PILE_LANES_FAST;
+  }
+}
+
+/** 本轮该开几条流水线 = min(链路能扛的, 降级标记)。
+ *  降级标记只说明「平台刚才成片失败过」，链路太弱则更早收口 —— 两个上限取小的。 */
 function pileLaneCount() {
+  const cap = netLaneCap();
   try {
     const o = store.get(PILE_LANES_DEMOTE_KEY, null);
     const at = Number(o && o.at) || 0;
-    if (at && Date.now() - at < PILE_LANES_DEMOTE_MS) return PILE_LANES_SAFE;
+    if (at && Date.now() - at < PILE_LANES_DEMOTE_MS) return Math.min(cap, PILE_LANES_SAFE);
   } catch (e) { /* 读不出来就当没降级过 */ }
-  return PILE_LANES_FAST;
+  return cap;
 }
 
 /** 一轮跑完再判健康度。只在样本够、且失败是「成片」的时候才降级 ——
@@ -11107,6 +11168,10 @@ const CHANGELOG = [
     '点刷新之后，卡片陆续变新的速度快了一截（手机流量下最明显）：'
       + '以前同时查 2 路，现在同时查 3 路；万一平台那边连着好几批都没响应，'
       + '会自动退回 2 路，不会越刷越慢',
+    /* v3.28：弱网稳定性。真机诊断是 3g / 0.35Mbps / 往返 800ms。 */
+    '网特别差的时候（手机上显示 3G、网页半天才动一下）刷新更稳了：'
+      + '同时查的线路会自动减到 2 条，不再跟自己的带宽抢；某一批没查回来时，'
+      + '已经显示的口数也不会被清掉，还是能看到上次的结果',
   ] },
   { v: 'v3.10 – v3.19', d: '2026-11-07 ~ 11-08', items: [
     /* v3.10 补登过去 / v3.11 按钮并排与时长填小时 / v3.12 整行入口 / v3.13 实用功能栏
@@ -11464,11 +11529,13 @@ function diagText() {
      顺带报「现在开几路」——3 路是常态，出现「已回落」说明上一轮成片失败过（见 judgeLaneHealth）。 */
   try {
     const laneNow = pileLaneCount();
+    const laneCap = netLaneCap();
+    const why = laneNow >= PILE_LANES_FAST ? ''
+      : (laneCap < PILE_LANES_FAST ? '，按当前网络收窄' : '，上次成片失败已回落');
     L.push('查询 ' + (lastBatchMs.length
       ? '最近 ' + lastBatchMs.length + ' 批 ' + lastBatchMs.slice(-8).map((b) => b.ms).join('/') + ' ms'
       : '这一轮还没发请求')
-      + ' · ' + laneNow + ' 路（每路 6 并发）'
-      + (laneNow === PILE_LANES_SAFE ? '，上次成片失败已回落' : ''));
+      + ' · ' + laneNow + ' 路（每路 6 并发）' + why);
   } catch (e) {}
 
   let arr = [];

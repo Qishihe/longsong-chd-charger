@@ -416,7 +416,7 @@
    且不再把导航响应写进缓存。换壳是为了把 v236 里可能写坏的 `./index.html` 清掉。 */
 /* v237 → v238（2026-11-21 v3.27）：查询流水线 2 路 → 3 路（成片失败自动回落 2 路）。
    index.html 变了 → 换壳。 */
-const CACHE = 'campus-pile-v238';
+const CACHE = 'campus-pile-v239';
 const SHELL = [
   /* v2.86：`'./'` 删了。线上实测 `/` 与 `/index.html` 返回的字节完全相同（md5 一致），
      而 fetch 拦截只把 `'./index.html'` 当主 key，`'./'` 只是回退链的第二顺位 ——

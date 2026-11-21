@@ -26,10 +26,10 @@
 
   var D = null;                 // CHD_MAP
   /* 高德底图样式 —— **这是 ②「校外留白」与 ③「参考图风格」的唯一开关**。
-   * 现在挂的是内置 `fresh`（浅绿清爽）。产品方在高德控制台做完「自定义地图样式」
-   * 并把校外调成留白后，把下面这行换成 `'amap://styles/<你的styleId>'` 即可 —— 代码不用再动。
+   * 2026-11-22：产品方已在 GeoHUB 发布自定义蓝绿样式，下面这行从内置 `fresh` 换成
+   * `'amap://styles/<styleId>'`。要再换样式只改这一行 —— 代码不用再动。
    * 详见 `buildLayers()` 里那段说明。 */
-  var MAP_STYLE = 'amap://styles/fresh';
+  var MAP_STYLE = 'amap://styles/e9cda00bece2b23921413577d6bac4aa';
 
   /* ---------- 2026-11-05 v3.01：校区建筑名（四校区都有，缩小自动抽稀） ----------
    * 来源：渭水用 D.buildings / D.venues / D.water 的形心（83+8+4 个，本来就有名字）；
@@ -81,6 +81,34 @@
       ['留学生公寓', 108.948506, 34.225055, 1],
       ['公寓8号楼', 108.947371, 34.224994, 1],
       ['研究生院', 108.948279, 34.224261, 1],
+    ],
+    /* v3.30 本部南院（第五个校区）。坐标同样是 **OSM 楼栋中心 → WGS84 → GCJ-02**
+       转过来的，不是手拖的；转换链在「雁塔图书馆」上验过（差 12 m/5 m）。
+       🔴 一区 / 二区 / 三区**各自都有一栋 3 号楼**，标签必须带区号 ——
+          否则地图上同时出现三个「3号楼」，学生按名字根本找不到是哪一个。
+       只挑能帮人定位的楼与地标，别把整片家属区都铺上（LOD 会互相挤掉）。 */
+    nanyuan: [
+      ['二区3号楼', 108.951350, 34.229430, 2],
+      ['二区5号楼', 108.952048, 34.229479, 2],
+      ['二区7号楼', 108.952792, 34.229469, 2],
+      ['二区9号楼', 108.953524, 34.229441, 2],
+      ['二区11号楼', 108.954337, 34.229442, 2],
+      ['二区13号楼', 108.955151, 34.229444, 1],
+      ['二区8号楼', 108.952314, 34.229164, 1],
+      ['二区10号楼', 108.953098, 34.229174, 1],
+      ['三区5号楼', 108.953625, 34.228903, 2],
+      ['三区7号楼', 108.953618, 34.228090, 2],
+      ['三区10号楼', 108.955979, 34.227790, 1],
+      ['三区11号楼', 108.955140, 34.227814, 1],
+      ['一区1号楼', 108.948757, 34.229045, 2],
+      ['一区7号楼', 108.949613, 34.227715, 1],
+      ['一区10号楼', 108.950510, 34.228294, 1],
+      ['长安大学医院', 108.955025, 34.229068, 3],
+      ['翠华幼儿园', 108.955851, 34.228815, 2],
+      ['汽车学院', 108.951894, 34.227976, 2],
+      ['工程机械学院', 108.952905, 34.227891, 2],
+      ['青年公寓', 108.948742, 34.229407, 1],
+      ['附中', 108.947884, 34.228568, 1],
     ],
   };
   /* 缩放分级：越缩小 → 标签之间要求的最小空白越大、名额越少、重要度门槛越高。
@@ -139,6 +167,9 @@
   var BADGE_POS = {};           // 分区 -> [lng, lat]（取景要把徽章也算进去，否则会被裁掉）
   var CLUSTER_POS = {};         // 分区 -> [lng, lat]（缩小时的聚合圈位置）
   var syncTimer = null, syncPending = false;
+  /* v3.35：实时定位的「我的位置」图层（蓝点 + 精度圈）。单独持有，不走 rebuildPins ——
+   * 刷新桩点数据时不能把蓝点冲掉；destroy 时显式清理。坐标已是 GCJ-02（由页面侧 WGS84 转好）。 */
+  var myLocDot = null, myLocAcc = null, myLocLL = null;
 
   function LL(p) { return [p[0], p[1]]; }   // 高德用 [lng, lat]
 
@@ -443,8 +474,108 @@
     [108.961823, 34.226110],   // P-02
     [108.961763, 34.226110],   // P-03（最西）
   ];
+  /* 2026-11-21 v3.30 新增「本部南院」4 个分区（N/M/L/K，共 29 台）——
+   * **第三个不在渭水校区的校区**。本部南院 = 二环南路**南**侧的小寨路街道家属区，
+   * 与已有的「本部北院」（二环南路北侧，B1-01~B7-09）隔着二环南路相对；
+   * 距「雁塔校区」正北约 500 m，两者不是同一片，别拿雁塔的坐标套。
+   *
+   * 📐 坐标来源（v3.32 起）：**产品方用高德「坐标拾取器」逐点取的真实 GCJ-02**，
+   *   不再走 v3.30/v3.31 那条「截图像素 → OSM 楼栋 → WGS84 → GCJ」的推算链。
+   *     · 3号楼南 108.951343, 34.229382   ← 二区 3 号楼南墙外
+   *     · 3号楼东 108.951753, 34.229430   ← 3 号楼与 5 号楼之间
+   *     · 7号楼东 108.953150, 34.229458   ← 7 号楼与 9 号楼之间
+   *     · 东门    待补（原给的 108.953150/34.229458 与「7号楼东」完全重复，
+   *               东门那组暂留 v3.31 的推算值 108.955700, 34.229350）
+   *   交叉校验：上面三个锚点与 `CAMPUS_POI.nanyuan` 里「二区3号楼 108.951350/34.229430」、
+   *   「二区7号楼 108.952792」「二区9号楼 108.953524」全部对得上，残差 ≤10 m。
+   *   ⇒ 桩阵以锚点为**中心**、3.5 m 一格摆小块（渭水那边是 6.5 m 一格的长排）。
+   *   上一版 N/M 两个分区曾落到 108.9489/108.9492（一区那一侧），偏东约 220 m —— 已修正。
+   *
+   * 🔴 **别直接抄 OSM 的原始经纬度**：OSM 是 WGS84，这里是 GCJ-02，直接抄会整体偏
+   *   300~500 m，桩点落到隔壁街区。要改先在上面那两条定标公式里改，再整体重转。
+   *
+   * ⚠️ 示意点位（catalog.json 里 precision=schematic），不是现场实测车位；
+   *   现场摆位若与图不符，**只改这四组坐标**，LINE_AREAS 那四行和桩号不用动。
+   * ⚠️ 这四串必须与 index.html 里 N-01~06 / M-01~06 / L-01~09 / K-01~08 的数量一致。 */
+  var N_GEO = [   // 南院-3号楼南：二区 3 号楼南墙外侧、3 号楼与 4 号楼之间，2 行 × 3 列（编号自南向北、自西向东）
+    [108.951305, 34.229366],
+    [108.951343, 34.229366],
+    [108.951381, 34.229366],
+    [108.951305, 34.229398],
+    [108.951343, 34.229398],
+    [108.951381, 34.229398],
+  ];
+  var M_GEO = [   // 南院-3号楼东：二区 3 号楼与 5 号楼之间，3 行 × 2 列
+    [108.951734, 34.229398],
+    [108.951772, 34.229398],
+    [108.951734, 34.229430],
+    [108.951772, 34.229430],
+    [108.951734, 34.229462],
+    [108.951772, 34.229462],
+  ];
+  var L_GEO = [   // 南院-7号楼东：二区 7 号楼东侧、7 号楼与 9 号楼之间，3 行 × 3 列
+    [108.953112, 34.229426],
+    [108.953150, 34.229426],
+    [108.953188, 34.229426],
+    [108.953112, 34.229458],
+    [108.953150, 34.229458],
+    [108.953188, 34.229458],
+    [108.953112, 34.229490],
+    [108.953150, 34.229490],
+    [108.953188, 34.229490],
+  ];
+  var K_GEO = [   // 南院-东门：三区工程设计研究院南侧、13/15 号楼之间，4 行 × 2 列
+    [108.955525, 34.229434],
+    [108.955563, 34.229434],
+    [108.955525, 34.229465],
+    [108.955563, 34.229465],
+    [108.955525, 34.229497],
+    [108.955563, 34.229497],
+    [108.955525, 34.229528],
+    [108.955563, 34.229528],
+  ];
+  /* 2026-11-21 v3.34 新增「渭水-公路学院南」24 台（G-01~G-24）——
+   * 公路学院（20 号楼）**南侧**的第四条渭水线型分区，与 E/W/Z 同构。
+   * 📐 坐标由产品方给的线段两端算出来（GCJ-02，已是真值坐标）：
+   *   · 东端 a = 108.894206, 34.366621（G-01）；西端 b = 108.893501, 34.366432（G-24）；
+   *   · 🔴 24 台**全在同一行**（产品方 2026-11-22 更正）：分成 4 组、每组 6 台，
+   *     组内间距 2.5 m，组与组之间留约 6 m 空档，首尾正好落在 a / b 上。
+   *   · 编号按 a→b 连续 G-01~G-24，不因分组断开。
+   * ⚠️ 产品方明确：这批桩**平台上还查不到**，先上图看位置；卡片会显示「平台没响应」，
+   *    等平台开放后不用动前端。示意点位（catalog.json precision=schematic），不是实测车位。
+   * ⚠️ 这串必须与 index.html 里 G-01~G-24 数量一致（24），少一台会被 layoutPiles 补空位。
+   * ⚠️ 前缀 'G' 是单大写字母（gen_catalog.py 的 prefix:'([A-Z])' 才行），
+   *    且不与 bmKey 的 A~D、朝晖 arcSeq、其它 LINE_AREAS 前缀冲突。 */
+  var G_GEO = [
+    [108.894206, 34.366621],  // G-01
+    [108.894180, 34.366614],
+    [108.894154, 34.366607],
+    [108.894128, 34.366600],
+    [108.894102, 34.366593],
+    [108.894077, 34.366586],
+    [108.894014, 34.366570],  // G-07
+    [108.893988, 34.366563],
+    [108.893963, 34.366556],
+    [108.893937, 34.366549],
+    [108.893911, 34.366542],
+    [108.893885, 34.366535],
+    [108.893823, 34.366518],  // G-13
+    [108.893797, 34.366511],
+    [108.893771, 34.366504],
+    [108.893745, 34.366497],
+    [108.893719, 34.366490],
+    [108.893693, 34.366484],
+    [108.893631, 34.366467],  // G-19
+    [108.893605, 34.366460],
+    [108.893579, 34.366453],
+    [108.893553, 34.366446],
+    [108.893528, 34.366439],
+    [108.893501, 34.366432],
+  ];
+
   var LINE_AREAS = [
     { loc: '渭水-20号楼',       prefix: 'E', geo: E_GEO },
+    { loc: '渭水-公路学院南', prefix: 'G', geo: G_GEO },
     { loc: '渭水-物业服务中心', prefix: 'W', geo: W_GEO },
     /* 2026-10-25 同步进正式版时**特意保留旧名条目**：浏览器里可能还缓存着改名前的页面，
      * 它传给引擎的 loc 仍是「渭水-物流服务中心」。引擎按 loc 精确查表，多一行不干扰新名字；
@@ -476,6 +607,22 @@
        ⚠️ 两行都必须登记，否则 W-01 / P-01 会掉进 arcSeq 被摆到朝晖两条弧上。 */
     { loc: '雁塔-5号学生公寓南部', prefix: 'W', geo: W5_GEO },
     { loc: '雁塔-停车场出口', prefix: 'P', geo: P_GEO },
+    /* v3.30 本部南院四个分区。前缀 N/M/L/K 在**现存表里都没出现过**，
+       `lineSeq('N-01','E')` 这类试探不会误命中（正则要求前缀字母本身）。
+       ⚠️ 四个前缀都必须是**单个大写字母**：tools/gen_catalog.py 解析 LINE_AREAS 时
+          用的是 `prefix:\s*'([A-Z])'`，写成 'N1' 这行会被静默跳过 —— 结果是
+          catalog.json 里这 29 台没有落点，第三方接入端全堆在原点。
+       ⚠️ 也别用 'D'：shortCode() 第一步走 `bmKey()`（认 A~D 的北门车位码），
+          `D-01` 会被当成北门 D01 提前返回。落点不受影响（layoutPiles 先查 lineAreaOf），
+          但显示口径会混，所以东门这组特意挑了 'K'。 */
+    { loc: '南院-3号楼南', prefix: 'N', geo: N_GEO },
+    /* v3.32 改名的**别名行**：缓存里的旧 index.html 传上来的 loc 仍是「南院-3号楼西」。
+       没这行 `lineAreaOf()` 返回 null → 掉进 arcSeq（"末尾数字 1~36 就算朝晖"）→
+       6 台被摆到渭水体育场弧上。旧名只用于查落点，不再出现在任何显示口径里。 */
+    { loc: '南院-3号楼西', prefix: 'N', geo: N_GEO },
+    { loc: '南院-3号楼东', prefix: 'M', geo: M_GEO },
+    { loc: '南院-7号楼',   prefix: 'L', geo: L_GEO },   // 显示名「7号楼东」
+    { loc: '南院-东门',    prefix: 'K', geo: K_GEO },
   ];
   function lineAreaOf(loc) {
     for (var i = 0; i < LINE_AREAS.length; i++) {
@@ -734,10 +881,12 @@
    * 2026-10-20 用户指定：点内标注序号；绿=还有空位，红=全部占用，灰=设备离线。
    * 离线判断沿用页面里 levelOf() 的口径：拿不到端口数据（total 为 0）就算离线。
    */
-  function pileContent(code, free, total, hl) {
+  /* stale：查询记录超过 5 分钟，按产品方要求画灰色 + 标「未更新」，避免拿旧状态误导。
+   * 🔴 off（total=0，从没查/无数据）优先：那种本来就是灰的 off 态，不必再叠 stale。 */
+  function pileContent(code, free, total, hl, stale) {
     var off = !total;
     var ok = total > 0 && free > 0;
-    var cls = off ? 'off' : (ok ? 'free' : 'busy');
+    var cls = off ? 'off' : (stale ? 'stale' : (ok ? 'free' : 'busy'));
     // hl：被「定位图标」点中的那台（.hl 是一圈描边 + 扩散动画，见 index.html 的 .pile.hl）
     return '<div class="pile ' + cls + (hl ? ' hl' : '') + '">' + shortCode(code) + '</div>';
   }
@@ -935,6 +1084,17 @@
    * 想更早看到圈就把 `GAP_CLUSTER` 调大（16 = 徽章刚开始贴边）。 */
   var GAP_BADGE = 13;
   var GAP_CLUSTER = 13;
+  /* 🔴 v3.31：**校区总览**单独一条聚合阈值（分区视图仍用 GAP_CLUSTER）。
+   *
+   * 病灶（2026-11-21 产品方截图）：校区全图手动放大到 z≈18.5 时，逐台点就顶掉了聚合圈，
+   *   可那时 3.5m 的桩距只折合十几像素，一整个分区的点糊成一坨 —— 而且南院四个分区的
+   *   桩阵本来就比渭水密（渭水 6.5m 一格，南院 3.5m），用同一条 13px 判据必然重叠。
+   *   44 的来历：只要 gap×3.5m ≥ 24px（16px 徽章 + 8px 空隙）就不压点，
+   *   取最密的分区算下来 gap 要 ≥ 44（≈ z 19.65）。稀疏分区只是晚一点看到桩点，不会出错。
+   * ⚠️ 只对 `curView === 'campus'` 生效：分区视图若也提到 44，像朝晖那种 300m 宽的场地
+   *   取景后 gap 只有 13，会被「缩到重叠就退回总览」那条规则立刻弹回去 —— 就是
+   *   2026-10-21 修过的「点圈只闪一下」。分区视图必须保持 13。 */
+  var GAP_CLUSTER_CAMPUS = 44;
   var clustered = false;          // 分区聚合圈态（供 syncLayers 复用）
   var dotted = false;             // 逐台小圆点态（当前阈值下不生效，见上）
   /* 最近一次「程序化取景」的时刻（fitBBox / setZoom 会盖戳）。
@@ -1067,6 +1227,8 @@
        * fitBBox 自己的两枪带显式目标 zoom，会走 applyZoomTier → applyLabelLod。 */
       if (!map || Date.now() - progZoomAt < 1200) return;
       applyLabelLod();
+      /* 聚合圈的名字也要跟着重新判碰撞（平移会挪投影，缩放会改变圈距）。 */
+      try { applyClusterLabelNames(); } catch (e) {}
     }, 140);
   }
 
@@ -1075,7 +1237,7 @@
     if (typeof z !== 'number') z = map ? map.getZoom() : 0;
     var res = 156543.03392 * LAT_COS / Math.pow(2, z);   // 米/像素
     var gap = CELL_M / Math.max(res, 1e-6);
-    var wantCluster = gap < GAP_CLUSTER;
+    var wantCluster = gap < (curView === 'campus' ? GAP_CLUSTER_CAMPUS : GAP_CLUSTER);
     /* 🔴 2026-10-21 修 bug：产品方报「点绿圈放大后再缩放，所有充电桩标志都消失，只能退出重进」。
      *
      * 根因（状态机漏洞）：点圈后 `curView` = '渭水-北门'（分区视图），此时再缩小 →
@@ -1232,9 +1394,10 @@
     piles.forEach(function (p) {
       var a = D.areas[p.location];
       if (!a) return;
-      if (!groups[p.location]) groups[p.location] = { free: 0, n: 0, line: a.line, name: a.name };
+      if (!groups[p.location]) groups[p.location] = { free: 0, n: 0, fresh: 0, line: a.line, name: a.name };
       groups[p.location].n++;
       if (p.free > 0) groups[p.location].free += p.free;
+      if (p.total > 0 && !p.stale) groups[p.location].fresh++;
     });
 
     var markers = [];
@@ -1257,14 +1420,16 @@
         : [(g.line[0][0] + g.line[1][0]) / 2, (g.line[0][1] + g.line[1][1]) / 2];
       BADGE_POS[loc] = mid;
       var ok = g.free > 0;
+      var stale = g.fresh === 0;
       var l2 = g.n + ' 台' + (ok ? ' · ' + g.free + ' 空位' : ' · 已满');
       markers.push(new AMap.Marker({
         position: mid,
         anchor: 'center',
-        content: '<div style="background:#fff;border:2px solid ' + (ok ? '#3E8E52' : '#B5443A')
+        content: '<div style="background:#fff;border:2px solid ' + (stale ? '#9098A3' : (ok ? '#3E8E52' : '#B5443A'))
           + ';border-radius:12px;padding:3px 10px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.28)">'
           + '<span style="font-size:12.4px;font-weight:700;color:#2B2F28">' + g.name + '</span>'
-          + '<span style="font-size:11px;color:#5F665C;margin-left:5px">' + l2 + '</span></div>',
+          + '<span style="font-size:11px;color:#5F665C;margin-left:5px">' + l2
+          + (stale ? ' · 未更新' : '') + '</span></div>',
         extData: { area: loc },
       }));
     });
@@ -1272,7 +1437,8 @@
     if (!markers.length) return;
     badgeLayer = markers;
     markers.forEach(function (m) {
-      m.setMap(map);
+      /* v3.31：不再上图（见 syncLayers 里那条说明）。仍然建好并绑好点击，
+       * 哪天要恢复只改这一行 + syncLayers 的显隐条件即可。 */
       m.on('click', function () {
         var id = m.getExtData().area;
         if (!id) return;
@@ -1302,32 +1468,83 @@
    *    所以北门的名字往上放（北边是空的），这是唯一需要单独配的一个分区。
    */
   var CL_LABEL_UP = { '渭水-北门': true };
+  /* ---------- 聚合圈名字的**屏幕空间**避让（v3.32） ----------
+   * 校区全图把整片场地压到一屏后，两个分区的**圈心**可能只差三十来像素：
+   * 南院「3号楼南」与「3号楼东」是同一栋 3 号楼上的两处（圈心 39px、圈径 30px），
+   * 名字都往下挂必然叠成一串「3号楼南3号楼东」。
+   * 这里按屏幕矩形贪心：台数多的圈先占位，后来的名字跟已占的矩形相交就**不挂名字**
+   * （圈照画，点进去页签里还有分区名，信息不缺，只是屏幕上少一个叠字）。
+   * ⚠️ 只比「名字 vs 名字」，**不跟圈比**：渭水北门/朝晖圈心也只差 37px，
+   *    北门的名字特意挂在圈上方（见上面 CL_LABEL_UP），拿圈去比会把朝晖那颗误杀。
+   * 🔴 **必须能重算**：`rebuildClusters()` 是在 setPiles 时跑的，那时相机还停在旧位置
+   *    （首帧甚至是 z11 全城视角），按那一刻的投影判碰撞会把渭水「住宅」这类
+   *    八竿子打不着的名字一起误杀（v3.32 第一版就这么翻的车）。
+   *    所以名字**一律先画出来**，再由 `applyClusterLabelNames()` 按当前投影补/撤
+   *    `.name-off`；调用点是 `applyLabelLod()`（缩放、平移去抖、程序化取景后都会走到）。 */
+  var CL_ITEMS = [];
+  function applyClusterLabelNames() {
+    if (!CL_ITEMS.length) return;
+    if (!map || typeof map.lngLatToContainer !== 'function') return;   // 老 SDK：全挂，退化成 v3.31
+    var wrap = host || document.getElementById('amap-host');
+    if (!wrap) return;
+    var taken = [];
+    var order = CL_ITEMS.slice().sort(function (a, b) { return b.g.n - a.g.n; });
+    for (var k = 0; k < order.length; k++) {
+      var it = order[k];
+      var el = wrap.querySelector('[data-cl="' + it.uid + '"]');
+      var px = null;
+      try { px = map.lngLatToContainer(it.mid); } catch (e) { px = null; }
+      if (!el || !px) continue;
+      var w = Math.max(30, String(it.nm).length * 11 + 12);
+      /* 两个候选落点：**默认**（圈下 / 北门那类挂在圈上）、**兜底挂到圈的右边**。
+         南院「3号楼东」就是靠右边兜底拿回名字的 —— 它跟「3号楼南」只差 39px，
+         往下挂必然叠字，往右挂落在两圈之间的空档里，一眼还是能对上。 */
+      var cands = [
+        { right: false, x: px.getX() - w / 2, y: it.up ? px.getY() - 33 : px.getY() + 16 },
+        { right: true, x: px.getX() + 19, y: px.getY() - 8 },
+      ];
+      var chosen = null;
+      for (var c = 0; c < cands.length && !chosen; c++) {
+        var cd = cands[c];
+        // 右边兜底还得塞得进容器，否则整条挤到屏幕外（东门、停车场这类贴边的圈）
+        if (cd.right && wrap.clientWidth && cd.x + w > wrap.clientWidth - 2) continue;
+        if (cd.x < 2) continue;                    // 左边越界的一律不要
+        var hit = false;
+        for (var i = 0; i < taken.length; i++) {
+          var t = taken[i];
+          if (!(cd.x + w < t.x || t.x + t.w < cd.x || cd.y + 16 < t.y || t.y + t.h < cd.y)) { hit = true; break; }
+        }
+        if (!hit) chosen = cd;
+      }
+      if (chosen) taken.push({ x: chosen.x, y: chosen.y, w: w, h: 16 });
+      el.classList.toggle('name-off', !chosen);
+      el.classList.toggle('name-right', !!(chosen && chosen.right));
+    }
+  }
   function rebuildClusters() {
     clearLayer(clusterLayer); clusterLayer = null;
     CLUSTER_POS = {};
+    CL_ITEMS = [];
 
     var groups = {};
     piles.forEach(function (p) {
       var a = D.areas[p.location];
       if (!a) return;
-      if (!groups[p.location]) groups[p.location] = { free: 0, n: 0, name: a.name };
+      if (!groups[p.location]) groups[p.location] = { free: 0, n: 0, fresh: 0, name: a.name };
       groups[p.location].n++;
       if (p.free > 0) groups[p.location].free += p.free;
+      /* stale 口径：分区里只要有「有数据且未过期」的桩，圈就照常显示实时色；
+       * 全是过期数据才灰掉（n>0 由本分组保证）。从没查过(total=0)的不算 fresh。 */
+      if (p.total > 0 && !p.stale) groups[p.location].fresh++;
     });
 
-    var markers = [];
+    var items = [];
     Object.keys(groups).forEach(function (loc) {
       var g = groups[loc];
       var b = areaBBox(loc);
       if (!b) return;
       var mid = [(b.w + b.e) / 2, (b.s + b.n) / 2];
       CLUSTER_POS[loc] = mid;
-      var ok = g.free > 0;
-      var inner = ok
-        ? '<span class="cluster-num">' + g.free + '</span>'
-        : '<span class="cluster-x">×</span>';
-      /* 名字用绝对定位挂在圈外（见上面 CL_LABEL_UP 的说明）——
-         这样 marker 盒子仍是 30×30 的圈，圈心不会被名字顶偏。 */
       /* v3.00：校区全图把该校区所有场地铺满屏宽时，两端那颗圈的名字会被容器裁掉
          （雁塔全图实测「水利与环境学院」缺两字、「停车场出口」贴着右边缘）。
          改用首页地址胶囊那套短名（水院 / 5号公寓南 / 停车场），宽度砍半；
@@ -1335,12 +1552,29 @@
          独立加载这份 js 时没有 pillAddrLabel，老实退回分区全名。 */
       var nm = (typeof window.pillAddrLabel === 'function' && window.pillAddrLabel(loc))
         || g.name || loc.replace(/^渭水-/, '');
+      items.push({ loc: loc, g: g, mid: mid, nm: nm, up: !!CL_LABEL_UP[loc], uid: 'c' + items.length });
+    });
+    if (!items.length) return;
+    CL_ITEMS = items;
+
+    var markers = [];
+    items.forEach(function (it) {
+      var g = it.g, loc = it.loc;
+      var ok = g.free > 0;
+      var stale = g.fresh === 0;   // 整区无一条未过期记录 → 灰
+      var inner = ok
+        ? '<span class="cluster-num">' + g.free + '</span>'
+        : '<span class="cluster-x">×</span>';
+      /* 名字用绝对定位挂在圈外（见上面 CL_LABEL_UP 的说明）——
+         这样 marker 盒子仍是 30×30 的圈，圈心不会被名字顶偏。
+         `data-cl` 是给 applyClusterLabelNames() 反查这个 DOM 用的。 */
       markers.push(new AMap.Marker({
-        position: mid, anchor: 'center',
-        content: '<div class="cluster-cell' + (CL_LABEL_UP[loc] ? ' lbl-up' : '') + '">'
-          + '<div class="cluster ' + (ok ? 'ok' : 'full') + '">' + inner + '</div>'
-          + '<span class="cluster-name">' + nm + '</span></div>',
+        position: it.mid, anchor: 'center',
+        content: '<div class="cluster-cell' + (it.up ? ' lbl-up' : '') + '" data-cl="' + it.uid + '">'
+          + '<div class="cluster ' + (stale ? 'stale' : (ok ? 'ok' : 'full')) + '">' + inner + '</div>'
+          + '<span class="cluster-name">' + it.nm + '</span></div>',
         extData: { area: loc },
+        title: stale ? '查询结果已超过5分钟，未更新' : undefined,
         zIndex: 90,
       }));
     });
@@ -1379,9 +1613,10 @@
         var mk = new AMap.Marker({
           position: pos, anchor: 'center',
           content: pileContent(p.code, p.free, p.total,
-            HL_ID != null && String(p.id) === String(HL_ID)),
+            HL_ID != null && String(p.id) === String(HL_ID), !!p.stale),
           extData: { id: p.id },
-          title: p.code + ' · ' + (p.total ? p.free + '/' + p.total + ' 空闲' : '无数据'),
+          title: p.code + ' · ' + (p.total ? p.free + '/' + p.total + ' 空闲' : '无数据')
+            + (p.stale ? ' · 查询已超过5分钟，未更新' : ''),
         });
         PIN_MARK[p.id] = { m: mk, p: p, on: false };
         pinMarkers.push(mk);
@@ -1412,8 +1647,13 @@
      * 逐台点的隐藏与聚合圈的显示**必须用同一个开关**，否则会出现
      * 「clustered=true 但 curView 不是 campus」→ 点被隐藏、圈又不显示 → 整张图空掉。 */
     var clusterOn = clustered && isCampus;
-    // 总览徽章：总览 + 放大态才显示（聚合成圈时信息与聚合圈重复，藏掉）
-    if (badgeLayer) badgeLayer.forEach(function (m) { m.setMap(isCampus && !clusterOn ? map : null); });
+    /* 🔴 v3.31：总览徽章**不再显示**（代码保留，别删 —— 回滚时还要用）。
+     *
+     * 2026-11-21 产品方实测：校区总览放大到能看清单桩以后（gap ≥ 13），
+     *   徽章正好压在桩阵上 —— 南院 7 号楼那个「7号楼 · N 个空位」胶囊
+     *   整条盖住 L01~L09，跟桩点叠成一团。
+     * 而且它的信息（分区名 + 空闲数）与聚合圈**完全重复**，聚合圈还带可点的圈体。
+     * 现在的分工：远景 = 聚合圈（汇总）、近景 = 桩点（明细），中间不需要第三样东西。 */
     // 聚合圈：只在「总览 + 聚合成圈」时显示；进到某分区（已放大）就隐藏
     if (clusterLayer) clusterLayer.forEach(function (m) { m.setMap(clusterOn ? map : null); });
     // 桩点：总览显示（或分区内也显示），这里简化为总览 + 分区都显示桩点
@@ -1437,6 +1677,10 @@
         m.setMap(showPin ? map : null);
       });
     }
+    /* 圈层刚上/下过图，标签的投影位置也跟着变 —— 顺手按**当前**相机重算一次避让。
+       （这里不能判「只在 clusterOn 时算」：切回分区视图后这些标签藏起来了，
+        再切回总览时要重算，宁可多算一次十几条矩形。） */
+    try { applyClusterLabelNames(); } catch (e) {}
   }
 
   /* ---------- 相机 ----------
@@ -1559,7 +1803,11 @@
    *   任何比这更近的托底都会把最西的 20 号楼或最东的北门裁掉 —— 这里**不能有托底**。
    */
   function fitCampus(animate) {
-    fitBBox(campusBBox(), 0.10, 0, animate);
+    /* v3.31：留白 0.10 → 0.16。0.10 在 390px 屏上单侧只有 18px，
+     * 而聚合圈的半径就 15px、圈下的分区名还有 60px 宽 —— 南院「3号楼西」那个圈
+     * 被顶出左边缘、「3号」两个字直接被裁掉（2026-11-21 线上截图确认）。
+     * 0.16 给到单侧 ~32px，圈和名字都能完整进画面，桩阵只缩了 6%。 */
+    fitBBox(campusBBox(), 0.16, 0, animate);
   }
 
   /* ---------- 视图状态回传（给页面表头 / 「返回总览」按钮用） ----------
@@ -1796,15 +2044,65 @@
       Object.keys(PIN_MARK).forEach(function (k) {
         var it = PIN_MARK[k];
         if (!it.on || k === key) return;
-        it.m.setContent(pileContent(it.p.code, it.p.free, it.p.total, false));
+        it.m.setContent(pileContent(it.p.code, it.p.free, it.p.total, false, !!it.p.stale));
         it.on = false;
       });
       if (hit) {
-        hit.m.setContent(pileContent(hit.p.code, hit.p.free, hit.p.total, true));
+        hit.m.setContent(pileContent(hit.p.code, hit.p.free, hit.p.total, true, !!hit.p.stale));
         hit.on = true;
       }
       return true;
     },
+
+    /* ---------- 实时定位（v3.35）----------
+     * 页面侧用 navigator.geolocation 拿 WGS84、转成 GCJ-02 后把 [lng,lat] 传进来。
+     * 这里只负责画：蓝点 + 半透明精度圈。坐标**不再套 shiftLL** ——
+     * 🔴 真机定位是真值，必须与真值底图对齐；源码态下桩点整体偏了 300 m，
+     *    蓝点不跟着偏，本地看站会看到蓝点与桩点错开 —— 这是预期的（源码态桩点是假的），
+     *    线上注入 GEO_SHIFT=0 后两者自然重合。 */
+    showMyLocation: function (ll, accuracyM) {
+      if (!map || !ready || !ll) return false;
+      if (typeof AMap === 'undefined') return false;
+      var pos = [Number(ll[0]), Number(ll[1])];
+      if (!isFinite(pos[0]) || !isFinite(pos[1])) return false;
+      try {
+        if (myLocDot) { myLocDot.setMap(null); myLocDot = null; }
+        if (myLocAcc) { myLocAcc.setMap(null); myLocAcc = null; }
+        var acc = Number(accuracyM);
+        if (isFinite(acc) && acc > 0 && AMap.Circle) {
+          myLocAcc = new AMap.Circle({
+            center: pos, radius: Math.max(8, Math.min(acc, 3000)),
+            fillColor: '#1E6FD9', fillOpacity: 0.12,
+            strokeColor: '#1E6FD9', strokeOpacity: 0.35, strokeWeight: 1,
+            zIndex: 30,
+          });
+          map.add(myLocAcc);
+        }
+        myLocDot = new AMap.Marker({
+          position: pos, anchor: 'center', zIndex: 120,
+          content: '<div class="chg-my-loc"><i></i></div>',
+        });
+        map.add(myLocDot);
+        myLocLL = pos;
+        return true;
+      } catch (e) {
+        console.warn('[CHD_AMAP] showMyLocation 失败', e);
+        return false;
+      }
+    },
+
+    /* 一键回到我：把镜头移到蓝点并给一个看得清的缩放级别；没有定位就返回 false。 */
+    focusMyLocation: function (zoom) {
+      if (!map || !myLocLL) return false;
+      try {
+        var z = (typeof zoom === 'number') ? zoom : 17;
+        if (map.setZoomAndCenter) map.setZoomAndCenter(z, myLocLL);
+        else { map.setCenter(myLocLL); map.setZoom(z); }
+        return true;
+      } catch (e) { return false; }
+    },
+
+    myLocation: function () { return myLocLL ? myLocLL.slice() : null; },
 
     resize: function () { if (map && map.resize) try { map.resize(); } catch (e) {} },
 
@@ -1857,6 +2155,7 @@
 
     destroy: function () {
       clearLayer(badgeLayer); clearLayer(pinLayer); clearLayer(clusterLayer);
+      clearLayer(myLocDot); clearLayer(myLocAcc); myLocDot = null; myLocAcc = null; myLocLL = null;
       try { if (map) map.destroy(); } catch (e) {}
       badgeLayer = null; pinLayer = null; clusterLayer = null;
       PIN_POS = {}; CLUSTER_POS = {}; clustered = false; dotted = false;

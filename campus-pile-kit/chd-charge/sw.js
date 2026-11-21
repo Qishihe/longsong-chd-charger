@@ -345,7 +345,7 @@
 /* v198 → v199（2026-11-05 v3.00）：地图里给北院 / 雁塔各补一颗「校区全图」，
    四个校区都有全图视图了。index.html 与 map-amap.js（聚合圈改用地址短名）都变了，
    页面里两处 `map-amap.js?v=` 跟着 152 → 153；map-amap.js 本来就不进 SHELL，
-   map-data.js 也没动 → SHELL 仍是 6 项、`map-data.js?v=173` 不动，只换壳名。 */
+   map-data.js 也没动 → SHELL 仍是 6 项、`map-data.js?v=174` 不动，只换壳名。 */
 /* v199 → v200（2026-11-05 v3.01）：地图给四个校区的建筑补名字，
    并按缩放做分级抽稀（缩小只留地标、不挤字）。改了 index.html 与 map-amap.js，
    页面里两处 `map-amap.js?v=` 跟着 153 → 154；map-data.js 没动
@@ -421,7 +421,19 @@
 /* v239 → v240（2026-11-21 v3.29）：Worker 限流改成「只算回源批次」并放宽到 60/分；
    index.html 只动了注释和版本号，仍然换壳 —— 免得壳里那份写着「30 批」的旧说明
    在排查时误导人。 */
-const CACHE = 'campus-pile-v240';
+/* v247 → v248（2026-11-21 v3.34）：新增「渭水-公路学院东」24 台 —— 设备清单、
+   地图落点、地址页签、首页胶囊都变了，index.html / map-amap.js / map-data.js 全动过，
+   必须换壳，否则已装 v247 的浏览器会继续用缓存里的旧页面（新分区完全看不到）。 */
+const CACHE = 'campus-pile-v262';
+/* v256 → v257（2026-11-22 v3.36）：缓存高德 SDK 主脚本，回访秒出。
+ * 实测：webapi.amap.com/maps?v=2.0 这个 284KB 的脚本**没有任何 HTTP 缓存头**
+ * （无 Cache-Control / ETag / Expires），所以每次刷新/新开标签都 fromDisk=N 重下，
+ * 弱网下这一步最拖「点开地图」。而瓦片 get_tile 是 POST（URL 相同、body 带坐标），
+ * 样式/图标已 fromDisk=Y，日志/ipLocation 带时间戳 —— 这些统统不碰，只缓存这一个 GET。
+ * 🔴 用**独立桶且不带版本号**：activate 的清桶白名单要放行它，这样换壳（CACHE 改名）
+ *    也不会清掉 SDK 缓存，真正做到「第一次缓存、以后一直快」。SDK 的 URL 固定带 ?v=2.0，
+ *    高德升级 SDK 时内容变了但 URL 不变 → 靠下面的 stale-while-revalidate 后台换新。 */
+const SDK_CACHE = 'campus-pile-amapsdk';
 const SHELL = [
   /* v2.86：`'./'` 删了。线上实测 `/` 与 `/index.html` 返回的字节完全相同（md5 一致），
      而 fetch 拦截只把 `'./index.html'` 当主 key，`'./'` 只是回退链的第二顺位 ——
@@ -451,7 +463,7 @@ const SHELL = [
      `mapAreaOf()` 与 `arcArea` 落到**同一个兜底值**，判据恒真，
      朝晖弧于是多画 20号楼(E-*) 与物流(W-*) 的桩（74 个点、24 个重合槽）✗
      （修好后应为 38 个节点 = 36 点 + 2 弧线） */
-  './map-data.js?v=173',
+  './map-data.js?v=179',
 ];
 
 self.addEventListener('install', (event) => {
@@ -483,7 +495,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== SDK_CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -532,6 +544,36 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
 
   const url = new URL(request.url);
+
+  /* ===== v3.36：高德 SDK 主脚本缓存（只此一个 URL）=====
+   * 命中条件极窄：host = webapi.amap.com、path = /maps、且 query 里 v=2.0、无其它业务参数。
+   * 这么严是为了绝不误伤同域的 checkredirect / ipLocation / theme 图标等动态接口，
+   * 更不碰 POST 的瓦片 get_tile（它在 jsapi.amap.com，本就不匹配）。
+   * 策略 = 缓存优先 + 后台悄悄换新：命中就立刻回放缓存（秒出），同时后台拉一份写回桶；
+   * 没命中就正常拉，成功后写桶。写桶失败一律静默（配额满/隐私模式不该影响地图可用）。 */
+  if (url.hostname === 'webapi.amap.com' && url.pathname === '/maps'
+      && url.searchParams.get('v') === '2.0' && url.searchParams.size <= 2) {
+    event.respondWith((async () => {
+      const cache = await caches.open(SDK_CACHE);
+      const hit = await cache.match(request).catch(() => null);
+      const network = fetch(request).then((resp) => {
+        /* 🔴 `<script src>` 跨域加载是 no-cors → 这里 resp.type='opaque'、resp.ok 恒为 false。
+         *   若按 resp.ok 过滤就永远不写桶（本版第一次实测就是这样：fromSW=Y 但桶 0 条）。
+         *   opaque 响应可合法 cache.put，回放给同源的 no-cors script 也能正常执行。 */
+        if (resp && (resp.ok || resp.type === 'opaque')) {
+          const copy = resp.clone();
+          cache.put(request, copy).catch(() => {});
+        }
+        return resp;
+      });
+      if (hit) {
+        network.catch(() => {});   // 后台更新失败别变成未处理 rejection
+        return hit;                // 缓存优先：不等待网络
+      }
+      return network;              // 首访：正常拉，成功后由上面的 then 写桶
+    })());
+    return;
+  }
 
   // 跨域（充电平台接口）一律直连，不介入
   if (url.origin !== self.location.origin) return;

@@ -367,15 +367,11 @@ async function handlePile(request, url, env) {
    *    让住宅区 8 台全变红，而原因完全无关。 */
   let token = body && typeof body.token === 'string' ? body.token.trim() : '';
   let fromServer = false;
-  if (src !== 'lvcc') {
-    if (!token) { token = await serverToken(env); fromServer = true; }
-    if (!token || token.length < 20 || token.length > 4096) {
-      return json({
-        ok: false,
-        error: 'no_token',
-        hint: fromServer ? 'server_token_missing' : 'bad_client_token',
-      }, 400);
-    }
+  /* v3.38：客户端自带 token 的形状校验是纯 CPU，留在入口；服务端凭证的 KV 读取
+   * 推迟到「确认这批真要回源」之后（见 missIds 之后那道闸）。命中边缘缓存的批次
+   * 一台都不打平台，原来却仍读一次 KV —— 纯读付 I/O 是白花钱。 */
+  if (src !== 'lvcc' && token && (token.length < 20 || token.length > 4096)) {
+    return json({ ok: false, error: 'no_token', hint: 'bad_client_token' }, 400);
   }
 
   const ids = Array.isArray(body.ids)
@@ -407,23 +403,29 @@ async function handlePile(request, url, env) {
   let usedCache = 0;             // 本次直接沿用了多少台缓存（供页面判断「是不是真更新了」）
   let oldestAge = 0;             // 沿用缓存里最旧的那台的年龄（秒）
 
-  for (const id of ids) {
+  /* v3.38：逐台 cache.match 是 I/O，最多 14 台串行要叠 14 次往返。改成一次并发
+   * 读齐、结果按下标回填 —— 顺序、missIds 顺序、年龄判定、fresh 门槛一行没动。
+   * 子请求「次数」不变（并发不改 count），50 上限那套账仍成立。 */
+  const cacheEntries = await Promise.all(ids.map(async (id) => {
     let hit = null;
     try { hit = await cache.match(new Request(pileCacheKey(url.origin, id, src))); } catch (e) { hit = null; }
-    if (hit) {
-      try {
-        const rec = await hit.json();
-        const at = Number(rec && rec.at) || 0;
-        const age = at ? (Date.now() - at) / 1000 : PILE_TTL + 1;
-        /* 普通请求：命中就用（老行为）。
-         * fresh 请求：只有「本来就够新」才用 —— 否则归到 miss 去回源。 */
-        if (!wantFresh || age <= PILE_FRESH_MIN) {
-          results[id] = rec;
-          usedCache += 1;
-          if (age > oldestAge) oldestAge = age;
-          continue;
-        }
-      } catch (e) { /* 缓存坏了就当作没命中，重新取 */ }
+    if (!hit) return null;
+    try { return await hit.json(); } catch (e) { return null; }
+  }));
+  for (let i = 0; i < ids.length; i++) {
+    const id = ids[i];
+    const rec = cacheEntries[i];
+    if (rec) {
+      const at = Number(rec && rec.at) || 0;
+      const age = at ? (Date.now() - at) / 1000 : PILE_TTL + 1;
+      /* 普通请求：命中就用（老行为）。
+       * fresh 请求：只有「本来就够新」才用 —— 否则归到 miss 去回源。 */
+      if (!wantFresh || age <= PILE_FRESH_MIN) {
+        results[id] = rec;
+        usedCache += 1;
+        if (age > oldestAge) oldestAge = age;
+        continue;
+      }
     }
     missIds.push(id);
   }
@@ -447,6 +449,20 @@ async function handlePile(request, url, env) {
    * 结果是一周回顾掉格子（见 PILE_FRESH_BUDGET_INTERNAL 上方注释）。 */
   if (!internal && missIds.length && pileTooMany(ip)) {
     return json({ ok: false, error: 'rate_limited' }, 429);
+  }
+
+  /* v3.38：到这里已经确定「这批有台要回源」，才读服务端凭证（KV I/O）。
+   * 纯命中缓存的批次在上面就一路 continue 了，missIds 为空，这里直接跳过。
+   * 客户端自带 token 的批次 token 非空，也不会再读 KV。 */
+  if (src !== 'lvcc' && missIds.length) {
+    if (!token) { token = await serverToken(env); fromServer = true; }
+    if (!token || token.length < 20 || token.length > 4096) {
+      return json({
+        ok: false,
+        error: 'no_token',
+        hint: fromServer ? 'server_token_missing' : 'bad_client_token',
+      }, 400);
+    }
   }
 
   /* 全站回源预算：每分钟一个桶，跨 isolate 用 Cache API 计数。
@@ -512,13 +528,16 @@ async function handlePile(request, url, env) {
    * 两台都满、或两台都空是很合法的相同内容，比内容会白替换一遍还漏计 recovered。
    */
   let recovered = 0;
-  for (const id of demotedIds) {
-    const prevAt = Number(results[id] && results[id].at) || 0;
-    let rec = null;
+  const demotedEntries = await Promise.all(demotedIds.map(async (id) => {
     try {
       const h = await cache.match(new Request(pileCacheKey(url.origin, id, src)));
-      if (h) rec = await h.json();
-    } catch (e) { rec = null; }
+      return h ? await h.json() : null;
+    } catch (e) { return null; }
+  }));
+  for (let i = 0; i < demotedIds.length; i++) {
+    const id = demotedIds[i];
+    const rec = demotedEntries[i];
+    const prevAt = Number(results[id] && results[id].at) || 0;
     const at = Number(rec && rec.at) || 0;
     if (rec && Array.isArray(rec.ports) && rec.ports.length && at > prevAt) {
       results[id] = rec;
@@ -526,25 +545,29 @@ async function handlePile(request, url, env) {
     }
   }
 
+  /* v3.38：写回也是独立的 Cache API I/O，并发发齐再统一 await。计数口径、
+   * 「失败不写缓存」的语义一行没变 —— 只是不再一台一台地等 put 落盘。 */
+  const putJobs = [];
   for (const [id, rec] of rows) {
     if (rec && rec.ports) {
       fetched += 1;
       const payload = { at: Date.now(), ports: rec.ports };
       results[id] = payload;
-      try {
-        await cache.put(
+      putJobs.push(
+        cache.put(
           new Request(pileCacheKey(url.origin, id, src)),
           new Response(JSON.stringify(payload), {
             headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=' + PILE_TTL },
           }),
-        );
-      } catch (e) { /* 缓存写失败不影响返回 */ }
+        ).catch(() => { /* 缓存写失败不影响返回 */ }),
+      );
     } else {
       if (rec && rec.auth) authFail += 1;
       /* ⚠️ 失败**不写缓存**：平台抖一下就该立刻重试，不能把失败钉死 5 分钟。 */
       results[id] = { at: 0, error: (rec && rec.error) || '平台没响应', auth: !!(rec && rec.auth) };
     }
   }
+  await Promise.all(putJobs);
 
   return json({
     ok: true,
@@ -724,6 +747,30 @@ async function proxySnap(path, url, env) {
     'x-content-type-options': 'nosniff',
   });
 
+  /* v3.38：/api/stats 是纯读（每小时一个点，无 refresh 瞬态）。前端两处 fetch 都带
+   * cache:'no-store'，请求头让 CF 边缘缓存失效，于是每次都打到这个 Worker、再跨到
+   * chd-snap 读 D1。这里用 Worker 自己的 Cache API 读穿 —— 不受浏览器请求头影响，
+   * 同一数据中心的访客共享一份，TTL 与响应头一致（300 秒）。用 {at, body} 包一层自己
+   * 判年龄，不依赖 Cache API 是否认 max-age 过期。
+   * 🔴 /api/snap 绝不读穿：它可能是 refreshing/inflight 瞬态，缓存会把转圈钉住。 */
+  const statsRead = path === '/api/stats';
+  let statKey = null;
+  if (statsRead) {
+    statKey = new Request(url.origin + path, { method: 'GET' });
+    try {
+      const hit = await caches.default.match(statKey);
+      if (hit) {
+        const wrapped = await hit.json();
+        const at = Number(wrapped && wrapped.at) || 0;
+        if (at && Date.now() - at < ttl * 1000) {
+          const h = headers(`public, max-age=${ttl}`);
+          h['x-cpk-stats-cache'] = 'hit';
+          return new Response(wrapped.body, { status: 200, headers: h });
+        }
+      }
+    } catch (e) { /* 缓存读失败就当没命中，照常回源 */ }
+  }
+
   try {
     /* 🔴 `refresh=1` 的请求要**真的扫上游**（5–18 秒），8 秒会把一次正常刷新
        掐断在半路：反代超时返回了，Worker 那边也随之中止，快照写不进去。
@@ -739,6 +786,14 @@ async function proxySnap(path, url, env) {
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const body = await res.text();
+    /* v3.38：成功的 stats 响应写一份带时间戳的副本，供后续读穿（失败/降级不写）。 */
+    if (statsRead && statKey) {
+      try {
+        await caches.default.put(statKey, new Response(JSON.stringify({ at: Date.now(), body }), {
+          headers: { 'cache-control': 'public, max-age=' + ttl },
+        }));
+      } catch (e) { /* 缓存写失败不影响返回 */ }
+    }
     /* 透传上游的 JSON，但缓存策略由这里定。 */
     return new Response(body, { status: 200, headers: headers(`public, max-age=${ttl}`) });
   } catch (err) {

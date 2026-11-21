@@ -55,8 +55,8 @@ function eq(name, actual, expected) {
 
 /* ── 1. 分区表 ─────────────────────────────────────────────────── */
 console.log('\n1. 分区表');
-ok('总量 200 台', PARTITIONS.total === 200, PARTITIONS.total);
-ok('10 个分区', AREAS.length === 10, AREAS.length);
+ok('总量 229 台', PARTITIONS.total === 229, PARTITIONS.total);
+ok('14 个分区', AREAS.length === 14, AREAS.length);
 ok(
   '每个区都能被 SCAN_CHUNK 拆成 ≤ 5 批',
   AREAS.every((a) => a.count >= 1 && Math.ceil(a.count / TUNING.SCAN_CHUNK) <= 5),
@@ -78,9 +78,9 @@ ok(
 
 /* ── 2. 时段表 ─────────────────────────────────────────────────── */
 console.log('\n2. 时段表');
-eq('北京 08:00（高峰）间隔 = 300 秒', intervalFor(T0), 300);
+eq('北京 08:00（高峰）间隔 = 420 秒（7 分钟 × 7 槽）', intervalFor(T0), 420);
 eq('北京 03:00（深夜）间隔 = 3600 秒', intervalFor(T0 + 3 * 3600 - 8 * 3600), 3600);
-ok('高峰档每小时 12 跳', [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].every((m) => shouldRunAt(T0 + m * 60, 0)));
+ok('高峰档每 7 分钟一跳（每小时 9 跳）', [0, 7, 14, 21, 28, 35, 42, 49, 56].every((m) => shouldRunAt(T0 + m * 60, 0)));
 ok('高峰档 :01 不跑', shouldRunAt(T0 + 60, 0) === false);
 ok('深夜档只有整点跑', shouldRunAt(T0 - 8 * 3600 + 3 * 3600, 0) === true);
 ok('深夜档 :05 不跑', shouldRunAt(T0 - 8 * 3600 + 3 * 3600 + 300, 0) === false);
@@ -89,15 +89,16 @@ ok('偏移 1 的分区在 :01 跑', shouldRunAt(T0 + 60, 1) === true);
 /* ── 2b. 配置与部署文件不能漂移 ──────────────────────────────────── */
 console.log('\n2b. 配置一致性');
 {
-  /* 时段表的每个值都必须是「cron 能表达的粒度」。写 7 分钟的话
-     `shouldRunAt` 会去等 7 的倍数，而 cron 只有 5 分钟一跳 ——
-     绝大多数跳都会被判成「不该跑」，表现是「某些小时莫名不刷新」，
-     不报错、不告警。 */
+  /* 🔴 真正的约束是「间隔 ≥ 槽位数」，不是「cron 粒度」。
+     v2.99 收成主时钟后 cron 已经能每分钟跳；`shouldRunAt()` 用
+     `分钟 % 间隔 === 槽位` 判该不该跑，间隔小于槽位数时**同一个槽会在
+     一个窗口里命中两次**，那个区被重复扫，白白多打一轮上游还不报错。
+     v3.33 槽位 5 → 7，这条断言就是防止有人把某个小时的 5 分钟档留着。 */
   const allIntervals = [...SCHEDULE.weekday, ...SCHEDULE.weekend];
   ok(
-    '时段表全是 5 的倍数（cron 的最小粒度）',
-    allIntervals.every((m) => m % MIN_INTERVAL_MIN === 0),
-    allIntervals.filter((m) => m % MIN_INTERVAL_MIN !== 0),
+    '时段表的间隔都 ≥ 槽位数（否则同一槽在一个窗口里跑两次）',
+    allIntervals.every((m) => m >= AREA_CRON_MINUTES.length),
+    allIntervals.filter((m) => m < AREA_CRON_MINUTES.length),
   );
   ok(
     '时段表没有低于最小粒度的值',
@@ -116,17 +117,17 @@ console.log('\n2b. 配置一致性');
   /* 🔴 v2.99：五条 cron 收成一条主时钟。wrangler.toml 与 config.mjs
      仍然没有任何代码上的联系，这条断言直接读文件比对，防止两处漂移。 */
   eq('wrangler.toml 里只有一条主时钟', tomlCrons, ['* * * * *']);
-  eq('分钟 % 5 的五个槽位都在 AREA_CRON_MINUTES 里', AREA_CRON_MINUTES, [0, 1, 2, 3, 4]);
+  eq('7 个槽位都在 AREA_CRON_MINUTES 里', AREA_CRON_MINUTES, [0, 1, 2, 3, 4, 5, 6]);
   /* 统计不再靠 cron 表达式区分，改由 worker.mjs 按分钟判断。 */
   eq('统计每小时三跳', STATS_CRON_MINUTES.length, 3);
   eq(
-    '统计分钟都落在第 4 槽（分钟 % 5 === 4）',
-    STATS_CRON_MINUTES.filter((m) => m % 5 !== 4),
+    '统计分钟都落在第 5 槽（分钟 % 7 === 4）',
+    STATS_CRON_MINUTES.filter((m) => m % 7 !== 4),
     [],
   );
   ok(
-    '统计分钟会跳过第 4 槽的分区组（worker.mjs 主时钟分支）',
-    STATS_CRON_MINUTES.every((m) => AREA_CRON_MINUTES[m % 5] === 4),
+    '统计分钟会跳过第 5 槽的分区组（worker.mjs 主时钟分支）',
+    STATS_CRON_MINUTES.every((m) => AREA_CRON_MINUTES[m % 7] === 4),
     `stats=:${STATS_CRON_MINUTES.join('/')} 槽=${AREA_CRON_MINUTES.join('/')}`,
   );
   /* 🔴 分区组（v2.65）：一跳可以刷多个区，但每个区**必须刚好被排到一次**。
@@ -169,7 +170,9 @@ console.log('\n2b. 配置一致性');
     AREA_CRON_GROUPS.find((g) => g.includes('w5')),
     ['w5', 'park'],
   );
-  eq('第 5 槽确实在数组末位（下标即分钟槽）', AREA_CRON_GROUPS[4], ['w5', 'park']);
+  eq('第 5 槽仍是 w5/park（统计占的就是这一槽）', AREA_CRON_GROUPS[4], ['w5', 'park']);
+  /* v3.33：南院两组接在末位。槽位按下标取，插到中间会把老组的分钟全错位。 */
+  eq('第 6、7 槽是本部南院（v3.33 扩槽）', AREA_CRON_GROUPS.slice(5), [['n3w', 'n3e'], ['n7', 'ndoor']]);
 
   /* 在飞判定窗口必须盖得住最坏的一轮扫描，否则自己就会叠。 */
   ok(
@@ -197,8 +200,8 @@ console.log('\n3. 一轮全量');
   eq('北门台数 = 37', snap.piles, 37);
   eq('北门端口总数 = 148', snap.total, 148);
   ok('北门空闲端口在 0–148 之间', snap.free >= 0 && snap.free <= 148, snap.free);
-  eq('北门 interval = 300', snap.interval, 300);
-  eq('北门 next = at + 300', snap.next, snap.at + 300);
+  eq('北门 interval = 420（7 分钟档）', snap.interval, 420);
+  eq('北门 next = at + 420', snap.next, snap.at + 420);
   eq('北门 error = null', snap.error, null);
   ok('北门 used_pct 在 0–100 之间', snap.used_pct >= 0 && snap.used_pct <= 100, snap.used_pct);
   ok('每区扫描次数 = 该区台数', scanner.count === AREAS.reduce((s, a) => s + a.count, 0), scanner.count);
@@ -837,7 +840,7 @@ console.log('\n11. Worker 入口');
 
   const bucket = createBucket();
   const scanner = createScanner();
-  // 北京 08:01（周二高峰档，间隔 5 分钟）→ 偏移 1 的分区（北门）该跑
+  // 北京 08:01（周二高峰档，间隔 7 分钟）→ 偏移 1 的分区（北门）该跑
   const at = (T0 + 60) * 1000;
   Date.now = () => at;
   const batchSizes = [];
@@ -942,27 +945,47 @@ console.log('\n11. Worker 入口');
       batchSizes,
     );
 
-    /* v2.99 主时钟：分钟 % 5 === 4 取第 5 槽（w5 12 + park 3 = 15 台）。
+    /* v3.33 主时钟：分钟 % 7 === 4 取第 5 槽（w5 12 + park 3 = 15 台）。
+       ⚠️ 不能用 :04 做样例了 —— 那个分钟现在是统计点（STATS_CRON_MINUTES），
+          主时钟分支会先去跑统计并 return，一整个区都扫不到。
+          取 :11（11 % 7 = 4）才是干净的「纯分区」那一跳。
        🔴 必须带 scheduledTime —— 主时钟靠「计划时刻的分钟」取槽，
           不带的话回落 Date.now()，测试里那个固定时刻是 :01，会取到第 1 槽。 */
+    scanner.reset();
+    const mc11 = (T0 + 11 * 60) * 1000;            // UTC 00:11
+    Date.now = () => mc11;
+    await mod.default.scheduled(
+      { cron: '* * * * *', scheduledTime: mc11 }, env, ctx);
+    eq('主时钟 :11 → 第 5 槽刷 15 台', scanner.count, 15);
+    ok('主时钟 :11 写出 w5 / park 两份快照',
+      (await readJson(bucket, KEYS.snap('w5'))) !== null
+        && (await readJson(bucket, KEYS.snap('park'))) !== null);
+    /* 统计分钟（:04）主时钟直接跑统计，不扫分区 —— 第 5 槽每小时少 3 次，
+       但不会把分区刷新和统计揉进同一分钟的 CPU 预算里。 */
     scanner.reset();
     const mc4 = (T0 + 4 * 60) * 1000;              // UTC 00:04
     Date.now = () => mc4;
     await mod.default.scheduled(
       { cron: '* * * * *', scheduledTime: mc4 }, env, ctx);
-    eq('主时钟 :04 → 第 5 槽刷 15 台', scanner.count, 15);
-    ok('主时钟 :04 写出 w5 / park 两份快照',
-      (await readJson(bucket, KEYS.snap('w5'))) !== null
-        && (await readJson(bucket, KEYS.snap('park'))) !== null);
-    /* 统计分钟（:09）主时钟直接跑统计，不扫分区 —— 第 4 槽每小时少 3 次，
-       但不会把分区刷新和统计揉进同一分钟的 CPU 预算里。 */
+    eq('主时钟 :04 跑统计、不扫任何分区', scanner.count, 0);
+    ok('主时钟 :04 写出统计点', (await readJson(bucket, KEYS.stats())) !== null);
+    /* v3.33 新增：分钟 % 7 === 5 / 6 必须真的落到南院两组上 ——
+       这条是「扩槽只改了数组、忘了改取模」那个坑的唯一守卫。 */
     scanner.reset();
-    const mc9 = (T0 + 9 * 60) * 1000;              // UTC 00:09
-    Date.now = () => mc9;
+    const mc5 = (T0 + 5 * 60) * 1000;              // UTC 00:05 → 槽 5
+    Date.now = () => mc5;
     await mod.default.scheduled(
-      { cron: '* * * * *', scheduledTime: mc9 }, env, ctx);
-    eq('主时钟 :09 跑统计、不扫任何分区', scanner.count, 0);
-    ok('主时钟 :09 写出统计点', (await readJson(bucket, KEYS.stats())) !== null);
+      { cron: '* * * * *', scheduledTime: mc5 }, env, ctx);
+    eq('主时钟 :05 → 第 6 槽刷南院 12 台', scanner.count, 12);
+    ok('主时钟 :05 写出 n3w / n3e 两份快照',
+      (await readJson(bucket, KEYS.snap('n3w'))) !== null
+        && (await readJson(bucket, KEYS.snap('n3e'))) !== null);
+    scanner.reset();
+    const mc6 = (T0 + 6 * 60) * 1000;              // UTC 00:06 → 槽 6
+    Date.now = () => mc6;
+    await mod.default.scheduled(
+      { cron: '* * * * *', scheduledTime: mc6 }, env, ctx);
+    eq('主时钟 :06 → 第 7 槽刷南院 17 台', scanner.count, 17);
     Date.now = () => at;
 
     /* 不硬编码快照数：前面的用例会陆续把各槽的分区写进 bucket，
@@ -994,7 +1017,7 @@ console.log('\n11. Worker 入口');
 
     const r3 = await mod.default.fetch(new Request('https://x/api/snap?area=all', { headers }), env);
     const b3 = await r3.json();
-    eq('/api/snap?area=all 汇总', b3.summary.areas, 10);
+    eq('/api/snap?area=all 汇总（14 个区）', b3.summary.areas, 14);
     eq('总览不传 refresh 时没有提示', b3.refresh_ignored, null);
     ok('总览会指认最旧的那个区', typeof b3.oldest_key === 'string', b3.oldest_key);
 
@@ -1284,8 +1307,8 @@ console.log('\n# cron 可靠性');
     '闸门关闭后永不补跑',
     catchupNeeded(99999, 3600, { ...TUNING, CRON_CATCHUP_ENABLED: false }) === false,
   );
-  ok('高峰 5 分钟档：正常间隔不会误判（300s < 420s）', catchupNeeded(300, 300) === false);
-  ok('高峰 5 分钟档：丢一跳（600s）会被补上', catchupNeeded(600, 300) === true);
+  ok('高峰 7 分钟档：正常间隔不会误判（420s = 420s）', catchupNeeded(420, 420) === false);
+  ok('高峰 7 分钟档：丢一跳（840s）会被补上', catchupNeeded(840, 420) === true);
 
   /* 端到端：真跑 worker.scheduled，喂 CF 会给的 scheduledTime */
   const realNow = Date.now;

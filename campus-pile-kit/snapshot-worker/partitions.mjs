@@ -13,7 +13,7 @@ export const PARTITIONS = {
   "schema": 1,
   "source": "chd-charge/index.html#DEFAULT_DEVICES",
   "generator": "tools/gen_snapshot_partitions.py",
-  "total": 200,
+  "total": 229,
   "subrequestLimit": 50,
   "areas": [
     {
@@ -296,6 +296,67 @@ export const PARTITIONS = {
         "PILE0200"
       ],
       "count": 3
+    },
+    {
+      "key": "n3w",
+      "name": "3号楼南",
+      "location": "南院-3号楼南",
+      "ids": [
+        "PILE0201",
+        "PILE0202",
+        "PILE0203",
+        "PILE0204",
+        "PILE0205",
+        "PILE0206"
+      ],
+      "count": 6
+    },
+    {
+      "key": "n3e",
+      "name": "3号楼东",
+      "location": "南院-3号楼东",
+      "ids": [
+        "PILE0207",
+        "PILE0208",
+        "PILE0209",
+        "PILE0210",
+        "PILE0211",
+        "PILE0212"
+      ],
+      "count": 6
+    },
+    {
+      "key": "n7",
+      "name": "7号楼东",
+      "location": "南院-7号楼",
+      "ids": [
+        "PILE0213",
+        "PILE0214",
+        "PILE0215",
+        "PILE0216",
+        "PILE0217",
+        "PILE0218",
+        "PILE0219",
+        "PILE0220",
+        "PILE0221"
+      ],
+      "count": 9
+    },
+    {
+      "key": "ndoor",
+      "name": "东门",
+      "location": "南院-东门",
+      "ids": [
+        "PILE0222",
+        "PILE0223",
+        "PILE0224",
+        "PILE0225",
+        "PILE0226",
+        "PILE0227",
+        "PILE0228",
+        "PILE0229"
+      ],
+      "count": 8
     }
   ]
 };

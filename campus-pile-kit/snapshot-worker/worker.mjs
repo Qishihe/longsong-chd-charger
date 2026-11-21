@@ -568,7 +568,8 @@ export default {
 
       const cron = event.cron || '';
       /* v2.99 主时钟：线上 wrangler.toml 只留一条 `* * * * *`，
-         每分钟一次调用，按「分钟 % 5」取分区组；:09/:29/:49 跑统计。
+         每分钟一次调用，按「分钟 % 槽位数」取分区组；
+         v3.33 起槽位数由 AREA_CRON_MINUTES.length 决定（5 → 7），统计在 :04/:25/:46 跑。
          旧的 `N-59/5` 和 `9,29,49` 表达式仍兼容（selftest / 灰度部署在用）。 */
       const plannedSec = Number.isFinite(event.scheduledTime)
         ? Math.floor(event.scheduledTime / 1000) : ts;
@@ -604,7 +605,9 @@ export default {
       const m = AREA_CRON_RE.exec(cron);
       let offset;
       if (mainClock) {
-        offset = minute % 5;                       // 主时钟：按分钟取槽
+        /* 按**数组长度**取模，不写死 5 —— v3.33 拓到 7 槽就是改这里。
+           写死的话新槽永远落不到，南院两组会静默不刷新。 */
+        offset = minute % AREA_CRON_MINUTES.length;
       } else if (m) {
         offset = Number(m[1]);                     // 旧格式：从 cron 表达式取
       } else {

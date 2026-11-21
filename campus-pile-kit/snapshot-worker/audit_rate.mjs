@@ -17,7 +17,7 @@
  * 用法：node campus-pile-kit/snapshot-worker/audit_rate.mjs
  */
 
-import { TUNING, AREA_CRON_MINUTES } from './config.mjs';
+import { TUNING, AREA_CRON_MINUTES, MIN_INTERVAL_MIN } from './config.mjs';
 import { KEYS, refreshArea, snapFor, readSnap } from './core.mjs';
 import { PARTITIONS } from './partitions.mjs';
 import { createBucket, createClock, createScanner, asBatch } from './mock.mjs';
@@ -253,7 +253,9 @@ async function scenario(name, opts = {}) {
       for (let i = 0; i < AREA_CRON_MINUTES.length; i += 1) {
         const offset = AREA_CRON_MINUTES[i];
         const minuteOfHour = new Date((nowTs + 8 * 3600) * 1000).getUTCMinutes();
-        const intervalMin = Math.max(5, Math.round(
+        /* 夹的底线必须跟 config 走 —— 写死 5 的话，扩到 7 槽之后模拟器
+           会在槽 5/6 上判「不该跑」，审计出来的速率跟线上对不上。 */
+        const intervalMin = Math.max(MIN_INTERVAL_MIN, Math.round(
           intervalOfHour(bjHour, nowTs) / 60,
         ));
         if (minuteOfHour % intervalMin !== offset % intervalMin) continue;

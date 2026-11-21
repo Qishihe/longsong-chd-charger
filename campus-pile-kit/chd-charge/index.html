@@ -908,6 +908,31 @@
   /* 查询中就转起来：这是「点下去有没有反应」的唯一反馈（没有进度条）。 */
   .map-refresh.spin svg{animation:map-spin .9s linear infinite}
   @keyframes map-spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+/* v3.35：实时定位蓝点（由 map-amap.js 的 showMyLocation 注入到高德 Marker 里）。
+   蓝点与精度圈都画在浅色底图上，用高饱和蓝保证可见；不跟随暗色主题翻转。 */
+.chg-my-loc{
+  width:18px; height:18px; border-radius:50%;
+  background:#1E6FD9; border:3px solid #fff;
+  box-shadow:0 1px 5px rgba(0,0,0,.4);
+  display:grid; place-items:center;
+}
+.chg-my-loc i{width:5px; height:5px; border-radius:50%; background:#fff}
+/* v3.35：地图头部的「回到我」「导航到此处」两颗圆钮，与刷新键同尺寸。 */
+.map-head-btn{
+  flex:none; width:30px; height:30px; padding:0; margin:-4px 0;
+  display:inline-flex; align-items:center; justify-content:center;
+  border-radius:50%; border:1px solid var(--line-strong);
+  background:var(--card); color:var(--muted); cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  transition:background .15s, border-color .15s, color .15s;
+}
+.map-head-btn svg{width:15px; height:15px; display:block}
+.map-head-btn:hover, .map-head-btn:active{background:var(--pressed); color:var(--text)}
+.map-head-btn:disabled{opacity:.45; cursor:default}
+/* 定位钮拿到有效坐标后点亮，表示「蓝点已在图上、可以一键回到我」。 */
+.map-head-btn.loc-on{color:#1E6FD9; border-color:#1E6FD9}
+/* 导航钮给一点强调色，和纯功能性的刷新/关闭区分开。 */
+.map-head-btn.nav-on{color:#1E6FD9; border-color:#1E6FD9}
   .map-stage{
     position:relative; width:100%; flex:1; min-height:0;
     overflow:hidden; background:#EDEBE3; touch-action:none;
@@ -940,6 +965,9 @@
     border:1.5px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.32);
   }
   .pile.free{background:var(--free)} .pile.busy{background:var(--busy)} .pile.off{background:var(--off)}
+  /* 2026-11-22：查询超过 5 分钟的桩画中性灰 + 白字（固定色，不随皮肤，保证任何皮肤下白字都清楚），
+   * 与绿/红实时态明显区分；title 上另标「查询已超过5分钟，未更新」。 */
+  .pile.stale{background:#9098A3; color:#fff}
   /* 2026-10-29 v2.44：点卡片定位图标进来后，**只把这一台标出来、不凑近**
      （见 openMapAt / CHD_AMAP.highlightPile）。几十个一样大的小方块里要一眼找到它：
      深绿描边 + 一圈向外扩散的光环。
@@ -964,6 +992,8 @@
   .cluster.ok{background:var(--free)}
   /* 满了的圈：填充上的字跟 --busy 走（暗底风格的 busy 是浅档，得配深墨） */
   .cluster.full{background:var(--busy); color:var(--on-busy,#fff)}
+  /* 整区记录都过期：灰圈 + 白字（固定中性灰，避免浅底皮肤下 --off 太浅看不清白字）。 */
+  .cluster.stale{background:#9098A3; color:#fff}
   .cluster-num{font-size:14px;letter-spacing:-.3px}
   .cluster-x{font-size:17px;font-weight:800;line-height:1}
   /* 聚合圈的**分区名**（2026-10-25 加）：总览是默认第一屏，四个圈只写数字谁也分不清是哪儿。
@@ -978,6 +1008,11 @@
     box-shadow:0 1px 3px rgba(0,0,0,.18);
   }
   .cluster-cell.lbl-up .cluster-name{top:auto; bottom:100%; margin-top:0; margin-bottom:3px}
+  /* v3.32：两颗圈的圈心挨得太近（南院 3 号楼南 / 3 号楼东，圈心 39px），
+     名字叠一起谁也读不出 —— 由 `applyClusterLabelNames()` 按屏幕矩形挑一颗藏掉名字，
+     圈本身照画（点它还是能进那个分区）。 */
+  .cluster-cell.name-right .cluster-name{left:100%; top:50%; transform:translateY(-50%); margin-left:3px; margin-top:0}
+  .cluster-cell.name-off .cluster-name{display:none}
   /* 校园注记（楼名 / 地标名 / 水域名）—— 2026-10-21 按产品方给的参考图（汕大那套）的调子：
      灰绿字 + 白色柔光描边，压在浅色底图上不抢眼。
      `pointer-events:none` 保证不挡底下的桩点点击（Marker 那侧也设了 clickable:false）。
@@ -2079,7 +2114,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v3.29</div>
+    <div id="app-ver" class="foot-ver">版本 v3.38</div>
   </footer>
 </div>
 
@@ -2127,6 +2162,14 @@
          为什么不塞进 `#map-tabs` 那排页签：390px 下 6 颗已经贴着右边缘，
          再往后加就等于「加了但看不见」（v2.65 在回顾筛选条上踩过一次）。
          口径与首页刷新一致 —— 只查当前地址，别的地址一个请求都不发。 -->
+    <!-- v3.35：回到我的位置 + 导航到此处。做成圆钮而非文字键：390px 下标题行已有
+         标题 / 校区胶囊 / 刷新 / 关闭，再加两颗 30px 圆钮刚好放得下；功能靠 title 与 aria-label 说明。 -->
+    <button class="map-head-btn" id="map-locate-me" type="button" aria-label="显示我的位置并回到我" title="显示我的位置并回到我">
+      <svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="5.4"/><circle cx="10" cy="10" r="1.7" fill="currentColor" stroke="none"/><path d="M10 1.6v3M10 15.4v3M1.6 10h3M15.4 10h3"/></svg>
+    </button>
+    <button class="map-head-btn nav-on" id="map-nav" type="button" aria-label="导航到此处（高德地图）" title="导航到此处（高德地图）">
+      <svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M17 3 3 8.6l6.2 2.4L11.6 17 17 3z"/></svg>
+    </button>
     <button class="map-refresh" id="map-refresh" type="button" aria-label="刷新当前地址" title="刷新当前地址">
       <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.1 8A5.1 5.1 0 1 1 11.5 4.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M13.3 1.8v3.4H9.9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
@@ -2151,6 +2194,9 @@
     <button class="map-tab" data-map="zhuzhai" role="tab">住宅</button>
     <button class="map-tab" data-map="wuliu" role="tab">物业</button>
     <button class="map-tab" data-map="lou20" role="tab">20 号楼</button>
+    <!-- v3.34：公路学院南 24 台。页签文案压到「公路南」3 字，390px 下才不会把后面几颗全推出去；
+         完整名在卡片地址行与地图表头（渭水 · 公路学院南）。 -->
+    <button class="map-tab" data-map="gonglunan" role="tab">公路南</button>
     <button class="map-tab" data-map="beimen" role="tab">北门</button>
     <button class="map-tab" data-map="chaohui" role="tab">朝晖</button>
     <!-- v2.72：本部北院的停车场。v3.00 前面补了一颗「校区全图」：
@@ -2167,6 +2213,14 @@
     <button class="map-tab" data-map="park" role="tab">停车场</button>
     <!-- 小寨仍是 0 台，只有「校区全图」一颗（v2.78 起）。 -->
     <button class="map-tab" data-map="xiaozhai" role="tab">校区全图</button>
+    <!-- v3.30 本部南院：校区全图 + 4 个场地，共 5 颗（与 MAP_ORDER 里那 5 个对象一一对应）。
+         ⚠️ 这排是手写 DOM，`MAP_ORDER` 里有对象却没有按钮 → 那个视图永远打不开；
+            反过来有按钮没对象 → `switchMap()` 找不到图，点下去没反应。两处必须同改。 -->
+    <button class="map-tab" data-map="campus-nanyuan" role="tab">校区全图</button>
+    <button class="map-tab" data-map="n3w" role="tab">3号楼南</button>
+    <button class="map-tab" data-map="n3e" role="tab">3号楼东</button>
+    <button class="map-tab" data-map="n7" role="tab">7号楼东</button>
+    <button class="map-tab" data-map="ndoor" role="tab">东门</button>
   </div>
   <!-- 2026-10-30 v2.46：这里原来有一条“空闲数 / 已满 / 离线 / 点分区圈放大”图例，已删。
        圆点的颜色本身就把这套语义讲完了（绿=有空位、红=占满、灰=无数据），
@@ -2545,7 +2599,7 @@
 </dialog>
 
 <!-- 校区（v2.74）：与顶部那颗胶囊同一份数据（`cpk.campus`），点一下就地生效。
-     没有设备的校区（雁塔 / 小寨）照样列出来，选中会提示「还没有接入充电桩」——
+     还没接桩的校区（现在只剩小寨）照样列出来，选中会提示「还没有接入充电桩」——
      列出来再说明，比「干脆没有这一项」更让人明白为什么看不到东西。 -->
 <dialog id="dlg-campus" class="sub-dlg" aria-label="校区">
   <div class="dlg-body">
@@ -2561,6 +2615,13 @@
       <button class="skin-opt" type="button" data-campus="beiyuan">
         <span class="opt-dot" aria-hidden="true">北</span>
         <span class="skin-txt"><b>本部北院</b><small>体育馆北停车场，57 台</small></span>
+      </button>
+      <!-- v3.30：第五个校区。这一排是**手写 DOM**，不是 CAMPUSES 循环生成的 ——
+           加校区时两处都要改：`CAMPUSES`（判定/胶囊文案）和这里（设置页的列表）。
+           漏了这里的话，顶部胶囊能切到南院，但设置里选不到，用户会以为没接。 -->
+      <button class="skin-opt" type="button" data-campus="nanyuan">
+        <span class="opt-dot" aria-hidden="true">南</span>
+        <span class="skin-txt"><b>本部南院</b><small>3 号楼西 / 东、7 号楼、东门，29 台</small></span>
       </button>
       <button class="skin-opt" type="button" data-campus="yanta">
         <span class="opt-dot" aria-hidden="true">雁</span>
@@ -2798,7 +2859,7 @@
     <div class="row" style="margin-top:10px">
       <button class="icon-btn" id="wx-now" type="button">立即检查</button>
     </div>
-    <p class="note">四个校区不在同一片天：渭水在北郊，本部北院 / 雁塔 / 小寨在市区南部，相隔 16 公里。提醒按当前选中的校区各查各的，切换校区会跟着换。</p>
+    <p class="note">五个校区不在同一片天：渭水在北郊，本部北院 / 本部南院 / 雁塔 / 小寨在市区南部，相隔 16 公里。提醒按当前选中的校区各查各的，切换校区会跟着换。</p>
     <p class="note">预报来自 Open-Meteo 的公开气象数据，只发送校区经纬度，不涉及你的位置和设备信息。校园里小气候多，出门前还是抬头看天色更准。</p>
   </div>
 </dialog>
@@ -3232,10 +3293,11 @@
     </div>
 
     <h3 class="help-sec">能查哪些校区</h3>
-    <p class="help-body">接了三个校区，加起来两百来台桩：</p>
+    <p class="help-body">接了四个校区，加起来两百二十多台桩：</p>
     <div class="gd-cams">
       <span class="gd-cam"><i></i>渭水校区</span>
       <span class="gd-cam"><i></i>本部北院</span>
+      <span class="gd-cam"><i></i>本部南院</span>
       <span class="gd-cam"><i></i>雁塔校区</span>
       <span class="gd-cam off"><i></i>小寨校区还没有桩接进来</span>
     </div>
@@ -3542,7 +3604,7 @@
      跨境往返就要 1 秒左右 —— 不带 defer 会**阻塞 HTML 解析**，首屏白屏多等一秒。
      安全前提（已核对）：页面只在函数里读 `window.CHD_MAP`（mapAreaOf / buildScope /
      ensureAMap），没有任何顶层同步读；defer 在 DOMContentLoaded 之前执行完，赶得上 boot()。 -->
-<script src="map-data.js?v=173" defer fetchpriority="low"></script>
+<script src="map-data.js?v=179" defer fetchpriority="low"></script>
 <script>
 'use strict';
 
@@ -3837,7 +3899,7 @@ let CRED_MISSING = false;   // 已确认「这一轮拿不到凭证」（见 pai
 const KEY_DEVICES = 'cpk.devices';
 const KEY_DEVICES_SCHEMA = 'cpk.devices.schema';
 const KEY_DEVICES_TS = 'cpk.devices.ts';
-const DEVICE_SCHEMA = 11;  // 清单格式版本：2 = 支持「桩号 名称 @地址」+ 任意编号前缀
+const DEVICE_SCHEMA = 13;  // 清单格式版本：2 = 支持「桩号 名称 @地址」+ 任意编号前缀
 /* schema 3（2026-10-21）= 「**新增分区要能自动补进老浏览器**」。
  * schema 4（2026-10-21）= 再加一个分区（当时的名字是「物流服务中心」）。
  * schema 5（2026-10-24）= 该分区**改名**「物流服务中心」→「物业服务中心」。
@@ -3896,6 +3958,17 @@ const SCHEMA_ADDED_LOCATIONS = {
         本版起改成按 geo 变量名取，见 tools/gen_catalog.py。
      ⚠️ 老浏览器不升到 11 就永远只有 185 台：迁移分支只补「本版新增分区」的桩。 */
   11: ['雁塔-5号学生公寓南部', '雁塔-停车场出口'],
+  /* 12（2026-11-21 v3.30）= 新增「本部南院」4 个分区 29 台（N/M/L/K）。
+     一次补 4 个分区是允许的 —— 迁移分支按「版本键下的分区列表」逐个比对，
+     不像桩号改名那样要求一版一区。
+     ⚠️ 老浏览器不升到 12 就永远只有 185 台：迁移分支只补「本版新增分区」的桩。
+     ⚠️ 南院是本项目**第五个校区**，`:root` 的校区胶囊从 4 颗变 5 颗，
+        窄屏（384px）下要复核胶囊会不会换行挤压 —— 见 `#campus-bub` 的样式。 */
+  12: ['南院-3号楼南', '南院-3号楼东', '南院-7号楼', '南院-东门'],
+  /* 13（2026-11-21 v3.34）= 新增「渭水-公路学院南」24 台（G-01~G-24，一行四组、每组六台、组间留空）。
+     ⚠️ 老浏览器不升到 13 就永远只有 229 台：迁移分支只补「本版新增分区」的桩。
+     ⚠️ 这批桩在平台上还查不到，先上图显示位置；能查之后直接补 /api/pile，前端不用改。 */
+  13: ['渭水-公路学院南'],
 };
 
 /* 桩号**改名**表：{ schema 版本: { 设备 id(大写): 新桩号 } }。
@@ -3935,7 +4008,11 @@ const SCHEMA_CODE_RENAMES = {
  *   放在 `normKey()` 里，所有键比对（`mapAreaOf` / `getDevices` /
  *   `appendNewLocationDevices` / `inFilterScope`）自动同时认新旧两个名字。
  *   ⚠️ 这是**键比对**层面的兼容，不是数据清洗：写回盘时也会顺带写成新名字。 */
-const LOCATION_RENAMES = [['物流服务中心', '物业服务中心']];
+const LOCATION_RENAMES = [['物流服务中心', '物业服务中心'],
+  /* 2026-11-21 v3.32：南院第一处按实测位置改名「3号楼西」→「3号楼南」（'一区' 也一并去掉）。
+     本机 `cpk.devices` / 云端清单里存的仍是旧名，靠这条在键比对处兼容；
+     `map-amap.js` 那边不跑 normKey，另在 LINE_AREAS 里留了一行旧名别名。 */
+  ['南院-3号楼西', '南院-3号楼南']];
 
 // 腾讯位置服务 key（WebServiceAPI）。填入后地图弹窗自动使用真实地图；
 // 留空时页面会提示填写，也可用 ?tmapkey=xxx 临时注入（会存入本机）。
@@ -4285,6 +4362,74 @@ const DEFAULT_DEVICES = [
   { id: 'PILE0198', code: 'P-01', name: '雁塔 P-01 号桩', location: '雁塔-停车场出口' },
   { id: 'PILE0199', code: 'P-02', name: '雁塔 P-02 号桩', location: '雁塔-停车场出口' },
   { id: 'PILE0200', code: 'P-03', name: '雁塔 P-03 号桩', location: '雁塔-停车场出口' },
+
+  /* 🔌 2026-11-21 v3.30 新增「本部南院」4 个分区 29 台（N / M / L / K 前缀）。
+     位置 = 二环南路**南**侧的小寨路街道家属区，与「本部北院」隔路相对，
+     和「雁塔校区」不是同一片（正北 500 m 左右）。
+     📐 落点表在 map-amap.js（N_GEO / M_GEO / L_GEO / K_GEO），坐标由产品方标注
+        截图的 5 个红点反算（本版先做有编号的 4 个，第 5 个点在 3 号楼西侧更靠西，
+        编号还没拿到，等补）。
+     ⚠️ 四个前缀都是**单个大写字母**，且都不在现存的 E/W/Z/B/Y/T/P/TY 里：
+        混用会掉进 `arcSeq()`（"末尾数字 1~36 就算朝晖"）被摆到体育场弧上。
+     ⚠️ 别用 'D'：`shortCode()` 第一步的 `bmKey()` 认 A~D 的北门车位码，
+        `D-01` 会被当成北门 D01 提前返回（落点不受影响，但显示口径会混）。 */
+  /* 南院-3号楼南：6 台（二区 3 号楼南墙外侧、3 号楼与 4 号楼之间，2 行 × 3 列）。 */
+  { id: 'PILE0201', code: 'N-01', name: '南院 N-01 号桩', location: '南院-3号楼南' },
+  { id: 'PILE0202', code: 'N-02', name: '南院 N-02 号桩', location: '南院-3号楼南' },
+  { id: 'PILE0203', code: 'N-03', name: '南院 N-03 号桩', location: '南院-3号楼南' },
+  { id: 'PILE0204', code: 'N-04', name: '南院 N-04 号桩', location: '南院-3号楼南' },
+  { id: 'PILE0205', code: 'N-05', name: '南院 N-05 号桩', location: '南院-3号楼南' },
+  { id: 'PILE0206', code: 'N-06', name: '南院 N-06 号桩', location: '南院-3号楼南' },
+  /* 南院-3号楼东：6 台（二区 3 号楼与 5 号楼之间，3 行 × 2 列）。 */
+  { id: 'PILE0207', code: 'M-01', name: '南院 M-01 号桩', location: '南院-3号楼东' },
+  { id: 'PILE0208', code: 'M-02', name: '南院 M-02 号桩', location: '南院-3号楼东' },
+  { id: 'PILE0209', code: 'M-03', name: '南院 M-03 号桩', location: '南院-3号楼东' },
+  { id: 'PILE0210', code: 'M-04', name: '南院 M-04 号桩', location: '南院-3号楼东' },
+  { id: 'PILE0211', code: 'M-05', name: '南院 M-05 号桩', location: '南院-3号楼东' },
+  { id: 'PILE0212', code: 'M-06', name: '南院 M-06 号桩', location: '南院-3号楼东' },
+  /* 南院-7号楼东：9 台（二区 7 号楼与 9 号楼之间，3 行 × 3 列）。 */
+  { id: 'PILE0213', code: 'L-01', name: '南院 L-01 号桩', location: '南院-7号楼' },
+  { id: 'PILE0214', code: 'L-02', name: '南院 L-02 号桩', location: '南院-7号楼' },
+  { id: 'PILE0215', code: 'L-03', name: '南院 L-03 号桩', location: '南院-7号楼' },
+  { id: 'PILE0216', code: 'L-04', name: '南院 L-04 号桩', location: '南院-7号楼' },
+  { id: 'PILE0217', code: 'L-05', name: '南院 L-05 号桩', location: '南院-7号楼' },
+  { id: 'PILE0218', code: 'L-06', name: '南院 L-06 号桩', location: '南院-7号楼' },
+  { id: 'PILE0219', code: 'L-07', name: '南院 L-07 号桩', location: '南院-7号楼' },
+  { id: 'PILE0220', code: 'L-08', name: '南院 L-08 号桩', location: '南院-7号楼' },
+  { id: 'PILE0221', code: 'L-09', name: '南院 L-09 号桩', location: '南院-7号楼' },
+  /* 南院-东门：8 台（东门内侧、翠华幼儿园西北，横排自西向东）。 */
+  { id: 'PILE0222', code: 'K-01', name: '南院 K-01 号桩', location: '南院-东门' },
+  { id: 'PILE0223', code: 'K-02', name: '南院 K-02 号桩', location: '南院-东门' },
+  { id: 'PILE0224', code: 'K-03', name: '南院 K-03 号桩', location: '南院-东门' },
+  { id: 'PILE0225', code: 'K-04', name: '南院 K-04 号桩', location: '南院-东门' },
+  { id: 'PILE0226', code: 'K-05', name: '南院 K-05 号桩', location: '南院-东门' },
+  { id: 'PILE0227', code: 'K-06', name: '南院 K-06 号桩', location: '南院-东门' },
+  { id: 'PILE0228', code: 'K-07', name: '南院 K-07 号桩', location: '南院-东门' },
+  { id: 'PILE0229', code: 'K-08', name: '南院 K-08 号桩', location: '南院-东门' },  /* 2026-11-21 v3.34 新增「渭水-公路学院南」24 台（公路学院南侧，a→b 上一行四组、每组六台、组间留空）。 */
+  { id: 'PILE0230', code: 'G-01', name: '渭水校区 G-01 号桩', location: '渭水-公路学院南' },
+  { id: 'PILE0231', code: 'G-02', name: '渭水校区 G-02 号桩', location: '渭水-公路学院南' },
+  { id: 'PILE0232', code: 'G-03', name: '渭水校区 G-03 号桩', location: '渭水-公路学院南' },
+  { id: 'PILE0233', code: 'G-04', name: '渭水校区 G-04 号桩', location: '渭水-公路学院南' },
+  { id: 'PILE0234', code: 'G-05', name: '渭水校区 G-05 号桩', location: '渭水-公路学院南' },
+  { id: 'PILE0235', code: 'G-06', name: '渭水校区 G-06 号桩', location: '渭水-公路学院南' },
+  { id: 'PILE0236', code: 'G-07', name: '渭水校区 G-07 号桩', location: '渭水-公路学院南' },
+  { id: 'PILE0237', code: 'G-08', name: '渭水校区 G-08 号桩', location: '渭水-公路学院南' },
+  { id: 'PILE0238', code: 'G-09', name: '渭水校区 G-09 号桩', location: '渭水-公路学院南' },
+  { id: 'PILE0239', code: 'G-10', name: '渭水校区 G-10 号桩', location: '渭水-公路学院南' },
+  { id: 'PILE0240', code: 'G-11', name: '渭水校区 G-11 号桩', location: '渭水-公路学院南' },
+  { id: 'PILE0241', code: 'G-12', name: '渭水校区 G-12 号桩', location: '渭水-公路学院南' },
+  { id: 'PILE0242', code: 'G-13', name: '渭水校区 G-13 号桩', location: '渭水-公路学院南' },
+  { id: 'PILE0243', code: 'G-14', name: '渭水校区 G-14 号桩', location: '渭水-公路学院南' },
+  { id: 'PILE0244', code: 'G-15', name: '渭水校区 G-15 号桩', location: '渭水-公路学院南' },
+  { id: 'PILE0245', code: 'G-16', name: '渭水校区 G-16 号桩', location: '渭水-公路学院南' },
+  { id: 'PILE0246', code: 'G-17', name: '渭水校区 G-17 号桩', location: '渭水-公路学院南' },
+  { id: 'PILE0247', code: 'G-18', name: '渭水校区 G-18 号桩', location: '渭水-公路学院南' },
+  { id: 'PILE0248', code: 'G-19', name: '渭水校区 G-19 号桩', location: '渭水-公路学院南' },
+  { id: 'PILE0249', code: 'G-20', name: '渭水校区 G-20 号桩', location: '渭水-公路学院南' },
+  { id: 'PILE0250', code: 'G-21', name: '渭水校区 G-21 号桩', location: '渭水-公路学院南' },
+  { id: 'PILE0251', code: 'G-22', name: '渭水校区 G-22 号桩', location: '渭水-公路学院南' },
+  { id: 'PILE0252', code: 'G-23', name: '渭水校区 G-23 号桩', location: '渭水-公路学院南' },
+  { id: 'PILE0253', code: 'G-24', name: '渭水校区 G-24 号桩', location: '渭水-公路学院南' },
 ];
 
 const $ = (id) => document.getElementById(id);
@@ -4597,10 +4742,16 @@ function isFav(deviceId) {
  * 四个校区里雁塔、小寨目前一台设备都没有 —— 产品方要求先留在下拉里占位，
  * 选中时列表给一句「暂无设备」，而不是把选项藏起来（藏起来用户会以为是漏了）。 */
 const KEY_CAMPUS = 'cpk.campus';
-const CAMPUS_PREFIX = { weishui: '渭水', beiyuan: '北院', yanta: '雁塔', xiaozhai: '小寨' };
+const CAMPUS_PREFIX = { weishui: '渭水', beiyuan: '北院', nanyuan: '南院', yanta: '雁塔', xiaozhai: '小寨' };
 const CAMPUSES = [
   { id: 'weishui', name: '渭水校区', short: '渭水' },
   { id: 'beiyuan', name: '本部北院', short: '北院' },
+  /* v3.30 新增：本部南院（二环南路南侧的家属区，与北院隔路相对）。
+     🔴 前缀「南院」和「北院」只差一个字，`campusOfLocation()` 走的是
+        `v.indexOf(prefix) === 0`（**从头匹配**，不是包含），所以 `南院-东门`
+        不会被「北院」抢走。改这个函数时务必保住 `=== 0`，改成 `includes`
+        会让「本部南院」里的「北院」二字把整批桩判给北院校区。 */
+  { id: 'nanyuan', name: '本部南院', short: '南院' },
   { id: 'yanta', name: '雁塔校区', short: '雁塔' },
   { id: 'xiaozhai', name: '小寨校区', short: '小寨' },
 ];
@@ -4947,8 +5098,30 @@ async function pileProxyBatch(items, onChunk, shouldStop, opts = {}) {
    * 只改页面本地的 THROTTLE_MS 没用：真正持有 5 分钟缓存的是 Worker，
    * 它返回的 `at` 就是缓存写入时刻。这正是「点了刷新还显示 3 分钟前」的根因。 */
   const fresh = !!(opts && opts.fresh);
-  lastPileMeta = { fetched: 0, hit: 0, throttled: false, rateLimited: false, batches: 0, oldestAge: 0 };
+  lastPileMeta = { fetched: 0, hit: 0, throttled: false, rateLimited: false, batches: 0, oldestAge: 0, dense: false };
   lastBatchMs = [];
+
+  /* 2026-11-22：同址密集自适应 —— 针对「一个地址一大堆桩」的专门优化。
+   * 体育馆北停车场一个地址就 57 台（北门 37、朝晖 36 次之）。一轮全打同一地址时，
+   * 页面 3 车道 × Worker 内 6 并发 = 18，已经贴着平台 20 并发的硬上限（实测 30 并发
+   * 就 1/3 超时），再叠加快照 cron 和别人刷新，尾部批次成片「8 秒超时」→ 红卡。
+   * 这里统计本轮地址分布：某地址 ≥ PILE_DENSE_MIN 台且占本轮 ≥ PILE_DENSE_RATIO 时判为
+   * 「同址密集」，改用更保守的车道(2) + 更大错峰，把瞬时并发从 18 压到 12，
+   * 尾部不再撞限流 —— 代价是这批慢几秒。
+   * 🔴 只影响「这一轮恰好集中在一个地址」的场景：小地址、分散的全图刷新、几台的补查
+   *    都不触发，速度和平台预算原样不动。结果写进 lastPileMeta.dense 供收尾补查用。 */
+  const locCountDense = new Map();
+  for (const it of items) {
+    /* 调用方两处都传 device 对象（有 location）；裸 id 串没有地址，跳过即可。 */
+    const locRaw = (it && typeof it === 'object') ? (it.location || it.addr) : '';
+    const loc = normKey(String(locRaw || '').trim());
+    if (loc) locCountDense.set(loc, (locCountDense.get(loc) || 0) + 1);
+  }
+  let topLocN = 0;
+  locCountDense.forEach((n) => { if (n > topLocN) topLocN = n; });
+  const denseArea = items.length > 0 && topLocN >= PILE_DENSE_MIN
+    && topLocN / items.length >= PILE_DENSE_RATIO;
+  if (lastPileMeta) lastPileMeta.dense = denseArea;
 
   /* ① 先按**数据源**分组，再在组内切批（v2.63）。
    * 一个批次只能带一个 `src` —— 混在一起的话 Worker 只能用其中一个，
@@ -5079,19 +5252,20 @@ async function pileProxyBatch(items, onChunk, shouldStop, opts = {}) {
     }
   };
 
-  const laneCount = Math.min(pileLaneCount(), chunks.length);
+  /* 同址密集：车道封顶 PILE_DENSE_LANES，瞬时并发 18 → 12。 */
+  const laneCount = Math.min(denseArea ? Math.min(pileLaneCount(), PILE_DENSE_LANES) : pileLaneCount(), chunks.length);
   const lanes = Array.from({ length: laneCount }, () => []);
   chunks.forEach((c, i) => lanes[i % lanes.length].push(c));
 
   await Promise.all(lanes.map(async (list, li) => {
     /* v2.82：第二队先等一拍再出发（见 PILE_LANE_STAGGER_MS 注释）。 */
-    if (li > 0) await sleep(PILE_LANE_STAGGER_MS * li);
+    if (li > 0) await sleep((denseArea ? PILE_DENSE_STAGGER_MS : PILE_LANE_STAGGER_MS) * li);
     for (let k = 0; k < list.length; k += 1) {
       /* 已经判定「整片没响应」就别再打剩下的批 —— 请求越密封得越久，
        * 而且用户此刻最需要的是「赶紧停下来告诉他怎么回事」。 */
       if (shouldStop && shouldStop()) return;
       /* v2.82：同一队里批与批之间喘一口，别把 5 批挤在同一秒里发完。 */
-      if (k > 0) await sleep(PILE_BATCH_GAP_MS);
+      if (k > 0) await sleep(denseArea ? PILE_DENSE_GAP_MS : PILE_BATCH_GAP_MS);
       const ok = await oneBatch(list[k]);
       if (!ok) return;          // 这条流水线断了，另一条照常跑完
     }
@@ -5869,6 +6043,11 @@ const ADDR_PILL_LABEL = {
   /* v2.99：这两个名字去掉校区前缀还有 8 / 5 个字，不压短会把整行胶囊挤出去。 */
   '雁塔-5号学生公寓南部': '5号公寓南',
   '雁塔-停车场出口': '停车场',
+  /* v3.32：南院这处在 7 号楼的**东侧**，页签和地图圈名都按实测位置叫「7号楼东」，
+     不想让它们一个说「7号楼」一个说「7号楼东」。 */
+  '南院-7号楼': '7号楼东',
+  /* v3.34：公路学院南去掉校区前缀还有 5 个字，胶囊那排再挤一颗容易换行。 */
+  '渭水-公路学院南': '公路南',
 };
 
 /** 地址胶囊上那一颗的字。`shortAddrLabel` 的老行为作为兜底。 */
@@ -6258,6 +6437,17 @@ const LOU20_AMAP = {
   // 20 号楼没有手绘图 → 兜底落到静态总览
   fallbackStaticId: 'overview',
 };
+/* 2026-11-21 v3.34「公路学院南」24 台（G-01~G-24，一行四组、每组六台、组间留空）。
+ * 与住宅 / 物业 / 20 号楼同构：落点由 map-amap.js 的 G_GEO 决定，
+ * 取景框由 map-data.js 的 areas['渭水-公路学院南'].line 决定。
+ * ⚠️ 平台上这批桩暂时查不到（产品方说还不能查询），卡片会显示「平台没响应」，
+ *    这是预期现象；地图和地址胶囊先按位置显示，开放查询后无需改前端。 */
+const GONGLU_AMAP = {
+  id: 'gonglunan', label: '渭水 · 公路学院南', name: '公路学院南',
+  layout: 'amap', area: '渭水-公路学院南',
+  campus: 'weishui',
+  fallbackStaticId: 'overview',
+};
 /* 「北院停车场」分区（2026-11-02 v2.72）——**第一个不在渭水校区的分区**。
  * 与住宅/物业/20号楼完全同构，只是 `campus` 不同：
  *   · 落点由 `map-amap.js` 的 `BY_GEO` 决定（7 排 × 8~9 个固定点，共 57 个）；
@@ -6366,9 +6556,45 @@ const XIAOZHAI_AMAP = {
   campus: 'xiaozhai',
   fallbackStaticId: 'overview',
 };
+/* 2026-11-21 v3.30 第五个校区「本部南院」：校区全图 + 4 个场地。
+ * 🔴 这里**必须**有 `campus: 'nanyuan'` 的对象，否则 `openMap()` 里
+ *    `MAP_ORDER.find(m => m.campus === home)` 返回 undefined → 回落 AMAP_MAP，
+ *    表现就是「选中华南院、点开地图却是渭水朝晖」—— 而且不报错。
+ * 取景：全图不带 `area`，`fitCampus()` 会按本校区全部桩点外接框飞（约 715×145 米，
+ *   一片家属区刚好铺满）；四个场地各带 `area`，走 areas[].zoom（20.0~20.2）。
+ * ⚠️ 页签按钮是**手写 HTML**（#map-tabs），加对象的同时要加按钮，见那里的注释。 */
+const NANYUAN_OVERVIEW = {
+  id: 'campus-nanyuan', label: '本部南院 · 全图', name: '本部南院',
+  layout: 'amap', campus: 'nanyuan',
+  fallbackStaticId: 'overview',
+};
+const N3W_AMAP = {
+  id: 'n3w', label: '南院 · 3号楼南', name: '3号楼南',
+  layout: 'amap', area: '南院-3号楼南',
+  campus: 'nanyuan',
+  fallbackStaticId: 'overview',
+};
+const N3E_AMAP = {
+  id: 'n3e', label: '南院 · 3号楼东', name: '3号楼东',
+  layout: 'amap', area: '南院-3号楼东',
+  campus: 'nanyuan',
+  fallbackStaticId: 'overview',
+};
+const N7_AMAP = {
+  id: 'n7', label: '南院 · 7号楼东', name: '7号楼东',
+  layout: 'amap', area: '南院-7号楼',
+  campus: 'nanyuan',
+  fallbackStaticId: 'overview',
+};
+const NDOOR_AMAP = {
+  id: 'ndoor', label: '南院 · 东门', name: '东门',
+  layout: 'amap', area: '南院-东门',
+  campus: 'nanyuan',
+  fallbackStaticId: 'overview',
+};
 
 /* 地址气泡的顺序（HTML 里 `#map-tabs` 那排按钮要跟这里一一对应）：
-   渭水：校区全图 → 住宅 → 物业 → 20 号楼 → 北门 → 朝晖（6 颗）
+   渭水：校区全图 → 住宅 → 物业 → 20 号楼 → 公路南 → 北门 → 朝晖（7 颗）
    北院：校区全图 → 北院（2 颗，v3.00 补的全图）
    雁塔：校区全图 → 水院 → 图书馆 → 5号公寓 → 停车场（5 颗，v3.00 补的全图）
    小寨：校区全图（1 颗，0 台桩）
@@ -6378,10 +6604,13 @@ const XIAOZHAI_AMAP = {
    ⚠️ 后面几颗各属**另一个校区**，不会和渭水那 6 颗同时出现 ——
       `syncMapTabs()` 会按 `campus` 把别的校区的页签整颗藏掉。 */
 const MAP_ORDER = [
-  AMAP_MAP, ZHU_AMAP, WULIU_MAP, LOU20_AMAP, BEIMEN_AMAP, CHAOHUI_AMAP,
+  AMAP_MAP, ZHU_AMAP, WULIU_MAP, LOU20_AMAP, GONGLU_AMAP, BEIMEN_AMAP, CHAOHUI_AMAP,
   BEIYUAN_OVERVIEW, BEIYUAN_AMAP,
   YANTA_OVERVIEW, SHUIYUAN_AMAP, TUSHUGUAN_AMAP, W5_AMAP, PARK_AMAP,
   XIAOZHAI_AMAP,
+  /* v3.30 本部南院（第五个校区）。顺序不影响同屏表现 —— 页签按 `campus` 过滤，
+     一个校区同一时刻只显示自己那几颗；`MAP_ORDER.find(campus===x)` 也只在本校区内命中。 */
+  NANYUAN_OVERVIEW, N3W_AMAP, N3E_AMAP, N7_AMAP, NDOOR_AMAP,
 ];
 // 总览图上的分区锚点（底图像素坐标，底图 9600×3422）
 //   labelSide:'left' 把地址名排到点的左边 —— 北门这个点在图上紧挨着底图自己的红色「北门」二字，
@@ -6675,7 +6904,9 @@ function warmBaseMaps() {
      而这两张图只有点「地图」才用得上。判断与 `warmAMap()` 保持一致。 */
   /* 2026-11-21：判断收进 `netWorthWarming()`（流量 / 弱链路一律不预热，
      理由与那组 A/B 数据写在那里）。 */
-  if (!netWorthWarming()) return;
+  /* 2026-11-22 速度优先：底图也一并提前下（145KB），首次点地图连空白底图都不用等。
+   * 与 warmAMap 一致，只留省流模式硬闸。 */
+  try { if ((navigator.connection || {}).saveData) return; } catch (e) {}
 
   const urls = ['map-clean.webp', 'map-beimen.webp'];
   const run = () => urls.forEach((u) => { const im = new Image(); im.src = u; });
@@ -6697,23 +6928,14 @@ let amapWarmed = false;
 function warmAMap() {
   if (amapWarmed) return;
   amapWarmed = true;
-  /* 2026-11-21：同 `warmBaseMaps()` —— 流量 / 弱链路不预热，点开地图时按需加载。 */
-  if (!netWorthWarming()) return;
-
-  const run = () => {
-    loadLocalKeyOnce()
-      .then(() => {
-        if (!window.CHD_AMAP_KEY || !window.CHD_AMAP_SCODE) return null;
-        if (window.AMap) return null;
-        window._AMapSecurityConfig = { securityJsCode: window.CHD_AMAP_SCODE };
-        return loadScriptOnce('https://webapi.amap.com/maps?v=2.0&key='
-          + encodeURIComponent(window.CHD_AMAP_KEY));
-      })
-      .then(() => loadScriptOnce('map-amap.js?v=155'))
-      .catch(() => { /* 预热失败：点开时 ensureAMap() 会重新拉 */ });
-  };
-  if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 4000 });
-  else setTimeout(run, 2000);
+  /* 2026-11-22：首屏查桩优先级最高 —— 地图并发加载但让路（用户明确要求）。
+   * 做法：首屏查询先发出（默认优先级），紧接着以 fetchPriority='low' 发起地图脚本，
+   * 两者并发；浏览器把带宽优先给查桩，用查桩间隙下载地图，不牺牲首屏速度。
+   * 🔴 不用 requestIdleCallback：密集查桩时 idle 一直不给（要等 timeout 才兜底），
+   *    地图会拖到最后才下、白丢并发窗口；低优先级并发才是正解。
+   * 唯一硬闸仍是省流模式（saveData）；请求走 SW 独立桶，一次预热长期受益。 */
+  try { if ((navigator.connection || {}).saveData) return; } catch (e) {}
+  preloadMapAssets('low').catch(() => { /* 预热失败：点开时 ensureAMap() 会重新拉 */ });
 }
 
 /** 切换底图图片与尺寸 */
@@ -7047,11 +7269,13 @@ let amapActive = false;
 let amapLoading = null;
 
 const loadedScripts = {};
-function loadScriptOnce(src) {
+function loadScriptOnce(src, priority) {
   if (loadedScripts[src]) return loadedScripts[src];
   const p = new Promise((resolve, reject) => {
     const s = document.createElement('script');
     s.src = src;
+    /* 低优先级预热：首屏查桩优先级最高，地图脚本让路、用查桩间隙下载。 */
+    try { if (priority) s.fetchPriority = priority; } catch (e) {}
     s.onload = () => resolve();
     /* 🔴 2026-10-21 修 bug（WorkBuddy 查获 #49）：
      * 原来 `onerror` 只 `reject`，**既不删缓存也不移除 script 节点** ——
@@ -7227,7 +7451,7 @@ function ensureTMap() {
       });
     };
     if (window.CHD_TMAP && window.CHD_MAP) { boot(); return; }
-    loadScriptOnce('map-data.js?v=173')
+    loadScriptOnce('map-data.js?v=179')
       .then(() => loadScriptOnce('map-tmap.js?v=172'))
       .then(boot)
       .catch(() => done(false));
@@ -7286,6 +7510,27 @@ function loadLocalKeyOnce() {
   });
 }
 
+/* 并行预取高德三件套：key(1KB) → [ 高德SDK(284KB) ∥ map-amap.js(13KB) ]。
+ * 冷启动点地图原本是 key→map-amap.js→SDK 严格串行，弱网每个 RTT 都贵；
+ * 其实只有 SDK 的 URL 依赖 key，map-amap.js 只是「定义」引擎、读 key 发生在 mount 时，
+ * 两者互不依赖 → key 回来后一起发，省一个 RTT，且 284KB 更早开始下载。
+ * 🔴 共用 Promise：warmAMap（空闲预热）与 ensureAMap（点开时）都走这里，各拉一次会撞车；
+ *    失败清缓存，下次调用真的重拉（同 loadScriptOnce 的教训）。 */
+let mapAssetsPromise = null;
+function preloadMapAssets(priority) {
+  if (mapAssetsPromise) return mapAssetsPromise;
+  mapAssetsPromise = loadLocalKeyOnce().then(() => {
+    const jobs = [loadScriptOnce('map-amap.js?v=167', priority)];
+    if (!window.AMap && window.CHD_AMAP_KEY && window.CHD_AMAP_SCODE) {
+      window._AMapSecurityConfig = { securityJsCode: window.CHD_AMAP_SCODE };
+      jobs.push(loadScriptOnce('https://webapi.amap.com/maps?v=2.0&key='
+        + encodeURIComponent(window.CHD_AMAP_KEY), priority));
+    }
+    return Promise.all(jobs);
+  }).catch((e) => { mapAssetsPromise = null; throw e; });
+  return mapAssetsPromise;
+}
+
 function ensureAMap() {
   if (amapLoading) return amapLoading;
   amapLoading = new Promise((resolve) => {
@@ -7316,6 +7561,7 @@ function ensureAMap() {
            * 两帧之间白跑一遍 rebuild + resize。 */
           window.CHD_AMAP.setPiles(amapDevices(), { keepCamera: true });
           window.CHD_AMAP.setView('campus', { keepCamera: true });
+          startLocateWatch();   /* v3.35：地图一就绪就开始跟踪我的位置（失败静默） */
           done(true);
         },
         onFail: (reason) => {
@@ -7334,17 +7580,12 @@ function ensureAMap() {
       });
     };
     if (window.CHD_AMAP && window.CHD_MAP) { boot(); return; }
-    /* 正常情况下 `map-data.js` 已由页面顶部的静态 `<script src="map-data.js?v=173">` 加载好
+    /* 正常情况下 `map-data.js` 已由页面顶部的静态 `<script src="map-data.js?v=179">` 加载好
        （见那里的长注释：冷启动没有它 → `mapAreaOf()` 的两个兜底同值 → 弧线判据恒真 ✗）。
        所以这里先看 `window.CHD_MAP` 在不在，在就跳过，避免重复拉一次；
        若那个静态标签**没加载成功**（例如断网中途失败），仍会走 `loadScriptOnce` 重试 ✓ */
-    (window.CHD_MAP ? Promise.resolve(true) : loadScriptOnce('map-data.js?v=173'))
-      .then(loadLocalKeyOnce)
-// 2026-10-25：v2.22/v2.23 的地图改版（飞入动画 + keepCamera + 首帧标志 + 预热）已随 v2.14
-//    并入本站唯一那份 map-amap.js。改了 js 一定要同时改 ?v（SW 缓存优先）。
-//    2026-10-29 v2.38：内测版退役 —— `map-amap-preview.js` 已删，以后只有一份引擎、一份 HTML，
-//    不再存在「改了 js 要两边同步」这件事。
-      .then(() => loadScriptOnce('map-amap.js?v=155'))
+    (window.CHD_MAP ? Promise.resolve(true) : loadScriptOnce('map-data.js?v=179'))
+      .then(preloadMapAssets)
       .then(boot)
       .catch(() => done(false));
   });
@@ -7363,14 +7604,21 @@ function mapCampusScope() {
 function amapDevices() {
   const campus = mapCampusScope();
   return mapDevices.map((d, i) => {
-    const ports = (mapResults[i] || {}).ports || [];
+    const rec = mapResults[i] || {};
+    const ports = rec.ports || [];
     const free = ports.filter((p) => p.state === SLOT_FREE).length;
+    /* 2026-11-22：地图上的桩只显示「查到的那一刻」的状态。查询记录超过 5 分钟
+     * （MAP_STALE_MS）就算过期 —— 引擎据此画灰色，避免拿旧空闲数当实时状态误导人。
+     * 🔴 at=0（从没查过）不标 stale：它本来就走灰色 off 态（无数据），
+     *    两条路语义不同但视觉一致，不必叠加。 */
+    const stale = Number(rec.at) > 0 && (Date.now() - Number(rec.at) > MAP_STALE_MS);
     return {
       id: d.id,
       code: d.code || d.name,
       location: mapAreaOf(d),   // 见 mapAreaOf 的说明：不能用「非北门即朝晖」的二分类
       free: ports.length ? free : 0,
       total: ports.length,
+      stale: stale,
     };
   }).filter((x) => !!x.location
     // 认不出前缀的分区跟着当前校区走（见 campusOfDevice 的兜底理由）
@@ -7559,6 +7807,14 @@ function maybeWarnMapStale() {
  */
 let mapRefreshBusy = false;
 let mapLastRefreshAt = 0;
+/* 2026-11-22：刷新中切换地址 → 打断旧查询、转查新地址。
+ * 用「当前地址 id+校区」当查询范围指纹（改地址必然改它），逐批检查：
+ * 一旦和开始时不一致，旧批次立刻停写、收尾不重画不弹提示，并对新地址续查一次。
+ * 🔴 不放在各切换入口散落调用 —— 用指纹比对，任何改 curMap 的路径都自动覆盖。 */
+function mapQueryScopeId() {
+  return String((curMap && curMap.id) || '') + '|' + String((curMap && curMap.campus) || '');
+}
+let mapResumeQueued = false;   // 已排了「切地址后续查」就别重复排
 
 /** 数据变了 → 只重画地图这一层（不动相机、不动页签）。 */
 function repaintMapData() {
@@ -7575,8 +7831,13 @@ function repaintMapData() {
   renderMapMarkers();
 }
 
-async function refreshMapView() {
-  if (mapRefreshBusy) return;
+async function refreshMapView(opts) {
+  const resume = !!(opts && opts.resume);   // 切换地址后自动续查：跳过连点限流
+  if (mapRefreshBusy) {
+    /* 已经在查：若这次是「切地址」触发的，记下待续查，让当前那轮结束/中断后接手。 */
+    if (resume) mapResumeQueued = true;
+    return;
+  }
   /* 首页正在刷新时不并发打平台（一轮 100 多台，两路并上就是双倍请求），
      但也不能静默 —— 给一句和首页那颗一样的提示。 */
   if (busyFlag) { showToast('正在更新…'); return; }
@@ -7585,13 +7846,18 @@ async function refreshMapView() {
     showToast(((curMap && curMap.name) || '这里') + '还没有接入充电桩');
     return;
   }
-  const gap = Date.now() - mapLastRefreshAt;
-  if (gap < MIN_PARTIAL_GAP_MS) {
-    showToast(Math.ceil((MIN_PARTIAL_GAP_MS - gap) / 1000) + ' 秒后再试');
-    return;
+  if (!resume) {
+    const gap = Date.now() - mapLastRefreshAt;
+    if (gap < MIN_PARTIAL_GAP_MS) {
+      showToast(Math.ceil((MIN_PARTIAL_GAP_MS - gap) / 1000) + ' 秒后再试');
+      return;
+    }
   }
   mapLastRefreshAt = Date.now();
   mapRefreshBusy = true;
+  mapResumeQueued = false;   // 本轮已接手，清掉上一轮留下的续查标记
+  const startScope = mapQueryScopeId();
+  const scopeChanged = () => mapQueryScopeId() !== startScope;
   const btn = $('map-refresh');
   if (btn) { btn.classList.add('spin'); btn.disabled = true; }
 
@@ -7600,9 +7866,12 @@ async function refreshMapView() {
   const all = getDevices();
   let got = 0;              // 本轮拿到合法插座数据的台数
   let doneCount = 0;        // 代理给出结论（成功或失败）的台数
+  let cancelled = false;    // 中途换了地址：旧结果作废
 
   try {
     await pileProxyBatch(targets, (rows) => {
+      /* 切地址后，在途批次可能才回来 —— 旧地址结果一律不写，避免污染新地址的缓存。 */
+      if (scopeChanged()) { cancelled = true; return; }
       const cache = readCache();
       let touched = 0;
       for (const id of Object.keys(rows)) {
@@ -7632,10 +7901,25 @@ async function refreshMapView() {
       if (!touched) return;
       store.set(KEY_CACHE, cache);
       repaintMapData();
-    }, () => false, { fresh: true, chunkSize: PILE_PROXY_CHUNK });
+    }, () => {
+      /* 逐批检查：范围变了就停 —— pileProxyBatch 在每条流水线的每批前调它。 */
+      if (scopeChanged()) { cancelled = true; return true; }
+      return false;
+    }, { fresh: true, chunkSize: PILE_PROXY_CHUNK });
   } finally {
     mapRefreshBusy = false;
     if (btn) { btn.classList.remove('spin'); btn.disabled = false; }
+  }
+
+  if (cancelled || scopeChanged()) {
+    /* 旧地址这轮作废：不重画列表、不弹「已更新 xx」误导；
+     * 转而查当前（新）地址。若排队期间又切了地址，mapResumeQueued 保证只续一次，
+     * 且续查时读的是「此刻」的 curMap —— 连切多次只会落到最后那块。 */
+    if (!mapResumeQueued) {
+      mapResumeQueued = true;
+      setTimeout(() => { mapResumeQueued = false; refreshMapView({ resume: true }); }, 0);
+    }
+    return;
   }
 
   /* 列表与地图用的是同一份缓存 → 收尾统一重画一次（chunk 里只重画了地图）。 */
@@ -8177,9 +8461,13 @@ async function refresh({ force = false, retried = false, only = null, autoRetry 
   let netChecked = 0;            // 本轮已拿到结论（成功或失败）的台数
   let netNoResp = 0;             // 其中「平台没响应」的台数
   let pileMeta = null;           // 本轮代理的元信息快照（收尾提示用，见 lastPileMeta）
+  /* v3.38：云端共享读是跨网 I/O，和下面「铺本地缓存 + 首屏 render」没有依赖。
+   * 在这里先发起、到用到时再 await，让网络读与本地同步工作重叠（冷网下省一个 RTT）。 */
+  let sharedReadP = null;
   try {
     devices = getDevices();
     lastError = null;
+    sharedReadP = cloudReadShared();
     const total = devices.length;
 
     /* 全站汇总（/api/shop）以前在首屏有一条细条展示，现已随 `#live-line` 下线；
@@ -8235,7 +8523,7 @@ async function refresh({ force = false, retried = false, only = null, autoRetry 
      * ⚠️ 只并进**本轮查询范围内**的桩。原来是无差别合并全部，
      *    于是「刷了朝晖，北门那批的『更新于』也跟着变新」—— 看起来就像刷新了所有地址。
      *    `cache` 里仍照常合并：等用户真切到那个地址时能省一次平台请求。 */
-    const shared = await cloudReadShared();
+    const shared = (await sharedReadP) || {};
     const sharedIds = Object.keys(shared);
     if (sharedIds.length) {
       const cache0 = readCache();
@@ -8569,8 +8857,9 @@ async function refresh({ force = false, retried = false, only = null, autoRetry 
    *
    * 只在用户发起的刷新里做（`only` 的补查轮不再触发），也不越过 MIN_PARTIAL_GAP_MS 那道闸 ——
    * 那条闸只作用于「算 plan 的全量轮」，这里是明确知道要查哪几台。 */
+  const retryCap = (pileMeta && pileMeta.dense) ? AUTO_RETRY_MAX_DENSE : AUTO_RETRY_MAX;
   if (!autoRetry && !only && !pendingTargets && failedIdx.length && !netAbort
-      && lastError !== AUTH_ERROR && failedIdx.length <= AUTO_RETRY_MAX) {
+      && lastError !== AUTH_ERROR && failedIdx.length <= retryCap) {
     const list = failedIdx.slice();
     showToast(list.length + ' 台没查通，自动补查…');
     setTimeout(() => refresh({ force: true, only: list, autoRetry: true }), AUTO_RETRY_DELAY_MS);
@@ -8944,11 +9233,25 @@ const PILE_PROXY_TIMEOUT_MS = 25000;
 const PILE_BATCH_GAP_MS = 180;
 const PILE_LANE_STAGGER_MS = 400;
 
+
+/* 2026-11-22：同址密集自适应的参数（针对体育馆北这类「一个地址一大堆桩」）。
+ * 平台对同一出口的硬上限 ≈ 20 并发：常规 3 车道 × 6 = 18 已贴线，同址大批叠加快照
+ * 和别人刷新就撞墙。dense 时收成 2 车道 + 更大错峰，瞬时压到 12，用几秒换成功率。 */
+const PILE_DENSE_MIN = 20;              // 某地址 ≥ 20 台才算「一大批」
+const PILE_DENSE_RATIO = 0.6;           // 且占本轮 ≥ 60%（避免「分散全图里正好有个大地址」误伤）
+const PILE_DENSE_LANES = 2;             // dense 时车道封顶 2（瞬时并发 18 → 12）
+const PILE_DENSE_STAGGER_MS = 700;      // dense 时车道错峰 400 → 700ms，波峰错得更开
+const PILE_DENSE_GAP_MS = 300;          // dense 时批间 180 → 300ms
+
 /* 补查用的批大小：失败的那几台本来就更难查通，一批 6 台可以让重试更快出结论，
  * 也不会因为「重试本身又是一大批」把平台刚缓过来的窗口再次填满。 */
 const PILE_RETRY_CHUNK = 6;
 /* 一轮刷新收尾自动补查：失败台数 ≤ 这个数、且不是整片没响应，就自动再试一次。 */
 const AUTO_RETRY_MAX = 18;
+/* 同址大批尾部容易一次超时 20+ 台，超过标准 18 台的补查上限就整片留在红卡上 ——
+ * 那正是体育馆北截图里「一排重新查询」的成因。dense 轮放宽到 40 台，
+ * 补查本身仍走 6 台小批 + autoRetry 不再套娃，不会「转完又转」。 */
+const AUTO_RETRY_MAX_DENSE = 40;
 const AUTO_RETRY_DELAY_MS = 1200;
 
 /* 🔴 2026-10-27：**默认值反转成「走 Worker」**。
@@ -10002,6 +10305,13 @@ const RV_AREAS = [
      一周回顾按 4 个成员加权重算，首页地址胶囊自动补一颗「全校区」。 */
   { key: 'w5', name: '5号公寓南', campus: 'yanta' },
   { key: 'park', name: '停车场', campus: 'yanta' },
+  /* v3.33：本部南院 4 个区进一周回顾，键名与快照站 partitions.mjs 逐字一致。
+     campus 填 'nanyuan'（CAMPUSES 里已有这一档），校区下拉会自动多一格「南院」；
+     name 用页签上的简称，横滑那排才放得下。历史点里没有这四个键 → 老格子画灰，不是 0。 */
+  { key: 'n3w', name: '3号楼南', campus: 'nanyuan' },
+  { key: 'n3e', name: '3号楼东', campus: 'nanyuan' },
+  { key: 'n7', name: '7号楼东', campus: 'nanyuan' },
+  { key: 'ndoor', name: '东门', campus: 'nanyuan' },
 ];
 
 /* 「全部地址」改成按校区看（v2.76），校区从三颗并列胶囊收成一颗下拉（v2.77）。
@@ -11143,7 +11453,28 @@ const CHANGELOG = [
      🔴 同一件事只写一条，改了行为就原地改写描述，不另起流水账；单条 ≤200 字。
      只写用户看得见的变化：测试版入口、赞赏码措辞、密钥放哪、Worker/接口一律不进。
      _check_chg_merge 会按页脚版本动态校验「每个 0.1 级恰好一组」。 */
-  { from: 'v3.20', d: '2026-11-10 ~ 11-19', items: [
+  { from: 'v3.30', d: '2026-11-21', items: [
+    /* 南院这一批（v3.30 上线 → v3.31/v3.32 改落点、改分区名）合并成一条：
+       对用户来说就是「多了一个校区」，中间怎么挪的不写流水账（见顶部规矩）。 */
+    '新增「本部南院」29 台桩：3 号楼南、3 号楼东、7 号楼东、东门四处，'
+      + '都在二环南路南侧的家属区（和本部北院隔着二环南路相对）。'
+      + '桩点按实测位置摆放，地图上按楼号和东南方位找；三个区各有一栋 3 号楼，别走错',
+    '校区全图放大时不再把整片桩挤成一团：没放大到能分开的距离，就只显示分区的圆圈和空闲数；'
+      + '放大到位才逐台显示桩号',
+    '渭水新增「公路学院南」24 台桩：公路学院南侧，从东到西分四组、每组六台。'
+      + '这批桩平台还没开放查询，先在地图上标出位置',
+    '地图底图换成蓝绿自定义配色（高德 GeoHUB 样式）',
+    '地图弹窗新增「回到我」和「导航到此处」：打开地图会显示你当前的位置，'
+      + '点一下就能把镜头拉回自己；点导航图标会用高德地图按骑行路线规划到你正在看的这块桩，'
+      + '手机上直接唤起高德 App；定位走高德，蓝点落在真实位置',
+    '地图点开更快了：第一次打开地图时会把地图本身存一份在手机上，以后再打开不用每次重新下载那几百 KB 的地图程序，弱网和手机流量下最明显；这份存档不会因为网站更新被清掉，地图程序出了新版会在后台悄悄换好；打开时先紧着查询充电桩，地图在后台悄悄加载，查桩不受影响；地图上的状态如果超过5分钟没更新会显示灰色并注明未更新，免得拿旧数据当实时；刷新某个地址时切换到别的地址，会自动停下旧查询转去查新地址',
+    '「体育馆北停车场」这种一个地方几十台桩的地址，刷新时更容易全部查通：'
+      + '以前几十台挤在一起查，平台的瞬时压力太大，尾部一批常常查不出来显示红色；'
+      + '现在会把这批的查询摊开一点，慢几秒换少出红卡，没查通的也会自动多补一次',
+    '查桩和一周回顾读得更快了：同一地址的多台桩状态一起取、不再一台台排队等；'
+      + '刚看过的统计数据短时间内再看直接用现成的，人多和弱网时更明显',
+  ]},
+  { v: 'v3.20 – v3.29', d: '2026-11-10 ~ 11-21', items: [
     '设置里多了「违规车牌登记」：填车牌号、选事由和校区就能登记一次，回显这个车牌近 180 天累计几次；'
       + '也能只按车牌查次数，顺带看到都在哪些校区。同一个车牌每天最多被登记 2 次，记录保留 180 天',
     /* v3.21：交付给系统的三件事 —— 主题声明（深色控件 / 首屏不再白闪）、
@@ -11950,14 +12281,18 @@ function estLoad() {
    温度：未来 24 小时最高 ≥ 37℃ 或最低 ≤ -5℃ 也提醒一句（高温降功率、
    低温充不进），阈值故意定得宽 —— 宁可少说，不要天天吓人。 */
 
-/* 🔴 四个校区不在同一片天，必须各查各的：
-     渭水在北郊，本部北院 / 雁塔 / 小寨都挤在南二环到小寨那 1 公里见方里。
+/* 🔴 五个校区不在同一片天，必须各查各的：
+     渭水在北郊，本部北院 / 本部南院 / 雁塔 / 小寨都挤在南二环到小寨那 1 公里见方里。
      渭水到市区**约 16 公里** —— 夏天对流雨、冬天局地雾，完全可以一边下一边不下。
      2026-11-04 实测：渭水 7.8℃ / 市区 7.0℃，逐时降水序列不同（市区那三点同格）。
-   坐标取 map-data.js 里各校区取景框的中心，和地图看到的是同一个位置。 */
+   坐标取 map-data.js 里各校区取景框的中心，和地图看到的是同一个位置。
+   ⚠️ v3.30 新增 nanyuan 时最容易漏的就是这张表：`wxSpot()` 认不出 id 会
+      静默回落到 weishui，于是「南院下雨」的提醒按 16 公里外的北郊天气发 ——
+      不报错、不告警，只是永远不准。加校区务必同步这里。 */
 const WX_SPOT = {
   weishui: { lat: 34.3701, lon: 108.9021 },
   beiyuan: { lat: 34.2339, lon: 108.9586 },
+  nanyuan: { lat: 34.2287, lon: 108.9521 },
   yanta: { lat: 34.2253, lon: 108.9586 },
   xiaozhai: { lat: 34.2240, lon: 108.9489 },
 };
@@ -15369,6 +15704,157 @@ $('map-back').addEventListener('click', () => {
 });
 /* v2.89：地址视图的刷新键 —— 只查当前这块地址（见 refreshMapView）。 */
 $('map-refresh').addEventListener('click', () => { refreshMapView(); });
+
+/* ================= v3.35：实时定位 + 导航到此处 =================
+ * 两件事都在地图弹窗的标题行操作：
+ *   · 「回到我」——浏览器 geolocation 定位，在图上画蓝点+精度圈，一键把镜头拉回自己；
+ *   · 「导航到此处」——按当前地址/校区拿 GCJ-02 真坐标，跳高德 uri.amap.com 导航。
+ *
+ * 🔴 坐标口径：CHD_MAP.areas[].line 与 geolocation 转出来的都是**真 GCJ-02**。
+ *    map-amap.js 的 GEO_SHIFT 只加在桩点布局出口（源码态演示用），这里不碰它 ——
+ *    所以导航终点、定位蓝点始终是真实地理位置；线上注入后桩点归零，与二者重合。 */
+let myLoc = null;             // { ll:[lng,lat], acc:number } 最近一次成功定位
+let geoPlugin = null;          // AMap.Geolocation 实例（高德官方定位，坐标直接是 GCJ-02）
+let locWatchId = null;         // watchPosition 句柄
+let locDrawn = null;           // 上次画到图上的位置（节流用）
+
+/* ================= v3.36：定位改走高德官方插件（修复手机端定位偏移）=================
+ * 🔴 2026-11-22 事故复盘：v3.35 用原生 navigator.geolocation + 手写 wgs84ToGcj02。
+ *    标准规定 geolocation 返回 WGS84，IK 上没错；但**安卓微信 / 国产浏览器 / 部分 App 内 WebView**
+ *    底层走的是腾讯/高德定位 SDK，直接返回 GCJ-02（甚至 BD-09）。再套一次 WGS84→GCJ02
+ *    会二次偏移约 420 m 向东 + 170 m 向南 —— 用户「人在朝晖体育场西边、蓝点却落在东门」正是这个。
+ *    手写算法无法识别输入到底是 WGS84 还是 GCJ-02，所以干脆交给高德：
+ *    `AMap.Geolocation` 内部融合了 HTML5 + 安卓定位 SDK + IP 定位，并按平台做正确坐标转换，
+ *    返回的 `position`（AMap.LngLat）**已经是 GCJ-02**，可直接上图，绝不二次转换。
+ *    ⚠️ 从这里拿到的坐标不要再调任何转换函数。国外坐标高德会原样返回，也不受影响。
+ */
+
+/** 加载并复用 AMap.Geolocation 插件。cb(plugin|null)；AMap 未就绪时回调 null。 */
+function ensureGeoPlugin(cb) {
+  if (geoPlugin) { cb(geoPlugin); return; }
+  if (!window.AMap || !window.AMap.plugin) { cb(null); return; }
+  try {
+    window.AMap.plugin('AMap.Geolocation', function () {
+      if (window.AMap.Geolocation) {
+        try {
+          geoPlugin = new window.AMap.Geolocation({
+            enableHighAccuracy: true,
+            timeout: 12000,
+            maximumAge: 30000,
+            showButton: false,   // 不要高德自带的定位按钮，用我们标题行那颗
+          });
+        } catch (e) { geoPlugin = null; }
+      }
+      cb(geoPlugin);
+    });
+  } catch (e) { cb(null); }
+}
+
+/** 把高德定位结果 { position: AMap.LngLat, accuracy } 存进 myLoc。坐标已是 GCJ-02，原样用。 */
+function takeGeoResult(result) {
+  const p = result && result.position;
+  if (!p) return null;
+  const lng = (typeof p.lng === 'function') ? p.lng() : p.lng;
+  const lat = (typeof p.lat === 'function') ? p.lat() : p.lat;
+  if (!isFinite(lng) || !isFinite(lat)) return null;
+  myLoc = { ll: [lng, lat], acc: (result.accuracy || 0) };
+  return myLoc;
+}
+
+/** 把定位结果画成蓝点。高频回调 → 位移 < 15m 就跳过重画，省得 marker 一直闪。 */
+function paintMyLoc(ll, acc, force) {
+  if (!window.CHD_AMAP || !CHD_AMAP.ready || !CHD_AMAP.ready()) return false;
+  if (!force && locDrawn && Math.abs(locDrawn[0]-ll[0]) < 0.00015 && Math.abs(locDrawn[1]-ll[1]) < 0.00015) return true;
+  const ok = CHD_AMAP.showMyLocation(ll, acc);
+  if (ok) { locDrawn = ll.slice(); $('map-locate-me').classList.add('loc-on'); }
+  return ok;
+}
+
+/** 打开地图时启动持续定位（高德插件）；关闭地图时 stop。权限被拒时静默（点按钮会再提示）。 */
+function startLocateWatch() {
+  if (locWatchId != null) return;
+  ensureGeoPlugin(function (g) {
+    if (!g || typeof g.watchPosition !== 'function') return;
+    try {
+      locWatchId = g.watchPosition(function (status, result) {
+        if (status === 'complete' && result) {
+          const loc = takeGeoResult(result);
+          if (loc) paintMyLoc(loc.ll, loc.acc, false);
+        }
+      });
+    } catch (e) { /* 定位不可用 → 静默，点按钮会再提示 */ }
+  });
+}
+function stopLocateWatch() {
+  if (locWatchId != null && geoPlugin) {
+    try { geoPlugin.clearWatch(locWatchId); } catch (e) {}
+  }
+  locWatchId = null;
+}
+
+/** 「回到我」：已有蓝点就直接把镜头拉过去；还没有就立刻用高德定位一次（带可见提示）。 */
+$('map-locate-me').addEventListener('click', () => {
+  if (myLoc && paintMyLoc(myLoc.ll, myLoc.acc, true)) {
+    CHD_AMAP.focusMyLocation(17);
+    showToast('已回到我的位置');
+    return;
+  }
+  showToast('正在定位…');
+  ensureGeoPlugin(function (g) {
+    if (!g) { showToast('地图还没准备好，请稍后再试'); return; }
+    try {
+      g.getCurrentPosition(function (status, result) {
+        if (status === 'complete' && result) {
+          const loc = takeGeoResult(result);
+          if (loc && paintMyLoc(loc.ll, loc.acc, true)) CHD_AMAP.focusMyLocation(17);
+          showToast('已定位到你的位置');
+        } else {
+          showToast('定位失败，请检查是否开启了定位权限');
+        }
+      });
+    } catch (e) { showToast('当前环境不支持定位'); }
+  });
+});
+
+/** 当前视图对应的导航终点：地址页签 → 该分区 line 中点；校区全图 → 该校区各分区中点均值。 */
+function navTarget() {
+  const D = window.CHD_MAP;
+  if (!D || !D.areas) return null;
+  const mid = (ln) => [(ln[0][0]+ln[1][0])/2, (ln[0][1]+ln[1][1])/2];
+  const areaKey = curMap && curMap.area;
+  if (areaKey && D.areas[areaKey]) {
+    return { ll: mid(D.areas[areaKey].line), name: (curMap && curMap.label) || areaKey };
+  }
+  const campus = (curMap && curMap.campus) || getCampus();
+  const prefix = CAMPUS_PREFIX[campus];
+  const pts = Object.keys(D.areas)
+    .filter(k => !prefix || k.indexOf(prefix) === 0)
+    .map(k => mid(D.areas[k].line));
+  if (pts.length) {
+    const ll = [pts.reduce((s,p)=>s+p[0],0)/pts.length, pts.reduce((s,p)=>s+p[1],0)/pts.length];
+    const c = CAMPUSES.find(x => x.id === campus);
+    return { ll: ll, name: c ? c.name : '充电桩' };
+  }
+  return null;
+}
+
+/** 「导航到此处」：跳高德 URI API。坐标默认就是 GCJ-02，callnative=1 手机上唤起高德 App。
+ *  v3.36：默认骑行（mode=ride，高德骑行仅移动端有效，PC 端由高德自行回落）；骑行模式 policy 无意义，不再传。 */
+$('map-nav').addEventListener('click', () => {
+  const t = navTarget();
+  if (!t) { showToast('当前视图没有可导航的位置'); return; }
+  const to = t.ll[0].toFixed(6) + ',' + t.ll[1].toFixed(6) + ',' + encodeURIComponent(t.name);
+  let url = 'https://uri.amap.com/navigation?to=' + to + '&mode=ride&src=chd-charge&callnative=1';
+  // 有定位就把「我的位置」作为起点，PC 上也能直接算路；没定位则留空，移动端自动用当前位置
+  if (myLoc) url += '&from=' + myLoc.ll[0].toFixed(6) + ',' + myLoc.ll[1].toFixed(6) + ',' + encodeURIComponent('我的位置');
+  if (/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)) location.href = url;
+  else window.open(url, '_blank', 'noopener,noreferrer');
+});
+
+/* 地图关闭时停掉持续定位，别在后台一直耗电/弹权限。 */
+const mapDlg = $('map-dialog');
+if (mapDlg) mapDlg.addEventListener('close', stopLocateWatch);
+
 bindMapGestures();
 
 $('devices-reset').addEventListener('click', () => {
@@ -15905,6 +16391,12 @@ async function boot() {
   /* 首屏查询与凭证同步并行：不 await credPromise，先让 refresh 跑起来。
    * refresh 内部第一行 credState() 现在能用恢复后的 exp 判断，不再是必然 none。 */
   const firstRefresh = refresh({ force: Boolean(sync && sync.ok) });
+  /* ⚡ 2026-11-22：首屏查桩优先级最高，地图低优先级并发加载。
+   * 查询（refresh）已在上面先发出，这里紧接着预热地图脚本，但 fetchPriority='low'：
+   * 浏览器先喂饱查桩、用间隙下地图，两者并发又不抢带宽。
+   * 🔴 不能挂到 `await firstRefresh` 之后：线上一轮 20~30s，那时用户早点开地图了。
+   * 共用 Promise 保证「点开地图」复用同一份下载，不会重复拉。 */
+  warmAMap();
   const merged = await credPromise;
   /* 信箱已经问过一轮了。此后 paintCred 再看到「内存里没凭证」，那就是真的没有，
      该老老实实显示粘贴指引 —— 不能再靠 cpk.had 假装有。 */
@@ -15949,14 +16441,6 @@ async function boot() {
   if (merged && merged.applied && !(sync && sync.ok)) {
     refresh({ force: true });
   }
-  /* 高德脚本也放到首屏之后再预热 —— 放在 refresh 之前会跟首屏那一轮查询抢带宽。
-   * 只拉脚本不 mount，等用户真点「查找」时才建地图（那时脚本已在 HTTP 缓存里）。
-   *
-   * 🔴 2026-10-25 去掉 `await`：原来是「本轮刷新跑完 → 才预热」，
-   * 而线上走 Cloudflare + 109 台，一轮要 20~30 秒 → **预热永远来不及**，
-   * 用户点「地图」时脚本还没下载完，白占带宽还看不出效果。
-   * 现在刷新照常在后台跑，6 秒后再预热（那时首屏前几批已上屏，不抢带宽）。 */
-  setTimeout(() => warmAMap(), 6000);
 }
 
 boot();

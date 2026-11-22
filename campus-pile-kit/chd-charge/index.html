@@ -3716,7 +3716,7 @@
      跨境往返就要 1 秒左右 —— 不带 defer 会**阻塞 HTML 解析**，首屏白屏多等一秒。
      安全前提（已核对）：页面只在函数里读 `window.CHD_MAP`（mapAreaOf / buildScope /
      ensureAMap），没有任何顶层同步读；defer 在 DOMContentLoaded 之前执行完，赶得上 boot()。 -->
-<script src="map-data.js?v=179" defer fetchpriority="low"></script>
+<script src="map-data.js?v=180" defer fetchpriority="low"></script>
 <script>
 'use strict';
 
@@ -7638,7 +7638,7 @@ function ensureTMap() {
       });
     };
     if (window.CHD_TMAP && window.CHD_MAP) { boot(); return; }
-    loadScriptOnce('map-data.js?v=179')
+    loadScriptOnce('map-data.js?v=180')
       .then(() => loadScriptOnce('map-tmap.js?v=172'))
       .then(boot)
       .catch(() => done(false));
@@ -7707,7 +7707,7 @@ let mapAssetsPromise = null;
 function preloadMapAssets(priority) {
   if (mapAssetsPromise) return mapAssetsPromise;
   mapAssetsPromise = loadLocalKeyOnce().then(() => {
-    const jobs = [loadScriptOnce('map-amap.js?v=167', priority)];
+    const jobs = [loadScriptOnce('map-amap.js?v=168', priority)];
     if (!window.AMap && window.CHD_AMAP_KEY && window.CHD_AMAP_SCODE) {
       window._AMapSecurityConfig = { securityJsCode: window.CHD_AMAP_SCODE };
       jobs.push(loadScriptOnce('https://webapi.amap.com/maps?v=2.0&key='
@@ -7773,11 +7773,11 @@ function ensureAMap() {
       });
     };
     if (window.CHD_AMAP && window.CHD_MAP) { boot(); return; }
-    /* 正常情况下 `map-data.js` 已由页面顶部的静态 `<script src="map-data.js?v=179">` 加载好
+    /* 正常情况下 `map-data.js` 已由页面顶部的静态 `<script src="map-data.js?v=180">` 加载好
        （见那里的长注释：冷启动没有它 → `mapAreaOf()` 的两个兜底同值 → 弧线判据恒真 ✗）。
        所以这里先看 `window.CHD_MAP` 在不在，在就跳过，避免重复拉一次；
        若那个静态标签**没加载成功**（例如断网中途失败），仍会走 `loadScriptOnce` 重试 ✓ */
-    (window.CHD_MAP ? Promise.resolve(true) : loadScriptOnce('map-data.js?v=179'))
+    (window.CHD_MAP ? Promise.resolve(true) : loadScriptOnce('map-data.js?v=180'))
       .then(preloadMapAssets)
       .then(boot)
       .catch(() => done(false));
@@ -11805,6 +11805,10 @@ const CHANGELOG = [
       + '来回切页也不会再出现「列表亮着 20 楼、地图还在体育场」。'
       + '打开网站或切换校区时默认落在物业服务中心（其他校区落在设备最少的地址），'
       + '胶囊顺序改成 物业 / 20楼 / 公路南 / 体育场 / 北门 / 住宅',
+    /* v3.39：朝晖体育场南 36 台重新落点（产品方给了 a/b/c/d 四端点）。
+       对用户是「位置变了」一句话，内部换了坐标表（单排沿弧，端点对齐）。 */
+    '朝晖体育场南 36 台重新排位：南侧 12 台、东侧 24 台，都沿场地边走、首尾对准标记点，'
+      + '和实地位置更贴；这块桩位密，编号会挨在一起，放大地图就能逐个看清',
     /* 南院这一批（v3.30 上线 → v3.31/v3.32 改落点、改分区名）合并成一条：
        对用户来说就是「多了一个校区」，中间怎么挪的不写流水账（见顶部规矩）。 */
     '新增「本部南院」29 台桩：3 号楼南、3 号楼东、7 号楼东、东门四处，'

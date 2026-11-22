@@ -7831,6 +7831,20 @@ function repaintMapData() {
   renderMapMarkers();
 }
 
+/* v3.38：查询过程中地图实时同步。地图桩点只认 mapResults（见 amapDevices），
+ * 而 applyChunk / 直连 worker 两处写 results 时都不重画地图，原本要等整轮结束
+ * 才由 refresh() 收尾那句 setPiles 一次推送 —— 一轮 20 多秒地图一直是打开瞬间
+ * 的旧状态。这里在每批写完后用当前 results 重建 mapResults 并推给高德引擎，
+ * keepCamera 保护用户正在拖的视角。地图没开（amapActive=false）时整段跳过，
+ * 零开销、零副作用 —— 查询本身完全不受影响（不碰 aborted/shouldStop）。 */
+function syncMapResults(devicesArr, resultsArr) {
+  if (!amapActive || !window.CHD_AMAP || !window.CHD_AMAP.setPiles) return;
+  const cache = readCache();
+  mapDevices = devicesArr;
+  mapResults = devicesArr.map((d, i) => resultsArr[i] || cache[d.id] || { ports: [], error: '尚未查询', at: 0 });
+  window.CHD_AMAP.setPiles(amapDevices(), { keepCamera: true });
+}
+
 async function refreshMapView(opts) {
   const resume = !!(opts && opts.resume);   // 切换地址后自动续查：跳过连点限流
   if (mapRefreshBusy) {
@@ -8663,6 +8677,7 @@ async function refresh({ force = false, retried = false, only = null, autoRetry 
         setBusy(true, (only ? '补 ' : '') + done + '/' + targets.length);
         paintRolling();
         render(devices, results);
+        syncMapResults(devices, results);
       };
 
       prefetched = await pileProxyBatch(
@@ -8765,6 +8780,7 @@ async function refresh({ force = false, retried = false, only = null, autoRetry 
         setBusy(true, (only ? '补 ' : '') + done + '/' + targets.length);
         paintRolling();          // 卡片上的空闲数/副标每次也刷新（73 台 × 73 次遍历，可忽略）
         paintThrottled();
+        syncMapResults(devices, results);
       }
     };
 
@@ -11473,6 +11489,8 @@ const CHANGELOG = [
       + '现在会把这批的查询摊开一点，慢几秒换少出红卡，没查通的也会自动多补一次',
     '查桩和一周回顾读得更快了：同一地址的多台桩状态一起取、不再一台台排队等；'
       + '刚看过的统计数据短时间内再看直接用现成的，人多和弱网时更明显',
+    '从设备列表点进地图时不用再等整轮查完：查到一批桩，地图上的空位就跟着更新一批，'
+      + '边查边看，地图视角不会被改动',
   ]},
   { v: 'v3.20 – v3.29', d: '2026-11-10 ~ 11-21', items: [
     '设置里多了「违规车牌登记」：填车牌号、选事由和校区就能登记一次，回显这个车牌近 180 天累计几次；'

@@ -424,7 +424,7 @@
 /* v247 → v248（2026-11-21 v3.34）：新增「渭水-公路学院东」24 台 —— 设备清单、
    地图落点、地址页签、首页胶囊都变了，index.html / map-amap.js / map-data.js 全动过，
    必须换壳，否则已装 v247 的浏览器会继续用缓存里的旧页面（新分区完全看不到）。 */
-const CACHE = 'campus-pile-v262';
+const CACHE = 'campus-pile-v263';
 /* v256 → v257（2026-11-22 v3.36）：缓存高德 SDK 主脚本，回访秒出。
  * 实测：webapi.amap.com/maps?v=2.0 这个 284KB 的脚本**没有任何 HTTP 缓存头**
  * （无 Cache-Control / ETag / Expires），所以每次刷新/新开标签都 fromDisk=N 重下，

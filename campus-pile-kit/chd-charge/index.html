@@ -2201,7 +2201,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v3.39</div>
+    <div id="app-ver" class="foot-ver">版本 v3.40</div>
   </footer>
 </div>
 
@@ -3716,7 +3716,7 @@
      跨境往返就要 1 秒左右 —— 不带 defer 会**阻塞 HTML 解析**，首屏白屏多等一秒。
      安全前提（已核对）：页面只在函数里读 `window.CHD_MAP`（mapAreaOf / buildScope /
      ensureAMap），没有任何顶层同步读；defer 在 DOMContentLoaded 之前执行完，赶得上 boot()。 -->
-<script src="map-data.js?v=180" defer fetchpriority="low"></script>
+<script src="map-data.js?v=185" defer fetchpriority="low"></script>
 <script>
 'use strict';
 
@@ -7638,7 +7638,7 @@ function ensureTMap() {
       });
     };
     if (window.CHD_TMAP && window.CHD_MAP) { boot(); return; }
-    loadScriptOnce('map-data.js?v=180')
+    loadScriptOnce('map-data.js?v=185')
       .then(() => loadScriptOnce('map-tmap.js?v=172'))
       .then(boot)
       .catch(() => done(false));
@@ -7707,7 +7707,7 @@ let mapAssetsPromise = null;
 function preloadMapAssets(priority) {
   if (mapAssetsPromise) return mapAssetsPromise;
   mapAssetsPromise = loadLocalKeyOnce().then(() => {
-    const jobs = [loadScriptOnce('map-amap.js?v=168', priority)];
+    const jobs = [loadScriptOnce('map-amap.js?v=173', priority)];
     if (!window.AMap && window.CHD_AMAP_KEY && window.CHD_AMAP_SCODE) {
       window._AMapSecurityConfig = { securityJsCode: window.CHD_AMAP_SCODE };
       jobs.push(loadScriptOnce('https://webapi.amap.com/maps?v=2.0&key='
@@ -7773,11 +7773,11 @@ function ensureAMap() {
       });
     };
     if (window.CHD_AMAP && window.CHD_MAP) { boot(); return; }
-    /* 正常情况下 `map-data.js` 已由页面顶部的静态 `<script src="map-data.js?v=180">` 加载好
+    /* 正常情况下 `map-data.js` 已由页面顶部的静态 `<script src="map-data.js?v=185">` 加载好
        （见那里的长注释：冷启动没有它 → `mapAreaOf()` 的两个兜底同值 → 弧线判据恒真 ✗）。
        所以这里先看 `window.CHD_MAP` 在不在，在就跳过，避免重复拉一次；
        若那个静态标签**没加载成功**（例如断网中途失败），仍会走 `loadScriptOnce` 重试 ✓ */
-    (window.CHD_MAP ? Promise.resolve(true) : loadScriptOnce('map-data.js?v=180'))
+    (window.CHD_MAP ? Promise.resolve(true) : loadScriptOnce('map-data.js?v=185'))
       .then(preloadMapAssets)
       .then(boot)
       .catch(() => done(false));
@@ -9146,12 +9146,15 @@ async function refresh({ force = false, retried = false, only = null, autoRetry 
     /* 整片没响应 = 大概率是这个出口 IP 被平台风控了（换设备也一样，换网络才好）。
      * 这时候最忌讳「继续打」：请求越密，封得越久。所以自动刷新直接静默 10 分钟，
      * 只保留用户手点 —— 手点是他明确的意图，不该被系统拦住。
-     * v2.60：文案跟着失败率判定走，不再说「连续 N 台」（那套连续计数已删）。 */
+     * v2.60：文案跟着失败率判定走，不再说「连续 N 台」（那套连续计数已删）。
+     *
+     * 🔴 2026-11-22 v3.39：改走 `showToast()`，**不再用 banner**。
+     *    banner 在文档流里（不是浮层），显示/隐藏各推 56 px —— 一次事件提示
+     *    却让整页跳两下，而这条话本来就是「知道了就行」的一次性事件。
+     *    静默 10 分钟的行为**没变**（`autoCooldownUntil` 照设），只是不再挂块占位。
+     *    文案压到一句：原来那 4 句在浮层里放不下，用户也读不完就消失了。 */
     autoCooldownUntil = Date.now() + AUTO_COOLDOWN_MS;
-    paintBanner('大部分查询没响应，'
-      + '已暂停自动刷新 10 分钟。'
-      + '再点「刷新」只会重查没查通的那几台；'
-      + '换个网络通常就好。', true);
+    showToast('查询未响应，换个网络吧');
   } else if (pileMeta && pileMeta.rateLimited && (failedIdx.length || pileMeta.hit > 0)) {
     /* 撞到**我们自己的**单 IP 限流（v2.68）：同一出口（校园网 NAT）下，同一分钟
      * 点刷新的人太多。这不是平台判我们违规，也不该劝人「换网络」—— 十几秒就过去了。
@@ -11792,6 +11795,16 @@ const CHANGELOG = [
      🔴 同一件事只写一条，改了行为就原地改写描述，不另起流水账；单条 ≤200 字。
      只写用户看得见的变化：测试版入口、赞赏码措辞、密钥放哪、Worker/接口一律不进。
      _check_chg_merge 会按页脚版本动态校验「每个 0.1 级恰好一组」。 */
+  /* v3.40：从 v3.39 涨上来，按「每个 0.1 级一组」把 v3.30–v3.39 封口，这里重开一组。 */
+  { from: 'v3.40', d: '2026-11-22', items: [
+    '查询整片没响应时，顶部不再压一条横幅（那会让整页往下跳一下），'
+      + '改成底部浮一句话「查询未响应，换个网络吧」，两秒多自己消失；'
+      + '自动刷新照旧静默 10 分钟，手点刷新不受影响',
+    /* 南院两处桩位按产品方手绘示意重排（3号楼东 6 台、东门 8 台）。 */
+    '南院「3号楼东」6 台和「东门」8 台按现场情况重新排位：3 号楼东在原 3 行 2 列的基础上，'
+      + '把 5、6 号挪到 2 号、4 号右边、与左侧 4 台留出一段空档；'
+      + '东门的 8 台改成两列：左边一列自南向北 1、2、3、7、8，右边一列 4、5、6',
+  ] },
   { from: 'v3.30', d: '2026-11-22', items: [
     /* v3.39：底部三栏 + 地图页顶部与地址联动。这三条对用户是「一次改版」，
        合并成三条写（底部栏 / 地图页顶部 / 默认地址），不按每次调试拆流水账。 */

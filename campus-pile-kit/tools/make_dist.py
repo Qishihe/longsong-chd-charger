@@ -59,7 +59,9 @@ def main():
         if not f.is_file():
             continue
         rel = f.relative_to(SITE)
-        if rel.as_posix() in SKIP:
+        if rel.as_posix() in SKIP or ".bak" in rel.name:
+            # 2026-11-22 v3.39：`index.html.bak-v340-…` 这类改版备份曾被打进产物，
+            # 六份 6.5MB 全是旧版首页副本。按子串挡（真名结尾是时间戳，不是 .bak）。
             print(f"  跳过 {rel}")
             continue
         dst = DIST / rel

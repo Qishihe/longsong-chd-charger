@@ -41,6 +41,10 @@ campus-pile-kit/versions-chd/
 # scratch/ 是一次性探测脚本与验收脚本
 scratch/
 campus-pile-kit/scratch/
+# backups/ 是改版前手存的 index.html / sw.js 副本，只用于本机回滚。
+# 2026-11-22 v3.39：这些副本曾被 make_cloudflare.py 打进产物（6.5MB，全是旧版首页），
+# 所以既要挡在仓库外，也要挡在打包外（见 make_cloudflare.py 的 EXCLUDE_SUFFIXES）。
+campus-pile-kit/backups/
 
 # ── AI 协作者的工作目录 ──
 .workbuddy/

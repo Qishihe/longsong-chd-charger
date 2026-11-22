@@ -424,7 +424,10 @@
 /* v247 → v248（2026-11-21 v3.34）：新增「渭水-公路学院东」24 台 —— 设备清单、
    地图落点、地址页签、首页胶囊都变了，index.html / map-amap.js / map-data.js 全动过，
    必须换壳，否则已装 v247 的浏览器会继续用缓存里的旧页面（新分区完全看不到）。 */
-const CACHE = 'campus-pile-v263';
+/* v265 → v266（2026-11-22 v3.39）：底部改成「设备 / 地图 / 设置」三栏布局 —— index.html 的
+   结构、样式、状态机全换了（地图与设置不再是 <dialog>）。不换壳的话，已装旧壳的浏览器
+   会继续用缓存里的旧页面，点新底栏没有任何元素响应。 */
+const CACHE = 'campus-pile-v266';
 /* v256 → v257（2026-11-22 v3.36）：缓存高德 SDK 主脚本，回访秒出。
  * 实测：webapi.amap.com/maps?v=2.0 这个 284KB 的脚本**没有任何 HTTP 缓存头**
  * （无 Cache-Control / ETag / Expires），所以每次刷新/新开标签都 fromDisk=N 重下，
@@ -539,6 +542,28 @@ function offlinePage() {
   );
 }
 
+/* v3.38：跨域 <script src> 通用「缓存优先 + 后台更新」。
+ * 跨域 no-cors 响应 type='opaque'、resp.ok 恒为 false，要按 opaque 放行才写得进桶
+ * （若按 resp.ok 过滤就永远不写桶 —— 高德那版第一次实测就踩过：fromSW=Y 但桶 0 条）；
+ * 写桶失败一律静默：配额满 / 隐私模式不该影响功能可用。 */
+function serveScriptCacheFirst(event, request) {
+  event.respondWith((async () => {
+    const cache = await caches.open(SDK_CACHE);
+    const hit = await cache.match(request).catch(() => null);
+    const network = fetch(request).then((resp) => {
+      if (resp && (resp.ok || resp.type === 'opaque')) {
+        cache.put(request, resp.clone()).catch(() => {});
+      }
+      return resp;
+    });
+    if (hit) {
+      network.catch(() => {});   // 后台更新失败别变成未处理 rejection
+      return hit;                // 缓存优先：不等待网络
+    }
+    return network;              // 首访：正常拉，成功后由上面的 then 写桶
+  })());
+}
+
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET') return;
@@ -553,25 +578,16 @@ self.addEventListener('fetch', (event) => {
    * 没命中就正常拉，成功后写桶。写桶失败一律静默（配额满/隐私模式不该影响地图可用）。 */
   if (url.hostname === 'webapi.amap.com' && url.pathname === '/maps'
       && url.searchParams.get('v') === '2.0' && url.searchParams.size <= 2) {
-    event.respondWith((async () => {
-      const cache = await caches.open(SDK_CACHE);
-      const hit = await cache.match(request).catch(() => null);
-      const network = fetch(request).then((resp) => {
-        /* 🔴 `<script src>` 跨域加载是 no-cors → 这里 resp.type='opaque'、resp.ok 恒为 false。
-         *   若按 resp.ok 过滤就永远不写桶（本版第一次实测就是这样：fromSW=Y 但桶 0 条）。
-         *   opaque 响应可合法 cache.put，回放给同源的 no-cors script 也能正常执行。 */
-        if (resp && (resp.ok || resp.type === 'opaque')) {
-          const copy = resp.clone();
-          cache.put(request, copy).catch(() => {});
-        }
-        return resp;
-      });
-      if (hit) {
-        network.catch(() => {});   // 后台更新失败别变成未处理 rejection
-        return hit;                // 缓存优先：不等待网络
-      }
-      return network;              // 首访：正常拉，成功后由上面的 then 写桶
-    })());
+    serveScriptCacheFirst(event, request);
+    return;
+  }
+
+  /* v3.38：扫码库 html5-qrcode@2.3.8 也吃同一套缓存。
+   * 之前 SW 对跨域一律直连 → 每次刷新后首次打开扫码都要重下 ~300KB（gzip ~90KB），
+   * 这是「打开扫码慢」的主要一段。只命中这一条固定版本 URL，别误伤同 CDN 的其它脚本。 */
+  if ((url.hostname === 'cdn.jsdelivr.net' || url.hostname === 'unpkg.com')
+      && /\/html5-qrcode@2\.3\.8\/html5-qrcode(\.min)?\.js$/.test(url.pathname)) {
+    serveScriptCacheFirst(event, request);
     return;
   }
 

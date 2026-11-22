@@ -61,7 +61,35 @@
     font-size:15px; line-height:1.55; -webkit-text-size-adjust:100%;
     padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
   }
-  .wrap{max-width:560px; margin:0 auto; padding:16px 14px 40px}
+  .wrap{max-width:560px; margin:0 auto; padding:16px 14px calc(40px + var(--tabbar-h) + env(safe-area-inset-bottom, 0px))}
+  .wrap[hidden]{display:none}
+  /* v3.39：设备页与地图页**共用**的一块头部（见 HTML 里 #app-head 那段注释）：
+     平时它是 .wrap 的第一个孩子、块级排布；切到地图时整块被搬进 .map-dialog，
+     那儿是 flex 列 —— 所以这里必须 flex:none，剩下的高度全给地图。 */
+  #app-head{display:block}
+  /* v3.39：底部三 tab（设备 / 地图 / 设置）。
+     🔴 栏是 fixed 的，不参与布局 —— 所以它出现/消失都不会像 #banner 那样把整页推一下。
+        内容区自己靠 padding-bottom 让出高度：.wrap 与 .settings-page 各加一次。
+     🔴 高度统一走 --tabbar-h：地图页的 bottom、浮层的抬升、内容区的留白都引它，改一处全对上。
+     🔴 z-index 50：低于 toast（60）与刷新提示条（59）、高于地图页（40）；
+        modal 弹窗在 top layer，永远盖住栏 —— 那是正确行为（弹窗期间不该能切页）。 */
+  :root{--tabbar-h:58px}
+  .tabbar{
+    position:fixed; left:0; right:0; bottom:0; z-index:50;
+    background:var(--card); border-top:1px solid var(--line);
+    padding-bottom:env(safe-area-inset-bottom, 0px);
+  }
+  .tabbar-in{max-width:560px; margin:0 auto; display:flex}
+  .tabbar-item{
+    flex:1; min-width:0; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:3px; height:var(--tabbar-h);
+    border:none; background:none; color:var(--muted);
+    font:inherit; font-size:11.5px; line-height:1; cursor:pointer; padding:0;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .tabbar-item svg{width:22px; height:22px; display:block}
+  .tabbar-item.on{color:var(--free-deep, var(--accent))}
+  .tabbar-item:active{opacity:.72}
 
   header{display:flex; flex-direction:column; align-items:stretch; gap:10px; margin-bottom:14px}
   .head-top{display:flex; align-items:flex-start; justify-content:space-between; gap:10px}
@@ -349,7 +377,7 @@
      既把下面整页往下推 12px，又要用户自己去找关闭按钮，实际是碍事。
      底部浮层不动布局、2.6 秒自己走；`pointer-events:none` 保证它压住的卡片照样能点。 */
   .toast{
-    position:fixed; left:50%; bottom:calc(20px + env(safe-area-inset-bottom, 0px));
+    position:fixed; left:50%; bottom:calc(20px + var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
     transform:translate(-50%, 14px);
     max-width:min(88vw, 420px); width:max-content;
     background:var(--toast-bg); color:var(--toast-fg);
@@ -379,7 +407,7 @@
      配色跟 toast 同一组变量；按钮用**反色**（背景取 --toast-fg、文字取 --toast-bg），
      这样 7 套皮肤里无论深底浅底，对比度都自动成立，不用给每套皮肤单独配色。 */
   .sw-tip{
-    position:fixed; left:50%; bottom:calc(74px + env(safe-area-inset-bottom, 0px));
+    position:fixed; left:50%; bottom:calc(74px + var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
     transform:translate(-50%, 14px);
     /* 🔴 `width:max-content` 不能省：fixed 元素的 shrink-to-fit 只按「最长单词」算，
        实测不写它时这条只有 195px 宽，18 个字被折成三行（截图里像个黑方块）。
@@ -468,7 +496,7 @@
         「看不见」是 hidden 给的，跟这条规则毫无关系）。
      ⚠️ 注释正文里也**不要**出现收尾标记那两个字符：第一次修这个坑时就因为在正文里
         引用它，注释提前闭合，规则又被吞了一次。 */
-  body:has(dialog[open]:not(.map-dialog)) .scan-fab{display:none}
+  body:has(dialog[open]) .scan-fab{display:none}
   @media (prefers-reduced-motion: reduce){
     .scan-fab{transition:none}
     .scan-fab:active{transform:none}
@@ -777,6 +805,14 @@
   .note.warn{color:var(--danger, #b4232a)}
   /* 标题与第一项之间也松一点；只作用于这个弹窗，别的弹窗不受影响 */
   #sync-dialog .dlg-body{padding:20px 20px 18px}
+  /* v3.39：设置从「居中弹窗」改成「整页 tab」。
+     .dlg-body 本来就是滚动内容，外层只负责限宽与底部留白；子弹窗（凭证 / 皮肤 /
+     字体 / 关于…）仍然是 modal，弹出来盖住底栏 —— 那是预期行为。 */
+  .settings-page{
+    max-width:560px; margin:0 auto; background:var(--bg);
+    padding-bottom:calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
+  }
+  .settings-page[hidden]{display:none}
   #sync-dialog .dlg-head{margin-bottom:16px}
 
   /* 工具栏：地址筛选 + 排序 */
@@ -834,11 +870,28 @@
   .fav-btn.on{color:#F5A623}
 
   /* 地图弹窗 */
+  /* v3.39：地图 = 底栏之上的独立整页（与设备列表分开）。
+     🔴 为什么不用 dialog：showModal 会进浏览器顶层，底栏 z-index 再高也盖不过它，
+        那样一点地图栏就消失，就不像 tab 了。
+     🔴 bottom 让出底栏高度（含安全区），地图才不会被栏压住一条。
+     🔴 顶栏自己让开刘海：原来靠 100vh 铺满，现在要显式补。
+        安卓 WebView 不支持 env()，但壳已经给 WebView 加过 insets padding，不会重复。 */
   .map-dialog{
-    width:100vw; height:100vh; max-width:none; max-height:none;
-    border:none; border-radius:0; margin:0; background:var(--bg); padding:0;
+    position:fixed; left:0; right:0; top:0;
+    bottom:calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
+    background:var(--bg); margin:0; z-index:40;
+    padding:env(safe-area-inset-top, 0px) 0 0;
+    display:none; flex-direction:column;
   }
-  .map-dialog[open]{display:flex; flex-direction:column}
+  .map-dialog[data-active]{display:flex; flex-direction:column}
+  /* 搬过来的头部：自己按内容高度，别跟地图抢空间。
+     左右 14px 与 .wrap 对齐；上边自己补 12px（.wrap 原来那份 padding 留在了设备页）。 */
+  .map-dialog > #app-head{flex:none; padding:12px 14px 10px; background:var(--bg)}
+  /* 这三条 margin 在设备页是给列表留的气口，地图页收紧 —— 下面紧跟的是地图工具栏，
+     不收紧白白少掉约 30px 可视高度。 */
+  .map-dialog > #app-head header{margin-bottom:10px}
+  .map-dialog > #app-head .stats{margin-bottom:10px}
+  .map-dialog > #app-head .toolbar{margin-bottom:0}
   /* 同一块顶栏的第二行：当前校区的地址胶囊 */
   .map-tabs{
     display:flex; gap:6px; padding:8px 12px; flex:none;
@@ -873,23 +926,11 @@
   .zone-name{font-size:13.5px; font-weight:600; color:var(--text); flex:none}
   .zone-meta{font-size:12px; color:var(--hint); margin-left:auto; white-space:nowrap}
   .zone-go{font-size:12px; color:var(--free-deep); flex:none}
-  .map-dialog::backdrop{background:rgba(20,20,18,.62)}
-  /* 2026-10-30 v2.46：标题行和下面那排地址胶囊是**同一块顶栏**，
-     中间不再画分隔线；只留 `#map-tabs` 底下那条，那是顶栏与地图的分界。 */
-  .map-dialog .map-head{
-    display:flex; align-items:center; justify-content:space-between;
-    padding:11px 14px 2px; border-bottom:none;
-    position:relative; z-index:5; background:var(--card); gap:10px;
-  }
-  .map-dialog .map-head h2{font-size:16px; font-weight:600; margin:0; white-space:nowrap}
-  /* v2.89：状态文字独占一行（放在标题行与页签之间）。原来是标题行里的 flex 项，
-     加了刷新键之后被挤到只剩一半宽度，只能截断。 */
-  .map-dialog .map-sub{
-    display:block; flex:none; margin:0; padding:0 14px 6px;
-    font-size:12px; color:var(--hint); text-align:left;
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    background:var(--card);
-  }
+  /* v3.40：原来的标题行（状态文字 + 三颗圆钮）整块下线。
+     它和下面那排 `#map-tabs` 都是 --card 白底，夹在 --bg 的头部与 #EDEBE3 的地图之间，
+     就是地图页顶部「一段白、一段白」色块跳变的根源 —— 现在从标题到地图同一底色。
+     ⚠️ 状态文字仍被 paintMapSub() 等十余处写入，所以 #map-sub 元素留着、只是不显示。 */
+  .map-dialog .map-sub{display:none}
   /* v2.89：地址视图的刷新键（圆形箭头）。与 `.x-btn` 同尺寸，视觉上并排不打架。 */
   .map-refresh{
     /* margin-left:auto：状态文字搬走以后，标题行只剩「标题 / 校区 / ⟳ / ×」，
@@ -933,12 +974,45 @@
 .map-head-btn.loc-on{color:#1E6FD9; border-color:#1E6FD9}
 /* 导航钮给一点强调色，和纯功能性的刷新/关闭区分开。 */
 .map-head-btn.nav-on{color:#1E6FD9; border-color:#1E6FD9}
+  /* v3.40：地图改成「嵌在页面里的一张卡片」。
+     为什么：上下都不是同一个底色 —— 上面是 --bg 的头部，下面是 --card 的底栏，
+     地图自己又是 #EDEBE3 的米灰。三段直接对接，看着像三块板子硬拼在一起。
+     加 1px 边 + 14px 圆角 + 一点外投影之后，地图有了自己的边界，上下都隔开一层。
+     🔴 左右各 14px 与头部、设备列表对齐；底部 10px 是给底栏留的气口。
+     🔴 width 必须写 auto：全局 `*{box-sizing:border-box}` + `width:100%` 再叠 28px
+        外边距会撑出容器（横向溢出条）。flex 列里 stretch 本来就会铺满，不用 100%。 */
   .map-stage{
-    position:relative; width:100%; flex:1; min-height:0;
+    position:relative; width:auto; flex:1; min-height:0;
+    margin:0 14px 10px; border:1px solid var(--line); border-radius:14px;
     overflow:hidden; background:#EDEBE3; touch-action:none;
+    box-shadow:0 1px 3px rgba(0,0,0,.05);
   }
   .map-stage svg{width:100%; height:100%; display:block; cursor:grab}
   .map-stage svg:active{cursor:grabbing}
+  /* v3.40：定位 / 导航 / 刷新 —— 合成一颗竖排悬浮组，贴地图右上角。
+     参考主流地图 App 的右侧控件：白底、圆角、一条细边、外投影，按钮之间一条分隔线。
+     🔴 浮层而不是占位：地图可视高度是靠「不占布局」捡回来的，改回行内就白省了。
+     🔴 别放左上：那儿是「← 总览」；也别放右下：那儿是图例与底图版权。
+     🔴 分页要够大：42px 是这套 UI 里最小的可点尺寸（.map-controls 也是 42）。 */
+  .map-fab{
+    position:absolute; right:8px; top:10px; z-index:6;
+    display:flex; flex-direction:column;
+    background:var(--card); border:1px solid var(--line);
+    border-radius:13px; overflow:hidden;
+    box-shadow:0 3px 12px rgba(0,0,0,.15);
+  }
+  .map-fab > button{
+    width:42px; height:42px; margin:0; padding:0; flex:none;
+    display:grid; place-items:center;
+    border:none; border-radius:0; background:none; color:var(--muted);
+    font:inherit; cursor:pointer; -webkit-tap-highlight-color:transparent;
+  }
+  /* 分隔线画在「有前一个兄弟」的按钮上：刷新键 hidden 时它自动跟到上一颗去，不会留一条孤线。 */
+  .map-fab > button + button{border-top:1px solid var(--line)}
+  .map-fab > button:active{background:var(--pressed); color:var(--text)}
+  .map-fab > button svg{width:19px; height:19px; display:block}
+  /* 定位已拿到坐标 / 导航常态 → 蓝色，与纯功能性的刷新区分开（沿用 v3.35 的语义）。 */
+  .map-fab > button.loc-on, .map-fab > button.nav-on{color:#1E6FD9}
   /* 真实地图（腾讯地图）容器 */
   .tmap-host{position:absolute; inset:0; z-index:1; display:none; background:#F1F2EC}
   .amap-host{position:absolute; inset:0; z-index:1; display:none; background:#EDEBE3}
@@ -949,7 +1023,7 @@
   .map-dialog[data-engine="tmap"] .map-zones{display:none}
   .map-dialog[data-engine="tmap"] .map-legend{bottom:12px}
   .map-attrib{
-    position:absolute; right:10px; bottom:12px; z-index:5;
+    position:absolute; right:10px; bottom:10px; z-index:5;
     font-size:10.5px; color:#6B7168; background:rgba(255,255,255,.82);
     padding:3px 7px; border-radius:6px; pointer-events:none; display:none;
   }
@@ -1180,7 +1254,9 @@
      Safari 17 之前不认这条，忽略即可（iOS 用 overlay 滚动条，本来也不跳）。 */
   html{scrollbar-gutter:stable}
   body:has(dialog[open]){overflow:hidden}
-  dialog .amap-host, dialog .tmap-host{overscroll-behavior:contain}
+  /* v3.39：地图页铺在底栏之上、盖住整页，切到地图时背后不许再滚（否则地址栏会跳）。 */
+  body.no-scroll{overflow:hidden}
+  dialog .amap-host, dialog .tmap-host, .map-dialog .amap-host, .map-dialog .tmap-host{overscroll-behavior:contain}
   .dlg-body{padding:18px 18px 16px}
   .dlg-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px}
   .dlg-head h2{font-size:16px; font-weight:600; margin:0}
@@ -1971,7 +2047,14 @@
 </head>
 <body data-page-node-id="8y3w5zEAPguesY5kiGgU2q">
 
-<div class="wrap" data-page-node-id="8vpBUQ7bJTdt7N3KiEekot">
+<div class="wrap" id="page-devices" data-page-node-id="8vpBUQ7bJTdt7N3KiEekot">
+  <!-- v3.39：设备页与地图页**共用这一块头部**（标题 / 通知 / 刷新 / 一周回顾 / 使用说明 /
+       空闲插座与更新时间 / 校区胶囊与地址胶囊）。切到地图时整块 appendChild 进地图页，
+       切回设备页再搬回来（见 setTab）。
+       🔴 为什么搬而不是复制：统计数字与地址胶囊如果抄成两份，迟早一处更新一处不动 ——
+          这类「两个真源」的坑在本文件里已经出现过好几次（#cred、排序下拉都是）。
+       🔴 它必须把 header / #stats / #toolbar 一起包进去，只包 header 的话地图页就少两行。 -->
+  <div id="app-head">
   <header data-page-node-id="xpI8NsKzi0nHYAH5D3RjXs">
     <div class="head-top" data-page-node-id="bNFvfAEYIuVvAVG5A0D3Rg">
       <div>
@@ -1989,19 +2072,13 @@
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 22a2.3 2.3 0 0 0 2.3-2.3H9.7A2.3 2.3 0 0 0 12 22Zm6.6-6.2V11c0-3.2-1.7-5.8-4.6-6.5v-.7a2 2 0 1 0-4 0v.7C7.1 5.2 5.4 7.8 5.4 11v4.8L3.5 17.7v1h17v-1l-1.9-1.9Z"/></svg>
           <span class="dot" id="changelog-dot" hidden></span>
         </button>
-        <!-- 设置从按钮行搬到这里（id 保持 #open-settings 不变，绑定处一行都不用改） -->
-        <button class="ib" id="open-settings" type="button" aria-label="设置" title="设置（设备 / 自动更新 / 同步）">
-          <svg viewBox="-1.6 -1.6 27.2 27.2" fill="none" stroke="currentColor" stroke-width="2"
-               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="3.2"/>
-            <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-2.9 1.2v.17a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-2.9-1.29l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15H4.4a2 2 0 1 1 0-4h.17a1.7 1.7 0 0 0 1.2-2.9l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 2.87-1.2V4.1a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 2.9 1.29l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0 1.2 2.9h.17a2 2 0 1 1 0 4h-.17a1.7 1.7 0 0 0-1.47 1.03Z"/>
-          </svg>
-        </button>
+        <!-- v3.39：齿轮设置入口下线 —— 底部 tab 已经有「设置」，再留一颗齿轮就是两个入口。
+             需要打开设置的地方一律走 setTab('settings') / openSyncDialog()。 -->
         <button class="icon-btn" id="refresh" data-page-node-id="Z7Wjk82ESACJPefc6MXIFG">刷新</button>
       </div>
     </div>
     <div class="head-actions" data-page-node-id="Q3boauP5Su80GKToe6W0jU">
-      <button class="icon-btn" id="map-open" data-page-node-id="map-open-btn">地图</button>
+      <!-- v3.39：地图入口挪到底部 tab，这里不再留第二颗「地图」按钮。 -->
       <!-- 2026-10-29：一周回顾入口上线。数据来自快照 Worker 每小时落库的 /api/stats
            （跨设备、跨地址统一口径，不依赖「这台手机开着页面」）。
            ⚠️ 它和下面那个**没有入口**的 `#usage-dialog`（2026-10-25 下线的「本地历史」
@@ -2010,11 +2087,11 @@
       <!-- 2026-10-25 第六轮：「一周数据」入口**先下掉**（产品方要求，功能保留待用）——
            弹窗 `#usage-dialog` 与 `openUsageDialog()` 都留着，只是没人能点开它；
            对应绑定改成存在才绑，否则 `$('usage-open')` 为 null 会抛错、后面整段 boot 断掉。
-           现在的顺序是「地图 / 一周回顾 / 使用说明 / 设置」，四个 flex:1 平分。 -->
+           现在这一行是「一周回顾 / 使用说明」两颗（地图与设置都在底部 tab）。 -->
       <button class="icon-btn" id="help-open">使用说明</button>
-      <!-- 2026-10-29：「设置」从这里搬到了标题行右侧的齿轮图标（#open-settings 的 id 没变）。
-           这里腾出的位置给了「更新公告」之前想放的第五颗按钮 —— 按钮行维持三颗，
-           390px 下每颗 ~110px，比原来四颗各 77px 好按得多。 -->
+      <!-- 2026-10-29：「设置」从这里搬到了标题行右侧（当时是齿轮 #open-settings）；
+           v3.39 再搬到底部 tab，齿轮下线。这里维持两颗按钮（一周回顾 / 使用说明），
+           390px 下每颗 ~110px 好按。 -->
     </div>
   </header>
 
@@ -2048,8 +2125,6 @@
        ⚠️ 连同后面那段「就地决定显隐」的内联脚本一起删：那段脚本唯一的活就是
           决定这块卡显示不显示。两者都没有之后，「首屏插入一块 → 页面抖一下」
           这个问题本身也消失了（当初做那段是为了压 CLS）。 -->
-
-  </script>
 
   <div class="stats" id="stats" hidden data-page-node-id="5x1j2QDohgutPLD0k1nbee">
     <div class="stat stat--free" id="stat-free" data-page-node-id="VF9BnkcoZS3CBHClACttK4"><div class="stat-line"><b class="free" id="s-free" data-page-node-id="8KiCFjRHb57uVEwYg4SeN0">–</b><span data-page-node-id="Mqk5tE3OM0RDro1qnSSyXt">空闲插座</span></div><small class="stat-sub" id="s-free-sub">共统计 –/（–）插座</small></div>
@@ -2097,10 +2172,12 @@
             这个 id 读写；换成按钮自己存一份等于把三条路各写一遍、迟早对不上。
             弹窗里那几个 `data-sort` 按钮只做一件事：改 select 的值 → 派发 change。 -->
   </div>
+  </div><!-- /#app-head -->
 
   <!-- 🔴 2026-10-29 首帧骨架：三张占位卡写在 HTML 里，解析到就有形状，
        不用等 body 末尾那 6100 行脚本跑完。render() 第一次执行是 innerHTML 整体替换，
        会把它们冲掉，不需要清理。去掉它们不会影响功能，但会让开屏重新变白。 -->
+
   <div id="cards" data-page-node-id="8dJbxVZ2f0nZ2HYyDxY8rj">
     <div class="card" aria-hidden="true"><div class="card-head"><div><span class="sk-bar sk-name"></span><span class="sk-bar sk-loc"></span></div></div><div class="sk-dots"><i class="sk-dot"></i><i class="sk-dot"></i><i class="sk-dot"></i><i class="sk-dot"></i></div><div class="sk-foot"><span class="sk-bar" style="width:92px"></span><span class="sk-bar" style="width:50px"></span></div></div>
     <div class="card" aria-hidden="true"><div class="card-head"><div><span class="sk-bar sk-name"></span><span class="sk-bar sk-loc"></span></div></div><div class="sk-dots"><i class="sk-dot"></i><i class="sk-dot"></i><i class="sk-dot"></i><i class="sk-dot"></i></div><div class="sk-foot"><span class="sk-bar" style="width:92px"></span><span class="sk-bar" style="width:50px"></span></div></div>
@@ -2114,72 +2191,31 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v3.38</div>
+    <div id="app-ver" class="foot-ver">版本 v3.39</div>
   </footer>
 </div>
 
-<!-- 底部轻提示（v2.34）：一过性的话都往这里说，别再占顶部横幅条。
-     `role=status` + `aria-live=polite` 让读屏用户在**不打断当前朗读**的前提下听到它。 -->
-<div class="toast" id="toast" role="status" aria-live="polite"></div>
-
-<!-- 新版本提示（v3.24）。平时 opacity/visibility 全关，`swTipShow()` 才加 .show。
-     🔴 不用 `hidden` 属性：隐藏和 .show 会打架（display:none 下 transition 不生效，
-        会变成硬闪）。跟 .toast 一样靠 visibility 收，读屏也不会读到。
-     🔴 这里**必须**是 fixed 浮条，不能挂进 #banner —— 理由见上面 CSS 那段注释。 -->
-<div class="sw-tip" id="sw-tip" role="status" aria-live="polite">
-  <span class="sw-tip-txt">本站更新了，刷新一下就能用上新版</span>
-  <button class="sw-tip-btn" id="sw-tip-go" type="button">刷新</button>
-  <button class="sw-tip-x" id="sw-tip-x" type="button" aria-label="稍后再说" title="稍后再说">×</button>
-</div>
-
-<!-- 扫码快捷按钮（v2.94）：默认 hidden，fabPaint() 按 cpk.scanFab.on 决定露不露面。
-     两个图标都写在里面，用 data-app 切显示，换微信/支付宝不动 DOM。
-     微信气泡里的两个点是拿 --fab-ink 挖出来的（和底色同色），所以换皮肤也不会变黑点。
-     ⚠️ 别给它加 position:absolute 之外的定位：拖动靠 left/top 直接写，见 fabPut()。 -->
-<button class="scan-fab" id="scan-fab" type="button" hidden data-app="wechat"
-        aria-label="打开微信" title="打开微信">
-  <span class="fab-ic" data-ic="wechat" aria-hidden="true">
-    <svg viewBox="0 0 40 40"><path fill="#fff" d="M16.1 7.4C9.8 7.4 4.7 11.5 4.7 16.6c0 3 1.7 5.7 4.3 7.4l-1.1 3.4 3.9-2c1.1.3 2.2.4 3.4.4h.6a8.4 8.4 0 0 1-.3-2.2c0-5 4.7-9 10.5-9h.4c-1.4-3.3-5.4-5.8-10.3-5.8Z"/><path fill="#fff" d="M35.3 23.6c0-4.4-4.2-7.9-9.4-7.9s-9.4 3.5-9.4 7.9 4.2 7.9 9.4 7.9c1.1 0 2.2-.2 3.2-.5l3.2 1.7-.9-2.9c2.4-1.4 3.9-3.6 3.9-6.2Z"/><circle cx="13.2" cy="14.2" r="1.5" style="fill:var(--fab-ink)"/><circle cx="19.1" cy="14.2" r="1.5" style="fill:var(--fab-ink)"/><circle cx="22.8" cy="21.4" r="1.3" style="fill:var(--fab-ink)"/><circle cx="28" cy="21.4" r="1.3" style="fill:var(--fab-ink)"/></svg>
-  </span>
-  <span class="fab-ic fab-zi" data-ic="alipay" aria-hidden="true">支</span>
-</button>
-
-<dialog id="map-dialog" class="map-dialog" aria-label="充电桩位置地图">
-  <div class="map-head">
-    <h2>充电桩位置</h2>
-    <!-- 校区胶囊（2026-10-30 v2.45）：「充电桩位置」右边，点开下拉选校区。
-         目前只有渭水校区一个 —— 但这一层先留出来，将来加校区只需要往
-         `CAMPUSES` 里加一条、并把新校区的地图项标上 campus，不用再改 DOM。 -->
-    <div class="rv-pick" id="map-campus-pick">
-      <button class="rv-pill" id="map-campus-btn" type="button" aria-haspopup="listbox"
-              aria-expanded="false" aria-controls="map-campus-bubble" aria-label="切换校区">
-        <span id="map-campus-label">渭水校区</span>
-        <svg viewBox="0 0 10 6" width="10" height="6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
-      <div class="rv-bubble" id="map-campus-bubble" role="listbox" aria-label="切换校区" hidden></div>
-    </div>
-    <!-- v2.89：刷新「当前这块地址」的充电桩。
-         为什么不塞进 `#map-tabs` 那排页签：390px 下 6 颗已经贴着右边缘，
-         再往后加就等于「加了但看不见」（v2.65 在回顾筛选条上踩过一次）。
-         口径与首页刷新一致 —— 只查当前地址，别的地址一个请求都不发。 -->
-    <!-- v3.35：回到我的位置 + 导航到此处。做成圆钮而非文字键：390px 下标题行已有
-         标题 / 校区胶囊 / 刷新 / 关闭，再加两颗 30px 圆钮刚好放得下；功能靠 title 与 aria-label 说明。 -->
-    <button class="map-head-btn" id="map-locate-me" type="button" aria-label="显示我的位置并回到我" title="显示我的位置并回到我">
-      <svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="5.4"/><circle cx="10" cy="10" r="1.7" fill="currentColor" stroke="none"/><path d="M10 1.6v3M10 15.4v3M1.6 10h3M15.4 10h3"/></svg>
+<!-- v3.39：地图 = 底栏之上的独立整页（与设备列表分开）。
+     🔴 为什么不用 dialog：showModal 会进浏览器顶层，底栏 z-index 再高也盖不过它，
+        那样一点地图栏就消失，就不像 tab 了。
+     🔴 DOM 在 .wrap 之外：它不属于设备页，设备页 hidden 时它照样在。 -->
+<section id="map-dialog" class="map-dialog" aria-label="充电桩位置地图" role="region">
+  <!-- v3.40：原来的标题行整块下线。
+       · 状态文字「141 个点位 · 0 个有空位」不再显示（用户要求：地图上点位一眼可见，这行纯占高度）
+       · 定位 / 导航 / 刷新三颗圆钮搬到地图右侧的竖排悬浮组（见 .map-stage 里的 #map-fab）
+       · 校区胶囊早已下线（顶部共用头部里有一颗在做同一件事）
+       ⚠️ #map-sub 与 #map-campus-pick 仍留在 DOM 里但 hidden：
+          paintMapSub() / syncMapTabs() 还在往里写文字，删了就是 null 报错。
+          看着多余，但它们是这两处写入的唯一落点。 -->
+  <span class="map-sub" id="map-sub" hidden></span>
+  <div class="rv-pick" id="map-campus-pick" hidden>
+    <button class="rv-pill" id="map-campus-btn" type="button" aria-haspopup="listbox"
+            aria-expanded="false" aria-controls="map-campus-bubble" aria-label="切换校区">
+      <span id="map-campus-label">渭水校区</span>
+      <svg viewBox="0 0 10 6" width="10" height="6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
-    <button class="map-head-btn nav-on" id="map-nav" type="button" aria-label="导航到此处（高德地图）" title="导航到此处（高德地图）">
-      <svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M17 3 3 8.6l6.2 2.4L11.6 17 17 3z"/></svg>
-    </button>
-    <button class="map-refresh" id="map-refresh" type="button" aria-label="刷新当前地址" title="刷新当前地址">
-      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.1 8A5.1 5.1 0 1 1 11.5 4.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M13.3 1.8v3.4H9.9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </button>
-    <button class="x-btn" id="map-close" aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+    <div class="rv-bubble" id="map-campus-bubble" role="listbox" aria-label="切换校区" hidden></div>
   </div>
-  <!-- v2.89：状态文字从标题行搬到这里，独占一行。
-       加了刷新键之后，390px 下「标题 + 校区胶囊 + 数量 + 刷新 + 关闭」五个元素挤一行，
-       「36 个点位 · 31 个有空位」被压成「36 个点位 · 31 …」（线上实测）。
-       搬到页签上方以后宽度够了，也顺手把标题行还给「标题 + 校区 + 两个按钮」。 -->
-  <span class="map-sub" id="map-sub"></span>
   <!-- 当前校区的地址胶囊。点哪一颗就跳到那一块的分布（全部走在线地图的分区视图，
        看 `switchMap()` —— 手绘静态图只在高德加载不出来时兜底，不在这里出现）。
        ⚠️ 文案不带「渭水-」前缀：上面那颗校区胶囊已经写了校区，重复一遍只会让
@@ -2189,7 +2225,12 @@
           （提示是画在内容上的遮罩，内容不在可视区时没有东西可淡）。收短文案 + 收紧内距后
           一屏放得下；全名仍在表头（`map-sub`）里出现，不丢信息。
        ⚠️ 按钮顺序必须与 `MAP_ORDER` 一致，且新分区别往队尾塞（横滑，队尾默认看不见）。 -->
-  <div class="map-tabs" id="map-tabs" role="tablist" aria-label="选择地址">
+  <!-- v3.40：这排分区胶囊**隐藏**了 —— 它与顶部共用头部里的地址胶囊（#loc-pills）内容重复
+       （20 号楼 / 北门 / 公路南 / 朝晖 两边都有），并排出现就是两排一样的胶囊。
+       现在切分区统一走顶部胶囊：点它 → syncMapToLocation() → switchMap()，一个入口。
+       ⚠️ DOM 一个都没删：这排是手写的、与 MAP_ORDER 一一对应，且 syncMapTabs() 仍在
+          遍历它维护 .on；将来要让用户自己切分区，去掉这个 hidden 就回来了。 -->
+  <div class="map-tabs" id="map-tabs" role="tablist" aria-label="选择地址" hidden>
     <button class="map-tab on" data-map="amap" role="tab">校区全图</button>
     <button class="map-tab" data-map="zhuzhai" role="tab">住宅</button>
     <button class="map-tab" data-map="wuliu" role="tab">物业</button>
@@ -2226,6 +2267,22 @@
        圆点的颜色本身就把这套语义讲完了（绿=有空位、红=占满、灰=无数据），
        再抄一遍文字只是把地图压矮一截。 -->
   <div class="map-stage" id="map-stage">
+    <!-- v3.40：定位 / 导航 / 刷新从标题行搬到这里，照主流地图 App 做成右侧竖排悬浮组
+         （白底圆角 + 分隔线）。浮在地图上不占布局高度 —— 标题行省下的那 38px 全给了地图。
+         ⚠️ 三颗的 id 一个都没变，事件监听仍在原地绑定（#map-locate-me / #map-nav / #map-refresh）。
+         ⚠️ 刷新键在「这一块没有桩」时由 syncMapTabs() 置 hidden，隐藏时连分隔线一起消失。
+         ⚠️ 别改回横向排版：右上角是唯一不压住图例、底图版权和「← 总览」的位置。 -->
+    <div class="map-fab" id="map-fab" role="group" aria-label="地图操作">
+      <button class="map-head-btn" id="map-locate-me" type="button" aria-label="显示我的位置并回到我" title="显示我的位置并回到我">
+        <svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="5.4"/><circle cx="10" cy="10" r="1.7" fill="currentColor" stroke="none"/><path d="M10 1.6v3M10 15.4v3M1.6 10h3M15.4 10h3"/></svg>
+      </button>
+      <button class="map-head-btn nav-on" id="map-nav" type="button" aria-label="导航到此处（高德地图）" title="导航到此处（高德地图）">
+        <svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M17 3 3 8.6l6.2 2.4L11.6 17 17 3z"/></svg>
+      </button>
+      <button class="map-refresh" id="map-refresh" type="button" aria-label="刷新当前地址" title="刷新当前地址">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.1 8A5.1 5.1 0 1 1 11.5 4.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M13.3 1.8v3.4H9.9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
     <!-- 空校区提示（v2.78）：只有「当前视图一个点位都没有」时才显示，
          由 `paintMapSub()` 按引擎回传的 piles 控制 —— 渭水、北院永远不显示。 -->
     <div class="map-empty" id="map-empty" hidden></div>
@@ -2240,7 +2297,7 @@
     <svg id="campus-map" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 9600 3422" preserveAspectRatio="xMidYMid meet">
       <!-- ⚡ 性能：底图不在这里写实际路径。
            本 SVG 在初始 HTML 里，<image href> 会被浏览器在解析时立刻下载 —— 而地图弹窗
-           默认是关着的（<dialog> 无 open），用户不点「地图」根本用不到。
+           默认是收着的（地图页 data-active 未置），用户不点底栏「地图」根本用不到。
            渭水底图 963KB，占首页总下载量的 93%，白白拖慢首屏。
            实际路径由 applyBaseMap() 在 openMap()/openMapAt()/切页签时设置（见 JS）。
            这里放 1×1 透明 GIF 占位，width/height 保持真实尺寸，SVG 坐标系不受影响。 -->
@@ -2260,9 +2317,54 @@
       <span><i class="off"></i>无数据</span>
     </div>
     <div class="map-zones" id="map-zones"></div>
-    <div class="map-attrib">底图 © 腾讯地图 · 校园图层 © OSM 贡献者</div>
+    <div class="map-attrib" title="底图 © 腾讯地图 · 校园图层 © OSM 贡献者">© 腾讯地图 · 点位为示意</div>
   </div>
-</dialog>
+</section>
+
+<!-- v3.39：底部三 tab。fixed 定位，DOM 顺序按阅读流排在内容之后。
+     🔴 .on 与 aria-selected 由 setTab() 统一维护，别只在 HTML 里写死。 -->
+<nav class="tabbar" id="tabbar" aria-label="主导航">
+  <div class="tabbar-in" role="tablist">
+    <button class="tabbar-item on" type="button" role="tab" data-tab="devices" aria-selected="true" aria-controls="page-devices">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.6" y="3.6" width="7" height="7" rx="1.8"/><rect x="13.4" y="3.6" width="7" height="7" rx="1.8"/><rect x="3.6" y="13.4" width="7" height="7" rx="1.8"/><rect x="13.4" y="13.4" width="7" height="7" rx="1.8"/></svg>
+      <span>设备</span>
+    </button>
+    <button class="tabbar-item" type="button" role="tab" data-tab="map" aria-selected="false" aria-controls="map-dialog">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4.6 3.9 6.7v12.7L9 17.3l6 2.1 5.1-2.1V4.6L15 6.7 9 4.6Z"/><path d="M9 4.6v12.7M15 6.7v12.7"/></svg>
+      <span>地图</span>
+    </button>
+    <button class="tabbar-item" type="button" role="tab" data-tab="settings" aria-selected="false" aria-controls="sync-dialog">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-2.9 1.2v.17a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-2.9-1.29l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15H4.4a2 2 0 1 1 0-4h.17a1.7 1.7 0 0 0 1.2-2.9l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 2.87-1.2V4.1a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 2.9 1.29l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0 1.2 2.9h.17a2 2 0 1 1 0 4h-.17a1.7 1.7 0 0 0-1.47 1.03Z"/></svg>
+      <span>设置</span>
+    </button>
+  </div>
+</nav>
+
+<!-- 底部轻提示（v2.34）：一过性的话都往这里说，别再占顶部横幅条。
+     `role=status` + `aria-live=polite` 让读屏用户在**不打断当前朗读**的前提下听到它。 -->
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- 新版本提示（v3.24）。平时 opacity/visibility 全关，`swTipShow()` 才加 .show。
+     🔴 不用 `hidden` 属性：隐藏和 .show 会打架（display:none 下 transition 不生效，
+        会变成硬闪）。跟 .toast 一样靠 visibility 收，读屏也不会读到。
+     🔴 这里**必须**是 fixed 浮条，不能挂进 #banner —— 理由见上面 CSS 那段注释。 -->
+<div class="sw-tip" id="sw-tip" role="status" aria-live="polite">
+  <span class="sw-tip-txt">本站更新了，刷新一下就能用上新版</span>
+  <button class="sw-tip-btn" id="sw-tip-go" type="button">刷新</button>
+  <button class="sw-tip-x" id="sw-tip-x" type="button" aria-label="稍后再说" title="稍后再说">×</button>
+</div>
+
+<!-- 扫码快捷按钮（v2.94）：默认 hidden，fabPaint() 按 cpk.scanFab.on 决定露不露面。
+     两个图标都写在里面，用 data-app 切显示，换微信/支付宝不动 DOM。
+     微信气泡里的两个点是拿 --fab-ink 挖出来的（和底色同色），所以换皮肤也不会变黑点。
+     ⚠️ 别给它加 position:absolute 之外的定位：拖动靠 left/top 直接写，见 fabPut()。 -->
+<button class="scan-fab" id="scan-fab" type="button" hidden data-app="wechat"
+        aria-label="打开微信" title="打开微信">
+  <span class="fab-ic" data-ic="wechat" aria-hidden="true">
+    <svg viewBox="0 0 40 40"><path fill="#fff" d="M16.1 7.4C9.8 7.4 4.7 11.5 4.7 16.6c0 3 1.7 5.7 4.3 7.4l-1.1 3.4 3.9-2c1.1.3 2.2.4 3.4.4h.6a8.4 8.4 0 0 1-.3-2.2c0-5 4.7-9 10.5-9h.4c-1.4-3.3-5.4-5.8-10.3-5.8Z"/><path fill="#fff" d="M35.3 23.6c0-4.4-4.2-7.9-9.4-7.9s-9.4 3.5-9.4 7.9 4.2 7.9 9.4 7.9c1.1 0 2.2-.2 3.2-.5l3.2 1.7-.9-2.9c2.4-1.4 3.9-3.6 3.9-6.2Z"/><circle cx="13.2" cy="14.2" r="1.5" style="fill:var(--fab-ink)"/><circle cx="19.1" cy="14.2" r="1.5" style="fill:var(--fab-ink)"/><circle cx="22.8" cy="21.4" r="1.3" style="fill:var(--fab-ink)"/><circle cx="28" cy="21.4" r="1.3" style="fill:var(--fab-ink)"/></svg>
+  </span>
+  <span class="fab-ic fab-zi" data-ic="alipay" aria-hidden="true">支</span>
+</button>
 
 <dialog id="usage-dialog" aria-label="使用情况统计">
   <div class="dlg-body">
@@ -2339,11 +2441,11 @@
   </div>
 </dialog>
 
-<dialog id="sync-dialog" aria-label="设置">
+<!-- v3.39：设置从居中弹窗改成整页（底栏第三个 tab）。子弹窗仍是 modal。 -->
+<section id="sync-dialog" class="settings-page" aria-label="设置" role="region" hidden>
   <div class="dlg-body">
     <div class="dlg-head">
       <h2>设置</h2>
-      <button class="x-btn" data-close aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.8 4.8l6.4 6.4M11.2 4.8l-6.4 6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
     </div>
 
     <!-- 2026-10-30 v2.50：主面板只剩一张分组列表（照产品方给的样式图做的）——
@@ -2489,7 +2591,7 @@
       </button>
     </div>
   </div>
-</dialog>
+</section>
 
 <!-- 违规车牌登记（v3.20）。登记与查询同页，服务端没配好绑定时只显示一句说明，
      不让人白填一通。id 一律 plate- 前缀，别撞充电记录的 chg-* / clog-*。 -->
@@ -2903,7 +3005,7 @@
      「把微信叫到前台」；万一连前台都没叫起来（浏览器拦 scheme），就给两条走得通的路 ——
      换支付宝（能直接进扫一扫），或者再试一次打开微信。
      ⚠️ 两个按钮都在自己的点击事件里同步写 location.href，别改成先 await 再跳。
-     ⚠️ 它打开时 #scan-fab 会被 body:has(dialog[open]:not(.map-dialog)) 藏掉，正常。 -->
+     ⚠️ 它打开时 #scan-fab 会被 body:has(dialog[open]) 藏掉，正常。 -->
 <dialog id="dlg-fabfail" class="sub-dlg" aria-label="没能直接进扫一扫">
   <div class="dlg-body">
     <div class="dlg-head">
@@ -5529,6 +5631,59 @@ let _locPillKey = null;
  *    只有**显示文案**去掉前缀 —— 旧下拉把它写死在 <option> 里，数据加了也不出现；
  *  · 存量筛选值若是旧分区名（改名前的「物流服务中心」这类），胶囊里对不上号就
  *    就地清掉 —— 旧下拉只复位显示、存着的还是旧值，显示和列表会对不上。 */
+/** v3.40：**指定的默认地址**。
+ *  渭水固定落「物业服务中心」（产品方 2026-11-22 指定）。
+ *  没登记的校区仍走下面「设备最少」那套 —— 那边地址少，差异也不大。
+ *  ⚠️ 值必须与设备清单里的 `location` 完全相同（带校区前缀）。
+ *  ⚠️ 如果登记的这块在本校区没有设备（改分区名、临时下线），`pickDefaultLocation`
+ *     会自动忽略它、退回「设备最少」，不会把用户丢到一个空的地址上。 */
+const CAMPUS_DEFAULT_LOC = {
+  weishui: '渭水-物业服务中心',
+};
+
+/** 地址胶囊的固定顺序（产品方 2026-11-22 指定）：物业 → 20楼 → 公路南 → 体育场 → 北门 → 住宅。
+ *  ⚠️ 只影响 `#loc-pills` 的排列，不动 `MAP_ORDER`（那套是地图页签与引擎的既有顺序，
+ *     改了要连带核对 `#map-tabs` 的手写按钮与快照排班，风险大而收益为零）。
+ *  ⚠️ 表里没有的地址排在后面，仍按名称序 —— 以后加校区/分区不用回来改这张表。 */
+const LOC_PILL_ORDER = [
+  '渭水-物业服务中心',
+  '渭水-20号楼',
+  '渭水-公路学院南',
+  '渭水-朝晖体育场南',
+  '渭水-北门',
+  '渭水-住宅',
+];
+
+/** 该校区的默认地址 = **设备最少**的那一块。
+ *
+ *  v3.40 产品方口径：切校区 / 首次打开时先落在设备最少的地址，默认校区仍是渭水。
+ *  为什么挑最少的：进入页面就要把那块的桩查一遍、把地图画一遍，36 台的分区
+ *  首屏要等好几批；最少的往往一台就齐了，打开即完整。
+ *  ⚠️ 并列（雁塔 3 台有两个、南院 6 台有两个）按地址名 localeCompare 序取第一个 ——
+ *     与 `renderLocationFilter` 里 `locs` 的排序同一口径，不会今天住宅明天物业。
+ *  ⚠️ 只统计**本校区**设备：跨校区的地址名不参与比较。
+ *  ⚠️ 返回值是设备清单里的原始写法（`渭水-住宅`，带校区前缀），与 `MAP_ORDER.area` 同一套，
+ *     直接可以喂给 `syncMapToLocation()`。 */
+function pickDefaultLocation(devices, campus) {
+  const cnt = new Map();
+  (devices || []).forEach((d) => {
+    if (campusOfDevice(d) !== campus) return;
+    const l = String(d.location || '').trim();
+    if (!l) return;
+    cnt.set(l, (cnt.get(l) || 0) + 1);
+  });
+  if (!cnt.size) return '';
+  /* 有指定值就用指定值（渭水=物业服务中心）；这块没有设备就继续按「最少」算。 */
+  const fixed = CAMPUS_DEFAULT_LOC[campus];
+  if (fixed && cnt.has(fixed)) return fixed;
+  let best = '', bestN = Infinity;
+  [...cnt.keys()].sort((a, b) => a.localeCompare(b, 'zh')).forEach((l) => {
+    const n = cnt.get(l);
+    if (n < bestN) { bestN = n; best = l; }
+  });
+  return best;
+}
+
 function renderLocationFilter(devices) {
   const box = $('loc-pills');
   if (!box) return;
@@ -5540,7 +5695,14 @@ function renderLocationFilter(devices) {
       .filter((d) => campusOfDevice(d) === campus)
       .map((d) => String(d.location || '').trim())
       .filter(Boolean),
-  )].sort((a, b) => a.localeCompare(b, 'zh'));
+  )].sort((a, b) => {
+    /* v3.40：按 `LOC_PILL_ORDER` 排（物业 → 20楼 → 公路南 → 体育场 → 北门 → 住宅），
+       表里没有的排到后面、仍按名称序 —— 逐字对齐产品方给的顺序，不靠拼音排序碰运气。 */
+    const ia = LOC_PILL_ORDER.indexOf(a);
+    const ib = LOC_PILL_ORDER.indexOf(b);
+    if (ia !== ib) return (ia < 0 ? 1e6 : ia) - (ib < 0 ? 1e6 : ib);
+    return a.localeCompare(b, 'zh');
+  });
   let cur = getFilter();
   /* v2.74：顶部**不再有「全部」那颗**（产品方要求）。于是地址这一层必须**永远有一颗
      亮着** —— 筛空 / 存量值失效时落到本校区第一个地址（渭水=朝晖体育场南、
@@ -5551,13 +5713,11 @@ function renderLocationFilter(devices) {
         「用户到底选了什么」就永远说不清了。
      ⚠️ 空校区（雁塔 / 小寨）locs 为空 → 保持 `''`，那边列表本来就是空的。 */
   if (!cur || !locs.some((l) => normKey(l) === cur)) {
-    /* 默认点哪颗：**设备清单里第一个属于本校区的地址**（渭水=朝晖体育场南、
-       北院=体育馆北停车场）。不按 `locs[0]`（那是 localeCompare 序，排出来是
-       「20号楼」打头），也不写死分区名 —— 清单顺序就是「主场地在前」的既有口径，
-       以后加分区自动跟着走。清单里没有（空校区）就退回第一颗。 */
-    const firstOfCampus = devices.find((d) => campusOfDevice(d) === campus
-      && locs.some((l) => normKey(l) === normKey(String(d.location || '').trim())));
-    const next = (firstOfCampus && String(firstOfCampus.location).trim()) || locs[0] || '';
+    /* 默认点哪颗（v3.40 改口径）：**本校区设备最少的那个地址**（渭水=住宅 8 台）。
+       原来是「设备清单里第一个属于本校区的地址」（渭水=朝晖体育场南 36 台）——
+       那样首次打开要先把 36 台查一遍才像样，产品方 2026-11-22 要求换掉。
+       清单里一个都没有（空校区）就退回第一颗；`locs` 为空时保持空串。 */
+    const next = pickDefaultLocation(devices, campus) || locs[0] || '';
     store.set(KEY_FILTER, next);
     cur = next ? normKey(next) : '';
   }
@@ -5645,16 +5805,21 @@ function setCampusMenu(open) {
 function setCampus(id) {
   if (!CAMPUS_PREFIX[id] || id === getCampus()) { setCampusMenu(false); return; }
   store.set(KEY_CAMPUS, id);
-  store.set(KEY_FILTER, '');
+  const devices = getDevices();
+  /* v3.40：一换校区就先把默认地址定下来（该校区设备最少的那块），再去 render ——
+     交给 render 里的兜底也行，但地图紧跟着要切，晚一步会先闪一下校区总览。 */
+  const def = pickDefaultLocation(devices, id);
+  store.set(KEY_FILTER, def || '');
   setCampusMenu(false);
   paintCampusPill();
   /* v2.92：天气是按校区查的，切完校区得跟着换 —— 有缓存立刻换，
      没缓存就补一次（1.6KB，用户主动切的不算打扰）。 */
   wxSync();
-  const devices = getDevices();
   const cache = readCache();
   render(devices, devices.map((d) => cache[d.id] || { ports: [], error: '尚未查询', at: 0 }));
   showToast(campusName(id, false) + (campusHasDevices(id) ? '' : ' · 暂无充电桩'));
+  /* v3.40：地图落到新校区的默认地址，而不是校区总览 —— 与设备页亮着的那颗胶囊一致。 */
+  syncMapToLocation(def || '');
   refresh();
 }
 
@@ -6048,6 +6213,15 @@ const ADDR_PILL_LABEL = {
   '南院-7号楼': '7号楼东',
   /* v3.34：公路学院南去掉校区前缀还有 5 个字，胶囊那排再挤一颗容易换行。 */
   '渭水-公路学院南': '公路南',
+  /* v3.40：渭水这排按产品方给的六个名字逐字对齐 ——
+     物业 / 20楼 / 公路南 / 体育场 / 北门 / 住宅。
+     原来「物业服务中心」5 个字的胶囊在这排里最宽，还把后面几颗挤到了可视区外；
+     「体育场」也比「朝晖体育场南」短一半。
+     ⚠️ 只改**胶囊上的字**：卡片地址行仍走 `ADDR_FULL_LABEL` 写全称
+        （「物业服务中心」），两处不是一个口径，别拿这张表去统一它们。 */
+  '渭水-物业服务中心': '物业',
+  '渭水-20号楼': '20楼',
+  '渭水-朝晖体育场南': '体育场',
 };
 
 /** 地址胶囊上那一颗的字。`shortAddrLabel` 的老行为作为兜底。 */
@@ -7266,6 +7440,9 @@ let tmapLoading = null;
 
 // 高德地图（map-amap.js）：渭水校区总览页签专用，Key 由 map-key.local.js 提供（不进仓库）
 let amapActive = false;
+/* v3.39：当前底部 tab（devices / map / settings）。地图相关判断都改看它，
+   不再用「dialog 是否 open」—— 地图已经不是弹窗了。 */
+let curTab = 'devices';
 let amapLoading = null;
 
 const loadedScripts = {};
@@ -7551,7 +7728,13 @@ function ensureAMap() {
           $('map-failbar').hidden = true;
           $('map-dialog').setAttribute('data-engine', 'amap');
           const attrib = document.querySelector('.map-attrib');
-          if (attrib) attrib.textContent = '底图 © 高德地图 · 桩位按分区排布示意';
+          /* v3.40：文案压短。地图收进 362px 的圆角卡片后，原句「底图 © 高德地图 ·
+             桩位按分区排布示意」约 200px，从右边伸过来正好压住左下角图例的三个标签。
+             「点位为示意」四个字保住了原意（位置不是精确坐标），署名也还在。 */
+          if (attrib) {
+            attrib.textContent = '© 高德地图 · 点位为示意';
+            attrib.title = '底图 © 高德地图 · 桩位按分区排布示意';
+          }
           /* 这里仍然 keepCamera（2026-10-24 起；v2.44 改了理由）。
            *
            * 以前是为了保护引擎那 700ms 的飞入动画；动画在 v2.44 取消了，
@@ -7838,7 +8021,9 @@ function repaintMapData() {
  * keepCamera 保护用户正在拖的视角。地图没开（amapActive=false）时整段跳过，
  * 零开销、零副作用 —— 查询本身完全不受影响（不碰 aborted/shouldStop）。 */
 function syncMapResults(devicesArr, resultsArr) {
-  if (!amapActive || !window.CHD_AMAP || !window.CHD_AMAP.setPiles) return;
+  /* v3.39：地图改成页面后，「地图在不在看」= 当前 tab 是不是地图。
+     不在看就不用每批都重建 marker（原来靠 dialog.open 天然挡住）。 */
+  if (!isMapTab() || !amapActive || !window.CHD_AMAP || !window.CHD_AMAP.setPiles) return;
   const cache = readCache();
   mapDevices = devicesArr;
   mapResults = devicesArr.map((d, i) => resultsArr[i] || cache[d.id] || { ports: [], error: '尚未查询', at: 0 });
@@ -8138,18 +8323,144 @@ function focusDevice(deviceId) {
   $('map-sub').textContent = `${dev.code || dev.name} · 已定位（${curMap.name}）`;
 }
 
-function openMap() {
-  // 通用「看地图」按钮：默认渭水校区，之后停留在上次看的图（v2.23 改默认值）
-  /* v2.72：首页切到北院之后再点「看地图」，不能还停在渭水那张 ——
-     页签全被藏掉、表头写着「本部北院」而底图是体育场，比「重新打开」更费解。
-     所以只要当前这块图不属于首页选中的校区，就回到该校区第一块图。 */
-  const home = getCampus();
-  if (!MAP_ORDER.some((m) => m.id === curMap.id) || (curMap.campus && curMap.campus !== home)) {
-    curMap = MAP_ORDER.find((m) => m.campus === home) || AMAP_MAP;
+/* ── v3.39 底部三 tab ───────────────────────────────────────────────
+   为什么不用 <dialog>：showModal 会进浏览器顶层（top layer），
+   底栏 z-index 再高也盖不过它 —— 一点地图整条栏就消失，就不像 tab 了。
+   所以地图/设置改成普通元素 + display 切换；只有它们内部的子弹窗仍然是 modal。
+
+   三页的显示方式不一样，是有意的：
+   · 设备页：文档流滚动（保持原来的首屏行为：地址栏、惯性、回顶都不变）
+   · 地图页：fixed 铺满底栏以上，内部自己分块（顶栏 + 地图）
+   · 设置页：文档流滚动，限宽 560 居中
+   🔴 设备页切走只是 hidden，不清空 DOM —— 查询还在跑，回来就能看到最新结果。 */
+
+/* 地图在不在屏幕上 = 当前是不是地图这一页。
+   地图是独立整页、不与设备列表共存，所以「设备页」时它完全看不见。 */
+function isMapTab() { return curTab === 'map'; }
+
+/* 设备页与设置页共用同一个滚动容器（文档流），切走时会把它们 hidden 掉 ——
+   页面高度一塌，浏览器立刻把 scrollY 归零，切回来就回到顶上了。
+   所以离开前先记一笔，回来再放回去（每页各记一份）。 */
+const TAB_SCROLL = { devices: 0, settings: 0 };
+
+/** 底栏实际高度（含 iOS 安全区）。地图页与浮层抬升都用它，别写死 58。 */
+function tabbarH() {
+  const el = $('tabbar');
+  return el ? Math.round(el.getBoundingClientRect().height) : 0;
+}
+
+function setTab(name, opts) {
+  opts = opts || {};
+  if (name !== 'devices' && name !== 'map' && name !== 'settings') name = 'devices';
+  if (name === curTab && !opts.force) return;
+  const prev = curTab;
+  /* 🔴 必须在改 hidden 之前读：一旦 display:none，文档高度塌成本屏高度，
+     scrollY 会被浏览器当场夹到 0，事后再读回来的就是 0 了。 */
+  if (prev === 'devices' || prev === 'settings') TAB_SCROLL[prev] = window.scrollY || 0;
+  curTab = name;
+
+  const dev = $('page-devices');
+  const map = $('map-dialog');
+  const set = $('sync-dialog');
+
+  /* 🔴 头部整块搬：设备页 ↔ 地图页共用同一份 DOM（见 CSS 里 #app-head 那段注释）。
+     放在改 hidden 之前做 —— 先藏了 .wrap 再往里插节点，浏览器会白算一次布局。 */
+  const appHead = $('app-head');
+  if (appHead) {
+    const host = name === 'map' ? map : dev;
+    if (host && appHead.parentNode !== host) host.insertBefore(appHead, host.firstChild);
   }
+  /* 三页互斥：设备页与设置页都在文档流里（一个显示另一个 hidden），
+     地图页是 fixed 铺在底栏之上、DOM 在 .wrap 之外，靠 data-active 显隐。
+     🔴 地图页不能靠 hidden 收 —— CSS 里 .map-dialog[data-active] 才是 display:flex。 */
+  if (dev) dev.hidden = (name !== 'devices');
+  if (map) {
+    if (name === 'map') map.setAttribute('data-active', '');
+    else map.removeAttribute('data-active');
+  }
+  if (set) set.hidden = (name !== 'settings');
+  if (name === 'devices' || name === 'settings') {
+    const y = TAB_SCROLL[name] || 0;
+    requestAnimationFrame(() => {
+      if (Math.abs((window.scrollY || 0) - y) > 2) window.scrollTo(0, y);
+    });
+  }
+  document.body.classList.toggle('no-scroll', name === 'map');
+  document.documentElement.setAttribute('data-tab', name);
+
+  document.querySelectorAll('.tabbar-item').forEach((btn) => {
+    const on = btn.getAttribute('data-tab') === name;
+    btn.classList.toggle('on', on);
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+
+  /* 离开地图页就停掉持续定位（原来挂在 dialog 的 close 事件上，地图不再是弹窗了）。 */
+  if (prev === 'map' && name !== 'map') stopLocateWatch();
+
+  /* 每次切页容器尺寸都会变（卡片 ↔ 整屏 ↔ 被藏起来），让引擎重算一次。
+     不重算的表现是：地图只画了上面一截、下面一条空白，或整张糊在旧尺寸上。 */
+  requestAnimationFrame(() => {
+    if (window.CHD_AMAP && window.CHD_AMAP.resize) { try { window.CHD_AMAP.resize(); } catch (e) {} }
+  });
+
+  fabHost();
+  fabPaint();
+
+  /* 返回键：安卓壳的判断是「先关弹窗 → 再 canGoBack() → 否则双击退出」，
+     所以只要历史里多一条，按返回就等于「回到设备页」，不用改 APK。
+     🔴 只用一条浮层记录，别每次切 tab 都 push：
+        设备→地图 push、地图→设置 replace —— 否则来回点几次就攒出一串
+        {tab:'map'}，返回键会在两个「地图」条目之间跳，看着像失灵。
+     🔴 回到设备页时把那条浮层退掉；但 popstate 引起的回退（silent）不能再退一次。 */
+  if (!opts.silent) {
+    try {
+      const st = history.state || {};
+      if (name === 'devices') {
+        if (st.tab && st.tab !== 'devices') history.back();
+      } else if (!st.tab || st.tab === 'devices') {
+        history.pushState({ tab: name }, '');
+      } else {
+        history.replaceState({ tab: name }, '');
+      }
+    } catch (e) {}
+  }
+}
+
+
+/** 地址胶囊 / 校区胶囊一变，地图也跟着走到对应分区。
+ *  v3.39：地图页顶部现在与设备页是**同一排胶囊**，点它却只筛列表、地图纹丝不动，
+ *  看着就像「点了没反应」。所以补这一条：点哪块地址，地图就切到那块。
+ *  🔴 只在地图页生效：设备页里地图根本没在显示，跟着切只会白建一次引擎。
+ *  🔴 找不到对应分区（「全部地址」没有 area）就落到当前校区的总览 ——
+ *     否则表头写着「全部」、图上却还是某一块，比不切更误导。
+ *  🔴 走 switchMap() 而不是自己拼 curMap：它把 engine / failbar / 兜底图那几条
+ *     分支都收在一处了，绕过去就是第二个真源。 */
+function syncMapToLocation(loc) {
+  if (!isMapTab() || !MAP_ORDER.length) return;
+  const hit = loc ? MAP_ORDER.find((m) => m.area && normKey(m.area) === normKey(loc)) : null;
+  const next = hit || MAP_ORDER.find((m) => m.campus === getCampus());
+  if (!next || next.id === curMap.id) return;
+  switchMap(next.id);
+}
+
+function openMap() {
+  /* v3.40：**跟设备页当前选中的地址走**。
+   *
+   * 原来这里是「停在上次看的那张图」，只要校区没变就不动。问题是设备页与地图页
+   * 共用同一颗地址胶囊（`#loc-pills` 由 `#app-head` 整块搬家带过去），于是会出现
+   * 设备页亮着「20 号楼」、切到地图却是朝晖 —— 来回切两次就分不清哪边算数。
+   * 现在一律以 `getFilter()` 为准：它既是列表的筛选值，也是胶囊的选中态，还是这里的地图落点。
+   *
+   * 🔴 匹配必须用 `MAP_ORDER.area`（值就是设备 location 的全写法 `渭水-朝晖体育场南`），
+   *    不能拿胶囊上的显示文案（`朝晖体育场南`）去比 —— 少个前缀永远对不上。
+   * 🔴 地址找不到对应分区（比如某校区的地址还没接地图）就落校区总览，别留在上一个校区的图上。
+   */
+  const home = getCampus();
+  const want = normKey(getFilter() || '');
+  const hit = want ? MAP_ORDER.find((m) => m.area && normKey(m.area) === want) : null;
+  curMap = hit || MAP_ORDER.find((m) => m.campus === home) || AMAP_MAP;
   syncMapTabs();
-  const dlg = $('map-dialog');
-  if (!dlg.open) dlg.showModal();
+  setTab('map');   // v3.39：地图是页面不是弹窗
   /* v2.45：四个地址全是在线地图，这里就是唯一分支了 —— 在线地图拉不出来才走手绘图。
      （原来「非 amap 页签 → 腾讯地图 → 再回落静态图」那串已经没有入口了。） */
   const tryAmap = (m) => ensureAMap().then((ok) => {
@@ -8221,8 +8532,7 @@ function openMapAt(deviceId) {
   const tabOfArea = dev && MAP_ORDER.find((m) => m.area && normKey(m.area) === normKey(dev.location));
   curMap = tabOfArea || AMAP_MAP;
   syncMapTabs();
-  const dlg = $('map-dialog');
-  if (!dlg.open) dlg.showModal();
+  setTab('map');   // v3.39：地图是页面不是弹窗
 
   /** 高德可用时真正落地：按该桩所属分区取景 + 标出它 */
   const useAmap = () => {
@@ -11272,6 +11582,8 @@ function bindToolbar() {
     store.set(KEY_FILTER, val);
     paintLocPills();
     locPillsHint(false);          // 只更新两端渐隐，别把用户刚滑的位置拽回去
+    // v3.39：地图页里点胶囊，地图也跟着切到这块地址（设备页里不做，见函数注释）
+    syncMapToLocation(val);
     // 切换地址后按新范围查询（只查这个地址下的桩）
     refresh();
   });
@@ -11443,6 +11755,7 @@ function openSettingsDialog() {
   paintCloudState();
   /* v3.20：解锁成功后打开「设备与设置」，这里顺手把工具组里的排行榜行放出来 */
   if (typeof window.plateSyncAdminRow === 'function') window.plateSyncAdminRow();
+  warmQrLib();   // v3.38：顺手预取扫码库，用户点「扫码采设备号」时大概率已就绪
   $('settings-dialog').showModal();
 }
 
@@ -11469,7 +11782,19 @@ const CHANGELOG = [
      🔴 同一件事只写一条，改了行为就原地改写描述，不另起流水账；单条 ≤200 字。
      只写用户看得见的变化：测试版入口、赞赏码措辞、密钥放哪、Worker/接口一律不进。
      _check_chg_merge 会按页脚版本动态校验「每个 0.1 级恰好一组」。 */
-  { from: 'v3.30', d: '2026-11-21', items: [
+  { from: 'v3.30', d: '2026-11-22', items: [
+    /* v3.39：底部三栏 + 地图页顶部与地址联动。这三条对用户是「一次改版」，
+       合并成三条写（底部栏 / 地图页顶部 / 默认地址），不按每次调试拆流水账。 */
+    '底部新增「设备 / 地图 / 设置」三栏，一直固定在最下面、不随页面滚动。'
+      + '三块各自独立：列表滚到哪、切走再回来还在哪；地图铺满上方整块，设置不再是从中间弹出来的小窗；'
+      + '安卓返回键会退回上一栏，不会直接退出',
+    '地图页顶部换成和列表页同一块头部（标题、校区、通知、刷新、空闲插座、更新时间、地址胶囊都在），'
+      + '切换两页时统计数字和地址不会对不上；地图收成一张圆角卡片嵌在页面里，'
+      + '定位 / 导航 / 刷新合成右上角竖排按钮，地图可视区域比原来大了 70 多像素',
+    '地图和列表现在始终是同一个地址：点页面上方的地址胶囊，地图直接切到那一块，'
+      + '来回切页也不会再出现「列表亮着 20 楼、地图还在体育场」。'
+      + '打开网站或切换校区时默认落在物业服务中心（其他校区落在设备最少的地址），'
+      + '胶囊顺序改成 物业 / 20楼 / 公路南 / 体育场 / 北门 / 住宅',
     /* 南院这一批（v3.30 上线 → v3.31/v3.32 改落点、改分区名）合并成一条：
        对用户来说就是「多了一个校区」，中间怎么挪的不写流水账（见顶部规矩）。 */
     '新增「本部南院」29 台桩：3 号楼南、3 号楼东、7 号楼东、东门四处，'
@@ -11491,6 +11816,8 @@ const CHANGELOG = [
       + '刚看过的统计数据短时间内再看直接用现成的，人多和弱网时更明显',
     '从设备列表点进地图时不用再等整轮查完：查到一批桩，地图上的空位就跟着更新一批，'
       + '边查边看，地图视角不会被改动',
+    '扫码采设备号快多了：优先用手机系统自带的识别能力，还自动跳过多余的镜像比对、'
+      + '把预览分辨率调到够用就好 —— 以前低配手机要好几秒才认出来，现在对准就能读',
   ]},
   { v: 'v3.20 – v3.29', d: '2026-11-10 ~ 11-21', items: [
     '设置里多了「违规车牌登记」：填车牌号、选事由和校区就能登记一次，回显这个车牌近 180 天累计几次；'
@@ -12689,7 +13016,8 @@ function fabPut(el, cx, cy) {
   const pad = FAB_EDGE + half;
   const x = Math.min(vw - pad, Math.max(pad, cx));
   /* 上下各多留 6px：贴着状态栏/刘海那一侧看着像被裁了一半 */
-  const y = Math.min(vh - pad - 6, Math.max(pad + 6, cy));
+  /* v3.39：底栏是 fixed 压在视口底部，贴底拖到底会钻进栏里 —— 上限减掉栏高。 */
+  const y = Math.min(vh - pad - 6 - tabbarH(), Math.max(pad + 6, cy));
   el.style.left = (x - half) + 'px';
   el.style.top = (y - half) + 'px';
   return { x: x, y: y, vw: vw, vh: vh };
@@ -12717,7 +13045,9 @@ function fabHost() {
   const el = $('scan-fab');
   if (!el) return;
   const map = $('map-dialog');
-  const host = map && map.open ? map : document.body;
+  /* 地图页是 fixed 浮层（z-index 40，低于底栏 50），扫码按钮得跟着搬进去，
+     否则会被地图整片盖住。设备页 / 设置页挂 body。 */
+  const host = map && curTab === 'map' ? map : document.body;
   if (el.parentNode !== host) host.appendChild(el);
 }
 
@@ -12920,7 +13250,7 @@ function fabBoot() {
   fabPaint();
   const map = $('map-dialog');
   if (map && window.MutationObserver) {
-    new MutationObserver(fabHost).observe(map, { attributes: true, attributeFilter: ['open'] });
+    new MutationObserver(fabHost).observe(map, { attributes: true, attributeFilter: ['data-active'] });
   }
   window.addEventListener('resize', fabPaint);
   window.addEventListener('orientationchange', () => setTimeout(fabPaint, 240));
@@ -14838,8 +15168,7 @@ SET_ENTRIES.forEach((e) => {
   btn.addEventListener('click', () => {
     /* 本标签页内已经输过管理员密码 → 直接进后台，别再让人输第二遍 */
     if (e.btn === 'set-admin-btn' && sessionStorage.getItem('cpk.unlocked') === '1') {
-      $('sync-dialog').close();
-      openSettingsDialog();
+      openSettingsDialog();   // v3.39：设置已是页面，不用再 close
       return;
     }
     const dlg = $(e.dlg);
@@ -15217,6 +15546,19 @@ function loadQrLib(then) {
   document.head.appendChild(s);
 }
 
+/* v3.38：设置打开时预取扫码库。扫码入口藏在设置里，用户从「打开设置」到
+ * 「点扫码采设备号」通常有一两秒操作时间，足够把库悄悄拉进 HTTP/SW 缓存，
+ * 真点开时 <script src> 直接命中，省掉首次 1~3 秒的 CDN 下载。
+ * 🔴 用 no-cors fetch 而不是 loadQrLib：后者会推进 scanLibIdx，预取一旦失败
+ *    会让之后真正扫码「无源可试」而永远失败。这里只预热，失败静默，不碰扫码状态。 */
+function warmQrLib() {
+  try {
+    if (window.Html5Qrcode || window.__qrWarm) return;
+    window.__qrWarm = true;
+    fetch(SCAN_LIBS[0], { mode: 'no-cors', credentials: 'omit' }).catch(() => {});
+  } catch (e) {}
+}
+
 /* 站内编号集合：每次打开弹窗重建 —— 管理员刚同步的新桩不该被标成「未接入」。 */
 function scanKnownSet() {
   if (scanKnown) return scanKnown;
@@ -15390,15 +15732,22 @@ function scanStart() {
       scanScanner = new Html5Qrcode('scan-reader', {
         verbose: false,
         formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+        /* v3.38：优先用浏览器原生 BarcodeDetector（官方实测：低端安卓每帧 ZXing ~373ms
+         *  vs 原生 ~77ms，「扫好几秒才认出来」的主因就在这一步）。不支持时库自动回落 ZXing。 */
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
       });
     } catch (e) {
       $('scan-note').textContent = '初始化失败：' + e.message;
       return;
     }
     scanScanner.start(
-      { facingMode: 'environment' },
-      { fps: 10, qrbox: (w, h) => {
-          const s = Math.max(160, Math.floor(Math.min(w, h) * 0.72));
+      /* 限分辨率：默认可能请求 1080p 甚至更高，每帧解码像素越多越慢；
+         720p 扫二维码足够，低端机解码成本能降一半以上。 */
+      { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+      /* disableFlip：默认每帧还会再解一次「镜像翻转」，后置摄像头根本不需要 ——
+         关掉直接省一半解码。qrbox 0.6：库只解框内区域，框越小越快，0.6 已够好对准。 */
+      { fps: 10, disableFlip: true, qrbox: (w, h) => {
+          const s = Math.max(180, Math.floor(Math.min(w, h) * 0.6));
           return { width: s, height: s };
         } },
       scanOnSuccess,
@@ -15473,10 +15822,37 @@ function openSyncDialog() {
   $('password-note').className = 'note';
   $('password-note').textContent = '';
   $('password-input').value = '';
-  $('sync-dialog').showModal();
+  setTab('settings');   // v3.39：设置是页面不是弹窗
 }
 
-$('open-settings').addEventListener('click', openSyncDialog);
+/* ── v3.39：底栏三 tab 接线 ─────────────────────────────────────────
+   地图与设置都复用原来的入口函数（openMap / openSyncDialog）——
+   它们内部已经把「切到对应页面」做掉了，这里只负责转调，避免两套逻辑走偏。 */
+(function initTabs() {
+  const bar = $('tabbar');
+  if (!bar) return;
+  bar.addEventListener('click', (e) => {
+    const btn = e.target.closest('.tabbar-item');
+    if (!btn) return;
+    const t = btn.getAttribute('data-tab');
+    if (t === 'map') openMap();
+    else if (t === 'settings') openSyncDialog();
+    else setTab('devices');
+  });
+  /* 根状态先写进 history：之后每次切 tab 才有「上一层」可退。
+     安卓壳的返回键逻辑是「先关弹窗 → 再 canGoBack() → 否则双击退出」，
+     有了这条 + pushState，按返回就是「回到设备页」而不是直接退出 App（不用改 APK）。 */
+  document.documentElement.setAttribute('data-tab', 'devices');
+  /* 🔴 关掉浏览器的历史滚动恢复：popstate 回退时它会按「离开该条目时的位置」再滚一次，
+     正好把 setTab 刚恢复的位置覆盖成 0（实测：memo=800、页面高度正常，滚完变 0）。
+     滚动位置我们自己记（TAB_SCROLL），两边都管就会互相打架。 */
+  try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch (e) {}
+  try { history.replaceState({ tab: 'devices' }, ''); } catch (e) {}
+  window.addEventListener('popstate', (e) => {
+    const t = (e.state && e.state.tab) || 'devices';
+    setTab(t, { silent: true });
+  });
+})();
 
 // 「取消」= 关掉这个子弹窗，回到设置列表（不是关掉整个设置）
 $('sync-cancel').addEventListener('click', () => {
@@ -15518,8 +15894,7 @@ $('password-ok').addEventListener('click', async () => {
     $('password-note').className = 'note';
     $('password-note').textContent = '';
     $('dlg-admin').close();
-    $('sync-dialog').close();
-    openSettingsDialog();
+    openSettingsDialog();   // v3.39：设置已是页面，不用再 close
   } else {
     $('password-note').className = 'note bad';
     $('password-note').textContent = '密码错误，请重试。';
@@ -15653,8 +16028,8 @@ $('usage-day').addEventListener('click', (event) => {
 
 /* ---------------- 地图交互 ---------------- */
 
-$('map-open').addEventListener('click', openMap);
-$('map-close').addEventListener('click', () => $('map-dialog').close());
+/* v3.39：地图的入口在底部 tab（见 initTabs），头部那颗按钮与地图页的 X 都已下线 ——
+   底栏的「设备」就是返回，不需要再留一个关闭键。 */
 
 // 填写腾讯地图 key（存本机，填完立即切到真实地图）
 $('map-key-btn').addEventListener('click', () => {
@@ -15869,9 +16244,8 @@ $('map-nav').addEventListener('click', () => {
   else window.open(url, '_blank', 'noopener,noreferrer');
 });
 
-/* 地图关闭时停掉持续定位，别在后台一直耗电/弹权限。 */
-const mapDlg = $('map-dialog');
-if (mapDlg) mapDlg.addEventListener('close', stopLocateWatch);
+/* v3.39：地图离开视口时停掉持续定位，别在后台一直耗电/弹权限。
+   原来挂在 dialog 的 close 事件上；地图改成页面后没有 close 了，改由 setTab() 调。 */
 
 bindMapGestures();
 

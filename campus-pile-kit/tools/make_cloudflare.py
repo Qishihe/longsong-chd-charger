@@ -80,6 +80,11 @@ EXCLUDE_FILES = {
     "sponsor-qr.png",
 }
 EXCLUDE_DIRS = {"redesign"}
+# 2026-11-22 v3.39：改版前手搓的 `index.html.bak-v340-syncaddr-20261122-170658` 这类备份
+# 被打进了产物 —— 六份 6.5MB，全是旧版首页的完整副本，公网上等于把历史版本白送出去，
+# 而且文件名以 `index.html` 开头，很容易被误当成入口。按「名字里带 .bak」一律挡。
+# ⚠️ 这里按**子串**判，不是 endswith：真名形如 `index.html.bak-v340-…`，结尾是时间戳。
+EXCLUDE_SUFFIXES = (".bak",)
 
 HEADERS = """\
 # Cloudflare Pages 响应头规则（本文件本身不会被发布）
@@ -294,7 +299,8 @@ def main(argv=None):
         if not f.is_file():
             continue
         rel = f.relative_to(SITE)
-        if rel.name in EXCLUDE_FILES or set(rel.parts) & EXCLUDE_DIRS:
+        if rel.name in EXCLUDE_FILES or set(rel.parts) & EXCLUDE_DIRS \
+                or any(tok in rel.name for tok in EXCLUDE_SUFFIXES):
             skipped.append(rel.as_posix())
             continue
         dst = DIST / rel

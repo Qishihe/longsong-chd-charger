@@ -892,6 +892,14 @@
   .map-dialog > #app-head header{margin-bottom:10px}
   .map-dialog > #app-head .stats{margin-bottom:10px}
   .map-dialog > #app-head .toolbar{margin-bottom:0}
+  /* v3.39：地图页不显示「一周回顾 / 使用说明」这一行。
+     这两颗是看统计和教程的入口，跟地图没关系，却占着一整行（两颗各 46px + 10px 间距）；
+     地图页要的是看桩，省下的高度直接归地图。
+     🔴 用 CSS 藏、不删 DOM：头部是设备页与地图页**共用的一份**（切页整块搬），
+        删了设备页也就没了。这里是 .map-dialog 后代选择器，只在搬进地图页时生效。
+     🔴 藏的是整行 .head-actions，不是里面两颗按钮：那行的 gap 与 flex:1 都在这层，
+        只藏按钮会留下一块空白的 46px（比不藏还难看）。 */
+  .map-dialog > #app-head .head-actions{display:none}
   /* 同一块顶栏的第二行：当前校区的地址胶囊 */
   .map-tabs{
     display:flex; gap:6px; padding:8px 12px; flex:none;
@@ -2053,7 +2061,9 @@
        切回设备页再搬回来（见 setTab）。
        🔴 为什么搬而不是复制：统计数字与地址胶囊如果抄成两份，迟早一处更新一处不动 ——
           这类「两个真源」的坑在本文件里已经出现过好几次（#cred、排序下拉都是）。
-       🔴 它必须把 header / #stats / #toolbar 一起包进去，只包 header 的话地图页就少两行。 -->
+       🔴 它必须把 header / #stats / #toolbar 一起包进去，只包 header 的话地图页就少两行。
+       ⚠️ 搬进地图页时「一周回顾 / 使用说明」那一行由 CSS 收掉（.map-dialog > #app-head
+          .head-actions{display:none}）—— 那两颗跟地图无关，却占一整行。设备页照常显示。 -->
   <div id="app-head">
   <header data-page-node-id="xpI8NsKzi0nHYAH5D3RjXs">
     <div class="head-top" data-page-node-id="bNFvfAEYIuVvAVG5A0D3Rg">

@@ -434,7 +434,9 @@
    页面没坏，但 map-amap.js 内容变了，不换壳旧壳会继续用缓存的旧坐标。 */
 /* v273 → v274（2026-11-22 v3.40 续）：东门 8 台改成「左列 5 台（1/2/3/7/8）+ 右列 3 台（4/5/6）」——
    K_GEO 与 map-data 的 line 都变了，不换壳旧壳会继续用缓存的旧点位。 */
-const CACHE = 'campus-pile-v274';
+/* v274 → v275（2026-11-22 v3.41）：南院「3号楼南」+「3号楼东」合并成「3号楼东南」（12 台、编号改 S/E）。
+   设备清单、地图落点、页签、地图取景框全变了，不换壳旧页面会继续用两个地址 + N/M 编号。 */
+const CACHE = 'campus-pile-v275';
 /* v256 → v257（2026-11-22 v3.36）：缓存高德 SDK 主脚本，回访秒出。
  * 实测：webapi.amap.com/maps?v=2.0 这个 284KB 的脚本**没有任何 HTTP 缓存头**
  * （无 Cache-Control / ETag / Expires），所以每次刷新/新开标签都 fromDisk=N 重下，
@@ -473,7 +475,7 @@ const SHELL = [
      `mapAreaOf()` 与 `arcArea` 落到**同一个兜底值**，判据恒真，
      朝晖弧于是多画 20号楼(E-*) 与物流(W-*) 的桩（74 个点、24 个重合槽）✗
      （修好后应为 38 个节点 = 36 点 + 2 弧线） */
-  './map-data.js?v=185',
+  './map-data.js?v=186',
 ];
 
 self.addEventListener('install', (event) => {

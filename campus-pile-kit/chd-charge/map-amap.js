@@ -499,9 +499,13 @@
    *   300~500 m，桩点落到隔壁街区。要改先在上面那两条定标公式里改，再整体重转。
    *
    * ⚠️ 示意点位（catalog.json 里 precision=schematic），不是现场实测车位；
-   *   现场摆位若与图不符，**只改这四组坐标**，LINE_AREAS 那四行和桩号不用动。
-   * ⚠️ 这四串必须与 index.html 里 N-01~06 / M-01~06 / L-01~09 / K-01~08 的数量一致。 */
-  var N_GEO = [   // 南院-3号楼南：二区 3 号楼南墙外侧、3 号楼与 4 号楼之间，2 行 × 3 列（编号自南向北、自西向东）
+   *   现场摆位若与图不符，**只改这四组坐标**，LINE_AREAS 那几行和桩号不用动。
+   * ⚠️ 这四串必须与 index.html 里 S-01~06 / E-01~06 / L-01~09 / K-01~08 的数量一致。
+   *
+   * 🔴 变量名为什么叫 `S3_GEO` / `E3_GEO` 而不是 `S_GEO` / `E_GEO`：
+   *   `E_GEO` 已经被**渭水 20 号楼**（E-01~E-24）占了。2026-11-22 v3.41 南院合并后
+   *   东侧也想用 'E' 前缀，两个分区前缀相同、坐标表必须不同 → 加个 3 区分（3 号楼）。 */
+  var S3_GEO = [  // 南院-3号楼东南 · 南侧：二区 3 号楼南墙外侧，2 行 × 3 列（编号自南向北、自西向东）
     [108.951305, 34.229366],
     [108.951343, 34.229366],
     [108.951381, 34.229366],
@@ -509,10 +513,10 @@
     [108.951343, 34.229398],
     [108.951381, 34.229398],
   ];
-  /* 【南院-3号楼东 · 6 台】v3.40 排位 —— 基准是**旧版 3 行 × 2 列网格**，只把 5、6 挪到 2、4 右侧。
+  /* 【南院-3号楼东南 · 东侧 6 台】v3.40 排位 —— 基准是**旧版 3 行 × 2 列网格**，只把 5、6 挪到 2、4 右侧。
    *
    * 🔴 「原布局」口径（产品方 2026-11-22 第二次明确）：指改版前线上那版 **3 行 × 2 列**
-   *    （M01/M02 最下、M03/M04 居中、M05/M06 最上，行优先编号），**不是**手绘图里围着黄框的梯子形。
+   *    （原 M-01/M-02 最下、M-03/M-04 居中、M-05/M-06 最上，行优先编号），**不是**手绘图里围着黄框的梯子形。
    *    所以 1~4 号的坐标一个都没动，仍是原网格的左列/右列。
    *
    * 现在（产品方要求「5、6 在另外四个右边，中间隔一点距离」）：
@@ -522,17 +526,18 @@
    *    所以看上去是「左边 4 台一组 + 右边 2 台」两块。
    *    最北那排（原 5/6）空出来，所以整体由 3×2 变成 2×3。
    *
-   * ✅ 1~4 号列距 3.50 m、行距 3.54 m（沿用原网格，zoom 20.5 下＝40 px，徽章 23.3×15 px 零遮挡）；
+   * ✅ 1~4 号列距 3.50 m、行距 3.54 m（zoom 20.5 下＝40 px，徽章 23.3×15 px 零遮挡）；
    *    5、6 到左边一组的空档 7.0 m ≈ 57 px，徽章余量 ~33 px，一眼能看出是分开的两组。
-   * ✅ 1~6 的顺序与 `M-01~M-06` 一一对应：1/2 最下、3/4 居中，5 接在 2 右边、6 接在 4 右边。
+   * ✅ 2026-11-22 v3.41 与南侧 6 台合并成一个分区「南院-3号楼东南」，
+   *    这 6 台编号由 M-01~M-06 改成 **E-01~E-06**（序号一一对应，1/2 最下、3/4 居中，5 接 2 右、6 接 4 右）。
    * ⚠️ 桩点仍只是示意位置（precision=schematic）；现场若与图不符只改这 6 个坐标。 */
-  var M_GEO = [
-    [108.951734, 34.229398],   // M-01  左列 · 最下
-    [108.951772, 34.229398],   // M-02  右列 · 最下  ← 5 号这一排的基准
-    [108.951734, 34.229430],   // M-03  左列 · 中
-    [108.951772, 34.229430],   // M-04  右列 · 中    ← 6 号这一排的基准
-    [108.951848, 34.229398],   // M-05  与 2 同排，右侧隔 7 m（空一格）
-    [108.951848, 34.229430],   // M-06  与 4 同排，右侧隔 7 m（空一格）
+  var E3_GEO = [
+    [108.951734, 34.229398],   // E-01  左列 · 最下
+    [108.951772, 34.229398],   // E-02  右列 · 最下  ← 5 号这一排的基准
+    [108.951734, 34.229430],   // E-03  左列 · 中
+    [108.951772, 34.229430],   // E-04  右列 · 中    ← 6 号这一排的基准
+    [108.951848, 34.229398],   // E-05  与 2 同排，右侧隔 7 m（空一格）
+    [108.951848, 34.229430],   // E-06  与 4 同排，右侧隔 7 m（空一格）
   ];
   var L_GEO = [   // 南院-7号楼东：二区 7 号楼东侧、7 号楼与 9 号楼之间，3 行 × 3 列
     [108.953112, 34.229426],
@@ -708,20 +713,46 @@
        ⚠️ 也别用 'D'：shortCode() 第一步走 `bmKey()`（认 A~D 的北门车位码），
           `D-01` 会被当成北门 D01 提前返回。落点不受影响（layoutPiles 先查 lineAreaOf），
           但显示口径会混，所以东门这组特意挑了 'K'。 */
-    { loc: '南院-3号楼南', prefix: 'N', geo: N_GEO },
-    /* v3.32 改名的**别名行**：缓存里的旧 index.html 传上来的 loc 仍是「南院-3号楼西」。
-       没这行 `lineAreaOf()` 返回 null → 掉进 arcSeq（"末尾数字 1~36 就算朝晖"）→
-       6 台被摆到渭水体育场弧上。旧名只用于查落点，不再出现在任何显示口径里。 */
-    { loc: '南院-3号楼西', prefix: 'N', geo: N_GEO },
-    { loc: '南院-3号楼东', prefix: 'M', geo: M_GEO },
+    /* 2026-11-22 v3.41：本部南院「3号楼南」+「3号楼东」合并为「南院-3号楼东南」12 台。
+       🔴 同一个 loc 在两行里出现 —— 这是 LINE_AREAS 唯一的「一区多前缀」写法：
+          南侧 S-01~S-06 → S3_GEO，东侧 E-01~E-06 → E3_GEO。
+          `lineAreaOf(loc, code)` 会按 code 去试这两行，命中哪行用哪行的坐标表；
+          只按 loc 取第一行的话，东侧 6 台会被摆到南侧那 6 个点上（叠成一坨）。
+       ⚠️ prefix 'E' 与渭水 20 号楼（E-01~E-24）撞前缀 —— 两边 loc 不同，
+          `lineAreaOf` 先按 loc 过滤，不会串；`shortCode()` 遍历全表时
+          'E-01' 会先命中 20 号楼那行，但两边算出来的显示码都是 'E01'，一致。 */
+    { loc: '南院-3号楼东南', prefix: 'S', altPrefixes: ['N'], geo: S3_GEO },
+    { loc: '南院-3号楼东南', prefix: 'E', altPrefixes: ['M'], geo: E3_GEO },
+    /* 旧分区名的别名行：3号楼南 / 3号楼西 / 3号楼东 都是历史上用过的名字。
+       浏览器里缓存的旧页面传上来的 loc 仍是这些名字，没这几行 `lineAreaOf()` 返回 null
+       → 掉进 arcSeq（"末尾数字 1~36 就算朝晖"）→ 12 台被摆到渭水体育场弧上。
+       旧名只用于查落点，不再出现在任何显示口径里。 */
+    { loc: '南院-3号楼南', prefix: 'S', altPrefixes: ['N'], geo: S3_GEO },
+    { loc: '南院-3号楼西', prefix: 'S', altPrefixes: ['N'], geo: S3_GEO },
+    { loc: '南院-3号楼东', prefix: 'E', altPrefixes: ['M'], geo: E3_GEO },
     { loc: '南院-7号楼',   prefix: 'L', geo: L_GEO },   // 显示名「7号楼东」
     { loc: '南院-东门',    prefix: 'K', geo: K_GEO },
   ];
-  function lineAreaOf(loc) {
+  /** 按分区找落点表。**一个 loc 可能登记了多行**（合并分区，如 3号楼东南的 S / E 两套编号）。
+   *
+   * @param loc  分区名
+   * @param code 可选。给了就按桩号去试这个 loc 下的每一行，命中哪行用哪行的表；
+   *             没给（或都试不中）就返回第一行，与历史行为一致。
+   *
+   * 🔴 为什么必须按 code 选行：合并后的「3号楼东南」两行分别是南侧 6 个点和东侧 6 个点，
+   *   S-01 与 E-01 的序号都是 1。只按 loc 取第一行 → 东侧 6 台全被摆到南侧那 6 个点上。 */
+  function lineAreaOf(loc, code) {
+    var first = null;
     for (var i = 0; i < LINE_AREAS.length; i++) {
-      if (LINE_AREAS[i].loc === loc) return LINE_AREAS[i];
+      var la = LINE_AREAS[i];
+      if (la.loc !== loc) continue;
+      if (!first) first = la;
+      if (code != null) {
+        var n = lineSeqAny(code, la);
+        if (n >= 1 && n <= la.geo.length) return la;
+      }
     }
-    return null;
+    return first;
   }
   /** 桩号 → 线段型分区的序号：'E-01' → 1、'W‑03' → 3、'E01' → 1；认不出返回 0。
    *
@@ -820,25 +851,33 @@
      *   整批会被摆到体育场那两条弧上（2026-10-21 连着踩了两次）。 */
     var lineArea = lineAreaOf(areaKey);
     if (lineArea) {
+      /* 合并分区（一个 loc 登记了多行，如「3号楼东南」的 S / E 两套编号）：
+         每台先按自己的桩号选行，再在自己的表里取序号。 */
+      var lineRows = LINE_AREAS.filter(function (la) { return la.loc === areaKey; });
       list.forEach(function (p) {
-        var seq = lineSeqAny(p.code, lineArea);
-        // 带 `!used[seq]` 去重：同一编号出现两次时，后一台走下面的补位分支，不会两点重叠
-        if (seq >= 1 && seq <= lineArea.geo.length && !used[seq]) {
-          used[seq] = 1;
-          out.push({ p: p, pos: lineArea.geo[seq - 1].slice() });
+        var la = lineAreaOf(areaKey, p.code) || lineArea;
+        var seq = lineSeqAny(p.code, la);
+        // 去重键带上行前缀：S-01 与 E-01 的序号都是 1，只按序号去重会把后者挤掉
+        var slot = la.prefix + ':' + seq;
+        // 带 `!used[slot]` 去重：同一编号出现两次时，后一台走下面的补位分支，不会两点重叠
+        if (seq >= 1 && seq <= la.geo.length && !used[slot]) {
+          used[slot] = 1;
+          out.push({ p: p, pos: la.geo[seq - 1].slice(), la: la });
         } else {
-          out.push({ p: p, pos: null });
+          out.push({ p: p, pos: null, la: la });
         }
       });
-      // 编号认不出的（或重复的）按顺序补进空着的点，别让它们掉出地图
-      var emptyLine = [];
-      for (i = 1; i <= lineArea.geo.length; i++) if (!used[i]) emptyLine.push(i);
-      out.forEach(function (o) {
-        if (!o.pos && emptyLine.length) {
-          var idx = emptyLine.shift();
-          used[idx] = 1;
-          o.pos = lineArea.geo[idx - 1].slice();
-        }
+      // 编号认不出的（或重复的）按行补进各自空着的点，别让它们掉出地图
+      lineRows.forEach(function (la) {
+        var emptyLine = [];
+        for (var j = 1; j <= la.geo.length; j++) if (!used[la.prefix + ':' + j]) emptyLine.push(j);
+        out.forEach(function (o) {
+          if (!o.pos && o.la === la && emptyLine.length) {
+            var idx = emptyLine.shift();
+            used[la.prefix + ':' + idx] = 1;
+            o.pos = la.geo[idx - 1].slice();
+          }
+        });
       });
     } else if (areaKey === '渭水-北门') {
       list.forEach(function (p) {

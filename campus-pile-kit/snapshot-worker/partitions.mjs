@@ -10,7 +10,7 @@
  *    扫它们时 /api/pile 要带 `src: 'lvcc'`（不需要凭证）。
  */
 export const PARTITIONS = {
-  "schema": 1,
+  "schema": 2,
   "source": "chd-charge/index.html#DEFAULT_DEVICES",
   "generator": "tools/gen_snapshot_partitions.py",
   "total": 229,
@@ -298,24 +298,16 @@ export const PARTITIONS = {
       "count": 3
     },
     {
-      "key": "n3w",
-      "name": "3号楼南",
-      "location": "南院-3号楼南",
+      "key": "n3se",
+      "name": "3号楼东南",
+      "location": "南院-3号楼东南",
       "ids": [
         "PILE0201",
         "PILE0202",
         "PILE0203",
         "PILE0204",
         "PILE0205",
-        "PILE0206"
-      ],
-      "count": 6
-    },
-    {
-      "key": "n3e",
-      "name": "3号楼东",
-      "location": "南院-3号楼东",
-      "ids": [
+        "PILE0206",
         "PILE0207",
         "PILE0208",
         "PILE0209",
@@ -323,7 +315,7 @@ export const PARTITIONS = {
         "PILE0211",
         "PILE0212"
       ],
-      "count": 6
+      "count": 12
     },
     {
       "key": "n7",

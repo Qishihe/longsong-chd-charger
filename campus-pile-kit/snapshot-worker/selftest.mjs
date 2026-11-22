@@ -56,7 +56,7 @@ function eq(name, actual, expected) {
 /* ── 1. 分区表 ─────────────────────────────────────────────────── */
 console.log('\n1. 分区表');
 ok('总量 229 台', PARTITIONS.total === 229, PARTITIONS.total);
-ok('14 个分区', AREAS.length === 14, AREAS.length);
+ok('13 个分区（v3.41 南院两区合并）', AREAS.length === 13, AREAS.length);
 ok(
   '每个区都能被 SCAN_CHUNK 拆成 ≤ 5 批',
   AREAS.every((a) => a.count >= 1 && Math.ceil(a.count / TUNING.SCAN_CHUNK) <= 5),
@@ -172,7 +172,7 @@ console.log('\n2b. 配置一致性');
   );
   eq('第 5 槽仍是 w5/park（统计占的就是这一槽）', AREA_CRON_GROUPS[4], ['w5', 'park']);
   /* v3.33：南院两组接在末位。槽位按下标取，插到中间会把老组的分钟全错位。 */
-  eq('第 6、7 槽是本部南院（v3.33 扩槽）', AREA_CRON_GROUPS.slice(5), [['n3w', 'n3e'], ['n7', 'ndoor']]);
+  eq('第 6、7 槽是本部南院（v3.33 扩槽 / v3.41 合并）', AREA_CRON_GROUPS.slice(5), [['n3se'], ['n7', 'ndoor']]);
 
   /* 在飞判定窗口必须盖得住最坏的一轮扫描，否则自己就会叠。 */
   ok(
@@ -977,9 +977,9 @@ console.log('\n11. Worker 入口');
     await mod.default.scheduled(
       { cron: '* * * * *', scheduledTime: mc5 }, env, ctx);
     eq('主时钟 :05 → 第 6 槽刷南院 12 台', scanner.count, 12);
-    ok('主时钟 :05 写出 n3w / n3e 两份快照',
-      (await readJson(bucket, KEYS.snap('n3w'))) !== null
-        && (await readJson(bucket, KEYS.snap('n3e'))) !== null);
+    /* v3.41：3号楼南 + 3号楼东 合并成一个分区 n3se，第 6 槽只剩一份快照。 */
+    ok('主时钟 :05 写出 n3se 一份快照',
+      (await readJson(bucket, KEYS.snap('n3se'))) !== null);
     scanner.reset();
     const mc6 = (T0 + 6 * 60) * 1000;              // UTC 00:06 → 槽 6
     Date.now = () => mc6;
@@ -1017,7 +1017,7 @@ console.log('\n11. Worker 入口');
 
     const r3 = await mod.default.fetch(new Request('https://x/api/snap?area=all', { headers }), env);
     const b3 = await r3.json();
-    eq('/api/snap?area=all 汇总（14 个区）', b3.summary.areas, 14);
+    eq('/api/snap?area=all 汇总（13 个区）', b3.summary.areas, 13);
     eq('总览不传 refresh 时没有提示', b3.refresh_ignored, null);
     ok('总览会指认最旧的那个区', typeof b3.oldest_key === 'string', b3.oldest_key);
 

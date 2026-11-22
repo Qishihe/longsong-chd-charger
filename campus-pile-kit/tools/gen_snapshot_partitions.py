@@ -64,8 +64,10 @@ AREA_ORDER = [
     #    不受影响；受影响的只有 `/api/snap`（第三方接入）与一周回顾。
     #    ⚠️ 键 n3w/n3e/n7/ndoor 与前端 RV_AREAS、MAP_ORDER 的 id 要逐字一致，
     #       将来接快照时不用再改一遍。
-    ('南院-3号楼南', 'n3w', '3号楼南'),
-    ('南院-3号楼东', 'n3e', '3号楼东'),
+    # 2026-11-22 v3.41：原「3号楼南」(n3w) + 「3号楼东」(n3e) 合并成一个分区
+    #   「3号楼东南」(n3se)，12 台、两套编号（南 S-01~06、东 E-01~06）。
+    #   ⚠️ 键 n3se 与前端 RV_AREAS、MAP_ORDER 的 id 逐字一致，改名要三处同改。
+    ('南院-3号楼东南', 'n3se', '3号楼东南'),
     ('南院-7号楼', 'n7', '7号楼东'),
     ('南院-东门', 'ndoor', '东门'),
     # 2026-11-21 v3.34 渭水「公路学院南」24 台（G-01~G-24，一排 24 台）。
@@ -174,7 +176,9 @@ def build():
         areas.append(one)
 
     return {
-        'schema': 1,
+        # 2026-11-22 v3.41：1 → 2 —— 分区键集合变了（n3w + n3e 合并成 n3se）。
+        # 第三方按 `areas[].key` 取数，键没了就该知道契约变过，不能静默当成"这台机器没数据"。
+        'schema': 2,
         'source': 'chd-charge/index.html#DEFAULT_DEVICES',
         'generator': 'tools/gen_snapshot_partitions.py',
         'total': sum(a['count'] for a in areas),

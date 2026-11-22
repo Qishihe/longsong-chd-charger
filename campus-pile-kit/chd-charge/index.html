@@ -2201,7 +2201,7 @@
       <div class="foot-line">QQ 群 <a href="mqqapi://card/show_pslcard?src_type=internal&amp;version=1&amp;uin=1128669064&amp;card_type=group&amp;source=sharecard" class="foot-link" id="qq-group-link" data-qq-open data-page-node-id="qq-group">1128669064</a></div>
     </div>
     <p class="foot-note" data-page-node-id="foot-disclaimer">只读查询，不涉及账号与支付。数据来自充电平台，以现场为准。</p>
-    <div id="app-ver" class="foot-ver">版本 v3.40</div>
+    <div id="app-ver" class="foot-ver">版本 v3.41</div>
   </footer>
 </div>
 
@@ -2264,12 +2264,12 @@
     <button class="map-tab" data-map="park" role="tab">停车场</button>
     <!-- 小寨仍是 0 台，只有「校区全图」一颗（v2.78 起）。 -->
     <button class="map-tab" data-map="xiaozhai" role="tab">校区全图</button>
-    <!-- v3.30 本部南院：校区全图 + 4 个场地，共 5 颗（与 MAP_ORDER 里那 5 个对象一一对应）。
+    <!-- v3.30 本部南院：校区全图 + 3 个场地，共 4 颗（与 MAP_ORDER 里那 4 个对象一一对应）。
+         2026-11-22 v3.41：「3号楼南」「3号楼东」合并成一颗「3号楼东南」（12 台、S/E 两套编号）。
          ⚠️ 这排是手写 DOM，`MAP_ORDER` 里有对象却没有按钮 → 那个视图永远打不开；
             反过来有按钮没对象 → `switchMap()` 找不到图，点下去没反应。两处必须同改。 -->
     <button class="map-tab" data-map="campus-nanyuan" role="tab">校区全图</button>
-    <button class="map-tab" data-map="n3w" role="tab">3号楼南</button>
-    <button class="map-tab" data-map="n3e" role="tab">3号楼东</button>
+    <button class="map-tab" data-map="n3se" role="tab">3号楼东南</button>
     <button class="map-tab" data-map="n7" role="tab">7号楼东</button>
     <button class="map-tab" data-map="ndoor" role="tab">东门</button>
   </div>
@@ -3716,7 +3716,7 @@
      跨境往返就要 1 秒左右 —— 不带 defer 会**阻塞 HTML 解析**，首屏白屏多等一秒。
      安全前提（已核对）：页面只在函数里读 `window.CHD_MAP`（mapAreaOf / buildScope /
      ensureAMap），没有任何顶层同步读；defer 在 DOMContentLoaded 之前执行完，赶得上 boot()。 -->
-<script src="map-data.js?v=185" defer fetchpriority="low"></script>
+<script src="map-data.js?v=186" defer fetchpriority="low"></script>
 <script>
 'use strict';
 
@@ -4011,7 +4011,7 @@ let CRED_MISSING = false;   // 已确认「这一轮拿不到凭证」（见 pai
 const KEY_DEVICES = 'cpk.devices';
 const KEY_DEVICES_SCHEMA = 'cpk.devices.schema';
 const KEY_DEVICES_TS = 'cpk.devices.ts';
-const DEVICE_SCHEMA = 13;  // 清单格式版本：2 = 支持「桩号 名称 @地址」+ 任意编号前缀
+const DEVICE_SCHEMA = 14;  // 清单格式版本：2 = 支持「桩号 名称 @地址」+ 任意编号前缀
 /* schema 3（2026-10-21）= 「**新增分区要能自动补进老浏览器**」。
  * schema 4（2026-10-21）= 再加一个分区（当时的名字是「物流服务中心」）。
  * schema 5（2026-10-24）= 该分区**改名**「物流服务中心」→「物业服务中心」。
@@ -4081,6 +4081,13 @@ const SCHEMA_ADDED_LOCATIONS = {
      ⚠️ 老浏览器不升到 13 就永远只有 229 台：迁移分支只补「本版新增分区」的桩。
      ⚠️ 这批桩在平台上还查不到，先上图显示位置；能查之后直接补 /api/pile，前端不用改。 */
   13: ['渭水-公路学院南'],
+  /* 14（2026-11-22 v3.41）= 原「南院-3号楼南」6 台与「南院-3号楼东」6 台**合并**成一个分区
+     「南院-3号楼东南」12 台，编号按方位分两套：南侧 S-01~S-06、东侧 E-01~E-06。
+     合并本身不是「新增台数」，登记在这里是为了把用户删过的桩补回来；
+     真正把旧分区名、旧桩号换掉的是 `LOCATION_RENAMES` 与 `SCHEMA_CODE_RENAMES[14]`。
+     ⚠️ 不升到 14 的浏览器会继续显示「3号楼南」「3号楼东」两个地址、N/M 编号，
+        且地图上按新 loc 查不到 → 这 12 台不上图（卡片还在）。 */
+  14: ['南院-3号楼东南'],
 };
 
 /* 桩号**改名**表：{ schema 版本: { 设备 id(大写): 新桩号 } }。
@@ -4109,6 +4116,25 @@ const SCHEMA_CODE_RENAMES = {
     'PILE0116': 'Z-07',   // 7 号机
     'PILE0117': 'Z-08',   // 8 号机
   },
+  /* 14（2026-11-22 v3.41）：本部南院「3号楼南」+「3号楼东」合成一个分区，
+     桩号由 N-01~N-06 / M-01~M-06 改成 S-01~S-06（南）/ E-01~E-06（东），
+     序号一一对应（N-03 → S-03、M-05 → E-05），设备 id 不动。
+     ⚠️ 南侧用 'S'、东侧用 'E' 是产品方定的；'E' 与渭水 20 号楼（E-01~E-24）同前缀，
+        但两边 loc 不同，`map-amap.js` 的 LINE_AREAS 按 loc 查表、按 code 选行，不会串。 */
+  14: {
+    'PILE0201': 'S-01',
+    'PILE0202': 'S-02',
+    'PILE0203': 'S-03',
+    'PILE0204': 'S-04',
+    'PILE0205': 'S-05',
+    'PILE0206': 'S-06',
+    'PILE0207': 'E-01',
+    'PILE0208': 'E-02',
+    'PILE0209': 'E-03',
+    'PILE0210': 'E-04',
+    'PILE0211': 'E-05',
+    'PILE0212': 'E-06',
+  },
 };
 
 /* 分区**改名**表：[旧名片段, 新名片段]。由 `normKey()` 统一套用。
@@ -4124,7 +4150,13 @@ const LOCATION_RENAMES = [['物流服务中心', '物业服务中心'],
   /* 2026-11-21 v3.32：南院第一处按实测位置改名「3号楼西」→「3号楼南」（'一区' 也一并去掉）。
      本机 `cpk.devices` / 云端清单里存的仍是旧名，靠这条在键比对处兼容；
      `map-amap.js` 那边不跑 normKey，另在 LINE_AREAS 里留了一行旧名别名。 */
-  ['南院-3号楼西', '南院-3号楼南']];
+  ['南院-3号楼西', '南院-3号楼南'],
+  /* 2026-11-22 v3.41：南院「3号楼南」+「3号楼东」合并成「3号楼东南」。
+     🔴 这两条必须走**整键相等**（第三项 `true`），不能是片段替换 ——
+        「南院-3号楼东南」里**包含**「南院-3号楼南」，片段替换会把已经改好的新名字
+        再替换一次，变成「南院-3号楼东南东」，而且每次打开页面都会再长一截。 */
+  ['南院-3号楼南', '南院-3号楼东南', true],
+  ['南院-3号楼东', '南院-3号楼东南', true]];
 
 // 腾讯位置服务 key（WebServiceAPI）。填入后地图弹窗自动使用真实地图；
 // 留空时页面会提示填写，也可用 ?tmapkey=xxx 临时注入（会存入本机）。
@@ -4485,20 +4517,21 @@ const DEFAULT_DEVICES = [
         混用会掉进 `arcSeq()`（"末尾数字 1~36 就算朝晖"）被摆到体育场弧上。
      ⚠️ 别用 'D'：`shortCode()` 第一步的 `bmKey()` 认 A~D 的北门车位码，
         `D-01` 会被当成北门 D01 提前返回（落点不受影响，但显示口径会混）。 */
-  /* 南院-3号楼南：6 台（二区 3 号楼南墙外侧、3 号楼与 4 号楼之间，2 行 × 3 列）。 */
-  { id: 'PILE0201', code: 'N-01', name: '南院 N-01 号桩', location: '南院-3号楼南' },
-  { id: 'PILE0202', code: 'N-02', name: '南院 N-02 号桩', location: '南院-3号楼南' },
-  { id: 'PILE0203', code: 'N-03', name: '南院 N-03 号桩', location: '南院-3号楼南' },
-  { id: 'PILE0204', code: 'N-04', name: '南院 N-04 号桩', location: '南院-3号楼南' },
-  { id: 'PILE0205', code: 'N-05', name: '南院 N-05 号桩', location: '南院-3号楼南' },
-  { id: 'PILE0206', code: 'N-06', name: '南院 N-06 号桩', location: '南院-3号楼南' },
-  /* 南院-3号楼东：6 台（二区 3 号楼与 5 号楼之间，3 行 × 2 列）。 */
-  { id: 'PILE0207', code: 'M-01', name: '南院 M-01 号桩', location: '南院-3号楼东' },
-  { id: 'PILE0208', code: 'M-02', name: '南院 M-02 号桩', location: '南院-3号楼东' },
-  { id: 'PILE0209', code: 'M-03', name: '南院 M-03 号桩', location: '南院-3号楼东' },
-  { id: 'PILE0210', code: 'M-04', name: '南院 M-04 号桩', location: '南院-3号楼东' },
-  { id: 'PILE0211', code: 'M-05', name: '南院 M-05 号桩', location: '南院-3号楼东' },
-  { id: 'PILE0212', code: 'M-06', name: '南院 M-06 号桩', location: '南院-3号楼东' },
+  /* 南院-3号楼东南：12 台（2026-11-22 v3.41 把原「3号楼南」6 台与「3号楼东」6 台合成一个分区）。
+     编号按方位分两套：南侧 S-01~S-06、东侧 E-01~E-06（产品方口径，序号沿用各自原来的 1~6）。
+     ⚠️ 设备 id 一个都没动（PILE0201~0212）：id 是平台真实设备号的绑定键，换 id = 换设备。 */
+  { id: 'PILE0201', code: 'S-01', name: '南院 S-01 号桩', location: '南院-3号楼东南' },
+  { id: 'PILE0202', code: 'S-02', name: '南院 S-02 号桩', location: '南院-3号楼东南' },
+  { id: 'PILE0203', code: 'S-03', name: '南院 S-03 号桩', location: '南院-3号楼东南' },
+  { id: 'PILE0204', code: 'S-04', name: '南院 S-04 号桩', location: '南院-3号楼东南' },
+  { id: 'PILE0205', code: 'S-05', name: '南院 S-05 号桩', location: '南院-3号楼东南' },
+  { id: 'PILE0206', code: 'S-06', name: '南院 S-06 号桩', location: '南院-3号楼东南' },
+  { id: 'PILE0207', code: 'E-01', name: '南院 E-01 号桩', location: '南院-3号楼东南' },
+  { id: 'PILE0208', code: 'E-02', name: '南院 E-02 号桩', location: '南院-3号楼东南' },
+  { id: 'PILE0209', code: 'E-03', name: '南院 E-03 号桩', location: '南院-3号楼东南' },
+  { id: 'PILE0210', code: 'E-04', name: '南院 E-04 号桩', location: '南院-3号楼东南' },
+  { id: 'PILE0211', code: 'E-05', name: '南院 E-05 号桩', location: '南院-3号楼东南' },
+  { id: 'PILE0212', code: 'E-06', name: '南院 E-06 号桩', location: '南院-3号楼东南' },
   /* 南院-7号楼东：9 台（二区 7 号楼与 9 号楼之间，3 行 × 3 列）。 */
   { id: 'PILE0213', code: 'L-01', name: '南院 L-01 号桩', location: '南院-7号楼' },
   { id: 'PILE0214', code: 'L-02', name: '南院 L-02 号桩', location: '南院-7号楼' },
@@ -6745,22 +6778,17 @@ const XIAOZHAI_AMAP = {
  *    `MAP_ORDER.find(m => m.campus === home)` 返回 undefined → 回落 AMAP_MAP，
  *    表现就是「选中华南院、点开地图却是渭水朝晖」—— 而且不报错。
  * 取景：全图不带 `area`，`fitCampus()` 会按本校区全部桩点外接框飞（约 715×145 米，
- *   一片家属区刚好铺满）；四个场地各带 `area`，走 areas[].zoom（20.0~20.2）。
+ *   一片家属区刚好铺满）；三个场地各带 `area`，走 areas[].zoom（19.0~20.2）。
+ *   ⚠️ 2026-11-22 v3.41：「3号楼南」与「3号楼东」合并成一颗「3号楼东南」（12 台、两套编号）。
  * ⚠️ 页签按钮是**手写 HTML**（#map-tabs），加对象的同时要加按钮，见那里的注释。 */
 const NANYUAN_OVERVIEW = {
   id: 'campus-nanyuan', label: '本部南院 · 全图', name: '本部南院',
   layout: 'amap', campus: 'nanyuan',
   fallbackStaticId: 'overview',
 };
-const N3W_AMAP = {
-  id: 'n3w', label: '南院 · 3号楼南', name: '3号楼南',
-  layout: 'amap', area: '南院-3号楼南',
-  campus: 'nanyuan',
-  fallbackStaticId: 'overview',
-};
-const N3E_AMAP = {
-  id: 'n3e', label: '南院 · 3号楼东', name: '3号楼东',
-  layout: 'amap', area: '南院-3号楼东',
+const N3SE_AMAP = {
+  id: 'n3se', label: '南院 · 3号楼东南', name: '3号楼东南',
+  layout: 'amap', area: '南院-3号楼东南',
   campus: 'nanyuan',
   fallbackStaticId: 'overview',
 };
@@ -6794,7 +6822,7 @@ const MAP_ORDER = [
   XIAOZHAI_AMAP,
   /* v3.30 本部南院（第五个校区）。顺序不影响同屏表现 —— 页签按 `campus` 过滤，
      一个校区同一时刻只显示自己那几颗；`MAP_ORDER.find(campus===x)` 也只在本校区内命中。 */
-  NANYUAN_OVERVIEW, N3W_AMAP, N3E_AMAP, N7_AMAP, NDOOR_AMAP,
+  NANYUAN_OVERVIEW, N3SE_AMAP, N7_AMAP, NDOOR_AMAP,
 ];
 // 总览图上的分区锚点（底图像素坐标，底图 9600×3422）
 //   labelSide:'left' 把地址名排到点的左边 —— 北门这个点在图上紧挨着底图自己的红色「北门」二字，
@@ -7524,7 +7552,15 @@ function normKey(s) {
   let v = String(s == null ? '' : s).replace(/[\u2010-\u2015\u2212]/g, '-');
   for (let i = 0; i < LOCATION_RENAMES.length; i++) {
     const from = LOCATION_RENAMES[i][0];
-    if (v.indexOf(from) >= 0) v = v.split(from).join(LOCATION_RENAMES[i][1]);
+    const to = LOCATION_RENAMES[i][1];
+    /* 第三项 true = **整键相等**才替换。给「新名字里含旧名字」的改名用
+       （例：南院-3号楼南 → 南院-3号楼东南）。片段替换会把已经改好的新名
+       再套一次，越套越长，见 LOCATION_RENAMES 的说明。 */
+    if (LOCATION_RENAMES[i][2]) {
+      if (v === from) v = to;
+    } else if (v.indexOf(from) >= 0) {
+      v = v.split(from).join(to);
+    }
   }
   return v;
 }
@@ -7638,7 +7674,7 @@ function ensureTMap() {
       });
     };
     if (window.CHD_TMAP && window.CHD_MAP) { boot(); return; }
-    loadScriptOnce('map-data.js?v=185')
+    loadScriptOnce('map-data.js?v=186')
       .then(() => loadScriptOnce('map-tmap.js?v=172'))
       .then(boot)
       .catch(() => done(false));
@@ -7707,7 +7743,7 @@ let mapAssetsPromise = null;
 function preloadMapAssets(priority) {
   if (mapAssetsPromise) return mapAssetsPromise;
   mapAssetsPromise = loadLocalKeyOnce().then(() => {
-    const jobs = [loadScriptOnce('map-amap.js?v=173', priority)];
+    const jobs = [loadScriptOnce('map-amap.js?v=174', priority)];
     if (!window.AMap && window.CHD_AMAP_KEY && window.CHD_AMAP_SCODE) {
       window._AMapSecurityConfig = { securityJsCode: window.CHD_AMAP_SCODE };
       jobs.push(loadScriptOnce('https://webapi.amap.com/maps?v=2.0&key='
@@ -7773,11 +7809,11 @@ function ensureAMap() {
       });
     };
     if (window.CHD_AMAP && window.CHD_MAP) { boot(); return; }
-    /* 正常情况下 `map-data.js` 已由页面顶部的静态 `<script src="map-data.js?v=185">` 加载好
+    /* 正常情况下 `map-data.js` 已由页面顶部的静态 `<script src="map-data.js?v=186">` 加载好
        （见那里的长注释：冷启动没有它 → `mapAreaOf()` 的两个兜底同值 → 弧线判据恒真 ✗）。
        所以这里先看 `window.CHD_MAP` 在不在，在就跳过，避免重复拉一次；
        若那个静态标签**没加载成功**（例如断网中途失败），仍会走 `loadScriptOnce` 重试 ✓ */
-    (window.CHD_MAP ? Promise.resolve(true) : loadScriptOnce('map-data.js?v=185'))
+    (window.CHD_MAP ? Promise.resolve(true) : loadScriptOnce('map-data.js?v=186'))
       .then(preloadMapAssets)
       .then(boot)
       .catch(() => done(false));
@@ -10644,11 +10680,13 @@ const RV_AREAS = [
      一周回顾按 4 个成员加权重算，首页地址胶囊自动补一颗「全校区」。 */
   { key: 'w5', name: '5号公寓南', campus: 'yanta' },
   { key: 'park', name: '停车场', campus: 'yanta' },
-  /* v3.33：本部南院 4 个区进一周回顾，键名与快照站 partitions.mjs 逐字一致。
+  /* v3.33：本部南院进一周回顾，键名与快照站 partitions.mjs 逐字一致。
      campus 填 'nanyuan'（CAMPUSES 里已有这一档），校区下拉会自动多一格「南院」；
-     name 用页签上的简称，横滑那排才放得下。历史点里没有这四个键 → 老格子画灰，不是 0。 */
-  { key: 'n3w', name: '3号楼南', campus: 'nanyuan' },
-  { key: 'n3e', name: '3号楼东', campus: 'nanyuan' },
+     name 用页签上的简称，横滑那排才放得下。历史点里没有这些键 → 老格子画灰，不是 0。
+     ⚠️ 2026-11-22 v3.41：n3w + n3e 合并成 n3se（一个分区 12 台 / 2 批）。
+        键名一变，历史统计里那两条就再也对不上了 —— 这是有意的：合并后「3号楼南 80%」
+        和「3号楼东南 80%」不是同一个口径，硬拼成一条会误导人。 */
+  { key: 'n3se', name: '3号楼东南', campus: 'nanyuan' },
   { key: 'n7', name: '7号楼东', campus: 'nanyuan' },
   { key: 'ndoor', name: '东门', campus: 'nanyuan' },
 ];
@@ -11796,6 +11834,12 @@ const CHANGELOG = [
      只写用户看得见的变化：测试版入口、赞赏码措辞、密钥放哪、Worker/接口一律不进。
      _check_chg_merge 会按页脚版本动态校验「每个 0.1 级恰好一组」。 */
   /* v3.40：从 v3.39 涨上来，按「每个 0.1 级一组」把 v3.30–v3.39 封口，这里重开一组。 */
+  /* v3.41：本部南院「3号楼南」「3号楼东」两个地址合并成一个，编号改 S/E 开头；
+     下面 v3.40 那组从这条起封口。 */
+  { from: 'v3.41', d: '2026-11-22', items: [
+    '南院「3号楼南」和「3号楼东」合并成一个地址「3号楼东南」：地图上只留一颗页签、一张图看全 12 台；'
+      + '南侧编号改成 S-01~S-06、东侧编号 E-01~E-06，位置和实际设备号都没变',
+  ] },
   { from: 'v3.40', d: '2026-11-22', items: [
     '查询整片没响应时，顶部不再压一条横幅（那会让整页往下跳一下），'
       + '改成底部浮一句话「查询未响应，换个网络吧」，两秒多自己消失；'

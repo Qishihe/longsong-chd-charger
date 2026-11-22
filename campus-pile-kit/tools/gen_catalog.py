@@ -115,7 +115,9 @@ def parse_scalars(html):
     renames = []
     rm = re.search(r'const LOCATION_RENAMES = \[(.*?)\];', html, re.S)
     if rm:
-        renames = [list(p) for p in re.findall(r"\['([^']+)',\s*'([^']+)'\]", rm.group(1))]
+        # 条目可能是 ['旧', '新'] 或 ['旧', '新', true]（整键相等才替换，2026-11-22 v3.41 引入）
+        # 第三项只影响前端的匹配方式，目录里只要 from → to
+        renames = [list(p) for p in re.findall(r"\['([^']+)',\s*'([^']+)'(?:,\s*(?:true|false))?\]", rm.group(1))]
 
     return ports, device_schema, site_version, renames
 
@@ -193,8 +195,11 @@ def parse_geometry():
             die('%s 是空的' % name)
         return [(float(lng), float(lat)) for lng, lat in pairs]
 
-    # LINE_AREAS：location → (prefix, rows, geo 表名)。rows 只有「二维分区」才有
+    # LINE_AREAS：location → [(prefix, rows, geo 表名), ...]。rows 只有「二维分区」才有
     # （目前只有北院），表示每排的点数；一维分区是 None。
+    # 🔴 一个 location **可能有多行**（合并分区：3号楼东南 南侧 S 一套、东侧 E 一套，
+    #    两套各自从 1 编起）。用 setdefault(loc, []).append(...) 保留全部行，
+    #    取落点时按桩号前缀逐行试（同 map-amap.js 的 lineAreaOf(loc, code)）。
     line_areas = {}
     lm = re.search(r'var LINE_AREAS = \[', text)
     if not lm:
@@ -205,7 +210,7 @@ def parse_geometry():
         row_m = re.search(r'rows:\s*\[([\d,\s]+)\]', chunk)
         geo_m = re.search(r'geo:\s*([A-Za-z0-9_]+)', chunk)
         if loc_m and pre_m and geo_m:
-            line_areas.setdefault(loc_m.group(1), (
+            line_areas.setdefault(loc_m.group(1), []).append((
                 pre_m.group(1),
                 [int(x) for x in re.findall(r'\d+', row_m.group(1))] if row_m else None,
                 geo_m.group(1),
@@ -216,7 +221,7 @@ def parse_geometry():
     #    按 prefix 取表会静默拿到物业那串坐标 —— 12 台全跑到渭水去，
     #    而 `--check` 只看数量、看不出坐标错。新增分区不用在这里登记，
     #    只要在 LINE_AREAS 那行写了 geo 就会自动进来。
-    tables = {g: geo_table(g) for g in sorted({v[2] for v in line_areas.values()})}
+    tables = {g: geo_table(g) for g in sorted({v[2] for rows in line_areas.values() for v in rows})}
 
     # `rot: 16.7 * Math.PI / 180` —— _numbers 只能抽到 16.7，这里换算成弧度
     bm['rot'] = bm['rot'] * math.pi / 180.0
@@ -321,17 +326,26 @@ def build():
         bucket = used.setdefault(loc, set())
         lng = lat = None
         if loc in line_areas:
-            prefix, rows, geo = line_areas[loc]
-            table = tables[geo]
+            defs = line_areas[loc]
+            # 先按桩号选行：合并分区（3号楼东南）有南/东两套编号，S-01 与 E-01 的序号都是 1，
+            # 必须看前缀才能选对表。一行都试不中就跟第一行，交给下面的补位分支。
+            prefix, rows, geo = defs[0]
             seq = by_seq(code, rows) if rows else line_seq(code, prefix)
-            if 1 <= seq <= len(table) and seq not in bucket:
+            for cand in defs:
+                s0 = by_seq(code, cand[1]) if cand[1] else line_seq(code, cand[0])
+                if 1 <= s0 <= len(tables[cand[2]]):
+                    prefix, rows, geo, seq = cand[0], cand[1], cand[2], s0
+                    break
+            table = tables[geo]
+            # 去重键带 geo 变量名：两套编号各自从 1 起，只按序号去重会把后一台挤到补位点
+            if 1 <= seq <= len(table) and (geo, seq) not in bucket:
                 lng, lat = table[seq - 1]
-                bucket.add(seq)
+                bucket.add((geo, seq))
             else:
                 for i in range(1, len(table) + 1):
-                    if i not in bucket:
+                    if (geo, i) not in bucket:
                         lng, lat = table[i - 1]
-                        bucket.add(i)
+                        bucket.add((geo, i))
                         break
             precision = LINE_PRECISION
         elif loc == '渭水-北门':
